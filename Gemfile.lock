@@ -1,0 +1,18 @@
+PATH
+  remote: .
+  specs:
+    semian (0.0.1)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    rake (10.3.2)
+    rake-compiler (0.9.3)
+      rake
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  rake-compiler (~> 0.9)
+  semian!

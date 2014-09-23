@@ -1,0 +1,5 @@
+/.bundle/
+/lib/semian/*.so
+/lib/semian/*.bundle
+/tmp/*
+*.gem
