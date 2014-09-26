@@ -10,32 +10,38 @@ class TestSemian < Test::Unit::TestCase
 
   def test_register_invalid_args
     assert_raises TypeError do
-      Semian.register 'foo', 0, 0
+      Semian.register 123
     end
     assert_raises ArgumentError do
-      Semian.register :testing, -1, 0
+      Semian.register :testing, tickets: -1
     end
   end
 
   def test_register
-    Semian.register :testing, 2, 1
+    Semian.register :testing, tickets: 2
+  end
+
+  def test_register_with_no_tickets_raises
+    assert_raises Errno::ENOENT do
+      Semian.register :testing
+    end
   end
 
   def test_acquire
     acquired = false
-    Semian.register :testing, 1, 1
-    Semian[:testing].acquire(timeout: 1) { acquired = true }
+    Semian.register :testing, tickets: 1
+    Semian[:testing].acquire { acquired = true }
     assert acquired
   end
 
   def test_acquire_return_val
-    Semian.register :testing, 1, 1
+    Semian.register :testing, tickets: 1
     val = Semian[:testing].acquire { 1234 }
     assert_equal 1234, val
   end
 
   def test_acquire_timeout
-    Semian.register :testing, 1, 0.05
+    Semian.register :testing, tickets: 1, timeout: 0.05
 
     acquired = false
     m = Monitor.new
@@ -62,7 +68,7 @@ class TestSemian < Test::Unit::TestCase
   end
 
   def test_acquire_timeout_override
-    Semian.register :testing, 1, 0.01
+    Semian.register :testing, tickets: 1, timeout: 0.01
 
     acquired = false
     thread_acquired = false
@@ -89,11 +95,11 @@ class TestSemian < Test::Unit::TestCase
   end
 
   def test_acquire_with_fork
-    Semian.register :testing, 2, 0.5
+    Semian.register :testing, tickets: 2, timeout: 0.5
 
     Semian[:testing].acquire do
       pid = fork do
-        Semian.register :testing, 0, 0.5 # 0 to not reset the semaphore count
+        Semian.register :testing, timeout: 0.5
         Semian[:testing].acquire do
           assert_raises Semian::Timeout do
             Semian[:testing].acquire {  }
@@ -107,7 +113,7 @@ class TestSemian < Test::Unit::TestCase
 
   def test_acquire_releases_on_kill
     begin
-      Semian.register :testing, 1, 0.1
+      Semian.register :testing, tickets: 1, timeout: 0.1
       acquired = false
 
       # Ghetto process synchronization
@@ -138,7 +144,7 @@ class TestSemian < Test::Unit::TestCase
   end
 
   def test_count
-    Semian.register :testing, 2, 1
+    Semian.register :testing, tickets: 2
     acquired = false
 
     Semian[:testing].acquire do
@@ -150,7 +156,7 @@ class TestSemian < Test::Unit::TestCase
   end
 
   def test_destroy
-    Semian.register :testing, 1, 1
+    Semian.register :testing, tickets: 1
     Semian[:testing].destroy
     assert_raises RuntimeError do
       Semian[:testing].acquire { }

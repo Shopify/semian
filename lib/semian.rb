@@ -2,10 +2,8 @@ require 'semian/semian'
 
 class Semian
   class << self
-    attr_accessor :resources
-
-    def register(name, tickets, default_timeout)
-      resource = Resource.new(name, tickets, default_timeout)
+    def register(name, tickets: 0, timeout: 1)
+      resource = Resource.new(name, tickets, timeout)
       resources[name] = resource
     end
 

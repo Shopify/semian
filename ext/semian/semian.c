@@ -29,6 +29,7 @@ typedef struct {
   int sem_id;
   struct timespec timeout;
   int error;
+  char *name;
 } semian_resource_t;
 
 static key_t
@@ -57,6 +58,10 @@ static void
 semian_resource_free(void *ptr)
 {
   semian_resource_t *res = (semian_resource_t *) ptr;
+  if (res->name) {
+    free(res->name);
+    res->name = NULL;
+  }
   xfree(res);
 }
 
@@ -89,43 +94,49 @@ static VALUE
 semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE default_timeout)
 {
   key_t key;
+  int flags = S_IRUSR | S_IWUSR;
   semian_resource_t *res = NULL;
   const char *id_str = NULL;
 
-  Check_Type(id, T_SYMBOL);
+  if (TYPE(id) != T_SYMBOL && TYPE(id) != T_STRING) {
+    rb_raise(rb_eTypeError, "id must be a symbol or string");
+  }
   Check_Type(tickets, T_FIXNUM);
   if (TYPE(default_timeout) != T_FIXNUM && TYPE(default_timeout) != T_FLOAT) {
     rb_raise(rb_eTypeError, "expected numeric type for default_timeout");
   }
   if (FIX2LONG(tickets) < 0) {
-    rb_raise(rb_eArgError, "ticket count must be a positive value greater than or equal to zero");
+    rb_raise(rb_eArgError, "ticket count must be a non-negative value");
   }
   if (NUM2DBL(default_timeout) < 0) {
-    rb_raise(rb_eArgError, "default timeout must be greater than or equal to zero");
+    rb_raise(rb_eArgError, "default timeout must be non-negative value");
   }
 
-  id_str = rb_id2name(rb_to_id(id));
+  if (TYPE(id) == T_SYMBOL) {
+    id_str = rb_id2name(rb_to_id(id));
+  } else if (TYPE(id) == T_STRING) {
+    id_str = RSTRING_PTR(id);
+  }
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
   key = generate_key(id_str);
   ms_to_timespec(NUM2DBL(default_timeout) * 1000, &res->timeout);
+  res->name = strdup(id_str);
 
-  res->sem_id = semget(key, 1, IPC_CREAT | S_IRWXU);
+  if (FIX2LONG(tickets) != 0) {
+    flags |= IPC_CREAT;
+  }
+
+  res->sem_id = semget(key, 1, flags);
   if (res->sem_id == -1) {
-    rb_raise(rb_eRuntimeError, "semget() failed: %s (%d)", strerror(errno), errno);
+    rb_sys_fail("semget");
   }
 
   if (FIX2LONG(tickets) != 0
       && semctl(res->sem_id, 0, SETVAL, FIX2LONG(tickets)) == -1) {
-    rb_raise(rb_eRuntimeError, "semctl() failed: %s (%d)", strerror(errno), errno);
+    rb_sys_fail("semctl");
   }
 
-  return Qnil;
-}
-
-static VALUE
-do_semian_resource_acquire(VALUE self)
-{
-  return rb_yield(Qnil);
+  return self;
 }
 
 static VALUE
@@ -182,7 +193,7 @@ semian_resource_acquire(int argc, VALUE *argv, VALUE self)
   WITHOUT_GVL(acquire_sempahore_without_gvl, &res, RUBY_UBF_IO, NULL);
   if (res.error != 0) {
     if (res.error == EAGAIN) {
-      rb_raise(eTimeout, "timed out");
+      rb_raise(eTimeout, "timed out waiting for resource '%s'", res.name);
     } else {
       rb_raise(rb_eRuntimeError, "semop() error: %s (%d)", strerror(res.error), res.error);
     }
@@ -198,10 +209,10 @@ semian_resource_destroy(VALUE self)
 
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
   if (semctl(res->sem_id, 0, IPC_RMID) == -1) {
-    rb_raise(rb_eRuntimeError, "semctl() error: %s (%d)", strerror(errno), errno);
+    rb_sys_fail("semctl");
   }
 
-  return Qnil;
+  return Qtrue;
 }
 
 static VALUE
