@@ -1,5 +1,7 @@
 ## Semian
 
+[![Build Status](https://travis-ci.org/csfrancis/semian.svg?branch=master)](https://travis-ci.org/csfrancis/semian)
+
 Inspired by the bulkhead resource isolation pattern used in [Hystrix](https://github.com/Netflix/Hystrix/wiki/How-it-Works#Isolation), Semian aims to provide a Ruby API that can be used to control access to external resources.
 
 This can be used with a forking Ruby application server like Unicorn to prevent app server starvation when a resource is slow or not responding.
