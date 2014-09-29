@@ -155,6 +155,20 @@ class TestSemian < Test::Unit::TestCase
     assert acquired
   end
 
+  def test_sem_undo
+    Semian.register :testing, tickets: 1
+
+    # Ensure we don't hit ERANGE errors caused by lack of SEM_UNDO on semop* calls
+    # by doing an acquire > SEMVMX (32767) times:
+    #
+    # See: http://lxr.free-electrons.com/source/ipc/sem.c?v=3.8#L419
+    (1 << 16).times do # do an acquire 64k times
+      Semian[:testing].acquire do
+        1
+      end
+    end
+  end
+
   def test_destroy
     Semian.register :testing, tickets: 1
     Semian[:testing].destroy
