@@ -16,3 +16,5 @@ class Semian
     end
   end
 end
+
+require 'semian/version'

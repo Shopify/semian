@@ -1,6 +1,10 @@
+$:.unshift File.expand_path("../lib", __FILE__)
+
+require 'semian/version'
+
 Gem::Specification.new do |s|
   s.name = 'semian'
-  s.version = '0.0.1'
+  s.version = Semian::VERSION
   s.summary = 'SysV semaphore based library for shared resource control'
   s.description = <<-DOC
     A Ruby C extention that is used to control access to shared resources
