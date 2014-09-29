@@ -5,7 +5,7 @@ require 'fileutils'
 
 class TestSemian < Test::Unit::TestCase
   def setup
-    Semian[:testing].destroy rescue RuntimeError
+    Semian[:testing].destroy rescue Semian::BaseError
   end
 
   def test_register_invalid_args
@@ -22,7 +22,7 @@ class TestSemian < Test::Unit::TestCase
   end
 
   def test_register_with_no_tickets_raises
-    assert_raises Errno::ENOENT do
+    assert_raises Semian::SyscallError do
       Semian.register :testing
     end
   end
@@ -50,7 +50,7 @@ class TestSemian < Test::Unit::TestCase
     t = Thread.start do
       m.synchronize do
         cond.wait_until { acquired }
-        assert_raises Semian::Timeout do
+        assert_raises Semian::TimeoutError do
           Semian[:testing].acquire { refute true }
         end
       end
@@ -101,7 +101,7 @@ class TestSemian < Test::Unit::TestCase
       pid = fork do
         Semian.register :testing, timeout: 0.5
         Semian[:testing].acquire do
-          assert_raises Semian::Timeout do
+          assert_raises Semian::TimeoutError do
             Semian[:testing].acquire {  }
           end
         end
@@ -129,7 +129,7 @@ class TestSemian < Test::Unit::TestCase
       end
 
       sleep 0.1 until File.exists?(path)
-      assert_raises Semian::Timeout do
+      assert_raises Semian::TimeoutError do
         Semian[:testing].acquire {}
       end
 
@@ -158,7 +158,7 @@ class TestSemian < Test::Unit::TestCase
   def test_destroy
     Semian.register :testing, tickets: 1
     Semian[:testing].destroy
-    assert_raises RuntimeError do
+    assert_raises Semian::SyscallError do
       Semian[:testing].acquire { }
     end
   end

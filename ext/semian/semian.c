@@ -23,7 +23,7 @@ typedef VALUE (*my_blocking_fn_t)(void*);
 #endif
 
 static ID id_timeout;
-static VALUE eTimeout;
+static VALUE eSyscall, eTimeout;
 
 typedef struct {
   int sem_id;
@@ -46,6 +46,12 @@ ms_to_timespec(long ms, struct timespec *ts)
 {
   ts->tv_sec = ms / 1000;
   ts->tv_nsec = (ms % 1000) * 1000000;
+}
+
+static void
+raise_semian_syscall_error(const char *syscall, int error_num)
+{
+  rb_raise(eSyscall, "%s failed, errno: %d (%s)", syscall, error_num, strerror(error_num));
 }
 
 static void
@@ -128,12 +134,12 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE default_ti
 
   res->sem_id = semget(key, 1, flags);
   if (res->sem_id == -1) {
-    rb_sys_fail("semget");
+    raise_semian_syscall_error("semget()", errno);
   }
 
   if (FIX2LONG(tickets) != 0
       && semctl(res->sem_id, 0, SETVAL, FIX2LONG(tickets)) == -1) {
-    rb_sys_fail("semctl");
+    raise_semian_syscall_error("semctl()", errno);
   }
 
   return self;
@@ -144,7 +150,7 @@ cleanup_semian_resource_acquire(VALUE self)
 {
   semian_resource_t *res = NULL;
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
-  struct sembuf buf = { 0, 1, 0 };
+  struct sembuf buf = { 0, 1, SEM_UNDO };
   if (semop(res->sem_id, &buf, 1) == -1) {
     res->error = errno;
   }
@@ -195,7 +201,7 @@ semian_resource_acquire(int argc, VALUE *argv, VALUE self)
     if (res.error == EAGAIN) {
       rb_raise(eTimeout, "timed out waiting for resource '%s'", res.name);
     } else {
-      rb_raise(rb_eRuntimeError, "semop() error: %s (%d)", strerror(res.error), res.error);
+      raise_semian_syscall_error("semop()", res.error);
     }
   }
 
@@ -209,7 +215,7 @@ semian_resource_destroy(VALUE self)
 
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
   if (semctl(res->sem_id, 0, IPC_RMID) == -1) {
-    rb_sys_fail("semctl");
+    raise_semian_syscall_error("semctl()", errno);
   }
 
   return Qtrue;
@@ -224,7 +230,7 @@ semian_resource_count(VALUE self)
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
   ret = semctl(res->sem_id, 0, GETVAL);
   if (ret == -1) {
-    rb_raise(rb_eRuntimeError, "semctl() error: %s (%d)", strerror(errno), errno);
+    raise_semian_syscall_error("semctl()", errno);
   }
 
   return LONG2FIX(ret);
@@ -232,11 +238,13 @@ semian_resource_count(VALUE self)
 
 void Init_semian()
 {
-  VALUE cSemian, cResource;
+  VALUE cSemian, cResource, eBaseError;
 
   cSemian = rb_define_class("Semian", rb_cObject);
   cResource = rb_define_class("Resource", cSemian);
-  eTimeout = rb_define_class_under(cSemian, "Timeout", rb_eStandardError);
+  eBaseError = rb_define_class_under(cSemian, "BaseError", rb_eStandardError);
+  eSyscall = rb_define_class_under(cSemian, "SyscallError", eBaseError);
+  eTimeout = rb_define_class_under(cSemian, "TimeoutError", eBaseError);
 
   rb_define_alloc_func(cResource, semian_resource_alloc);
   rb_define_method(cResource, "initialize", semian_resource_initialize, 3);
