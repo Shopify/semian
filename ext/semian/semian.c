@@ -12,6 +12,14 @@
 
 #include <stdio.h>
 
+union semun {
+  int              val;    /* Value for SETVAL */
+  struct semid_ds *buf;    /* Buffer for IPC_STAT, IPC_SET */
+  unsigned short  *array;  /* Array for GETALL, SETALL */
+  struct seminfo  *__buf;  /* Buffer for IPC_INFO
+                             (Linux-specific) */
+};
+
 #if defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL) && defined(HAVE_RUBY_THREAD_H)
 // 2.0
 #include <ruby/thread.h>
@@ -96,6 +104,21 @@ semian_resource_alloc(VALUE klass)
   return obj;
 }
 
+static void
+set_sempahore_permissions(int sem_id, int permissions)
+{
+  union semun sem_opts;
+  struct semid_ds stat_buf;
+
+  sem_opts.buf = &stat_buf;
+  semctl(sem_id, 0, IPC_STAT, sem_opts);
+  if ((stat_buf.sem_perm.mode & 0xfff) != permissions) {
+    stat_buf.sem_perm.mode &= ~0xfff;
+    stat_buf.sem_perm.mode |= permissions;
+    semctl(sem_id, 0, IPC_SET, sem_opts);
+  }
+}
+
 static VALUE
 semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE permissions, VALUE default_timeout)
 {
@@ -139,6 +162,8 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE permission
   if (res->sem_id == -1) {
     raise_semian_syscall_error("semget()", errno);
   }
+
+  set_sempahore_permissions(res->sem_id, FIX2LONG(permissions));
 
   if (FIX2LONG(tickets) != 0
       && semctl(res->sem_id, 0, SETVAL, FIX2LONG(tickets)) == -1) {
