@@ -180,4 +180,13 @@ class TestSemian < Test::Unit::TestCase
     end
   end
 
+  def test_permissions
+    Semian.register :testing, permissions: 0660, tickets: 1
+    semid = Semian[:testing].semid
+    `ipcs -s `.lines.each do |line|
+      if /\s#{semid}\s/.match(line)
+        assert_equal '660', line.split[3]
+      end
+    end
+  end
 end

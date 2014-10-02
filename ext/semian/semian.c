@@ -239,6 +239,14 @@ semian_resource_count(VALUE self)
   return LONG2FIX(ret);
 }
 
+static VALUE
+semian_resource_id(VALUE self)
+{
+  semian_resource_t *res = NULL;
+  TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
+  return LONG2FIX(res->sem_id);
+}
+
 void Init_semian()
 {
   VALUE cSemian, cResource, eBaseError;
@@ -253,6 +261,7 @@ void Init_semian()
   rb_define_method(cResource, "initialize", semian_resource_initialize, 4);
   rb_define_method(cResource, "acquire", semian_resource_acquire, -1);
   rb_define_method(cResource, "count", semian_resource_count, 0);
+  rb_define_method(cResource, "semid", semian_resource_id, 0);
   rb_define_method(cResource, "destroy", semian_resource_destroy, 0);
 
   id_timeout = rb_intern("timeout");
