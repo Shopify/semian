@@ -15,6 +15,9 @@ class TestSemian < Test::Unit::TestCase
     assert_raises ArgumentError do
       Semian.register :testing, tickets: -1
     end
+    assert_raises TypeError do
+      Semian.register :testing, permissions: "test"
+    end
   end
 
   def test_register

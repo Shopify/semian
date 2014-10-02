@@ -97,10 +97,10 @@ semian_resource_alloc(VALUE klass)
 }
 
 static VALUE
-semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE default_timeout)
+semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE permissions, VALUE default_timeout)
 {
   key_t key;
-  int flags = S_IRUSR | S_IWUSR;
+  int flags = 0;
   semian_resource_t *res = NULL;
   const char *id_str = NULL;
 
@@ -108,6 +108,7 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE default_ti
     rb_raise(rb_eTypeError, "id must be a symbol or string");
   }
   Check_Type(tickets, T_FIXNUM);
+  Check_Type(permissions, T_FIXNUM);
   if (TYPE(default_timeout) != T_FIXNUM && TYPE(default_timeout) != T_FLOAT) {
     rb_raise(rb_eTypeError, "expected numeric type for default_timeout");
   }
@@ -131,6 +132,8 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE default_ti
   if (FIX2LONG(tickets) != 0) {
     flags |= IPC_CREAT;
   }
+
+  flags |= FIX2LONG(permissions);
 
   res->sem_id = semget(key, 1, flags);
   if (res->sem_id == -1) {
@@ -247,7 +250,7 @@ void Init_semian()
   eTimeout = rb_define_class_under(cSemian, "TimeoutError", eBaseError);
 
   rb_define_alloc_func(cResource, semian_resource_alloc);
-  rb_define_method(cResource, "initialize", semian_resource_initialize, 3);
+  rb_define_method(cResource, "initialize", semian_resource_initialize, 4);
   rb_define_method(cResource, "acquire", semian_resource_acquire, -1);
   rb_define_method(cResource, "count", semian_resource_count, 0);
   rb_define_method(cResource, "destroy", semian_resource_destroy, 0);
