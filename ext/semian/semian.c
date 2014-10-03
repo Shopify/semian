@@ -134,12 +134,28 @@ get_max_tickets(int sem_id)
   return semctl(sem_id, kIndexTicketMax, GETVAL);
 }
 
+static int
+perform_semop(int sem_id, short index, short op, short flags, struct timespec *ts)
+{
+  struct sembuf buf = { 0 };
+
+  buf.sem_num = index;
+  buf.sem_op  = op;
+  buf.sem_flg = flags;
+
+  if (ts) {
+    return semtimedop(sem_id, &buf, 1, ts);
+  } else {
+    return semop(sem_id, &buf, 1);
+  }
+}
+
 static void
 configure_tickets(int sem_id, int tickets, int should_initialize)
 {
   struct sembuf buf = { 0 };
   struct timespec ts = { 0 };
-  int ret;
+  short delta;
   unsigned short init_vals[kNumSemaphores];
   struct timeval start_time, cur_time;
   const char *error_str = NULL;
@@ -147,8 +163,7 @@ configure_tickets(int sem_id, int tickets, int should_initialize)
   if (should_initialize) {
     init_vals[kIndexTickets] = init_vals[kIndexTicketMax] = tickets;
     init_vals[kIndexLock] = 1;
-    ret = semctl(sem_id, 0, SETALL, init_vals);
-    if (ret == -1) {
+    if (semctl(sem_id, 0, SETALL, init_vals) == -1) {
       raise_semian_syscall_error("semctl()", errno);
     }
   } else if (tickets > 0) {
@@ -173,19 +188,14 @@ configure_tickets(int sem_id, int tickets, int should_initialize)
     if (get_max_tickets(sem_id) != tickets) {
       ts.tv_sec = kInternalTimeout;
 
-      buf.sem_num = kIndexLock;
-      buf.sem_op = -1;
-      buf.sem_flg = SEM_UNDO;
-      if (semtimedop(sem_id, &buf, 1, &ts) == -1) {
+      if (perform_semop(sem_id, kIndexLock, -1, SEM_UNDO, &ts) == -1) {
         raise_semian_syscall_error("error acquiring internal semaphore lock, semtimedop()", errno);
       }
 
       /* double-check locking pattern */
       if (get_max_tickets(sem_id) != tickets) {
-        buf.sem_num = kIndexTickets;
-        buf.sem_op = tickets - get_max_tickets(sem_id);
-        buf.sem_flg = 0;
-        if (semtimedop(sem_id, &buf, 1, &ts) == -1) {
+        delta = tickets - get_max_tickets(sem_id);
+        if (perform_semop(sem_id, kIndexTickets, delta, 0, &ts) == -1) {
           /* we don't raise from here because we need to make sure we release the lock first */
           error_str = "error setting ticket count";
         } else {
@@ -195,11 +205,8 @@ configure_tickets(int sem_id, int tickets, int should_initialize)
         }
       }
 
-      buf.sem_num = kIndexLock;
-      buf.sem_op = 1;
-      buf.sem_flg = SEM_UNDO;
-      if (semtimedop(sem_id, &buf, 1, &ts) == -1) {
-        raise_semian_syscall_error("error releasing internal semaphore lock, semop()", errno);
+      if (perform_semop(sem_id, kIndexLock, 1, SEM_UNDO, &ts) == -1) {
+        raise_semian_syscall_error("error releasing internal semaphore lock, semtimedop()", errno);
       }
 
       if (error_str) {
@@ -290,8 +297,7 @@ cleanup_semian_resource_acquire(VALUE self)
 {
   semian_resource_t *res = NULL;
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
-  struct sembuf buf = { 0, 1, SEM_UNDO };
-  if (semop(res->sem_id, &buf, 1) == -1) {
+  if (perform_semop(res->sem_id, kIndexTickets, 1, SEM_UNDO, NULL) == -1) {
     res->error = errno;
   }
   return Qnil;
@@ -301,9 +307,8 @@ static void *
 acquire_sempahore_without_gvl(void *p)
 {
   semian_resource_t *res = (semian_resource_t *) p;
-  struct sembuf buf = { 0, -1, SEM_UNDO };
   res->error = 0;
-  if (semtimedop(res->sem_id, &buf, 1, &res->timeout) == -1) {
+  if (perform_semop(res->sem_id, kIndexTickets, -1, SEM_UNDO, &res->timeout) == -1) {
     res->error = errno;
   }
   return NULL;
