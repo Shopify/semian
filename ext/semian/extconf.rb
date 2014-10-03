@@ -1,6 +1,10 @@
 require 'mkmf'
 
-$CFLAGS = "-O3"
+if ENV.has_key?('DEBUG')
+  $CFLAGS = "-O0 -g"
+else
+  $CFLAGS = "-O3"
+end
 
 abort 'openssl is missing. please install openssl.' unless find_header('openssl/md5.h')
 abort 'openssl is missing. please install openssl.' unless find_library('crypto', 'MD5_Init')
