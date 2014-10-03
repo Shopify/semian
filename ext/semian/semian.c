@@ -1,6 +1,7 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/sem.h>
+#include <sys/time.h>
 #include <errno.h>
 #include <string.h>
 
@@ -50,10 +51,13 @@ typedef struct {
 static key_t
 generate_key(const char *name)
 {
-  char digest[SHA_DIGEST_LENGTH];
-  SHA1(name, strlen(name), digest);
+  union {
+    unsigned char str[SHA_DIGEST_LENGTH];
+    key_t key;
+  } digest;
+  SHA1((const unsigned char *) name, strlen(name), digest.str);
   /* TODO: compile-time assertion that sizeof(key_t) > SHA_DIGEST_LENGTH */
-  return *((key_t *) digest);
+  return digest.key;
 }
 
 static void
@@ -153,7 +157,6 @@ perform_semop(int sem_id, short index, short op, short flags, struct timespec *t
 static void
 configure_tickets(int sem_id, int tickets, int should_initialize)
 {
-  struct sembuf buf = { 0 };
   struct timespec ts = { 0 };
   short delta;
   unsigned short init_vals[kNumSemaphores];
