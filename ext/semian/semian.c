@@ -188,6 +188,10 @@ configure_tickets(int sem_id, int tickets, int should_initialize)
         if (semtimedop(sem_id, &buf, 1, &ts) == -1) {
           /* we don't raise from here because we need to make sure we release the lock first */
           error_str = "error setting ticket count";
+        } else {
+          if (semctl(sem_id, kIndexTicketMax, SETVAL, tickets) == -1) {
+            error_str = "error updating max ticket count";
+          }
         }
       }
 
