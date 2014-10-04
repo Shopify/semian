@@ -33,7 +33,7 @@ typedef VALUE (*my_blocking_fn_t)(void*);
 
 static ID id_timeout;
 static VALUE eSyscall, eTimeout, eInternal;
-static int max_sempahore_count = 512; /* default value */
+static int system_max_sempahore_count;
 
 static const int kIndexTickets = 0;
 static const int kIndexTicketMax = 1;
@@ -135,7 +135,11 @@ static const int kInternalTimeout = 5; /* seconds */
 static int
 get_max_tickets(int sem_id)
 {
-  return semctl(sem_id, kIndexTicketMax, GETVAL);
+  int ret = semctl(sem_id, kIndexTicketMax, GETVAL);
+  if (ret == -1) {
+    rb_raise(eInternal, "error getting max ticket count, errno: %d (%s)", errno, strerror(errno));
+  }
+  return ret;
 }
 
 static int
@@ -154,14 +158,41 @@ perform_semop(int sem_id, short index, short op, short flags, struct timespec *t
   }
 }
 
+typedef struct {
+  int sem_id;
+  int tickets;
+} update_ticket_count_t;
+
+static VALUE
+update_ticket_count(update_ticket_count_t *tc)
+{
+  short delta;
+  struct timespec ts = { 0 };
+  ts.tv_sec = kInternalTimeout;
+
+  if (get_max_tickets(tc->sem_id) != tc->tickets) {
+    delta = tc->tickets - get_max_tickets(tc->sem_id);
+
+    if (perform_semop(tc->sem_id, kIndexTickets, delta, 0, &ts) == -1) {
+      rb_raise(eInternal, "error setting ticket count, errno: %d (%s)", errno, strerror(errno));
+    }
+
+    if (semctl(tc->sem_id, kIndexTicketMax, SETVAL, tc->tickets) == -1) {
+      rb_raise(eInternal, "error updating max ticket count, errno: %d (%s)", errno, strerror(errno));
+    }
+  }
+
+  return Qnil;
+}
+
 static void
 configure_tickets(int sem_id, int tickets, int should_initialize)
 {
   struct timespec ts = { 0 };
-  short delta;
   unsigned short init_vals[kNumSemaphores];
   struct timeval start_time, cur_time;
-  const char *error_str = NULL;
+  update_ticket_count_t tc;
+  int state;
 
   if (should_initialize) {
     init_vals[kIndexTickets] = init_vals[kIndexTicketMax] = tickets;
@@ -178,7 +209,7 @@ configure_tickets(int sem_id, int tickets, int should_initialize)
         usleep(10000); /* 10ms */
         gettimeofday(&cur_time, NULL);
         if ((cur_time.tv_sec - start_time.tv_sec) > kInternalTimeout) {
-          rb_raise(eInternal, "error waiting for semaphore initialization");
+          rb_raise(eInternal, "timeout waiting for semaphore initialization");
         }
       }
     }
@@ -195,25 +226,16 @@ configure_tickets(int sem_id, int tickets, int should_initialize)
         raise_semian_syscall_error("error acquiring internal semaphore lock, semtimedop()", errno);
       }
 
-      /* double-check locking pattern */
-      if (get_max_tickets(sem_id) != tickets) {
-        delta = tickets - get_max_tickets(sem_id);
-        if (perform_semop(sem_id, kIndexTickets, delta, 0, &ts) == -1) {
-          /* we don't raise from here because we need to make sure we release the lock first */
-          error_str = "error setting ticket count";
-        } else {
-          if (semctl(sem_id, kIndexTicketMax, SETVAL, tickets) == -1) {
-            error_str = "error updating max ticket count";
-          }
-        }
+      tc.sem_id = sem_id;
+      tc.tickets = tickets;
+      rb_protect((VALUE (*)(VALUE)) update_ticket_count, (VALUE) &tc, &state);
+
+      if (perform_semop(sem_id, kIndexLock, 1, SEM_UNDO, NULL) == -1) {
+        raise_semian_syscall_error("error releasing internal semaphore lock, semop()", errno);
       }
 
-      if (perform_semop(sem_id, kIndexLock, 1, SEM_UNDO, &ts) == -1) {
-        raise_semian_syscall_error("error releasing internal semaphore lock, semtimedop()", errno);
-      }
-
-      if (error_str) {
-        rb_raise(eInternal, "%s", error_str);
+      if (state) {
+        rb_jump_tag(state);
       }
     }
   }
@@ -266,8 +288,8 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE permission
   if (TYPE(default_timeout) != T_FIXNUM && TYPE(default_timeout) != T_FLOAT) {
     rb_raise(rb_eTypeError, "expected numeric type for default_timeout");
   }
-  if (FIX2LONG(tickets) < 0 || FIX2LONG(tickets) > max_sempahore_count) {
-    rb_raise(rb_eArgError, "ticket count must be a non-negative value and less than %d", max_sempahore_count);
+  if (FIX2LONG(tickets) < 0 || FIX2LONG(tickets) > system_max_sempahore_count) {
+    rb_raise(rb_eArgError, "ticket count must be a non-negative value and less than %d", system_max_sempahore_count);
   }
   if (NUM2DBL(default_timeout) < 0) {
     rb_raise(rb_eArgError, "default timeout must be non-negative value");
@@ -467,7 +489,8 @@ void Init_semian()
    * has been corrupted.
    *
    * If this happens, a strong course of action would be to delete the semaphores
-   * using the <code>ipcrm</code> command line tool.
+   * using the <code>ipcrm</code> command line tool. Semian will re-initialize
+   * the semaphore in this case.
    */
   eInternal = rb_define_class_under(cSemian, "InternalError", eBaseError);
 
@@ -480,9 +503,8 @@ void Init_semian()
 
   id_timeout = rb_intern("timeout");
 
-  if (semctl(0, 0, SEM_INFO, &info_buf) == 0) {
-    max_sempahore_count = info_buf.semvmx;
-  } else {
-    fprintf(stderr, "[SEMIAN] warning: unable to determine semvmx - using default value of %d\n", max_sempahore_count);
+  if (semctl(0, 0, SEM_INFO, &info_buf) == -1) {
+    rb_raise(eInternal, "unable to determine maximum sempahore count - semctl() returned %d: %s ", errno, strerror(errno));
   }
+  system_max_sempahore_count = info_buf.semvmx;
 }

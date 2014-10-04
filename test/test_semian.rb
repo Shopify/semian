@@ -259,4 +259,36 @@ class TestSemian < Test::Unit::TestCase
     assert_equal 1, Semian[:testing].count
   end
 
+  def test_multiple_register_with_fork
+    f = Tempfile.new('semian_test')
+
+    begin
+      f.flock(File::LOCK_EX)
+
+      children = []
+      5.times do
+        children << fork do
+          acquired = false
+
+          f.flock(File::LOCK_SH)
+          Semian.register(:testing, tickets: 5).acquire do
+            acquired = true
+          end
+          assert acquired
+        end
+      end
+      children.compact!
+
+      f.flock(File::LOCK_UN)
+
+      while children.any? do
+        children.delete(Process.wait)
+      end
+
+      assert_equal 5, Semian.register(:testing).count
+    ensure
+      f.close!
+    end
+  end
+
 end
