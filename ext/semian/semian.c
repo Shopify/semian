@@ -119,6 +119,12 @@ set_sempahore_permissions(int sem_id, int permissions)
   }
 }
 
+/*
+ * call-seq:
+ *    Semian::Resource.new(id, tickets, permissions, default_timeout) -> resource
+ *
+ * Creates a new Resource. Do not create resources directly. Use Semian.register.
+ */
 static VALUE
 semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE permissions, VALUE default_timeout)
 {
@@ -197,6 +203,17 @@ acquire_sempahore_without_gvl(void *p)
   return NULL;
 }
 
+/*
+ * call-seq:
+ *    resource.acquire(timeout: default_timeout) { ... }  -> result of the block
+ *
+ * Acquires a resource. The call will block for <code>timeout</code> seconds if a ticket
+ * is not available. If no ticket is available within the timeout period, Semian::TimeoutError
+ * will be raised.
+ *
+ * If no timeout argument is provided, the default timeout passed to Semian.register will be used.
+ *
+ */
 static VALUE
 semian_resource_acquire(int argc, VALUE *argv, VALUE self)
 {
@@ -236,6 +253,16 @@ semian_resource_acquire(int argc, VALUE *argv, VALUE self)
   return rb_ensure(rb_yield, self, cleanup_semian_resource_acquire, self);
 }
 
+/*
+ * call-seq:
+ *   resource.destroy() -> true
+ *
+ * Destroys a resource. This method will destroy the underlying SysV semaphore.
+ * If there is any code in other threads or processes blocking or using the resource
+ * they will likely raise.
+ *
+ * Use this method very carefully.
+ */
 static VALUE
 semian_resource_destroy(VALUE self)
 {
@@ -249,6 +276,12 @@ semian_resource_destroy(VALUE self)
   return Qtrue;
 }
 
+/*
+ * call-seq:
+ *    resource.count -> count
+ *
+ * Returns the current ticket count for a resource.
+ */
 static VALUE
 semian_resource_count(VALUE self)
 {
@@ -264,6 +297,12 @@ semian_resource_count(VALUE self)
   return LONG2FIX(ret);
 }
 
+/*
+ * call-seq:
+ *    resource.semid -> id
+ *
+ * Returns the SysV semaphore id of a resource.
+ */
 static VALUE
 semian_resource_id(VALUE self)
 {
@@ -277,9 +316,33 @@ void Init_semian()
   VALUE cSemian, cResource, eBaseError;
 
   cSemian = rb_define_class("Semian", rb_cObject);
-  cResource = rb_define_class("Resource", cSemian);
+
+  /*
+   * Document-class: Semian::Resource
+   *
+   *  Resource is the fundamental class of Semian. It is essentially a wrapper around a
+   *  SystemV semaphore.
+   *
+   *  You should not create this class directly, it will be created indirectly via Semian.register.
+   */
+  cResource = rb_define_class_under(cSemian, "Resource", rb_cObject);
+
+  /* Document-class: Semian::BaseError
+   *
+   * Base error class for all other Semian errors.
+   */
   eBaseError = rb_define_class_under(cSemian, "BaseError", rb_eStandardError);
+
+  /* Document-class: Semian::SyscallError
+   *
+   * Represents a Semian error that was caused by an underlying syscall failure.
+   */
   eSyscall = rb_define_class_under(cSemian, "SyscallError", eBaseError);
+
+  /* Document-class: Semian::TimeoutError
+   *
+   * Raised when a Semian operation timed out.
+   */
   eTimeout = rb_define_class_under(cSemian, "TimeoutError", eBaseError);
 
   rb_define_alloc_func(cResource, semian_resource_alloc);
