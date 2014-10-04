@@ -271,7 +271,8 @@ class TestSemian < Test::Unit::TestCase
           acquired = false
 
           f.flock(File::LOCK_SH)
-          Semian.register(:testing, tickets: 5).acquire do
+          Semian.register(:testing, tickets: 5).acquire do |resource|
+            assert resource.count < 5
             acquired = true
           end
           assert acquired
