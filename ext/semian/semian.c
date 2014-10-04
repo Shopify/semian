@@ -459,6 +459,16 @@ void Init_semian()
    * Raised when a Semian operation timed out.
    */
   eTimeout = rb_define_class_under(cSemian, "TimeoutError", eBaseError);
+
+  /* Document-class: Semian::InternalError
+   *
+   * An internal Semian error. These errors should be typically never be raised. If
+   * they do, there's a high likelyhood that the underlying SysV semaphore set
+   * has been corrupted.
+   *
+   * If this happens, a strong course of action would be to delete the semaphores
+   * using the <code>ipcrm</code> command line tool.
+   */
   eInternal = rb_define_class_under(cSemian, "InternalError", eBaseError);
 
   rb_define_alloc_func(cResource, semian_resource_alloc);
