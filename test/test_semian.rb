@@ -15,9 +15,16 @@ class TestSemian < Test::Unit::TestCase
     assert_raises ArgumentError do
       Semian.register :testing, tickets: -1
     end
+    assert_raises ArgumentError do
+      Semian.register :testing, tickets: 1_000_000
+    end
     assert_raises TypeError do
       Semian.register :testing, permissions: "test"
     end
+  end
+
+  def test_max_tickets
+    assert Semian::MAX_TICKETS > 0
   end
 
   def test_register
@@ -197,4 +204,96 @@ class TestSemian < Test::Unit::TestCase
       end
     end
   end
+
+  def test_resize_tickets_increase
+    Semian.register :testing, tickets: 1
+
+    acquired = false
+    m = Monitor.new
+    cond = m.new_cond
+
+    t = Thread.start do
+      m.synchronize do
+        cond.wait_until { acquired }
+
+        Semian.register :testing, tickets: 5
+        assert_equal 4, Semian[:testing].count
+      end
+    end
+
+    assert_equal 1, Semian[:testing].count
+
+    Semian[:testing].acquire do
+      acquired = true
+      m.synchronize { cond.signal }
+      sleep 0.2
+    end
+
+    t.join
+
+    assert_equal 5, Semian[:testing].count
+  end
+
+  def test_resize_tickets_decrease
+    Semian.register :testing, tickets: 5
+
+    acquired = false
+    m = Monitor.new
+    cond = m.new_cond
+
+    t = Thread.start do
+      m.synchronize do
+        cond.wait_until { acquired }
+
+        Semian.register :testing, tickets: 1
+        assert_equal 0, Semian[:testing].count
+      end
+    end
+
+    assert_equal 5, Semian[:testing].count
+
+    Semian[:testing].acquire do
+      acquired = true
+      m.synchronize { cond.signal }
+      sleep 0.2
+    end
+
+    t.join
+
+    assert_equal 1, Semian[:testing].count
+  end
+
+  def test_multiple_register_with_fork
+    f = Tempfile.new('semian_test')
+
+    begin
+      f.flock(File::LOCK_EX)
+
+      children = []
+      5.times do
+        children << fork do
+          acquired = false
+
+          f.flock(File::LOCK_SH)
+          Semian.register(:testing, tickets: 5).acquire do |resource|
+            assert resource.count < 5
+            acquired = true
+          end
+          assert acquired
+        end
+      end
+      children.compact!
+
+      f.flock(File::LOCK_UN)
+
+      while children.any? do
+        children.delete(Process.wait)
+      end
+
+      assert_equal 5, Semian.register(:testing).count
+    ensure
+      f.close!
+    end
+  end
+
 end
