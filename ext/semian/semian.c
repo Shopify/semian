@@ -507,4 +507,7 @@ void Init_semian()
     rb_raise(eInternal, "unable to determine maximum sempahore count - semctl() returned %d: %s ", errno, strerror(errno));
   }
   system_max_sempahore_count = info_buf.semvmx;
+
+  /* Maximum number of tickets available on this system. */
+  rb_define_const(cSemian, "MAX_TICKETS", INT2FIX(system_max_sempahore_count));
 }

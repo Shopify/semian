@@ -23,6 +23,10 @@ class TestSemian < Test::Unit::TestCase
     end
   end
 
+  def test_max_tickets
+    assert Semian::MAX_TICKETS > 0
+  end
+
   def test_register
     Semian.register :testing, tickets: 2
   end
