@@ -5,13 +5,13 @@ require 'semian/version'
 Gem::Specification.new do |s|
   s.name = 'semian'
   s.version = Semian::VERSION
-  s.summary = 'SysV semaphore based library for shared resource control'
+  s.summary = 'Bulkheading for Ruby with SysV semaphores'
   s.description = <<-DOC
     A Ruby C extention that is used to control access to shared resources
-    across process boundaries.
+    across process boundaries with SysV semaphores.
   DOC
   s.homepage = 'https://github.com/csfrancis/semian'
-  s.authors = 'Scott Francis'
+  s.authors = ['Scott Francis', 'Simon Eskildsen']
   s.email   = 'scott.francis@shopify.com'
   s.license = 'MIT'
 

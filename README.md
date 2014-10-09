@@ -1,9 +1,9 @@
 ## Semian [![Build Status](https://travis-ci.org/csfrancis/semian.svg?branch=master)](https://travis-ci.org/csfrancis/semian)
 
-Semian is a Ruby implementation of Bulkhead resource isolation pattern, using
-SysV semaphores. Bulkheading controls access to external resources, protecting
-against resource or network latency, by allowing otherwise slow queries to fail
-fast.
+Semian is a Ruby implementation of the Bulkhead resource isolation pattern,
+using SysV semaphores. Bulkheading controls access to external resources,
+protecting against resource or network latency, by allowing otherwise slow
+queries to fail fast.
 
 Downtime is easy to detect. Requests fail when querying the resource, usually
 fast. Reliably detecting higher than normal latency is more difficult. Strict
@@ -26,11 +26,11 @@ an external resource, it takes a ticket for the duration of the query.  When the
 query returns, it puts the ticket back into the pool. If you have `n` tickets,
 and the `n + 1` worker tries to acquire a ticket to query the resource it'll
 wait for `timeout` seconds to see if a ticket comes available, otherwise it'll
-raise `Semian::Timeout`. 
+raise `Semian::TimeoutError`. 
 
 By failing fast, this solves the problem of one slow database taking your
 platform down. The busyness of the external resource determines the `timeout`
-and ticket count. You can also rescue `Semian::Timeout` to provide fallback
+and ticket count. You can also rescue `Semian::TimeoutError` to provide fallback
 values, such as showing an error message to the user.
 
 A subset of workers will still be tied up on the slow database, meaning you are
@@ -59,7 +59,7 @@ Then in your child processes, you can use the resource:
 Semian[:mysql_master].acquire do
   # Query the database. If three other workers are querying this resource at the
   # same time, this block will block for up to 0.5s waiting for another worker
-  # to release a ticket. Otherwise, it'll raise `Semian::Timeout`.
+  # to release a ticket. Otherwise, it'll raise `Semian::TimeoutError`.
 end
 ```
 
