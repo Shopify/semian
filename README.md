@@ -1,4 +1,4 @@
-## Semian [![Build Status](https://travis-ci.org/csfrancis/semian.svg?branch=master)](https://travis-ci.org/csfrancis/semian)
+## Semian [![Build Status](https://travis-ci.org/Shopify/semian.svg?branch=master)](https://travis-ci.org/Shopify/semian)
 
 Semian is a Ruby implementation of the Bulkhead resource isolation pattern,
 using SysV semaphores. Bulkheading controls access to external resources,
