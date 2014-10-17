@@ -33,7 +33,7 @@ typedef VALUE (*my_blocking_fn_t)(void*);
 
 static ID id_timeout;
 static VALUE eSyscall, eTimeout, eInternal;
-static int system_max_sempahore_count;
+static int system_max_semaphore_count;
 
 static const int kIndexTickets = 0;
 static const int kIndexTicketMax = 1;
@@ -116,7 +116,7 @@ semian_resource_alloc(VALUE klass)
 }
 
 static void
-set_sempahore_permissions(int sem_id, int permissions)
+set_semaphore_permissions(int sem_id, int permissions)
 {
   union semun sem_opts;
   struct semid_ds stat_buf;
@@ -202,7 +202,7 @@ configure_tickets(int sem_id, int tickets, int should_initialize)
     }
   } else if (tickets > 0) {
     /* it's possible that we haven't actually initialized the
-       sempahore structure yet - wait a bit in that case */
+       semaphore structure yet - wait a bit in that case */
     if (get_max_tickets(sem_id) == 0) {
       gettimeofday(&start_time, NULL);
       while (get_max_tickets(sem_id) == 0) {
@@ -288,8 +288,8 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE permission
   if (TYPE(default_timeout) != T_FIXNUM && TYPE(default_timeout) != T_FLOAT) {
     rb_raise(rb_eTypeError, "expected numeric type for default_timeout");
   }
-  if (FIX2LONG(tickets) < 0 || FIX2LONG(tickets) > system_max_sempahore_count) {
-    rb_raise(rb_eArgError, "ticket count must be a non-negative value and less than %d", system_max_sempahore_count);
+  if (FIX2LONG(tickets) < 0 || FIX2LONG(tickets) > system_max_semaphore_count) {
+    rb_raise(rb_eArgError, "ticket count must be a non-negative value and less than %d", system_max_semaphore_count);
   }
   if (NUM2DBL(default_timeout) < 0) {
     rb_raise(rb_eArgError, "default timeout must be non-negative value");
@@ -312,7 +312,7 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE permission
 
   configure_tickets(res->sem_id, FIX2LONG(tickets), created);
 
-  set_sempahore_permissions(res->sem_id, FIX2LONG(permissions));
+  set_semaphore_permissions(res->sem_id, FIX2LONG(permissions));
 
   return self;
 }
@@ -329,7 +329,7 @@ cleanup_semian_resource_acquire(VALUE self)
 }
 
 static void *
-acquire_sempahore_without_gvl(void *p)
+acquire_semaphore_without_gvl(void *p)
 {
   semian_resource_t *res = (semian_resource_t *) p;
   res->error = 0;
@@ -377,7 +377,7 @@ semian_resource_acquire(int argc, VALUE *argv, VALUE self)
   }
 
   /* release the GVL to acquire the semaphore */
-  WITHOUT_GVL(acquire_sempahore_without_gvl, &res, RUBY_UBF_IO, NULL);
+  WITHOUT_GVL(acquire_semaphore_without_gvl, &res, RUBY_UBF_IO, NULL);
   if (res.error != 0) {
     if (res.error == EAGAIN) {
       rb_raise(eTimeout, "timed out waiting for resource '%s'", res.name);
@@ -504,10 +504,10 @@ void Init_semian()
   id_timeout = rb_intern("timeout");
 
   if (semctl(0, 0, SEM_INFO, &info_buf) == -1) {
-    rb_raise(eInternal, "unable to determine maximum sempahore count - semctl() returned %d: %s ", errno, strerror(errno));
+    rb_raise(eInternal, "unable to determine maximum semaphore count - semctl() returned %d: %s ", errno, strerror(errno));
   }
-  system_max_sempahore_count = info_buf.semvmx;
+  system_max_semaphore_count = info_buf.semvmx;
 
   /* Maximum number of tickets available on this system. */
-  rb_define_const(cSemian, "MAX_TICKETS", INT2FIX(system_max_sempahore_count));
+  rb_define_const(cSemian, "MAX_TICKETS", INT2FIX(system_max_semaphore_count));
 }
