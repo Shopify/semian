@@ -9,10 +9,9 @@
 #include <ruby/util.h>
 #include <ruby/io.h>
 
-#include <openssl/sha.h>
-
 #include <stdio.h>
-
+#include <openssl/sha.h>
+#ifndef __APPLE__
 union semun {
   int              val;    /* Value for SETVAL */
   struct semid_ds *buf;    /* Buffer for IPC_STAT, IPC_SET */
@@ -20,6 +19,7 @@ union semun {
   struct seminfo  *__buf;  /* Buffer for IPC_INFO
                              (Linux-specific) */
 };
+#endif
 
 #if defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL) && defined(HAVE_RUBY_THREAD_H)
 // 2.0
@@ -31,7 +31,6 @@ typedef VALUE (*my_blocking_fn_t)(void*);
 #define WITHOUT_GVL(fn,a,ubf,b) rb_thread_blocking_region((my_blocking_fn_t)(fn),(a),(ubf),(b))
 #endif
 
-static ID id_timeout;
 static VALUE eSyscall, eTimeout, eInternal;
 static int system_max_semaphore_count;
 
@@ -47,6 +46,9 @@ typedef struct {
   int error;
   char *name;
 } semian_resource_t;
+
+#ifndef __APPLE__
+static ID id_timeout;
 
 static key_t
 generate_key(const char *name)
@@ -446,12 +448,15 @@ semian_resource_id(VALUE self)
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
   return LONG2FIX(res->sem_id);
 }
+#endif
 
 void Init_semian()
 {
   VALUE cSemian, cResource, eBaseError;
-  struct seminfo info_buf;
 
+#ifndef __APPLE__
+  struct seminfo info_buf;
+#endif
   cSemian = rb_define_class("Semian", rb_cObject);
 
   /*
@@ -494,6 +499,7 @@ void Init_semian()
    */
   eInternal = rb_define_class_under(cSemian, "InternalError", eBaseError);
 
+#ifndef __APPLE__
   rb_define_alloc_func(cResource, semian_resource_alloc);
   rb_define_method(cResource, "initialize", semian_resource_initialize, 4);
   rb_define_method(cResource, "acquire", semian_resource_acquire, -1);
@@ -507,7 +513,9 @@ void Init_semian()
     rb_raise(eInternal, "unable to determine maximum semaphore count - semctl() returned %d: %s ", errno, strerror(errno));
   }
   system_max_semaphore_count = info_buf.semvmx;
+#endif
 
   /* Maximum number of tickets available on this system. */
   rb_define_const(cSemian, "MAX_TICKETS", INT2FIX(system_max_semaphore_count));
+
 }
