@@ -1,5 +1,3 @@
-require 'semian/semian'
-
 #
 # === Overview
 #
@@ -85,4 +83,11 @@ class Semian
   end
 end
 
+require 'semian/platform'
+if Semian.supported_platform?
+  require 'semian/semian'
+else
+  require 'semian/unsupported'
+  $stderr.puts "Semian is not supported on #{RUBY_PLATFORM} - all operations will no-op"
+end
 require 'semian/version'
