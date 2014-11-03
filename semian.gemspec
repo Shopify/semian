@@ -1,6 +1,7 @@
 $:.unshift File.expand_path("../lib", __FILE__)
 
 require 'semian/version'
+require 'semian/platform'
 
 Gem::Specification.new do |s|
   s.name = 'semian'
@@ -16,6 +17,6 @@ Gem::Specification.new do |s|
   s.license = 'MIT'
 
   s.files = `git ls-files`.split("\n")
-  s.extensions = ['ext/semian/extconf.rb']
+  s.extensions = ['ext/semian/extconf.rb'] if Semian.supported_platform?
   s.add_development_dependency 'rake-compiler', '~> 0.9'
 end
