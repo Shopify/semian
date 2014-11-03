@@ -9,7 +9,7 @@ class TestSemian < Test::Unit::TestCase
   end
 
   def test_register_invalid_args
-    assert_raises TypeError do
+    assert_raises ArgumentError do
       Semian.register 123
     end
     assert_raises ArgumentError do
@@ -294,6 +294,16 @@ class TestSemian < Test::Unit::TestCase
     ensure
       f.close!
     end
+  end
+
+  def test_register_casts_to_symbol
+    Semian.register("testing", tickets: 10)
+    assert_instance_of Semian::Resource, Semian[:testing]
+  end
+
+  def test_resource_indexing_casts_to_symbol
+    Semian.register(:testing, tickets: 10)
+    assert_instance_of Semian::Resource, Semian["testing"]
   end
 
 end

@@ -67,13 +67,14 @@ class Semian
     #
     # Returns the registered resource.
     def register(name, tickets: 0, permissions: 0660, timeout: 1)
-      resource = Resource.new(name, tickets, permissions, timeout)
-      resources[name] = resource
+      raise ArgumentError.new("Name (#{name.inspect}) must be able to be cast to a symbol (#to_sym)") unless name.respond_to?(:to_sym)
+      resource = Resource.new(name.to_sym, tickets, permissions, timeout)
+      resources[name.to_sym] = resource
     end
 
     # Retrieves a resource by name.
     def [](name)
-      resources[name]
+      resources[name.to_sym]
     end
 
     # Retrieves a hash of all registered resources.
