@@ -66,7 +66,7 @@ class Semian
     # +timeout+: Default timeout in seconds.
     #
     # Returns the registered resource.
-    def register(name, tickets: 0, permissions: 0600, timeout: 1)
+    def register(name, tickets: 0, permissions: 0660, timeout: 1)
       resource = Resource.new(name, tickets, permissions, timeout)
       resources[name] = resource
     end
