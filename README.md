@@ -74,6 +74,21 @@ Semian[:mysql_master].acquire do
 end
 ```
 
+By default Semian circuit breaks on top of the `Semian::TimeoutError`, you can
+tune it:
+
+```ruby
+Semian.register(:mysql_master, timeout: 0.5, success_threshold: 2, error_threshold: 5, circuit_break_timeout: 20)
+
+Semian[:mysql_master].acquire do
+  # Query the resource with default circuit break for the resource
+end
+
+Semian[:mysql_master].acquire(sucess_threshold: 2, error_threshold: 10) do
+  # Query the resource with a tuned circuit break
+end
+```
+
 ### Install
 
 In your Gemfile:
