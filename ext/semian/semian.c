@@ -280,9 +280,7 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE permission
   semian_resource_t *res = NULL;
   const char *id_str = NULL;
 
-  if (TYPE(id) != T_SYMBOL && TYPE(id) != T_STRING) {
-    rb_raise(rb_eTypeError, "id must be a symbol or string");
-  }
+  Check_Type(id, T_SYMBOL);
   Check_Type(tickets, T_FIXNUM);
   Check_Type(permissions, T_FIXNUM);
   if (TYPE(default_timeout) != T_FIXNUM && TYPE(default_timeout) != T_FLOAT) {
