@@ -1,3 +1,16 @@
+$:.unshift File.expand_path("../../../lib", __FILE__)
+
+require 'semian/platform'
+
+unless Semian.supported_platform?
+  File.write "Makefile", <<MAKEFILE
+all:
+clean:
+install:
+MAKEFILE
+  exit
+end
+
 require 'mkmf'
 
 abort 'openssl is missing. please install openssl.' unless find_header('openssl/sha.h')
