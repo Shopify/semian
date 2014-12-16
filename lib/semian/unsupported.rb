@@ -11,7 +11,7 @@ class Semian
 
     def destroy; end
 
-    def acquire
+    def acquire(options)
       yield self
     end
 
