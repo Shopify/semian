@@ -449,10 +449,10 @@ semian_resource_id(VALUE self)
 
 void Init_semian()
 {
-  VALUE cSemian, cResource, eBaseError;
+  VALUE cSemian, cResource;
   struct seminfo info_buf;
 
-  cSemian = rb_define_class("Semian", rb_cObject);
+  cSemian = rb_const_get(rb_cObject, rb_intern("Semian"));
 
   /*
    * Document-class: Semian::Resource
@@ -462,25 +462,19 @@ void Init_semian()
    *
    *  You should not create this class directly, it will be created indirectly via Semian.register.
    */
-  cResource = rb_define_class_under(cSemian, "Resource", rb_cObject);
-
-  /* Document-class: Semian::BaseError
-   *
-   * Base error class for all other Semian errors.
-   */
-  eBaseError = rb_define_class_under(cSemian, "BaseError", rb_eStandardError);
+  cResource = rb_const_get(cSemian, rb_intern("Resource"));
 
   /* Document-class: Semian::SyscallError
    *
    * Represents a Semian error that was caused by an underlying syscall failure.
    */
-  eSyscall = rb_define_class_under(cSemian, "SyscallError", eBaseError);
+  eSyscall = rb_const_get(cSemian, rb_intern("SyscallError"));
 
   /* Document-class: Semian::TimeoutError
    *
    * Raised when a Semian operation timed out.
    */
-  eTimeout = rb_define_class_under(cSemian, "TimeoutError", eBaseError);
+  eTimeout = rb_const_get(cSemian, rb_intern("TimeoutError"));
 
   /* Document-class: Semian::InternalError
    *
@@ -492,7 +486,7 @@ void Init_semian()
    * using the <code>ipcrm</code> command line tool. Semian will re-initialize
    * the semaphore in this case.
    */
-  eInternal = rb_define_class_under(cSemian, "InternalError", eBaseError);
+  eInternal = rb_const_get(cSemian, rb_intern("InternalError"));
 
   rb_define_alloc_func(cResource, semian_resource_alloc);
   rb_define_method(cResource, "initialize", semian_resource_initialize, 4);
