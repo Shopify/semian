@@ -83,11 +83,12 @@ class Semian
   end
 end
 
+require 'semian/resource'
 require 'semian/platform'
 if Semian.supported_platform?
   require 'semian/semian'
 else
-  require 'semian/unsupported'
+  Semian::MAX_TICKETS = 0
   $stderr.puts "Semian is not supported on #{RUBY_PLATFORM} - all operations will no-op"
 end
 require 'semian/version'
