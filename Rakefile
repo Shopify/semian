@@ -35,10 +35,11 @@ end
 
 require 'rake/testtask'
 Rake::TestTask.new 'test' do |t|
-  t.test_files = if Semian.supported_platform?
-    FileList['test/test_semian.rb']
+  all_files = FileList['test/test_*.rb']
+  if Semian.supported_platform?
+    t.test_files = all_files
   else
-    FileList['test/test_unsupported.rb']
+    t.test_files = all_files - FileList['test/test_semian.rb']
   end
 end
 task :test => :build

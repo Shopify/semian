@@ -1,4 +1,4 @@
-class Semian
+module Semian
   BaseError = Class.new(StandardError)
   SyscallError = Class.new(BaseError)
   TimeoutError = Class.new(BaseError)
