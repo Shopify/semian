@@ -1,16 +1,12 @@
 module Semian
   class CircuitBreaker
-    extend Forwardable
     attr_reader :state
 
-    def_delegators :@resource, :acquire, :destroy, :count, :semid
-
-    def initialize(resource, exceptions:, success_threshold:, error_threshold:, error_timeout:)
-      @resource = resource
+    def initialize(exceptions:, success_threshold:, error_threshold:, error_timeout:)
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
       @error_timeout = error_timeout
-      @exceptions = Array(exceptions) + [::Semian::BaseError]
+      @exceptions = exceptions
       reset
     end
 
@@ -19,7 +15,7 @@ module Semian
 
       result = nil
       begin
-        result = acquire(&block)
+        result = yield
       rescue *@exceptions => error
         mark_failed(error)
         result = evaluate_fallback(fallback)

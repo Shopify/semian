@@ -73,15 +73,14 @@ module Semian
   #
   # Returns the registered resource.
   def register(name, tickets: 0, permissions: 0660, timeout: 1, success_threshold: 1, error_threshold: 5, error_timeout: 20, exceptions: [])
-    resource = Resource.new(name, tickets, permissions, timeout)
     circuit_breaker = CircuitBreaker.new(
-      resource,
       success_threshold: success_threshold,
       error_threshold: error_threshold,
       error_timeout: error_timeout,
-      exceptions: exceptions,
+      exceptions: Array(exceptions) + [::Semian::BaseError],
     )
-    resources[name] = circuit_breaker
+    resource = Resource.new(name, tickets, permissions, timeout)
+    resources[name] = ProtectedResource.new(resource, circuit_breaker)
   end
 
   # Retrieves a resource by name.
@@ -97,6 +96,7 @@ end
 
 require 'semian/resource'
 require 'semian/circuit_breaker'
+require 'semian/protected_resource'
 require 'semian/platform'
 if Semian.supported_platform?
   require 'semian/semian'
