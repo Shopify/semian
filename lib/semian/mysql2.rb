@@ -23,7 +23,7 @@ module Semian
     end
 
     def query(*)
-      semian_resource.acquire { super }
+      semian_resource.with_fallback(-> { raise ::Semian::BaseError }) { super }
     rescue ::Semian::BaseError => error
       raise ::Mysql2::SemianError.new(semian_identifier, error)
     end
@@ -31,7 +31,7 @@ module Semian
     private
 
     def connect(*)
-      semian_resource.acquire { super }
+      semian_resource.with_fallback(-> { raise ::Semian::BaseError }) { super }
     rescue Semian::BaseError => error
       raise ::Mysql2::SemianError.new(semian_identifier, error)
     end
