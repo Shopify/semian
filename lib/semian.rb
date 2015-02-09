@@ -105,5 +105,3 @@ else
   $stderr.puts "Semian is not supported on #{RUBY_PLATFORM} - all operations will no-op"
 end
 require 'semian/version'
-
-require 'semian/mysql2' if defined?(Mysql2)
