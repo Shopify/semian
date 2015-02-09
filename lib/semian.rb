@@ -1,3 +1,4 @@
+require 'logger'
 #
 # === Overview
 #
@@ -52,38 +53,50 @@
 #
 # This is the same as the previous example, but overrides the timeout from the default value of 500 milliseconds to 1 second.
 #
-class Semian
-  class << self
-    # Registers a resource.
-    #
-    # +name+: Name of the resource - this can be either a string or symbol.
-    #
-    # +tickets+: Number of tickets. If this value is 0, the ticket count will not be set,
-    # but the resource must have been previously registered otherwise an error will be raised.
-    #
-    # +permissions+: Octal permissions of the resource.
-    #
-    # +timeout+: Default timeout in seconds.
-    #
-    # Returns the registered resource.
-    def register(name, tickets: 0, permissions: 0660, timeout: 1)
-      resource = Resource.new(name, tickets, permissions, timeout)
-      resources[name] = resource
-    end
+module Semian
+  extend self
 
-    # Retrieves a resource by name.
-    def [](name)
-      resources[name]
-    end
+  attr_accessor :logger
 
-    # Retrieves a hash of all registered resources.
-    def resources
-      @resources ||= {}
-    end
+  self.logger = Logger.new(nil)
+
+  # Registers a resource.
+  #
+  # +name+: Name of the resource - this can be either a string or symbol.
+  #
+  # +tickets+: Number of tickets. If this value is 0, the ticket count will not be set,
+  # but the resource must have been previously registered otherwise an error will be raised.
+  #
+  # +permissions+: Octal permissions of the resource.
+  #
+  # +timeout+: Default timeout in seconds.
+  #
+  # Returns the registered resource.
+  def register(name, tickets: 0, permissions: 0660, timeout: 1, success_threshold: 1, error_threshold: 5, error_timeout: 20, exceptions: [])
+    circuit_breaker = CircuitBreaker.new(
+      success_threshold: success_threshold,
+      error_threshold: error_threshold,
+      error_timeout: error_timeout,
+      exceptions: Array(exceptions) + [::Semian::BaseError],
+    )
+    resource = Resource.new(name, tickets, permissions, timeout)
+    resources[name] = ProtectedResource.new(resource, circuit_breaker)
+  end
+
+  # Retrieves a resource by name.
+  def [](name)
+    resources[name]
+  end
+
+  # Retrieves a hash of all registered resources.
+  def resources
+    @resources ||= {}
   end
 end
 
 require 'semian/resource'
+require 'semian/circuit_breaker'
+require 'semian/protected_resource'
 require 'semian/platform'
 if Semian.supported_platform?
   require 'semian/semian'

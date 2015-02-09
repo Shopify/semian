@@ -1,3 +1,3 @@
-class Semian
+module Semian
   VERSION = '0.0.8'
 end
