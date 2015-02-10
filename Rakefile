@@ -29,6 +29,11 @@ else
   task :build do; end
 end
 
+task :populate_proxy do
+  require 'toxiproxy'
+  Toxiproxy.populate(File.expand_path('../test/fixtures/toxiproxy.json', __FILE__))
+end
+
 # ==========================================================
 # Testing
 # ==========================================================
@@ -42,7 +47,7 @@ Rake::TestTask.new 'test' do |t|
     t.test_files = all_files - FileList['test/test_semian.rb']
   end
 end
-task :test => :build
+task :test => [:build, :populate_proxy]
 
 # ==========================================================
 # Documentation

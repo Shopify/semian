@@ -37,7 +37,7 @@ module Semian
     end
 
     def semian_resource
-      @semian_resource ||= ::Semian.register(semian_identifier, **semian_options)
+      @semian_resource ||= ::Semian.retrieve_or_register(semian_identifier, **semian_options)
     end
 
     def semian_options

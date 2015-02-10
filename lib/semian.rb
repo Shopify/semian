@@ -83,9 +83,19 @@ module Semian
     resources[name] = ProtectedResource.new(resource, circuit_breaker)
   end
 
+  def retrieve_or_register(name, **args)
+    self[name] || register(name, **args)
+  end
+
   # Retrieves a resource by name.
   def [](name)
     resources[name]
+  end
+
+  def destroy(name)
+    if resource = resources.delete(name)
+      resource.destroy
+    end
   end
 
   # Retrieves a hash of all registered resources.
