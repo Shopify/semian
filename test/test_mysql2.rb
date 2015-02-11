@@ -4,6 +4,17 @@ require 'toxiproxy'
 require 'timecop'
 
 class TestMysql2 < Test::Unit::TestCase
+  ERROR_TIMEOUT = 5
+  ERROR_THRESHOLD = 1
+  SEMIAN_OPTIONS = {
+    name: :testing,
+    tickets: 1,
+    timeout: 0,
+    error_threshold: ERROR_THRESHOLD,
+    success_threshold: 2,
+    error_timeout: ERROR_TIMEOUT,
+  }
+
   def setup
     @proxy = Toxiproxy[:semian_test_mysql]
     Semian.destroy(:mysql_testing)
@@ -45,7 +56,7 @@ class TestMysql2 < Test::Unit::TestCase
     @proxy.downstream(:latency, latency: 500).apply do
       background { connect_to_mysql! }
 
-      3.times do
+      ERROR_THRESHOLD.times do
         assert_raises Mysql2::SemianError do
           connect_to_mysql!
         end
@@ -58,7 +69,7 @@ class TestMysql2 < Test::Unit::TestCase
       connect_to_mysql!
     end
 
-    Timecop.travel(10) do
+    Timecop.travel(ERROR_TIMEOUT + 1) do
       connect_to_mysql!
     end
   end
@@ -93,7 +104,7 @@ class TestMysql2 < Test::Unit::TestCase
     @proxy.downstream(:latency, latency: 1000).apply do
       background { client2.query('SELECT 1 + 1;') }
 
-      3.times do
+      ERROR_THRESHOLD.times do
         assert_raises Mysql2::SemianError do
           client.query('SELECT 1 + 1;')
         end
@@ -106,7 +117,7 @@ class TestMysql2 < Test::Unit::TestCase
       client.query('SELECT 1 + 1;')
     end
 
-    Timecop.travel(10) do
+    Timecop.travel(ERROR_TIMEOUT + 1) do
       assert_equal 2, client.query('SELECT 1 + 1 as sum;').to_a.first['sum']
     end
   end
@@ -129,15 +140,7 @@ class TestMysql2 < Test::Unit::TestCase
   end
 
   def connect_to_mysql!(semian_options = {})
-    options = {
-      name: :testing,
-      tickets: 1,
-      timeout: 0.05,
-      error_threshold: 1,
-      success_threshold: 2,
-      error_timeout: 5,
-    }.merge(semian_options)
-    Mysql2::Client.new(host: '127.0.0.1', port: '43306', semian: options)
+    Mysql2::Client.new(host: '127.0.0.1', port: '43306', semian: SEMIAN_OPTIONS.merge(semian_options))
   end
 
   class FakeMysql < Mysql2::Client
