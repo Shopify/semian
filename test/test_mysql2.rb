@@ -36,7 +36,7 @@ class TestMysql2 < Test::Unit::TestCase
     client = connect_to_mysql!
 
     Semian[:mysql_testing].acquire do
-      assert_raises Mysql2::SemianError do
+      assert_raises Mysql2::ResourceOccupiedError do
         connect_to_mysql!
       end
     end
@@ -46,7 +46,7 @@ class TestMysql2 < Test::Unit::TestCase
     @proxy.downstream(:latency, latency: 500).apply do
       background { connect_to_mysql! }
 
-      assert_raises Mysql2::SemianError do
+      assert_raises Mysql2::ResourceOccupiedError do
         connect_to_mysql!
       end
     end
@@ -57,7 +57,7 @@ class TestMysql2 < Test::Unit::TestCase
       background { connect_to_mysql! }
 
       ERROR_THRESHOLD.times do
-        assert_raises Mysql2::SemianError do
+        assert_raises Mysql2::ResourceOccupiedError do
           connect_to_mysql!
         end
       end
@@ -65,7 +65,7 @@ class TestMysql2 < Test::Unit::TestCase
 
     yield_to_background
 
-    assert_raises Mysql2::SemianError do
+    assert_raises Mysql2::CircuitOpenError do
       connect_to_mysql!
     end
 
@@ -78,7 +78,7 @@ class TestMysql2 < Test::Unit::TestCase
     client = connect_to_mysql!
 
     Semian[:mysql_testing].acquire do
-      assert_raises Mysql2::SemianError do
+      assert_raises Mysql2::ResourceOccupiedError do
         client.query('SELECT 1 + 1;')
       end
     end
@@ -91,7 +91,7 @@ class TestMysql2 < Test::Unit::TestCase
     @proxy.downstream(:latency, latency: 500).apply do
       background { client2.query('SELECT 1 + 1;') }
 
-      assert_raises Mysql2::SemianError do
+      assert_raises Mysql2::ResourceOccupiedError do
         client.query('SELECT 1 + 1;')
       end
     end
@@ -105,7 +105,7 @@ class TestMysql2 < Test::Unit::TestCase
       background { client2.query('SELECT 1 + 1;') }
 
       ERROR_THRESHOLD.times do
-        assert_raises Mysql2::SemianError do
+        assert_raises Mysql2::ResourceOccupiedError do
           client.query('SELECT 1 + 1;')
         end
       end
@@ -113,7 +113,7 @@ class TestMysql2 < Test::Unit::TestCase
 
     yield_to_background
 
-    assert_raises Mysql2::SemianError do
+    assert_raises Mysql2::CircuitOpenError do
       client.query('SELECT 1 + 1;')
     end
 

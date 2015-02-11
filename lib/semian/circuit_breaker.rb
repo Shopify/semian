@@ -1,5 +1,8 @@
 module Semian
   class CircuitBreaker
+    BaseError = Class.new(StandardError)
+    OpenCircuitError = Class.new(BaseError)
+
     attr_reader :state
 
     def initialize(exceptions:, success_threshold:, error_threshold:, error_timeout:)
@@ -10,19 +13,27 @@ module Semian
       reset
     end
 
-    def with_fallback(fallback, &block)
-      return evaluate_fallback(fallback) unless request_allowed?
+    def acquire(&block)
+      raise OpenCircuitError unless request_allowed?
 
       result = nil
       begin
         result = yield
       rescue *@exceptions => error
         mark_failed(error)
-        result = evaluate_fallback(fallback)
+        raise error
       else
         mark_success
       end
       result
+    end
+
+    def with_fallback(fallback, &block)
+      acquire(&block)
+    rescue *@exceptions
+      evaluate_fallback(fallback)
+    rescue OpenCircuitError
+      evaluate_fallback(fallback)
     end
 
     def request_allowed?

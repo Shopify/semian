@@ -40,6 +40,19 @@ class TestCircuitBreaker < Test::Unit::TestCase
     assert_equal 42, result
   end
 
+  def test_acquire_yield_when_the_circuit_is_closed
+    block_called = false
+    @resource.acquire { block_called = true }
+    assert_equal true, block_called
+  end
+
+  def test_acquire_raises_circuit_open_error_when_the_circuit_is_open
+    open_circuit!
+    assert_raises Semian::CircuitBreaker::OpenCircuitError do
+      @resource.acquire { 1 + 1 }
+    end
+  end
+
   def test_after_error_threshold_the_circuit_is_open
     open_circuit!
     assert_circuit_opened

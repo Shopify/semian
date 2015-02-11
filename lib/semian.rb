@@ -56,6 +56,11 @@ require 'logger'
 module Semian
   extend self
 
+  BaseError = Class.new(StandardError)
+  SyscallError = Class.new(BaseError)
+  TimeoutError = Class.new(BaseError)
+  InternalError = Class.new(BaseError)
+
   attr_accessor :logger
 
   self.logger = Logger.new(nil)
