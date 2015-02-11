@@ -1,9 +1,4 @@
 module Semian
-  BaseError = Class.new(StandardError)
-  SyscallError = Class.new(BaseError)
-  TimeoutError = Class.new(BaseError)
-  InternalError = Class.new(BaseError)
-
   class Resource #:nodoc:
     def initialize(name, tickets, permissions, timeout)
     end

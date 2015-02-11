@@ -5,7 +5,7 @@ require 'fileutils'
 
 class TestSemian < Test::Unit::TestCase
   def setup
-    Semian[:testing].destroy rescue Semian::BaseError
+    Semian.destroy(:testing) rescue nil
   end
 
   def test_register_invalid_args

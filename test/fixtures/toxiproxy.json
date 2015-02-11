@@ -1,0 +1,7 @@
+[
+  {
+    "name": "semian_test_mysql",
+    "upstream": "localhost:3306",
+    "listen": "localhost:13306"
+  }
+]

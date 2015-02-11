@@ -1,6 +1,9 @@
 language: ruby
 
-sudo: false
+sudo: true
+
+before_install:
+  - scripts/install_toxiproxy.sh
 
 rvm:
   - 2.1.1
