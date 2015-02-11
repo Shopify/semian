@@ -26,7 +26,7 @@ class TestMysql2 < Test::Unit::TestCase
 
     Semian[:mysql_testing].acquire do
       assert_raises Mysql2::SemianError do
-        Mysql2::Client.new(semian: {name: :testing, tickets: 1, timeout: 0})
+        connect_to_mysql!
       end
     end
   end
