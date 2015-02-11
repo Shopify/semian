@@ -15,6 +15,7 @@ class TestMysql2 < Test::Unit::TestCase
     error_timeout: ERROR_TIMEOUT,
   }
 
+  attr_writer :threads
   def setup
     @proxy = Toxiproxy[:semian_test_mysql]
     Semian.destroy(:mysql_testing)
@@ -22,7 +23,7 @@ class TestMysql2 < Test::Unit::TestCase
 
   def teardown
     threads.each { |t| t.kill }
-    @threads = []
+    self.threads = []
   end
 
   def test_semian_identifier
