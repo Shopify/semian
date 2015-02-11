@@ -140,7 +140,7 @@ class TestMysql2 < Test::Unit::TestCase
   end
 
   def connect_to_mysql!(semian_options = {})
-    Mysql2::Client.new(host: '127.0.0.1', port: '43306', semian: SEMIAN_OPTIONS.merge(semian_options))
+    Mysql2::Client.new(host: '127.0.0.1', port: '13306', semian: SEMIAN_OPTIONS.merge(semian_options))
   end
 
   class FakeMysql < Mysql2::Client
