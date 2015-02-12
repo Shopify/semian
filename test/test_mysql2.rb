@@ -33,6 +33,22 @@ class TestMysql2 < MiniTest::Unit::TestCase
     assert_equal :'mysql_example.com:42', FakeMysql.new(host: 'example.com', port: 42).semian_identifier
   end
 
+  def test_connect_instrumentation
+    notified = false
+    subscriber = Semian.subscribe do |event, resource, scope|
+      notified = true
+      assert_equal :success, event
+      assert_equal Semian[:mysql_testing], resource
+      assert_equal :connect, scope
+    end
+
+    connect_to_mysql!
+
+    assert notified, 'No notification have been emitted'
+  ensure
+    Semian.unsubscribe(subscriber)
+  end
+
   def test_resource_acquisition_for_connect
     client = connect_to_mysql!
 
@@ -73,6 +89,24 @@ class TestMysql2 < MiniTest::Unit::TestCase
     Timecop.travel(ERROR_TIMEOUT + 1) do
       connect_to_mysql!
     end
+  end
+
+  def test_query_instrumentation
+    client = connect_to_mysql!
+
+    notified = false
+    subscriber = Semian.subscribe do |event, resource, scope|
+      notified = true
+      assert_equal :success, event
+      assert_equal Semian[:mysql_testing], resource
+      assert_equal :query, scope
+    end
+
+    client.query('SELECT 1 + 1;')
+
+    assert notified, 'No notification have been emitted'
+  ensure
+    Semian.unsubscribe(subscriber)
   end
 
   def test_resource_acquisition_for_query

@@ -35,7 +35,7 @@ module Semian
     end
 
     def query(*)
-      semian_resource.acquire { super }
+      semian_resource.acquire(scope: :query) { super }
     rescue ::Semian::OpenCircuitError => error
       raise ::Mysql2::CircuitOpenError.new(semian_identifier, error)
     rescue ::Semian::BaseError => error
@@ -45,7 +45,7 @@ module Semian
     private
 
     def connect(*)
-      semian_resource.acquire { super }
+      semian_resource.acquire(scope: :connect) { super }
     rescue ::Semian::OpenCircuitError => error
       raise ::Mysql2::CircuitOpenError.new(semian_identifier, error)
     rescue ::Semian::BaseError => error
