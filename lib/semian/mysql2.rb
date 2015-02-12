@@ -24,7 +24,8 @@ module Semian
 
     def semian_identifier
       @semian_identifier ||= begin
-        unless name = query_options[:semian] && query_options[:semian][:name]
+        semian_options = query_options[:semian] || {}
+        unless name = semian_options['name'.freeze] || semian_options[:name]
           host = query_options[:host] || DEFAULT_HOST
           port = query_options[:port] || DEFAULT_PORT
           name = "#{host}:#{port}"
