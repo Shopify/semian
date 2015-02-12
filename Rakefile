@@ -40,12 +40,7 @@ end
 
 require 'rake/testtask'
 Rake::TestTask.new 'test' do |t|
-  all_files = FileList['test/test_*.rb']
-  if Semian.supported_platform?
-    t.test_files = all_files
-  else
-    t.test_files = all_files - FileList['test/test_semian.rb']
-  end
+  t.pattern = "test/test_*.rb"
 end
 task :test => [:build, :populate_proxy]
 

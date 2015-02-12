@@ -1,7 +1,11 @@
-require 'test/unit'
+require 'minitest/autorun'
 require 'semian'
 
-class TestSemian < Test::Unit::TestCase
+class TestSemian < MiniTest::Unit::TestCase
+  def setup
+    Semian.destroy(:testing) rescue nil
+  end
+
   def test_unsupported_acquire_yields
     acquired = false
     Semian.register :testing, tickets: 1

@@ -1,12 +1,12 @@
-require 'test/unit'
+require 'minitest/autorun'
 require 'semian'
 require 'timecop'
 
-class TestCircuitBreaker < Test::Unit::TestCase
+class TestCircuitBreaker < MiniTest::Unit::TestCase
   SomeError = Class.new(StandardError)
 
   def setup
-    Semian[:testing].destroy rescue nil
+    Semian.destroy(:testing) rescue nil
     Semian.register(:testing, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5)
     @resource = Semian[:testing]
   end
@@ -48,7 +48,7 @@ class TestCircuitBreaker < Test::Unit::TestCase
 
   def test_acquire_raises_circuit_open_error_when_the_circuit_is_open
     open_circuit!
-    assert_raises Semian::CircuitBreaker::OpenCircuitError do
+    assert_raises Semian::OpenCircuitError do
       @resource.acquire { 1 + 1 }
     end
   end

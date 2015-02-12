@@ -36,7 +36,7 @@ module Semian
 
     def query(*)
       semian_resource.acquire { super }
-    rescue ::Semian::CircuitBreaker::OpenCircuitError => error
+    rescue ::Semian::OpenCircuitError => error
       raise ::Mysql2::CircuitOpenError.new(semian_identifier, error)
     rescue ::Semian::BaseError => error
       raise ::Mysql2::ResourceOccupiedError.new(semian_identifier, error)
@@ -46,7 +46,7 @@ module Semian
 
     def connect(*)
       semian_resource.acquire { super }
-    rescue ::Semian::CircuitBreaker::OpenCircuitError => error
+    rescue ::Semian::OpenCircuitError => error
       raise ::Mysql2::CircuitOpenError.new(semian_identifier, error)
     rescue ::Semian::BaseError => error
       raise ::Mysql2::ResourceOccupiedError.new(semian_identifier, error)
