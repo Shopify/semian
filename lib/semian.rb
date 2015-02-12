@@ -1,4 +1,6 @@
 require 'logger'
+require 'semian/instrumentable'
+
 #
 # === Overview
 #
@@ -55,11 +57,13 @@ require 'logger'
 #
 module Semian
   extend self
+  extend Instrumentable
 
   BaseError = Class.new(StandardError)
   SyscallError = Class.new(BaseError)
   TimeoutError = Class.new(BaseError)
   InternalError = Class.new(BaseError)
+  OpenCircuitError = Class.new(BaseError)
 
   attr_accessor :logger
 

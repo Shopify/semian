@@ -1,9 +1,9 @@
-require 'test/unit'
+require 'minitest/autorun'
 require 'semian'
 require 'tempfile'
 require 'fileutils'
 
-class TestSemian < Test::Unit::TestCase
+class TestSemian < MiniTest::Unit::TestCase
   def setup
     Semian.destroy(:testing) rescue nil
   end
@@ -33,7 +33,7 @@ class TestSemian < Test::Unit::TestCase
 
   def test_register_with_no_tickets_raises
     assert_raises Semian::SyscallError do
-      Semian.register :testing
+      Semian.register :testing, tickets: 0
     end
   end
 
@@ -160,6 +160,7 @@ class TestSemian < Test::Unit::TestCase
     Semian[:testing].acquire do
       acquired = true
       assert_equal 1, Semian[:testing].count
+      assert_equal 2, Semian[:testing].tickets
     end
 
     assert acquired

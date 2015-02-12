@@ -1,8 +1,5 @@
 module Semian
   class CircuitBreaker
-    BaseError = Class.new(StandardError)
-    OpenCircuitError = Class.new(BaseError)
-
     attr_reader :state
 
     def initialize(exceptions:, success_threshold:, error_threshold:, error_timeout:)

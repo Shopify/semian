@@ -1,9 +1,9 @@
-require 'test/unit'
+require 'minitest/autorun'
 require 'semian/mysql2'
 require 'toxiproxy'
 require 'timecop'
 
-class TestMysql2 < Test::Unit::TestCase
+class TestMysql2 < MiniTest::Unit::TestCase
   ERROR_TIMEOUT = 5
   ERROR_THRESHOLD = 1
   SEMIAN_OPTIONS = {
