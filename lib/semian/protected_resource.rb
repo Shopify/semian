@@ -4,7 +4,7 @@ module Semian
   class ProtectedResource
     extend Forwardable
 
-    def_delegators :@resource, :destroy, :count, :semid, :tickets
+    def_delegators :@resource, :destroy, :count, :semid, :tickets, :name
     def_delegators :@circuit_breaker, :reset
 
     def initialize(resource, circuit_breaker)
