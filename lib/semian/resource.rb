@@ -3,7 +3,7 @@ module Semian
     attr_reader :tickets, :name
 
     def initialize(name, tickets, permissions, timeout)
-      _initialize(name, tickets, permissions, timeout)
+      _initialize(name, tickets, permissions, timeout) if respond_to?(:_initialize)
       @name = name
       @tickets = tickets
     end
