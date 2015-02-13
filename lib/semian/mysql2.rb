@@ -22,6 +22,15 @@ module Semian
     DEFAULT_HOST = 'localhost'
     DEFAULT_PORT = 3306
 
+    # The naked methods are exposed as `raw_query` and `raw_connect` for instrumentation purpose
+    def self.included(base)
+      base.send(:alias_method, :raw_query, :query)
+      base.send(:remove_method, :query)
+
+      base.send(:alias_method, :raw_connect, :connect)
+      base.send(:remove_method, :connect)
+    end
+
     def semian_identifier
       @semian_identifier ||= begin
         semian_options = query_options[:semian] || {}
@@ -34,8 +43,8 @@ module Semian
       end
     end
 
-    def query(*)
-      semian_resource.acquire(scope: :query) { super }
+    def query(*args)
+      semian_resource.acquire(scope: :query) { raw_query(*args) }
     rescue ::Semian::OpenCircuitError => error
       raise ::Mysql2::CircuitOpenError.new(semian_identifier, error)
     rescue ::Semian::BaseError => error
@@ -44,8 +53,8 @@ module Semian
 
     private
 
-    def connect(*)
-      semian_resource.acquire(scope: :connect) { super }
+    def connect(*args)
+      semian_resource.acquire(scope: :connect) { raw_connect(*args) }
     rescue ::Semian::OpenCircuitError => error
       raise ::Mysql2::CircuitOpenError.new(semian_identifier, error)
     rescue ::Semian::BaseError => error
@@ -65,4 +74,4 @@ module Semian
   end
 end
 
-::Mysql2::Client.prepend(Semian::Mysql2)
+::Mysql2::Client.include(Semian::Mysql2)
