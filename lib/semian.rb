@@ -28,15 +28,27 @@ require 'semian/instrumentable'
 # the timeout period has elapsed, the client will be unable to access the service and
 # an error will be raised.
 #
+# Resources also integrate a circuit breaker in order to fail faster and to let the
+# resource the time to recover. If `error_threshold` errors happen in the span of `error_timeout`
+# then the circuit will be opened and every attempt to acquire the resource will immediately fail.
+# 
+# Once in open state, after `error_timeout` is elapsed, the ciruit will transition in the half-open state.
+# In that state a single error will fully re-open the circuit, and the circuit will transition back to the closed
+# state only after the resource is acquired `success_threshold` consecutive times.
+#
 # A resource is registered by using the Semian.register method.
 #
 # ==== Examples
 #
 # ===== Registering a resource
 #
-#    Semian.register :mysql_shard0, tickets: 10, timeout: 0.5
+#    Semian.register(:mysql_shard0, tickets: 10, timeout: 0.5, error_threshold: 3, error_timeout: 10, success_threshold: 2)
 #
 # This registers a new resource called <code>:mysql_shard0</code> that has 10 tickets andd a default timeout of 500 milliseconds.
+#
+# After 3 failures in the span of 10 seconds the circuit will be open.
+# After an additional 10 seconds it will transition to half-open.
+# And finally after 2 successulf acquisitions of the resource it will transition back to the closed state.
 #
 # ===== Using a resource
 #
@@ -80,15 +92,23 @@ module Semian
   #
   # +timeout+: Default timeout in seconds.
   #
+  # +error_threshold+: The number of errors that will trigger the circuit opening.
+  #
+  # +error_timeout+: The duration in seconds since the last error after which the error count is reset to 0.
+  #
+  # +success_threshold+: The number of consecutive success after which an half-open circuit will be fully closed.
+  #
+  # +exceptions+: An array of exception classes that should be accounted as resource errors.
+  #
   # Returns the registered resource.
-  def register(name, tickets: 0, permissions: 0660, timeout: 1, success_threshold: 1, error_threshold: 5, error_timeout: 20, exceptions: [])
+  def register(name, tickets:, permissions: 0660, timeout: 0, error_threshold:, error_timeout:, success_threshold:, exceptions: [])
     circuit_breaker = CircuitBreaker.new(
       success_threshold: success_threshold,
       error_threshold: error_threshold,
       error_timeout: error_timeout,
       exceptions: Array(exceptions) + [::Semian::BaseError],
     )
-    resource = Resource.new(name, tickets, permissions, timeout)
+    resource = Resource.new(name, tickets: tickets, permissions: permissions, timeout: timeout)
     resources[name] = ProtectedResource.new(resource, circuit_breaker)
   end
 
