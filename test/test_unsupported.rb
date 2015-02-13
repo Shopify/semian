@@ -8,7 +8,7 @@ class TestSemian < MiniTest::Unit::TestCase
 
   def test_unsupported_acquire_yields
     acquired = false
-    Semian.register :testing, tickets: 1
+    Semian.register :testing, tickets: 1, error_threshold: 1, error_timeout: 2, success_threshold: 1
     Semian[:testing].acquire { acquired = true }
     assert acquired
   end

@@ -4,7 +4,7 @@ require 'semian'
 class TestInstrumentation < MiniTest::Unit::TestCase
   def setup
     Semian.destroy(:testing) if Semian[:testing]
-    Semian.register(:testing, tickets: 1, error_threshold: 1)
+    Semian.register(:testing, tickets: 1, error_threshold: 1, error_timeout: 5, success_threshold: 1)
   end
 
   def test_occupied_instrumentation

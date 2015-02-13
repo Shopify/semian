@@ -3,23 +3,27 @@ require 'semian'
 require 'tempfile'
 require 'fileutils'
 
-class TestSemian < MiniTest::Unit::TestCase
+class TestResource < MiniTest::Unit::TestCase
   def setup
     Semian.destroy(:testing) rescue nil
   end
 
-  def test_register_invalid_args
+  def teardown
+    destroy_resources
+  end
+
+  def test_initialize_invalid_args
     assert_raises TypeError do
-      Semian.register 123
+      create_resource 123, tickets: 2
     end
     assert_raises ArgumentError do
-      Semian.register :testing, tickets: -1
+      create_resource :testing, tickets: -1
     end
     assert_raises ArgumentError do
-      Semian.register :testing, tickets: 1_000_000
+      create_resource :testing, tickets: 1_000_000
     end
     assert_raises TypeError do
-      Semian.register :testing, permissions: "test"
+      create_resource :testing, tickets: 2, permissions: 'test'
     end
   end
 
@@ -28,30 +32,30 @@ class TestSemian < MiniTest::Unit::TestCase
   end
 
   def test_register
-    Semian.register :testing, tickets: 2
+    create_resource :testing, tickets: 2
   end
 
   def test_register_with_no_tickets_raises
     assert_raises Semian::SyscallError do
-      Semian.register :testing, tickets: 0
+      create_resource :testing, tickets: 0
     end
   end
 
   def test_acquire
     acquired = false
-    Semian.register :testing, tickets: 1
-    Semian[:testing].acquire { acquired = true }
+    resource = create_resource :testing, tickets: 1
+    resource.acquire { acquired = true }
     assert acquired
   end
 
   def test_acquire_return_val
-    Semian.register :testing, tickets: 1
-    val = Semian[:testing].acquire { 1234 }
+    resource = create_resource :testing, tickets: 1
+    val = resource.acquire { 1234 }
     assert_equal 1234, val
   end
 
   def test_acquire_timeout
-    Semian.register :testing, tickets: 1, timeout: 0.05
+    resource = create_resource :testing, tickets: 1, timeout: 0.05
 
     acquired = false
     m = Monitor.new
@@ -61,12 +65,12 @@ class TestSemian < MiniTest::Unit::TestCase
       m.synchronize do
         cond.wait_until { acquired }
         assert_raises Semian::TimeoutError do
-          Semian[:testing].acquire { refute true }
+          resource.acquire { refute true }
         end
       end
     end
 
-    Semian[:testing].acquire do
+    resource.acquire do
       acquired = true
       m.synchronize { cond.signal }
       sleep 0.2
@@ -78,7 +82,7 @@ class TestSemian < MiniTest::Unit::TestCase
   end
 
   def test_acquire_timeout_override
-    Semian.register :testing, tickets: 1, timeout: 0.01
+    resource = create_resource :testing, tickets: 1, timeout: 0.01
 
     acquired = false
     thread_acquired = false
@@ -88,11 +92,11 @@ class TestSemian < MiniTest::Unit::TestCase
     t = Thread.start do
       m.synchronize do
         cond.wait_until { acquired }
-        Semian[:testing].acquire(timeout: 1) { thread_acquired = true }
+        resource.acquire(timeout: 1) { thread_acquired = true }
       end
     end
 
-    Semian[:testing].acquire do
+    resource.acquire do
       acquired = true
       m.synchronize { cond.signal }
       sleep 0.2
@@ -105,14 +109,13 @@ class TestSemian < MiniTest::Unit::TestCase
   end
 
   def test_acquire_with_fork
-    Semian.register :testing, tickets: 2, timeout: 0.5
+    resource = create_resource :testing, tickets: 2, timeout: 0.5
 
-    Semian[:testing].acquire do
+    resource.acquire do
       pid = fork do
-        Semian.register :testing, timeout: 0.5
-        Semian[:testing].acquire do
+        resource.acquire do
           assert_raises Semian::TimeoutError do
-            Semian[:testing].acquire {  }
+            resource.acquire {  }
           end
         end
       end
@@ -123,7 +126,7 @@ class TestSemian < MiniTest::Unit::TestCase
 
   def test_acquire_releases_on_kill
     begin
-      Semian.register :testing, tickets: 1, timeout: 0.1
+      resource = create_resource :testing, tickets: 1, timeout: 0.1
       acquired = false
 
       # Ghetto process synchronization
@@ -132,7 +135,7 @@ class TestSemian < MiniTest::Unit::TestCase
       file.close!
 
       pid = fork do
-        Semian[:testing].acquire do
+        resource.acquire do
           FileUtils.touch(path)
           sleep 1000
         end
@@ -140,11 +143,11 @@ class TestSemian < MiniTest::Unit::TestCase
 
       sleep 0.1 until File.exists?(path)
       assert_raises Semian::TimeoutError do
-        Semian[:testing].acquire {}
+        resource.acquire {}
       end
 
       Process.kill("KILL", pid)
-      Semian[:testing].acquire { acquired = true }
+      resource.acquire { acquired = true }
       assert acquired
 
       Process.wait
@@ -154,51 +157,51 @@ class TestSemian < MiniTest::Unit::TestCase
   end
 
   def test_count
-    Semian.register :testing, tickets: 2
+    resource = create_resource :testing, tickets: 2
     acquired = false
 
-    Semian[:testing].acquire do
+    resource.acquire do
       acquired = true
-      assert_equal 1, Semian[:testing].count
-      assert_equal 2, Semian[:testing].tickets
+      assert_equal 1, resource.count
+      assert_equal 2, resource.tickets
     end
 
     assert acquired
   end
 
   def test_sem_undo
-    Semian.register :testing, tickets: 1
+    resource = create_resource :testing, tickets: 1
 
     # Ensure we don't hit ERANGE errors caused by lack of SEM_UNDO on semop* calls
     # by doing an acquire > SEMVMX (32767) times:
     #
     # See: http://lxr.free-electrons.com/source/ipc/sem.c?v=3.8#L419
     (1 << 16).times do # do an acquire 64k times
-      Semian[:testing].acquire do
+      resource.acquire do
         1
       end
     end
   end
 
   def test_destroy
-    Semian.register :testing, tickets: 1
-    Semian[:testing].destroy
+    resource = create_resource :testing, tickets: 1
+    resource.destroy
     assert_raises Semian::SyscallError do
-      Semian[:testing].acquire { }
+      resource.acquire { }
     end
   end
 
   def test_permissions
-    Semian.register :testing, permissions: 0600, tickets: 1
-    semid = Semian[:testing].semid
+    resource = create_resource :testing, permissions: 0600, tickets: 1
+    semid = resource.semid
     `ipcs -s `.lines.each do |line|
       if /\s#{semid}\s/.match(line)
         assert_equal '600', line.split[3]
       end
     end
 
-    Semian.register :testing, permissions: 0660, tickets: 1
-    semid = Semian[:testing].semid
+    resource = create_resource :testing, permissions: 0660, tickets: 1
+    semid = resource.semid
     `ipcs -s `.lines.each do |line|
       if /\s#{semid}\s/.match(line)
         assert_equal '660', line.split[3]
@@ -207,7 +210,7 @@ class TestSemian < MiniTest::Unit::TestCase
   end
 
   def test_resize_tickets_increase
-    Semian.register :testing, tickets: 1
+    resource = create_resource :testing, tickets: 1
 
     acquired = false
     m = Monitor.new
@@ -217,14 +220,14 @@ class TestSemian < MiniTest::Unit::TestCase
       m.synchronize do
         cond.wait_until { acquired }
 
-        Semian.register :testing, tickets: 5
-        assert_equal 4, Semian[:testing].count
+        resource = create_resource :testing, tickets: 5
+        assert_equal 4, resource.count
       end
     end
 
-    assert_equal 1, Semian[:testing].count
+    assert_equal 1, resource.count
 
-    Semian[:testing].acquire do
+    resource.acquire do
       acquired = true
       m.synchronize { cond.signal }
       sleep 0.2
@@ -232,11 +235,11 @@ class TestSemian < MiniTest::Unit::TestCase
 
     t.join
 
-    assert_equal 5, Semian[:testing].count
+    assert_equal 5, resource.count
   end
 
   def test_resize_tickets_decrease
-    Semian.register :testing, tickets: 5
+    resource = create_resource :testing, tickets: 5
 
     acquired = false
     m = Monitor.new
@@ -246,14 +249,14 @@ class TestSemian < MiniTest::Unit::TestCase
       m.synchronize do
         cond.wait_until { acquired }
 
-        Semian.register :testing, tickets: 1
-        assert_equal 0, Semian[:testing].count
+        resource = create_resource :testing, tickets: 1
+        assert_equal 0, resource.count
       end
     end
 
-    assert_equal 5, Semian[:testing].count
+    assert_equal 5, resource.count
 
-    Semian[:testing].acquire do
+    resource.acquire do
       acquired = true
       m.synchronize { cond.signal }
       sleep 0.2
@@ -261,7 +264,7 @@ class TestSemian < MiniTest::Unit::TestCase
 
     t.join
 
-    assert_equal 1, Semian[:testing].count
+    assert_equal 1, resource.count
   end
 
   def test_multiple_register_with_fork
@@ -276,7 +279,7 @@ class TestSemian < MiniTest::Unit::TestCase
           acquired = false
 
           f.flock(File::LOCK_SH)
-          Semian.register(:testing, tickets: 5).acquire do |resource|
+          create_resource(:testing, tickets: 5).acquire do |resource|
             assert resource.count < 5
             acquired = true
           end
@@ -291,10 +294,24 @@ class TestSemian < MiniTest::Unit::TestCase
         children.delete(Process.wait)
       end
 
-      assert_equal 5, Semian.register(:testing).count
+      assert_equal 5, create_resource(:testing, tickets: 0).count
     ensure
       f.close!
     end
   end
 
+  def create_resource(*args)
+    @resources ||= []
+    resource = Semian::Resource.new(*args)
+    @resources << resource
+    resource
+  end
+
+  def destroy_resources
+    return unless @resources
+    @resources.each do |resource|
+      resource.destroy rescue nil
+    end
+    @resources = []
+  end
 end

@@ -7,7 +7,7 @@ class TestCircuitBreaker < MiniTest::Unit::TestCase
 
   def setup
     Semian.destroy(:testing) rescue nil
-    Semian.register(:testing, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5)
+    Semian.register(:testing, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5, success_threshold: 1)
     @resource = Semian[:testing]
   end
 
