@@ -82,31 +82,60 @@ class TestCircuitBreaker < MiniTest::Unit::TestCase
     assert_circuit_closed
   end
 
-  private
+  def test_errors_more_than_duration_apart_doesnt_open_circuit
+    Timecop.travel(Time.now - 6) do
+      trigger_error!
+      assert_circuit_closed
+    end
 
-  def open_circuit!
-    2.times { trigger_error! }
+    trigger_error!
+    assert_circuit_closed
   end
 
-  def half_open_cicuit!
+  def test_sparse_errors_dont_open_circuit
+    resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5, success_threshold: 1)
+
+    Timecop.travel(-6) do
+      trigger_error!(resource)
+      assert_circuit_closed(resource)
+    end
+
+    Timecop.travel(-1) do
+      trigger_error!(resource)
+      assert_circuit_closed(resource)
+    end
+
+    trigger_error!(resource)
+    assert_circuit_closed(resource)
+  ensure
+    Semian.destroy(:three)
+  end
+
+  private
+
+  def open_circuit!(resource = @resource)
+    2.times { trigger_error!(resource) }
+  end
+
+  def half_open_cicuit!(resource = @resource)
     Timecop.travel(Time.now - 10) do
-      open_circuit!
+      open_circuit!(resource)
     end
   end
 
-  def trigger_error!
-    @resource.with_fallback(42) { raise SomeError }
+  def trigger_error!(resource = @resource)
+    resource.with_fallback(42) { raise SomeError }
   end
 
-  def assert_circuit_closed
+  def assert_circuit_closed(resource = @resource)
     block_called = false
-    @resource.with_fallback(42) { block_called = true }
+    resource.with_fallback(42) { block_called = true }
     assert block_called, 'Expected the circuit to be closed, but it was open'
   end
 
-  def assert_circuit_opened
+  def assert_circuit_opened(resource = @resource)
     block_called = false
-    @resource.with_fallback(42) { block_called = true }
+    resource.with_fallback(42) { block_called = true }
     refute block_called, 'Expected the circuit to be open, but it was closed'
   end
 end
