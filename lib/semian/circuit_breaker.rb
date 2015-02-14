@@ -7,6 +7,7 @@ module Semian
       @error_count_threshold = error_threshold
       @error_timeout = error_timeout
       @exceptions = exceptions
+
       reset
     end
 
@@ -40,10 +41,10 @@ module Semian
     end
 
     def mark_failed(error)
-      increment_recent_errors
+      @errors.push(Time.new)
 
       if closed?
-        open if error_threshold_reached?
+        open if @errors.size == @error_count_threshold
       elsif half_open?
         open
       end
@@ -51,14 +52,14 @@ module Semian
 
     def mark_success
       return unless half_open?
-      @success_count += 1
-      close if success_threshold_reached?
+      @successes.push(Time.now)
+      close if @successes.size == @success_threshold
     end
 
     def reset
-      @success_count = 0
-      @error_count = 0
-      @error_last_at = nil
+      @errors    = SlidingTimeWindow.new(max_size: @error_count_threshold, duration: @error_timeout)
+      @successes = SlidingTimeWindow.new(max_size: @success_threshold)
+
       close
     end
 
@@ -98,28 +99,12 @@ module Semian
     def half_open
       log_state_transition(:half_open)
       @state = :half_open
-      @success_count = 0
-    end
-
-    def increment_recent_errors
-      if error_timeout_expired?
-        @error_count = 0
-      end
-
-      @error_count += 1
-      @error_last_at = Time.now
-    end
-
-    def success_threshold_reached?
-      @success_count >= @success_count_threshold
-    end
-
-    def error_threshold_reached?
-      @error_count >= @error_count_threshold
+      @successes.clear
     end
 
     def error_timeout_expired?
-      @error_last_at && (@error_last_at + @error_timeout < Time.now)
+      error_last_at = @errors.last
+      error_last_at && (error_last_at + @error_timeout < Time.now)
     end
 
     def log_state_transition(new_state)

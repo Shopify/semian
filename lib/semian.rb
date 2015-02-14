@@ -134,6 +134,7 @@ module Semian
 end
 
 require 'semian/resource'
+require 'semian/sliding_time_window'
 require 'semian/circuit_breaker'
 require 'semian/protected_resource'
 require 'semian/platform'
