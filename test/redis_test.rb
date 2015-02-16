@@ -24,6 +24,11 @@ class TestRedis < MiniTest::Unit::TestCase
     assert_equal :'redis_example.com:42/0', Redis.new(host: 'example.com', port: 42).client.semian_identifier
   end
 
+  def test_semian_can_be_disabled
+    resource = Redis.new(semian: false).client.semian_resource
+    assert_instance_of Semian::UnprotectedResource, resource
+  end
+
   def test_connect_instrumentation
     notified = false
     subscriber = Semian.subscribe do |event, resource, scope|
