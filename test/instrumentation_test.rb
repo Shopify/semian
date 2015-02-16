@@ -1,5 +1,4 @@
-require 'minitest/autorun'
-require 'semian'
+require 'test_helper'
 
 class TestInstrumentation < MiniTest::Unit::TestCase
   def setup

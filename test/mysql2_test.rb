@@ -1,7 +1,4 @@
-require 'minitest/autorun'
-require 'semian/mysql2'
-require 'toxiproxy'
-require 'timecop'
+require 'test_helper'
 
 class TestMysql2 < MiniTest::Unit::TestCase
   ERROR_TIMEOUT = 5

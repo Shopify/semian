@@ -79,7 +79,7 @@ module Semian
 
   attr_accessor :logger
 
-  self.logger = Logger.new(nil)
+  self.logger = Logger.new(STDERR)
 
   # Registers a resource.
   #
@@ -141,6 +141,6 @@ if Semian.supported_platform?
   require 'semian/semian'
 else
   Semian::MAX_TICKETS = 0
-  $stderr.puts "Semian is not supported on #{RUBY_PLATFORM} - all operations will no-op"
+  Semian.logger.info("Semian is not supported on #{RUBY_PLATFORM} - all operations will no-op")
 end
 require 'semian/version'

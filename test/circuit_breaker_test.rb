@@ -1,6 +1,4 @@
-require 'minitest/autorun'
-require 'semian'
-require 'timecop'
+require 'test_helper'
 
 class TestCircuitBreaker < MiniTest::Unit::TestCase
   SomeError = Class.new(StandardError)

@@ -1,7 +1,4 @@
-require 'minitest/autorun'
-require 'semian'
-require 'tempfile'
-require 'fileutils'
+require 'test_helper'
 
 class TestResource < MiniTest::Unit::TestCase
   def setup

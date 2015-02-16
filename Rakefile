@@ -29,20 +29,16 @@ else
   task :build do; end
 end
 
-task :populate_proxy do
-  require 'toxiproxy'
-  Toxiproxy.populate(File.expand_path('../test/fixtures/toxiproxy.json', __FILE__))
-end
-
 # ==========================================================
 # Testing
 # ==========================================================
 
 require 'rake/testtask'
 Rake::TestTask.new 'test' do |t|
-  t.pattern = "test/test_*.rb"
+  t.libs = ['lib', 'test']
+  t.pattern = "test/*_test.rb"
 end
-task :test => [:build, :populate_proxy]
+task :test => :build
 
 # ==========================================================
 # Documentation
