@@ -40,7 +40,7 @@ module Semian
     end
 
     def mark_failed(error)
-      increment_recent_errors
+      push_time(@errors, @error_count_threshold, duration: @error_timeout)
 
       if closed?
         open if error_threshold_reached?
@@ -51,14 +51,13 @@ module Semian
 
     def mark_success
       return unless half_open?
-      @success_count += 1
+      @successes += 1
       close if success_threshold_reached?
     end
 
     def reset
-      @success_count = 0
-      @error_count = 0
-      @error_last_at = nil
+      @errors    = []
+      @successes = 0
       close
     end
 
@@ -98,35 +97,32 @@ module Semian
     def half_open
       log_state_transition(:half_open)
       @state = :half_open
-      @success_count = 0
-    end
-
-    def increment_recent_errors
-      if error_timeout_expired?
-        @error_count = 0
-      end
-
-      @error_count += 1
-      @error_last_at = Time.now
+      @successes = 0
     end
 
     def success_threshold_reached?
-      @success_count >= @success_count_threshold
+      @successes >= @success_count_threshold
     end
 
     def error_threshold_reached?
-      @error_count >= @error_count_threshold
+      @errors.count == @error_count_threshold
     end
 
     def error_timeout_expired?
-      @error_last_at && (@error_last_at + @error_timeout < Time.now)
+      @errors.last && (@errors.last + @error_timeout < Time.now)
+    end
+
+    def push_time(window, max_size, duration:, time: Time.now)
+      window.shift while window.first && window.first + duration < time
+      window.shift if window.size == max_size
+      window << time
     end
 
     def log_state_transition(new_state)
       return if @state.nil? || new_state == @state
 
       str = "[#{self.class.name}] State transition from #{@state} to #{new_state}."
-      str << " success_count=#{@success_count} error_count=#{@error_count}"
+      str << " success_count=#{@successes} error_count=#{@errors.count}"
       str << " success_count_threshold=#{@success_count_threshold} error_count_threshold=#{@error_count_threshold}"
       str << " error_timeout=#{@error_timeout} error_last_at=\"#{@error_last_at}\""
       Semian.logger.info(str)
