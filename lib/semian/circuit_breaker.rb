@@ -78,7 +78,7 @@ module Semian
     def close
       log_state_transition(:closed)
       @state = :closed
-      @error_count = 0
+      @errors = []
     end
 
     def open?
