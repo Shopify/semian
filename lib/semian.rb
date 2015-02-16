@@ -77,6 +77,17 @@ module Semian
   InternalError = Class.new(BaseError)
   OpenCircuitError = Class.new(BaseError)
 
+  module AdapterError
+    def initialize(semian_identifier, *args)
+      super(*args)
+      @semian_identifier = semian_identifier
+    end
+
+    def to_s
+      "[#{@semian_identifier}] #{super}"
+    end
+  end
+
   attr_accessor :logger
 
   self.logger = Logger.new(STDERR)

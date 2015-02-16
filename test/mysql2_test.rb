@@ -12,15 +12,9 @@ class TestMysql2 < MiniTest::Unit::TestCase
     error_timeout: ERROR_TIMEOUT,
   }
 
-  attr_writer :threads
   def setup
     @proxy = Toxiproxy[:semian_test_mysql]
     Semian.destroy(:mysql_testing)
-  end
-
-  def teardown
-    threads.each { |t| t.kill }
-    self.threads = []
   end
 
   def test_semian_identifier
@@ -41,7 +35,7 @@ class TestMysql2 < MiniTest::Unit::TestCase
 
     connect_to_mysql!
 
-    assert notified, 'No notification have been emitted'
+    assert notified, 'No notifications has been emitted'
   ensure
     Semian.unsubscribe(subscriber)
   end
@@ -101,7 +95,7 @@ class TestMysql2 < MiniTest::Unit::TestCase
 
     client.query('SELECT 1 + 1;')
 
-    assert notified, 'No notification have been emitted'
+    assert notified, 'No notifications has been emitted'
   ensure
     Semian.unsubscribe(subscriber)
   end
@@ -155,21 +149,6 @@ class TestMysql2 < MiniTest::Unit::TestCase
   end
 
   private
-
-  def background(&block)
-    thread = Thread.new(&block)
-    threads << thread
-    thread.join(0.1)
-    thread
-  end
-
-  def threads
-    @threads ||= []
-  end
-
-  def yield_to_background
-    threads.each(&:join)
-  end
 
   def connect_to_mysql!(semian_options = {})
     Mysql2::Client.new(host: '127.0.0.1', port: '13306', semian: SEMIAN_OPTIONS.merge(semian_options))

@@ -1,16 +1,10 @@
 require 'semian'
+require 'semian/adapter'
 require 'mysql2'
 
 module Mysql2
   class SemianError < Mysql2::Error
-    def initialize(semian_identifier, *args)
-      super(*args)
-      @semian_identifier = semian_identifier
-    end
-
-    def to_s
-      "[#{@semian_identifier}] #{super}"
-    end
+    include ::Semian::AdapterError
   end
 
   ResourceOccupiedError = Class.new(SemianError)
@@ -19,6 +13,11 @@ end
 
 module Semian
   module Mysql2
+    include Semian::Adapter
+
+    ResourceOccupiedError = ::Mysql2::ResourceOccupiedError
+    CircuitOpenError = ::Mysql2::CircuitOpenError
+
     DEFAULT_HOST = 'localhost'
     DEFAULT_PORT = 3306
 
@@ -44,11 +43,7 @@ module Semian
     end
 
     def query(*args)
-      semian_resource.acquire(scope: :query) { raw_query(*args) }
-    rescue ::Semian::OpenCircuitError => error
-      raise ::Mysql2::CircuitOpenError.new(semian_identifier, error)
-    rescue ::Semian::BaseError => error
-      raise ::Mysql2::ResourceOccupiedError.new(semian_identifier, error)
+      acquire_semian_resource(scope: :query) { raw_query(*args) }
     end
 
     private
