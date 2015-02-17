@@ -54,7 +54,7 @@ module Semian
     private
 
     def connect(*args)
-      semian_resource.acquire(scope: :connect) { raw_connect(*args) }
+      semian_resource.acquire(scope: :connection) { raw_connect(*args) }
     rescue ::Semian::OpenCircuitError => error
       raise ::Mysql2::CircuitOpenError.new(semian_identifier, error)
     rescue ::Semian::BaseError => error

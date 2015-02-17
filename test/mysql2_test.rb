@@ -36,7 +36,7 @@ class TestMysql2 < MiniTest::Unit::TestCase
       notified = true
       assert_equal :success, event
       assert_equal Semian[:mysql_testing], resource
-      assert_equal :connect, scope
+      assert_equal :connection, scope
     end
 
     connect_to_mysql!
