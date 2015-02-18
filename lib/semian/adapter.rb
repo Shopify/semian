@@ -4,6 +4,10 @@ module Semian
       raise NotImplementedError.new("Semian adapters must implement a `semian_identifier` method")
     end
 
+    def semian_resource
+      @semian_resource ||= ::Semian.retrieve_or_register(semian_identifier, **semian_options)
+    end
+
     private
 
     def acquire_semian_resource(scope:, &block)
@@ -15,10 +19,6 @@ module Semian
       raise self.class::CircuitOpenError.new(semian_identifier, error)
     rescue ::Semian::BaseError => error
       raise self.class::ResourceOccupiedError.new(semian_identifier, error)
-    end
-
-    def semian_resource
-      @semian_resource ||= ::Semian.retrieve_or_register(semian_identifier, **semian_options)
     end
 
     def semian_options
