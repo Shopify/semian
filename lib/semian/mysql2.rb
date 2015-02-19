@@ -42,13 +42,13 @@ module Semian
     end
 
     def query(*args)
-      acquire_semian_resource(scope: :query) { raw_query(*args) }
+      acquire_semian_resource(adapter: :mysql, scope: :query) { raw_query(*args) }
     end
 
     private
 
     def connect(*args)
-      acquire_semian_resource(scope: :connection) { raw_connect(*args) }
+      acquire_semian_resource(adapter: :mysql, scope: :connection) { raw_connect(*args) }
     end
 
     def raw_semian_options

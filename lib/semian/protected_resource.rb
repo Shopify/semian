@@ -12,20 +12,20 @@ module Semian
       @circuit_breaker = circuit_breaker
     end
 
-    def acquire(timeout: nil, scope: nil, &block)
+    def acquire(timeout: nil, scope: nil, adapter: nil, &block)
       @circuit_breaker.acquire do
         begin
           @resource.acquire(timeout: timeout) do
-            Semian.notify(:success, self, scope)
+            Semian.notify(:success, self, scope, adapter)
             yield self
           end
         rescue ::Semian::TimeoutError
-          Semian.notify(:occupied, self, scope)
+          Semian.notify(:occupied, self, scope, adapter)
           raise
         end
       end
     rescue ::Semian::OpenCircuitError
-      Semian.notify(:circuit_open, self, scope)
+      Semian.notify(:circuit_open, self, scope, adapter)
       raise
     end
 

@@ -31,11 +31,12 @@ class TestMysql2 < MiniTest::Unit::TestCase
 
   def test_connect_instrumentation
     notified = false
-    subscriber = Semian.subscribe do |event, resource, scope|
+    subscriber = Semian.subscribe do |event, resource, scope, adapter|
       notified = true
       assert_equal :success, event
       assert_equal Semian[:mysql_testing], resource
       assert_equal :connection, scope
+      assert_equal :mysql, adapter
     end
 
     connect_to_mysql!
@@ -91,11 +92,12 @@ class TestMysql2 < MiniTest::Unit::TestCase
     client = connect_to_mysql!
 
     notified = false
-    subscriber = Semian.subscribe do |event, resource, scope|
+    subscriber = Semian.subscribe do |event, resource, scope, adapter|
       notified = true
       assert_equal :success, event
       assert_equal Semian[:mysql_testing], resource
       assert_equal :query, scope
+      assert_equal :mysql, adapter
     end
 
     client.query('SELECT 1 + 1;')

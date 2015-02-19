@@ -31,11 +31,12 @@ class TestRedis < MiniTest::Unit::TestCase
 
   def test_connect_instrumentation
     notified = false
-    subscriber = Semian.subscribe do |event, resource, scope|
+    subscriber = Semian.subscribe do |event, resource, scope, adapter|
       notified = true
       assert_equal :success, event
       assert_equal Semian[:redis_testing], resource
       assert_equal :connection, scope
+      assert_equal :redis, adapter
     end
 
     connect_to_redis!
@@ -91,11 +92,12 @@ class TestRedis < MiniTest::Unit::TestCase
     client = connect_to_redis!
 
     notified = false
-    subscriber = Semian.subscribe do |event, resource, scope|
+    subscriber = Semian.subscribe do |event, resource, scope, adapter|
       notified = true
       assert_equal :success, event
       assert_equal Semian[:redis_testing], resource
       assert_equal :query, scope
+      assert_equal :redis, adapter
     end
 
     client.get('foo')

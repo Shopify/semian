@@ -36,11 +36,11 @@ module Semian
     end
 
     def io(&block)
-      acquire_semian_resource(scope: :query) { raw_io(&block) }
+      acquire_semian_resource(adapter: :redis, scope: :query) { raw_io(&block) }
     end
 
     def connect
-      acquire_semian_resource(scope: :connection) { raw_connect }
+      acquire_semian_resource(adapter: :redis, scope: :connection) { raw_connect }
     end
 
     private
