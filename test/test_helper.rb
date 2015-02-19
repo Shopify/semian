@@ -10,7 +10,18 @@ require 'fileutils'
 require 'helpers/background_helper'
 
 Semian.logger = Logger.new(nil)
-Toxiproxy.populate(File.expand_path('../helpers/toxiproxy.json', __FILE__))
+Toxiproxy.populate([
+  {
+    name: 'semian_test_mysql',
+    upstream: 'localhost:3306',
+    listen: 'localhost:13306',
+  },
+  {
+    name: 'semian_test_redis',
+    upstream: 'localhost:6379',
+    listen: 'localhost:16379',
+  },
+])
 
 class MiniTest::Unit::TestCase
   include BackgroundHelper
