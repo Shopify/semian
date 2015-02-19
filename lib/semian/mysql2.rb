@@ -32,8 +32,7 @@ module Semian
 
     def semian_identifier
       @semian_identifier ||= begin
-        semian_options = query_options[:semian] || {}
-        unless name = semian_options['name'.freeze] || semian_options[:name]
+        unless name = semian_options && semian_options[:name]
           host = query_options[:host] || DEFAULT_HOST
           port = query_options[:port] || DEFAULT_PORT
           name = "#{host}:#{port}"
@@ -49,22 +48,12 @@ module Semian
     private
 
     def connect(*args)
-      semian_resource.acquire(scope: :connection) { raw_connect(*args) }
-    rescue ::Semian::OpenCircuitError => error
-      raise ::Mysql2::CircuitOpenError.new(semian_identifier, error)
-    rescue ::Semian::BaseError => error
-      raise ::Mysql2::ResourceOccupiedError.new(semian_identifier, error)
+      acquire_semian_resource(scope: :connection) { raw_connect(*args) }
     end
 
-    def semian_resource
-      @semian_resource ||= ::Semian.retrieve_or_register(semian_identifier, **semian_options)
-    end
-
-    def semian_options
-      options = query_options[:semian] || {}
-      options = options.map { |k, v| [k.to_sym, v] }.to_h
-      options.delete(:name)
-      options
+    def raw_semian_options
+      return query_options[:semian] if query_options.key?(:semian)
+      return query_options['semian'.freeze] if query_options.key?('semian'.freeze)
     end
   end
 end

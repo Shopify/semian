@@ -24,6 +24,11 @@ class TestMysql2 < MiniTest::Unit::TestCase
     assert_equal :'mysql_example.com:42', FakeMysql.new(host: 'example.com', port: 42).semian_identifier
   end
 
+  def test_semian_can_be_disabled
+    resource = Mysql2::Client.new(semian: false).semian_resource
+    assert_instance_of Semian::UnprotectedResource, resource
+  end
+
   def test_connect_instrumentation
     notified = false
     subscriber = Semian.subscribe do |event, resource, scope|
@@ -146,6 +151,11 @@ class TestMysql2 < MiniTest::Unit::TestCase
     Timecop.travel(ERROR_TIMEOUT + 1) do
       assert_equal 2, client.query('SELECT 1 + 1 as sum;').to_a.first['sum']
     end
+  end
+
+  def test_unconfigured
+    client = Mysql2::Client.new(host: '127.0.0.1', port: '13306')
+    assert_equal 2, client.query('SELECT 1 + 1 as sum;').to_a.first['sum']
   end
 
   private

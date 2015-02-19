@@ -29,8 +29,7 @@ module Semian
 
     def semian_identifier
       @semian_identifier ||= begin
-        opts = options[:semian] || options['semian'.freeze] || {}
-        name = opts[:name] || opts['name'.freeze]
+        name = semian_options && semian_options[:name]
         name ||= "#{location}/#{db}"
         :"redis_#{name}"
       end
@@ -46,11 +45,9 @@ module Semian
 
     private
 
-    def semian_options
-      opts = options[:semian] || options['semian'.freeze] || {}
-      opts = opts.map { |k, v| [k.to_sym, v] }.to_h
-      opts.delete(:name)
-      opts
+    def raw_semian_options
+      return options[:semian] if options.key?(:semian)
+      return options['semian'.freeze] if options.key?('semian'.freeze)
     end
   end
 end

@@ -5,7 +5,17 @@ module Semian
     end
 
     def semian_resource
-      @semian_resource ||= ::Semian.retrieve_or_register(semian_identifier, **semian_options)
+      @semian_options ||= case semian_options
+      when false
+        UnprotectedResource.new(semian_identifier)
+      when nil
+        Semian.logger.info("Semian is not configured for #{self.class.name}: #{semian_identifier}")
+        UnprotectedResource.new(semian_identifier)
+      else
+        options = semian_options.dup
+        options.delete(:name)
+        ::Semian.retrieve_or_register(semian_identifier, **options)
+      end
     end
 
     private
@@ -22,7 +32,13 @@ module Semian
     end
 
     def semian_options
-      raise NotImplementedError.new("Semian adapters must implement a `semian_options` method")
+      return @semian_options if defined? @semian_options
+      options = raw_semian_options
+      @semian_options = options && options.map { |k, v| [k.to_sym, v] }.to_h
+    end
+
+    def raw_semian_options
+      raise NotImplementedError.new("Semian adapters must implement a `raw_semian_options` method")
     end
 
     def resource_already_acquired?

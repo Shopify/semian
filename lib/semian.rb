@@ -147,6 +147,7 @@ end
 require 'semian/resource'
 require 'semian/circuit_breaker'
 require 'semian/protected_resource'
+require 'semian/unprotected_resource'
 require 'semian/platform'
 if Semian.supported_platform?
   require 'semian/semian'
