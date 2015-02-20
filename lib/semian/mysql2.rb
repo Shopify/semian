@@ -7,7 +7,7 @@ module Mysql2
     include ::Semian::AdapterError
   end
 
-  ResourceOccupiedError = Class.new(SemianError)
+  ResourceBusyError = Class.new(SemianError)
   CircuitOpenError = Class.new(SemianError)
 end
 
@@ -15,7 +15,7 @@ module Semian
   module Mysql2
     include Semian::Adapter
 
-    ResourceOccupiedError = ::Mysql2::ResourceOccupiedError
+    ResourceBusyError = ::Mysql2::ResourceBusyError
     CircuitOpenError = ::Mysql2::CircuitOpenError
 
     DEFAULT_HOST = 'localhost'

@@ -50,7 +50,7 @@ class TestRedis < MiniTest::Unit::TestCase
     client = connect_to_redis!
 
     Semian[:redis_testing].acquire do
-      assert_raises Redis::ResourceOccupiedError do
+      assert_raises Redis::ResourceBusyError do
         connect_to_redis!
       end
     end
@@ -60,7 +60,7 @@ class TestRedis < MiniTest::Unit::TestCase
     @proxy.downstream(:latency, latency: 500).apply do
       background { connect_to_redis! }
 
-      assert_raises Redis::ResourceOccupiedError do
+      assert_raises Redis::ResourceBusyError do
         connect_to_redis!
       end
     end
@@ -71,7 +71,7 @@ class TestRedis < MiniTest::Unit::TestCase
       background { connect_to_redis! }
 
       ERROR_THRESHOLD.times do
-        assert_raises Redis::ResourceOccupiedError do
+        assert_raises Redis::ResourceBusyError do
           connect_to_redis!
         end
       end
@@ -111,7 +111,7 @@ class TestRedis < MiniTest::Unit::TestCase
     client = connect_to_redis!
 
     Semian[:redis_testing].acquire do
-      assert_raises Redis::ResourceOccupiedError do
+      assert_raises Redis::ResourceBusyError do
         client.get('foo')
       end
     end
@@ -124,7 +124,7 @@ class TestRedis < MiniTest::Unit::TestCase
     @proxy.downstream(:latency, latency: 500).apply do
       background { client2.get('foo') }
 
-      assert_raises Redis::ResourceOccupiedError do
+      assert_raises Redis::ResourceBusyError do
         client.get('foo')
       end
     end
@@ -140,7 +140,7 @@ class TestRedis < MiniTest::Unit::TestCase
       background { client2.get('foo') }
 
       ERROR_THRESHOLD.times do
-        assert_raises Redis::ResourceOccupiedError do
+        assert_raises Redis::ResourceBusyError do
           client.get('foo')
         end
       end
