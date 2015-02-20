@@ -20,7 +20,7 @@ module Semian
             yield self
           end
         rescue ::Semian::TimeoutError
-          Semian.notify(:occupied, self, scope, adapter)
+          Semian.notify(:busy, self, scope, adapter)
           raise
         end
       end

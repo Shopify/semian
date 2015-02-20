@@ -6,8 +6,8 @@ class TestInstrumentation < MiniTest::Unit::TestCase
     Semian.register(:testing, tickets: 1, error_threshold: 1, error_timeout: 5, success_threshold: 1)
   end
 
-  def test_occupied_instrumentation
-    assert_notify(:success, :occupied) do
+  def test_busy_instrumentation
+    assert_notify(:success, :busy) do
       Semian[:testing].acquire do
         assert_raises Semian::TimeoutError do
           Semian[:testing].acquire {}
@@ -17,7 +17,7 @@ class TestInstrumentation < MiniTest::Unit::TestCase
   end
 
   def test_circuit_open_instrumentation
-    assert_notify(:success, :occupied) do
+    assert_notify(:success, :busy) do
       Semian[:testing].acquire do
         assert_raises Semian::TimeoutError do
           Semian[:testing].acquire {}
