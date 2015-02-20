@@ -9,35 +9,6 @@ class TestCircuitBreaker < MiniTest::Unit::TestCase
     @resource = Semian[:testing]
   end
 
-  def test_with_fallback_value_returns_the_value
-    result = @resource.with_fallback(42) do
-      raise SomeError
-    end
-    assert_equal 42, result
-  end
-
-  def test_with_fallback_block_call_the_block
-    result = @resource.with_fallback(-> { 42 }) do
-      raise SomeError
-    end
-    assert_equal 42, result
-  end
-
-  def test_unknown_exceptions_are_not_rescued
-    assert_raises RuntimeError do
-      @resource.with_fallback(42) do
-        raise RuntimeError
-      end
-    end
-  end
-
-  def test_all_semian_exceptions_are_rescued
-    result = @resource.with_fallback(42) do
-      raise Semian::BaseError
-    end
-    assert_equal 42, result
-  end
-
   def test_acquire_yield_when_the_circuit_is_closed
     block_called = false
     @resource.acquire { block_called = true }
@@ -124,18 +95,23 @@ class TestCircuitBreaker < MiniTest::Unit::TestCase
   end
 
   def trigger_error!(resource = @resource)
-    resource.with_fallback(42) { raise SomeError }
+    resource.acquire { raise SomeError }
+  rescue SomeError
   end
 
   def assert_circuit_closed(resource = @resource)
     block_called = false
-    resource.with_fallback(42) { block_called = true }
+    resource.acquire { block_called = true }
     assert block_called, 'Expected the circuit to be closed, but it was open'
   end
 
   def assert_circuit_opened(resource = @resource)
-    block_called = false
-    resource.with_fallback(42) { block_called = true }
-    refute block_called, 'Expected the circuit to be open, but it was closed'
+    open = false
+    begin
+      resource.acquire { }
+    rescue Semian::OpenCircuitError
+      open = true
+    end
+    assert open, 'Expected the circuit to be open, but it was closed'
   end
 end

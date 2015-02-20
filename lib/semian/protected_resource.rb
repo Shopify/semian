@@ -28,9 +28,5 @@ module Semian
       Semian.notify(:circuit_open, self, scope, adapter)
       raise
     end
-
-    def with_fallback(fallback, &block)
-      @circuit_breaker.with_fallback(fallback) { @resource.acquire(&block) }
-    end
   end
 end
