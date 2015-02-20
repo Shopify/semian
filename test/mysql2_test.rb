@@ -50,7 +50,7 @@ class TestMysql2 < MiniTest::Unit::TestCase
     client = connect_to_mysql!
 
     Semian[:mysql_testing].acquire do
-      assert_raises Mysql2::ResourceOccupiedError do
+      assert_raises Mysql2::ResourceBusyError do
         connect_to_mysql!
       end
     end
@@ -60,7 +60,7 @@ class TestMysql2 < MiniTest::Unit::TestCase
     @proxy.downstream(:latency, latency: 500).apply do
       background { connect_to_mysql! }
 
-      assert_raises Mysql2::ResourceOccupiedError do
+      assert_raises Mysql2::ResourceBusyError do
         connect_to_mysql!
       end
     end
@@ -71,7 +71,7 @@ class TestMysql2 < MiniTest::Unit::TestCase
       background { connect_to_mysql! }
 
       ERROR_THRESHOLD.times do
-        assert_raises Mysql2::ResourceOccupiedError do
+        assert_raises Mysql2::ResourceBusyError do
           connect_to_mysql!
         end
       end
@@ -111,7 +111,7 @@ class TestMysql2 < MiniTest::Unit::TestCase
     client = connect_to_mysql!
 
     Semian[:mysql_testing].acquire do
-      assert_raises Mysql2::ResourceOccupiedError do
+      assert_raises Mysql2::ResourceBusyError do
         client.query('SELECT 1 + 1;')
       end
     end
@@ -124,7 +124,7 @@ class TestMysql2 < MiniTest::Unit::TestCase
     @proxy.downstream(:latency, latency: 500).apply do
       background { client2.query('SELECT 1 + 1;') }
 
-      assert_raises Mysql2::ResourceOccupiedError do
+      assert_raises Mysql2::ResourceBusyError do
         client.query('SELECT 1 + 1;')
       end
     end
@@ -138,7 +138,7 @@ class TestMysql2 < MiniTest::Unit::TestCase
       background { client2.query('SELECT 1 + 1;') }
 
       ERROR_THRESHOLD.times do
-        assert_raises Mysql2::ResourceOccupiedError do
+        assert_raises Mysql2::ResourceBusyError do
           client.query('SELECT 1 + 1;')
         end
       end

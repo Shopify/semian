@@ -28,7 +28,7 @@ module Semian
     rescue ::Semian::OpenCircuitError => error
       raise self.class::CircuitOpenError.new(semian_identifier, error)
     rescue ::Semian::BaseError => error
-      raise self.class::ResourceOccupiedError.new(semian_identifier, error)
+      raise self.class::ResourceBusyError.new(semian_identifier, error)
     end
 
     def semian_options

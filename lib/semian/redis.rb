@@ -7,7 +7,7 @@ class Redis
     include ::Semian::AdapterError
   end
 
-  ResourceOccupiedError = Class.new(SemianError)
+  ResourceBusyError = Class.new(SemianError)
   CircuitOpenError = Class.new(SemianError)
 end
 
@@ -15,7 +15,7 @@ module Semian
   module Redis
     include Semian::Adapter
 
-    ResourceOccupiedError = ::Redis::ResourceOccupiedError
+    ResourceBusyError = ::Redis::ResourceBusyError
     CircuitOpenError = ::Redis::CircuitOpenError
 
     # The naked methods are exposed as `raw_query` and `raw_connect` for instrumentation purpose
