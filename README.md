@@ -26,7 +26,7 @@ an external resource, it takes a ticket for the duration of the query.  When the
 query returns, it puts the ticket back into the pool. If you have `n` tickets,
 and the `n + 1` worker tries to acquire a ticket to query the resource it'll
 wait for `timeout` seconds to see if a ticket comes available, otherwise it'll
-raise `Semian::TimeoutError`. 
+raise `Semian::TimeoutError`.
 
 By failing fast, this solves the problem of one slow database taking your
 platform down. The busyness of the external resource determines the `timeout`
@@ -50,7 +50,7 @@ In a master process, register a resource with a specified number of tickets
 (number of concurrent clients):
 
 ```ruby
-Semian.register(:mysql_master tickets: 3, timeout: 0.5, error_threshold: 3, error_timeout: 10, success_threshold: 2)
+Semian.register(:mysql_master, tickets: 3, timeout: 0.5, error_threshold: 3, error_timeout: 10, success_threshold: 2)
 ```
 
 Then in your child processes, you can use the resource:
