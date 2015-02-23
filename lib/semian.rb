@@ -78,6 +78,8 @@ module Semian
   OpenCircuitError = Class.new(BaseError)
 
   module AdapterError
+    attr_reader :semian_identifier
+
     def initialize(semian_identifier, *args)
       super(*args)
       @semian_identifier = semian_identifier

@@ -50,9 +50,10 @@ class TestRedis < MiniTest::Unit::TestCase
     client = connect_to_redis!
 
     Semian[:redis_testing].acquire do
-      assert_raises Redis::ResourceBusyError do
+      error = assert_raises Redis::ResourceBusyError do
         connect_to_redis!
       end
+      assert_equal :redis_testing, error.semian_identifier
     end
   end
 
