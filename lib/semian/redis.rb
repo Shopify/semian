@@ -45,6 +45,10 @@ module Semian
 
     private
 
+    def resource_exceptions
+      [::Redis::BaseConnectionError]
+    end
+
     def raw_semian_options
       return options[:semian] if options.key?(:semian)
       return options['semian'.freeze] if options.key?('semian'.freeze)

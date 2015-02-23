@@ -29,6 +29,32 @@ class TestRedis < MiniTest::Unit::TestCase
     assert_instance_of Semian::UnprotectedResource, resource
   end
 
+  def test_connection_errors_open_the_circuit
+    client = connect_to_redis!
+
+    @proxy.downstream(:latency, latency: 600).apply do
+      ERROR_THRESHOLD.times do
+        assert_raises ::Redis::TimeoutError do
+          client.get('foo')
+        end
+      end
+
+      assert_raises ::Redis::CircuitOpenError do
+        client.get('foo')
+      end
+    end
+  end
+
+  def test_command_errors_does_not_open_the_circuit
+    client = connect_to_redis!
+    client.hset('my_hash', 'foo', 'bar')
+    (ERROR_THRESHOLD * 2).times do
+      assert_raises Redis::CommandError do
+        client.get('my_hash')
+      end
+    end
+  end
+
   def test_connect_instrumentation
     notified = false
     subscriber = Semian.subscribe do |event, resource, scope, adapter|
@@ -160,7 +186,14 @@ class TestRedis < MiniTest::Unit::TestCase
   private
 
   def connect_to_redis!(semian_options = {})
-    redis = Redis.new(host: '127.0.0.1', port: 16379, reconnect_attempts: 0, db: 1, semian: SEMIAN_OPTIONS.merge(semian_options))
+    redis = Redis.new(
+      host: '127.0.0.1',
+      port: 16379,
+      reconnect_attempts: 0,
+      db: 1,
+      timeout: 0.5,
+      semian: SEMIAN_OPTIONS.merge(semian_options)
+    )
     redis.client.connect
     redis
   end
