@@ -2,7 +2,7 @@ $:.unshift File.expand_path("../../../lib", __FILE__)
 
 require 'semian/platform'
 
-unless Semian.supported_platform?
+unless Semian.sysv_semaphores_supported?
   File.write "Makefile", <<MAKEFILE
 all:
 clean:

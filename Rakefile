@@ -18,7 +18,7 @@ end
 
 $:.unshift File.expand_path("../lib", __FILE__)
 require 'semian/platform'
-if Semian.supported_platform?
+if Semian.sysv_semaphores_supported?
   require 'rake/extensiontask'
   Rake::ExtensionTask.new('semian', GEMSPEC) do |ext|
     ext.ext_dir = 'ext/semian'

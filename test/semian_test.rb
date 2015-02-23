@@ -19,4 +19,13 @@ class TestSemian < MiniTest::Unit::TestCase
     assert defined?(Semian::InternalError)
     assert defined?(Semian::Resource)
   end
+
+  def test_disabled_via_env_var
+    ENV['SEMIAN_SEMAPHORES_DISABLED'] = '1'
+
+    refute Semian.semaphores_enabled?
+  ensure
+    ENV.delete('SEMIAN_SEMAPHORES_DISABLED')
+  end
+
 end
