@@ -3,6 +3,8 @@ require 'semian/adapter'
 require 'mysql2'
 
 module Mysql2
+  Mysql2::Error.class_exec { attr_accessor :semian_identifier }
+
   class SemianError < Mysql2::Error
     include ::Semian::AdapterError
   end
