@@ -77,8 +77,8 @@ module Semian
   InternalError = Class.new(BaseError)
   OpenCircuitError = Class.new(BaseError)
 
-  def enabled?
-    !ENV['SEMIAN_DISABLED']
+  def semaphores_enabled?
+    !ENV['SEMIAN_SEMAPHORES_DISABLED']
   end
 
   module AdapterError
@@ -153,11 +153,11 @@ require 'semian/circuit_breaker'
 require 'semian/protected_resource'
 require 'semian/unprotected_resource'
 require 'semian/platform'
-if Semian.sysv_semaphores_supported? && Semian.enabled?
+if Semian.sysv_semaphores_supported? && Semian.semaphores_enabled?
   require 'semian/semian'
 else
   Semian::MAX_TICKETS = 0
   Semian.logger.info("Semian is not supported on #{RUBY_PLATFORM} - all operations will no-op") unless Semian.sysv_semaphores_supported?
-  Semian.logger.info("Semian is disabled, is this what you really want? - all operations will no-op") unless Semian.enabled?
+  Semian.logger.info("Semian is disabled, is this what you really want? - all operations will no-op") unless Semian.semaphores_enabled?
 end
 require 'semian/version'
