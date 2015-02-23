@@ -50,9 +50,10 @@ class TestMysql2 < MiniTest::Unit::TestCase
     client = connect_to_mysql!
 
     Semian[:mysql_testing].acquire do
-      assert_raises Mysql2::ResourceBusyError do
+      error = assert_raises Mysql2::ResourceBusyError do
         connect_to_mysql!
       end
+      assert_equal :mysql_testing, error.semian_identifier
     end
   end
 
