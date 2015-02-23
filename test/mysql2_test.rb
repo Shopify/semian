@@ -80,6 +80,15 @@ class TestMysql2 < MiniTest::Unit::TestCase
     end
   end
 
+  def test_mysql_error_are_tagged_with_the_resource_identifier
+    client = connect_to_mysql!
+
+    error = assert_raises Mysql2::Error do
+      client.query('SYNTAX ERROR!')
+    end
+    assert_equal :mysql_testing, error.semian_identifier
+  end
+
   def test_resource_timeout_on_connect
     @proxy.downstream(:latency, latency: 500).apply do
       background { connect_to_mysql! }

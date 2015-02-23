@@ -3,6 +3,8 @@ require 'semian/adapter'
 require 'redis'
 
 class Redis
+  Redis::BaseConnectionError.class_exec { attr_accessor :semian_identifier }
+
   class SemianError < Redis::BaseConnectionError
     include ::Semian::AdapterError
   end

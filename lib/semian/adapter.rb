@@ -31,6 +31,9 @@ module Semian
       raise self.class::CircuitOpenError.new(semian_identifier, error)
     rescue ::Semian::BaseError => error
       raise self.class::ResourceBusyError.new(semian_identifier, error)
+    rescue => error
+      error.semian_identifier = semian_identifier if error.respond_to?(:semian_identifier=)
+      raise
     end
 
     def semian_options
