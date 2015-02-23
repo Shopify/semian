@@ -29,6 +29,29 @@ class TestMysql2 < MiniTest::Unit::TestCase
     assert_instance_of Semian::UnprotectedResource, resource
   end
 
+  def test_connection_errors_open_the_circuit
+    @proxy.downstream(:latency, latency: 1200).apply do
+      ERROR_THRESHOLD.times do
+        assert_raises ::Mysql2::Error do
+          connect_to_mysql!
+        end
+      end
+
+      assert_raises ::Mysql2::CircuitOpenError do
+        connect_to_mysql!
+      end
+    end
+  end
+
+  def test_query_errors_does_not_open_the_circuit
+    client = connect_to_mysql!
+    (ERROR_THRESHOLD * 2).times do
+      assert_raises ::Mysql2::Error do
+        client.query('ERROR!')
+      end
+    end
+  end
+
   def test_connect_instrumentation
     notified = false
     subscriber = Semian.subscribe do |event, resource, scope, adapter|
@@ -164,7 +187,12 @@ class TestMysql2 < MiniTest::Unit::TestCase
   private
 
   def connect_to_mysql!(semian_options = {})
-    Mysql2::Client.new(host: '127.0.0.1', port: '13306', semian: SEMIAN_OPTIONS.merge(semian_options))
+    Mysql2::Client.new(
+      connect_timeout: 1,
+      host: '127.0.0.1',
+      port: '13306',
+      semian: SEMIAN_OPTIONS.merge(semian_options),
+    )
   end
 
   class FakeMysql < Mysql2::Client

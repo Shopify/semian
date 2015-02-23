@@ -15,6 +15,12 @@ module Semian
   module Mysql2
     include Semian::Adapter
 
+    CONNECTION_ERROR = Regexp.union(
+      /Can't connect to MySQL server on/i,
+      /Lost connection to MySQL server during query/i,
+      /MySQL server has gone away/i,
+    )
+
     ResourceBusyError = ::Mysql2::ResourceBusyError
     CircuitOpenError = ::Mysql2::CircuitOpenError
 
@@ -49,6 +55,15 @@ module Semian
 
     def connect(*args)
       acquire_semian_resource(adapter: :mysql, scope: :connection) { raw_connect(*args) }
+    end
+
+    def acquire_semian_resource(*)
+      super
+    rescue ::Mysql2::Error => error
+      if error.message =~ CONNECTION_ERROR
+        semian_resource.mark_failed(error)
+      end
+      raise
     end
 
     def raw_semian_options
