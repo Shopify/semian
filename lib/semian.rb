@@ -153,11 +153,11 @@ require 'semian/circuit_breaker'
 require 'semian/protected_resource'
 require 'semian/unprotected_resource'
 require 'semian/platform'
-if Semian.supported_platform? && Semian.enabled?
+if Semian.sysv_semaphores_supported? && Semian.enabled?
   require 'semian/semian'
 else
   Semian::MAX_TICKETS = 0
-  Semian.logger.info("Semian is not supported on #{RUBY_PLATFORM} - all operations will no-op") unless Semian.supported_platform?
+  Semian.logger.info("Semian is not supported on #{RUBY_PLATFORM} - all operations will no-op") unless Semian.sysv_semaphores_supported?
   Semian.logger.info("Semian is disabled, is this what you really want? - all operations will no-op") unless Semian.enabled?
 end
 require 'semian/version'
