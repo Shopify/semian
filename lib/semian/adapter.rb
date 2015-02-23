@@ -14,6 +14,8 @@ module Semian
       else
         options = semian_options.dup
         options.delete(:name)
+        options[:exceptions] ||= []
+        options[:exceptions] += resource_exceptions
         ::Semian.retrieve_or_register(semian_identifier, **options)
       end
     end
@@ -39,6 +41,10 @@ module Semian
 
     def raw_semian_options
       raise NotImplementedError.new("Semian adapters must implement a `raw_semian_options` method")
+    end
+
+    def resource_exceptions
+      []
     end
 
     def resource_already_acquired?
