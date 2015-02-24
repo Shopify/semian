@@ -11,6 +11,17 @@ class Redis
 
   ResourceBusyError = Class.new(SemianError)
   CircuitOpenError = Class.new(SemianError)
+
+  # This memoized alias is necessary because during a `pipelined` block
+  # the client is replaced by an instance of `Redis::Pipeline` and there is
+  # no way to access the original client.
+  def semian_resource
+    @semian_resource ||= @client.semian_resource
+  end
+
+  def semian_identifier
+    semian_resource.name
+  end
 end
 
 module Semian

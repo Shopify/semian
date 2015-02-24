@@ -24,6 +24,12 @@ class TestRedis < MiniTest::Unit::TestCase
     assert_equal :'redis_example.com:42/0', Redis.new(host: 'example.com', port: 42).client.semian_identifier
   end
 
+  def test_client_alias
+    redis = connect_to_redis!
+    assert_equal redis.client.semian_resource, redis.semian_resource
+    assert_equal redis.client.semian_identifier, redis.semian_identifier
+  end
+
   def test_semian_can_be_disabled
     resource = Redis.new(semian: false).client.semian_resource
     assert_instance_of Semian::UnprotectedResource, resource
