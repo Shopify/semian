@@ -5,6 +5,11 @@ class UnprotectedResourceTest < MiniTest::Unit::TestCase
     @resource = Semian::UnprotectedResource.new(:foo)
   end
 
+  def test_interface_is_the_same
+    diff = Semian::ProtectedResource.public_instance_methods - Semian::UnprotectedResource.public_instance_methods
+    assert_equal [], diff
+  end
+
   def test_resource_name
     assert_equal :foo, @resource.name
   end
@@ -45,4 +50,11 @@ class UnprotectedResourceTest < MiniTest::Unit::TestCase
     assert acquired
   end
 
+  def test_request_is_allowed
+    assert @resource.request_allowed?
+  end
+
+  def test_mark_failed
+    @resource.mark_failed(:error)
+  end
 end

@@ -29,5 +29,12 @@ module Semian
 
     def reset
     end
+
+    def request_allowed?
+      true
+    end
+
+    def mark_failed(error)
+    end
   end
 end
