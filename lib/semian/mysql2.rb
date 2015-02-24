@@ -64,6 +64,7 @@ module Semian
     rescue ::Mysql2::Error => error
       if error.message =~ CONNECTION_ERROR
         semian_resource.mark_failed(error)
+        error.semian_identifier = semian_identifier
       end
       raise
     end

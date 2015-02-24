@@ -80,13 +80,23 @@ class TestMysql2 < MiniTest::Unit::TestCase
     end
   end
 
-  def test_mysql_error_are_tagged_with_the_resource_identifier
+  def test_network_errors_are_tagged_with_the_resource_identifier
+    client = connect_to_mysql!
+    @proxy.down do
+      error = assert_raises ::Mysql2::Error do
+        client.query('SELECT 1 + 1;')
+      end
+      assert_equal client.semian_identifier, error.semian_identifier
+    end
+  end
+
+  def test_other_mysql_errors_are_not_tagged_with_the_resource_identifier
     client = connect_to_mysql!
 
     error = assert_raises Mysql2::Error do
       client.query('SYNTAX ERROR!')
     end
-    assert_equal :mysql_testing, error.semian_identifier
+    assert_nil error.semian_identifier
   end
 
   def test_resource_timeout_on_connect

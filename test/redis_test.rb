@@ -98,6 +98,15 @@ class TestRedis < MiniTest::Unit::TestCase
     end
   end
 
+  def test_other_redis_errors_are_not_tagged_with_the_resource_identifier
+    client = connect_to_redis!
+    client.set('foo', 'bar')
+    error = assert_raises ::Redis::CommandError do
+      client.hget('foo', 'bar')
+    end
+    refute error.respond_to?(:semian_identifier)
+  end
+
   def test_resource_timeout_on_connect
     @proxy.downstream(:latency, latency: 500).apply do
       background { connect_to_redis! }
