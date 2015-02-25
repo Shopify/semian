@@ -4,6 +4,7 @@ require 'redis'
 
 class Redis
   Redis::BaseConnectionError.class_exec { attr_accessor :semian_identifier }
+  ::Errno::EINVAL.class_exec { attr_accessor :semian_identifier }
 
   class SemianError < Redis::BaseConnectionError
     include ::Semian::AdapterError
@@ -59,7 +60,10 @@ module Semian
     private
 
     def resource_exceptions
-      [::Redis::BaseConnectionError]
+      [
+        ::Redis::BaseConnectionError,
+        ::Errno::EINVAL, # Hiredis bug: https://github.com/redis/hiredis-rb/issues/21
+      ]
     end
 
     def raw_semian_options
