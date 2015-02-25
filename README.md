@@ -1,83 +1,121 @@
 ## Semian [![Build Status](https://travis-ci.org/Shopify/semian.svg?branch=master)](https://travis-ci.org/Shopify/semian)
 
-Semian is a Ruby implementation of the Bulkhead resource isolation pattern,
-using SysV semaphores. Bulkheading controls access to external resources,
-protecting against resource or network latency, by allowing otherwise slow
-queries to fail fast.
+Semian is a latency and fault tolerance library for protecting your Ruby
+applications against misbehaving external services. It allows you to fail fast
+so you can handle errors gracefully. The patterns are inspired by
+[Hystrix][hystrix] and [Release It][release-it]. Semian is an extraction from
+[Shopify][shopify] where it's been running successfully in production since
+October, 2014.
 
-Downtime is easy to detect. Requests fail when querying the resource, usually
-fast. Reliably detecting higher than normal latency is more difficult. Strict
-timeouts is one solution, but picking those are hard and usually needs to be
-done per query or section of your application.
+For an overview of building resilient Ruby application, see [the blog post on
+Toxiproxy and Semian][resiliency-blog-post]. We recommend using
+[Toxiproxy][toxiproxy] to test for resiliency.
 
-Semian takes a different approach. Instead of asking the question: "How long can
-my query execute?" it raises the question "How long do I want to wait before
-starting to execute my query?".
+# Usage
 
-Imagine that your database is very slow. Requests that hit the slow database are
-processed in your workers and end up timing out at the worker level. However,
-other requests don't touch the slow database. These requests will start to queue
-up behind the requests to the slow database, possibly never being served
-because the client disconnects due to slowness. You're now effectively down,
-because a single external resource is slow.
-
-Semian solves this problem with resource tickets. Every time a worker addresses
-an external resource, it takes a ticket for the duration of the query.  When the
-query returns, it puts the ticket back into the pool. If you have `n` tickets,
-and the `n + 1` worker tries to acquire a ticket to query the resource it'll
-wait for `timeout` seconds to see if a ticket comes available, otherwise it'll
-raise `Semian::TimeoutError`.
-
-By failing fast, this solves the problem of one slow database taking your
-platform down. The busyness of the external resource determines the `timeout`
-and ticket count. You can also rescue `Semian::TimeoutError` to provide fallback
-values, such as showing an error message to the user.
-
-A subset of workers will still be tied up on the slow database, meaning you are
-under capacity with a slow external resource. However, at most you'll have
-`ticket count` workers occupied. This is a small price to pay. By implementing
-the circuit breaker pattern on top of Semian, you can avoid that. That may be
-built into Semian in the future.
-
-Under the hood, Semian is implemented with SysV semaphores. In a threaded web
-server, the semaphore could be in-process. Semian was written with forked web
-servers in mind, such as Unicorn, but Semian can be used perfectly fine in a
-threaded web server.
-
-### Usage
-
-In a master process, register a resource with a specified number of tickets
-(number of concurrent clients):
+Install by adding the gem to your `Gemfile` and require the [adapters](#adapters) you need:
 
 ```ruby
-Semian.register(:mysql_master, tickets: 3, timeout: 0.5, error_threshold: 3, error_timeout: 10, success_threshold: 2)
+gem 'semian', require: %w(semian semian/mysql2 semian/redis)
 ```
 
-Then in your child processes, you can use the resource:
+We recommend this pattern of requiring adapters directly from the `Gemfile`.
+This makes ensures Semian adapters is loaded as early as possible, to also
+protect your application during boot. Please see the [adapter configuration
+section](#configuration) on how to configure adapters.
+
+## Adapters
+
+The following adapters are in Semian and work against the public gems:
+
+* [`semian/mysql2`][mysql-semian-adapter] (~> 0.3.16)
+* [`semian/redis`][redis-semian-adapter] (~> 3.2.1)
+
+### Configuration
+
+When instantiating a resource it now needs to be configured for Semian. This is
+done by passing `semian` as an argument when initializing the client. Examples
+built in adapters:
 
 ```ruby
-Semian[:mysql_master].acquire do
-  # Query the database. If three other workers are querying this resource at the
-  # same time, this block will block for up to 0.5s waiting for another worker
-  # to release a ticket. Otherwise, it'll raise `Semian::TimeoutError`.
+# MySQL2 client
+# In Rails this means having a Semian key in database.yml for each db.
+client = Mysql2::Client.new(host: "localhost", username: "root", semian: {
+  name: "master",
+  tickets: 8, # See the Understanding Semian section on picking these values
+  success_threshold: 2,
+  error_threshold: 3,
+  error_timeout: 10
+})
+
+# Redis client
+client = Redis.new(semian: {
+  name: "inventory",
+  tickets: 4,
+  success_threshold: 2,
+  error_threshold: 4,
+  error_timeout: 20
+})
+```
+
+### Creating an adapter
+
+To create a Semian adapter you must implement the following methods:
+
+1. [`include Semian::Adapter`][semian-adapter]. Use the helpers to wrap the
+   resource. This takes care of situations such as monitoring, nested resources,
+   unsupported platforms, creating the Semian resource if it doesn't already
+   exist and so on.
+2. `#semian_identifier`. This is responsible for returning a symbol that
+   represents every unique resource, for example `redis_master` or
+   `mysql_shard_1`. This is usually assembled from a `name` attribute on the
+   Semian configuration hash, but could also be `<host>:<port>`.
+3. `connect`. The name of this method varies. You must override the driver's
+   connect method with one that wraps the connect call with
+   `Semian::Resource#acquire`. You should do this at the lowest possible level.
+4. `query`. Same as `connect` but for queries on the resource.
+5. Define exceptions `ResourceBusyError` and `CircuitOpenError`. These are
+   raised when the request was rejected early because the resource is out of
+   tickets or because the circuit breaker is open (see [Understanding
+   Semian](#understanding-semian). They should inherit from the base exception
+   class from the raw driver. For example `Mysql2::Error` or
+   `Redis::BaseConnectionError` for the MySQL and Redis drivers. This makes it
+   easy to `rescue` and handle them gracefully in application code, by
+   `rescue`ing the base class.
+
+The best resource is looking at the [already implemented adapters](#adapters).
+
+## Monitoring
+
+With [`Semian::Instrumentable`][semian-instrumentable] clients can monitor
+Semian internals. For example to instrument just events with
+[`statsd-instrument`][statsd-instrument]:
+
+```ruby
+# `event` is `success`, `busy`, `circuit_open`.
+# `resource` is the `Semian::Resource` object
+# `scope` is `connection` or `query` (others can be instrumented too from the adapter)
+# `adapter` is the name of the adapter (mysql2, redis, ..)
+Semian.subscribe do |event, resource, scope, adapter|
+  StatsD.increment("Shopify.#{adapter}.semian.#{event}", 1, tags: [
+    "resource:#{resource.name}",
+    "total_tickets:#{resource.tickets}",
+    "type:#{scope}",
+  ])
 end
 ```
 
-If you have a process that doesn't `fork`, you can still use the same namespace
-to control access to a shared resource:
+# Understanding Semian
 
-```ruby
-Semian.register(:mysql_master, timeout: 0.5)
+Coming soon!
 
-Semian[:mysql_master].acquire do
-  # Query the resource
-end
-```
-
-### Install
-
-In your Gemfile:
-
-```ruby
-gem "semian"
-```
+[hystrix]: https://github.com/Netflix/Hystrix
+[release-it]: https://pragprog.com/book/mnee/release-it
+[shopify]: http://www.shopify.com/
+[mysql-semian-adapter]: https://github.com/Shopify/semian/blob/master/lib/semian/mysql.rb
+[redis-semian-adapter]: https://github.com/Shopify/semian/blob/master/lib/semian/redis.rb
+[semian-adapter]: https://github.com/Shopify/semian/blob/master/lib/semian/adapter.rb
+[semian-instrumentable]: https://github.com/Shopify/semian/blob/master/lib/semian/instrumentable.rb
+[statsd-instrument]: http://github.com/shopify/statsd-instrument
+[resiliency-blog-post]: http://www.shopify.com/technology/16906928-building-and-testing-resilient-ruby-on-rails-applications
+[toxiproxy]: https://github.com/Shopify/toxiproxy
