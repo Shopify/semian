@@ -82,15 +82,14 @@ module Semian
   end
 
   module AdapterError
-    attr_reader :semian_identifier
-
-    def initialize(semian_identifier, *args)
-      super(*args)
-      @semian_identifier = semian_identifier
-    end
+    attr_accessor :semian_identifier
 
     def to_s
-      "[#{@semian_identifier}] #{super}"
+      if @semian_identifier
+        "[#{@semian_identifier}] #{super}"
+      else
+        super
+      end
     end
   end
 

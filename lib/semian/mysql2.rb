@@ -3,10 +3,13 @@ require 'semian/adapter'
 require 'mysql2'
 
 module Mysql2
-  Mysql2::Error.class_exec { attr_accessor :semian_identifier }
+  Mysql2::Error.include(::Semian::AdapterError)
 
   class SemianError < Mysql2::Error
-    include ::Semian::AdapterError
+    def initialize(semian_identifier, *args)
+      super(*args)
+      @semian_identifier = semian_identifier
+    end
   end
 
   ResourceBusyError = Class.new(SemianError)

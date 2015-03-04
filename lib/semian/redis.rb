@@ -3,11 +3,14 @@ require 'semian/adapter'
 require 'redis'
 
 class Redis
-  Redis::BaseConnectionError.class_exec { attr_accessor :semian_identifier }
-  ::Errno::EINVAL.class_exec { attr_accessor :semian_identifier }
+  Redis::BaseConnectionError.include(::Semian::AdapterError)
+  ::Errno::EINVAL.include(::Semian::AdapterError)
 
   class SemianError < Redis::BaseConnectionError
-    include ::Semian::AdapterError
+    def initialize(semian_identifier, *args)
+      super(*args)
+      @semian_identifier = semian_identifier
+    end
   end
 
   ResourceBusyError = Class.new(SemianError)
