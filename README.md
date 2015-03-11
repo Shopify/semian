@@ -112,7 +112,7 @@ Coming soon!
 [hystrix]: https://github.com/Netflix/Hystrix
 [release-it]: https://pragprog.com/book/mnee/release-it
 [shopify]: http://www.shopify.com/
-[mysql-semian-adapter]: https://github.com/Shopify/semian/blob/master/lib/semian/mysql.rb
+[mysql-semian-adapter]: https://github.com/Shopify/semian/blob/master/lib/semian/mysql2.rb
 [redis-semian-adapter]: https://github.com/Shopify/semian/blob/master/lib/semian/redis.rb
 [semian-adapter]: https://github.com/Shopify/semian/blob/master/lib/semian/adapter.rb
 [semian-instrumentable]: https://github.com/Shopify/semian/blob/master/lib/semian/instrumentable.rb
