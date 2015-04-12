@@ -1,15 +1,45 @@
 ## Semian [![Build Status](https://travis-ci.org/Shopify/semian.svg?branch=master)](https://travis-ci.org/Shopify/semian)
 
-Semian is a latency and fault tolerance library for protecting your Ruby
-applications against misbehaving external services. It allows you to fail fast
-so you can handle errors gracefully. The patterns are inspired by
-[Hystrix][hystrix] and [Release It][release-it]. Semian is an extraction from
-[Shopify][shopify] where it's been running successfully in production since
-October, 2014.
+Semian is a library for controlling access to slow or unresponsive external
+services to avoid cascading failures. 
 
-For an overview of building resilient Ruby application, see [the blog post on
-Toxiproxy and Semian][resiliency-blog-post]. We recommend using
-[Toxiproxy][toxiproxy] to test for resiliency.
+When services are down they typically fail fast with errors like `ECONNREFUSED`
+and `ECONNRESET` which can be rescued in code. However, slow resources fail
+slowly. The thread serving the request blocks until it hits the timeout for the
+slow resource. During that time, the thread is doing nothing useful and thus the
+slow resource has caused a cascading failure by occupying workers and therefore
+losing capacity. **Semian is a library for failing fast in these situations,
+allowing you to handle errors gracefully.** Semian does this by intercepting
+resource access through heuristic patterns inspired by [Hystrix][hystrix] and
+[Release It][release-it]:
+
+* [**Circuit breaker**](#circuit-breaker-pattern). A pattern for limiting the
+  amount of requests to a dependency that is having issues.
+* [**Bulkheading**](#bulkheading-pattern). Controlling the concurrent access to
+  a single resource, access is coordinates server-wide with [SysV
+  semaphores][sysv].
+
+Resource drivers are monkey-patched to be aware of Semian, these are called
+[Semian Adapters](#adapters). Thus, every time resource access is requested
+Semian is queried for status on the resource first.  If Semian, through the
+patterns above, deems the resource to be unavailable it will raise an exception.
+**The ultimate outcome of Semian is always an exception that can then be rescued
+for a graceful fallback**. Instead of waiting for the timeout, Semian raises
+straight away.
+
+If you are already rescuing exceptions for failing resources and timeouts,
+Semian is mostly a drop-in library with a little configuration that will make
+your code more resilient to slow resource access. But, [do you even need
+Semian?](#do-i-need-semian)
+
+For an overview of building resilient Ruby applications, start by reading [the
+Shopify blog post on Toxiproxy and Semian][resiliency-blog-post]. For more in
+depth information on Semian, see [Understanding Semian](#understanding-semian).
+Semian is an extraction from [Shopify][shopify] where it's been running
+successfully in production since October, 2014.
+
+The other component to your Ruby resiliency kit is [Toxiproxy][toxiproxy] to
+write automated resiliency tests.
 
 # Usage
 
@@ -26,10 +56,46 @@ section](#configuration) on how to configure adapters.
 
 ## Adapters
 
-The following adapters are in Semian and work against the public gems:
+Semian works by intercepting resource access. Every time access is requested,
+Semian is queried, and it will raise an exception if the resource is unavailable
+according to the circuit breaker or bulkheads.  This is done by monkey-patching
+the resource driver. **The exception raised by the driver always inherits from
+the Base exception class of the driver**, meaning you can always simply rescue
+the base class and catch both Semian and driver errors in the same rescue for
+fallbacks.
+
+The following adapters are in Semian and tested heavily in production, the
+version is the version of the public gem with the same name:
 
 * [`semian/mysql2`][mysql-semian-adapter] (~> 0.3.16)
 * [`semian/redis`][redis-semian-adapter] (~> 3.2.1)
+
+### Creating Adapters
+
+To create a Semian adapter you must implement the following methods:
+
+1. [`include Semian::Adapter`][semian-adapter]. Use the helpers to wrap the
+   resource. This takes care of situations such as monitoring, nested resources,
+   unsupported platforms, creating the Semian resource if it doesn't already
+   exist and so on.
+2. `#semian_identifier`. This is responsible for returning a symbol that
+   represents every unique resource, for example `redis_master` or
+   `mysql_shard_1`. This is usually assembled from a `name` attribute on the
+   Semian configuration hash, but could also be `<host>:<port>`.
+3. `connect`. The name of this method varies. You must override the driver's
+   connect method with one that wraps the connect call with
+   `Semian::Resource#acquire`. You should do this at the lowest possible level.
+4. `query`. Same as `connect` but for queries on the resource.
+5. Define exceptions `ResourceBusyError` and `CircuitOpenError`. These are
+   raised when the request was rejected early because the resource is out of
+   tickets or because the circuit breaker is open (see [Understanding
+   Semian](#understanding-semian). They should inherit from the base exception
+   class from the raw driver. For example `Mysql2::Error` or
+   `Redis::BaseConnectionError` for the MySQL and Redis drivers. This makes it
+   easy to `rescue` and handle them gracefully in application code, by
+   `rescue`ing the base class.
+
+The best resource is looking at the [already implemented adapters](#adapters).
 
 ### Configuration
 
@@ -58,32 +124,314 @@ client = Redis.new(semian: {
 })
 ```
 
-### Creating an adapter
+# Understanding Semian
 
-To create a Semian adapter you must implement the following methods:
+Semian is a library with heuristics for failing fast. This section will explain
+in depth how Semian works and which situations it's applicable for. First we
+explain the category of problems Semian is meant to solve. Then we dive into how
+Semian works to solve these problems.
 
-1. [`include Semian::Adapter`][semian-adapter]. Use the helpers to wrap the
-   resource. This takes care of situations such as monitoring, nested resources,
-   unsupported platforms, creating the Semian resource if it doesn't already
-   exist and so on.
-2. `#semian_identifier`. This is responsible for returning a symbol that
-   represents every unique resource, for example `redis_master` or
-   `mysql_shard_1`. This is usually assembled from a `name` attribute on the
-   Semian configuration hash, but could also be `<host>:<port>`.
-3. `connect`. The name of this method varies. You must override the driver's
-   connect method with one that wraps the connect call with
-   `Semian::Resource#acquire`. You should do this at the lowest possible level.
-4. `query`. Same as `connect` but for queries on the resource.
-5. Define exceptions `ResourceBusyError` and `CircuitOpenError`. These are
-   raised when the request was rejected early because the resource is out of
-   tickets or because the circuit breaker is open (see [Understanding
-   Semian](#understanding-semian). They should inherit from the base exception
-   class from the raw driver. For example `Mysql2::Error` or
-   `Redis::BaseConnectionError` for the MySQL and Redis drivers. This makes it
-   easy to `rescue` and handle them gracefully in application code, by
-   `rescue`ing the base class.
+## Do I need Semian?
 
-The best resource is looking at the [already implemented adapters](#adapters).
+Semian is not trivial library to understand, introduces complexity and thus
+should be introduced with care. Remember, all Semian does is raise exceptions
+based on heuristics. It is paramount that you understand Semian before
+including it in production as you may otherwise be surprised by its behaviour.
+
+Applications that benefit from Semian are those working on eliminating SPOFs
+(Single Points of Failure), and specifically are running into a wall regarding
+slow resources. But it is by no means a magic wand that solves all your latency
+problems by being added to your `Gemfile`. This section describes the types of
+problems Semian solves.
+
+If your server isn't single threaded (e.g. Resque and Unicorn) or evented these
+problems are less immediate. However, still recommended at scale.
+
+### Real World Example
+
+This is better illustrated with a real world example from Shopify. If you are
+browsing a store and you are signed in, Shopify stores your session in a session
+store. If the session store becomes unavailable, the data driver will start
+throwing driver errors. We rescue these exceptions and simply disable all
+customer sign in functionality on the store until the session store is back
+online.
+
+This is great if querying the resource fails instantly, because it means we fail
+in just a single intra-dc roundtrip of ~1ms. But if the resource is
+unresponsive, or slow, this can take as long as our timeout which is easily
+200ms. This means every request, even if it does rescue the exception, now takes
+an extra 200ms. Because every resource takes that long, our capacity is also
+significantly degraded. These problems are explained in depth in the next two
+sections.
+
+With Semian, the slow resource would fail instantly (after a small amount of
+convergence time) preventing your response time from spiking and not decreasing
+capacity of the cluster.
+
+If this sounds familiar to you, Semian is what you need to be resilient to
+latency. You may not need the graceful fallback depending on your application,
+in which case it will just result in an error (e.g. a `HTTP 500`) faster.
+
+We will now examine the two problems in detail.
+
+#### In depth analysis of real world example
+
+If a single resource is slow every single request is going to suffer. We saw
+this in the example before. Let's illustrate this more clearly in the following
+Rails example where the user session is stored in Redis:
+
+```ruby
+def index
+  @user = fetch_user
+  @posts = Post.all
+end
+
+private
+def fetch_user
+  user = User.find(session[:user_id])
+rescue Redis::CannotConnectError
+  nil
+end
+```
+
+Our code is resilient to a failure of the session layer, it doesn't `HTTP 500`
+if the session store is unavailable (this can be tested with
+[Toxiproxy][toxiproxy]). If the `User` and `Post` data store is unavailable, the
+server will send back `HTTP 500`. We accept that, because it's the primary data
+store. This could be prevented with a caching tier or something else out of
+scope.
+
+However, this code has two flaws:
+
+1. **What happens if the session storage is consistently slow?** I.e. the majority
+   of requests take, say, more than half the timeout time (but it should only
+   take ~1ms)?
+2. **What happens if the session storage is unavailable and is not responding at
+   all?** I.e. we hit timeouts on every request.
+
+These two problems in turn have two related problems associated with them:
+response time and capacity.
+
+#### Response time
+
+Requests that attempt to access session storage are all gracefully handled, the
+`@user` will simply be `nil` which the code copes with. However, this has a
+major impact on users as every request to the session data store has to time
+out. This causes the average response time to all pages that access the session
+layer to go up by however long your timeout is. Your timeout is proportional to
+your worst case timeout, as well as the number of attempts to hit it on each
+page. This is the problem Semian solves by using heuristics to fail these
+requests early which causes a much better user experience during those times.
+
+#### Capacity loss
+
+When your single-threaded worker is waiting for a resource to return, it's
+effectively doing nothing when it could be serving fast requests. To use the
+example from before, perhaps some actions do not access the session storage at
+all. These requests will pile up behind the now slow requests that are trying to
+access that layer, because they're failing slowly. Essentially, your capacity
+degrades significantly because your average response time goes up (as explained
+in the previous section). Capacity loss simply follows from an increase in
+response time. The higher your timeout and the slower your resource, the more
+capacity you lose.
+
+#### Timeouts aren't enough
+
+As demonstrated in the Response Time and Capacity Loss sections, timeouts aren't
+enough. Consistent timeouts will increase the average response time which causes
+a bad user experience, and ultimately compromise the performance of the entire
+system. Even if the timeout is as low as ~250ms (just enough to allow a single
+TCP retransmit) there's a large loss of capacity and for many applications a
+100-300% increase in average response time. This is the problem Semian solves by
+failing fast.
+
+## How does Semian work?
+
+Semian consists of two parts: circuit breaker and bulkheading. To understand
+Semian, and especially how to configure it, we must understand these patterns
+and their implementation. 
+
+### Circuit Breaker
+
+The circuit breaker pattern is based on a simple observation - if we hit a
+timeout or any other error for a given service one or more times, we’re likely
+to hit it again for some amount of time. Instead of hitting the timeout
+repeatedly, we can mark the resource as dead for some amount of time during
+which we raise an exception instantly on any call to it. This is called the
+[circuit breaker pattern][cbp].
+
+![](http://cdn.shopify.com/s/files/1/0070/7032/files/image01_grande.png)
+
+When we perform a Remote Procedure Call (RPC), it will first check the circuit.
+If the circuit is rejecting requests because of too many failures reported by
+the driver, it will throw an exception immediately. Otherwise the circuit will
+call the driver. If the driver fails to get data back from the data store, it
+will notify the circuit. The circuit will count the error so that if too many
+errors have happened recently, it will start rejecting requests immediately
+instead of waiting for the driver to time out. The exception will then be thrown
+back to the original caller. If the driver’s request was successful, it will
+return the data back to the calling method and notify the circuit that it made a
+successful call.
+
+The state of the circuit breaker is local to the worker and is not shared across
+all workers on a server.
+
+#### Circuit Breaker Configuration
+
+There are three configuration parameters for circuit breakers in Semian:
+
+* **error_threshold**. The amount of errors to encounter for the worker before
+  opening the circuit, i.e. start rejecting requests instantly.
+* **error_timeout**. The amount of time until trying to query the resource
+  again.
+* **success_threshold**. The amount of successes on the circuit until closing it
+  again. I.e. accept all requests to the circuit.
+
+### Bulkheading
+
+However, circuit breakers for many applications are not enough. This is best
+illustrated with an extreme. Imagine if the timeout for our data store isn't as
+low as 200ms, but is actually 10s. For example, you might have a relational data
+store where for some customers, 10s queries are (unfortunately) legitimate.
+Reducing the time of worst case queries requires a lot of effort . Dropping the
+query suddenly could potentially leave some customers unable to access certain
+functionality. High timeouts are especially critical in a non-threaded
+environment where blocking IO means a worker is effectively doing nothing.
+
+In this case, circuit breakers aren't sufficient. Assuming the circuit is shared
+across all processes on a server, it will still take at least 10s before the
+circuit is open—in that time every worker is blocked. Meaning we are in a
+reduced capacity state for at least 20s, with the last 10s timeouts
+occurring just before the circuit opens at the 10s mark when a couple of
+workers have hit a timeout and the circuit opens. We thought of a number of
+potential solutions to this problem - stricter timeouts, grouping timeouts by
+section of our application, timeouts per statement—but they all still revolved
+around timeouts, and those are extremely hard to get right.
+
+Instead of thinking about timeouts, we took inspiration from Hystrix by Netflix
+and the book Release It (the resiliency bible), and look at our services as
+connection pools. On a server with `W` workers, only a certain number of them
+are expected to be talking to a single data store at once. Let's say we've
+determined from our monitoring that there’s a 10% chance they’re talking to
+`mysql_shard_0` at any given point in time under normal traffic. The probability
+that five workers are talking to it at the same time is 0.001%. If we only allow
+five workers to talk to a resource at any given point in time, and accept the
+0.001% false positive rate—we can fail the sixth worker attempting to check out
+a connection instantly. This means that while the five workers are waiting for a
+timeout, all the other `W-5` workers on the node will instantly be failing on
+checking out the connection and opening their circuits. Our capacity is only
+degraded by a relatively small amount. 
+
+We call this limitation primitive "tickets". In this case, the resource access
+is limited to 5 tickets (see Configuration). The timeout value specifies the
+maximum amount of time to block if no ticket is available.
+
+How do we limit the access to a resource for all workers on a server when the
+workers do not directly share memory? This is implemented with [SysV
+semaphores][sysv] to provide server-wide access control.
+
+#### Bulkhead Configuration
+
+There are two configuration values. It's generally quite problematic to choose
+good values and we're still experimenting with ways to figure out good ticket
+numbers.  Generally something below half the number of workers on the server for
+endpoints that are queried frequently has worked out well for us.
+
+* **tickets**. Number of workers that can concurrently access a resource.
+* **timeout**. Time to wait to acquire a ticket if there are no tickets left.
+  We recommend this to be `0` unless you have very few workers running (i.e.
+  less than ~5).
+
+## Defense line
+
+The finished defense line for resource access with circuit breakers and
+bulkheads then looks like this:
+
+![](http://cdn.shopify.com/s/files/1/0070/7032/files/image02_grande.png)
+
+The RPC first checks the circuit; if the circuit is open it will raise the
+exception straight away which will trigger the fallback (the default fallback is
+a 500 response). Otherwise, it will try Semian which fails instantly if too many
+workers are already querying the resource. Finally the driver will query the
+data store. If the data store succeeds, the driver will return the data back to
+the RPC. If the data store is slow or fails, this is our last line of defense
+against a misbehaving resource. The driver will raise an exception after trying
+to connect with a timeout or after an immediate failure. These driver actions
+will affect the circuit and Semian, which can make future calls fail faster.
+
+## Failing gracefully
+
+Ok, great, we've got a way to fail fast with slow resources, how does that make
+my application more resilient? 
+
+Failing fast is only half the battle. It's up to you what you do with these
+errors, in the [session example](#real-world-example) we handle it gracefully by
+signing people out and disabling all session related functionality till the data
+store is back online. However, not rescuing the exception and simply sending
+`HTTP 500` back to the client faster will help with [capacity
+loss](#capacity-loss).
+
+### Exceptions inherit from base class
+
+It's important to understand that the exceptions raised by [Semian
+Adapters](#adapters) inherit from the base class of the driver itself, meaning
+that if you do something like:
+
+```ruby
+def posts
+  Post.all
+rescue Mysql2::Error
+  []
+end
+```
+
+Exceptions raised by Semian's `MySQL2` adapter will also get caught.
+
+### Patterns
+
+However, we do not recommend mindlessly sprinkling `rescue`s all over the place.
+We recommend writing decorators around secondary data stores (e.g. sessions)
+that provide resiliency for free. For example, if we stored the tags associated
+with products in a secondary data store it could look something like this:
+
+```ruby
+# Resilient decorator for storing a Set in Redis.
+class RedisSet
+  def initialize(key)
+    @key = key
+  end
+
+  def get
+    redis.smembers(@key)
+  rescue Redis::BaseConnectionError
+    []
+  end
+
+  private
+
+  def redis
+    @redis ||= Redis.new
+  end
+end
+
+class Product
+  # This will simply return an empty array in the case of a Redis outage.
+  def tags
+    tags_set.get
+  end
+
+  private
+
+  def tags_set
+    @tags_set ||= RedisSet.new("product:tags:#{self.id}")
+  end
+end
+```
+
+These decorators can be resiliency tested with [Toxiproxy][toxiproxy]. You can
+provide fallbacks around your primary data store as well. In our case, we simply
+`HTTP 500` in those cases unless it's cached because these pages aren't worth
+much without data from their primary data store.
 
 ## Monitoring
 
@@ -105,9 +453,46 @@ Semian.subscribe do |event, resource, scope, adapter|
 end
 ```
 
-# Understanding Semian
+# FAQ
 
-Coming soon!
+**How does Semian cope with containers?** Semian uses [SysV semaphores][sysv] to
+coordinate access to a resource. The semaphore is only shared within the
+[IPC][namespaces]. Unless you are running many workers inside every container,
+this leaves the bulkheading pattern effectively useless. We recommend sharing
+the IPC namespace between all containers on your host for the best ticket
+economy. If you are using Docker, this can be done with the [--ipc
+flag](https://docs.docker.com/reference/run/#ipc-settings).
+
+**Why isn't resource access shared across the entire cluster?** This implies a
+coordination data store. Semian would have to be resilient to failures of this
+data store as well, and fall back to other primitives. While it's nice to have
+all workers have the same view of the world, this greatly increases the
+complexity of the implementation which is not favourable for resiliency code.
+
+**Why isn't the circuit breaker implemented as a host-wide mechanism?** No good
+reason. Patches welcome!
+
+**Why is there no fallback mechanism in Semian?** Read the [Failing
+Gracefully](#failing-gracefully) section. In short, exceptions is exactly this.
+We did not want to put an extra level on abstraction on top of this. In the
+first internal implementation this was the case, but we later moved away from
+it.
+
+**Why does it not use normal Ruby semaphores?** To work properly the access
+control needs to be performed across many workers. With MRI that means having
+multiple processes, not threads. Thus we need a primitive outside of the
+interpreter. For other Ruby implementations a driver that uses Ruby semaphores
+could be used (and would be accepted as a PR).
+
+**Why are there three semaphores in the semaphore sets for each resource?** This
+has to do with being able to resize the number of tickets for a resource online.
+
+**Can I change the number of tickets freely?** Yes, the logic for this isn't
+trivial but it works well.
+
+**What is the performance overhead of Semian?** Extremely minimal in comparison
+to going to the network. Don't worry about it unless you're instrumenting
+non-IO.
 
 [hystrix]: https://github.com/Netflix/Hystrix
 [release-it]: https://pragprog.com/book/mnee/release-it
@@ -119,3 +504,6 @@ Coming soon!
 [statsd-instrument]: http://github.com/shopify/statsd-instrument
 [resiliency-blog-post]: http://www.shopify.com/technology/16906928-building-and-testing-resilient-ruby-on-rails-applications
 [toxiproxy]: https://github.com/Shopify/toxiproxy
+[sysv]: http://man7.org/linux/man-pages/man7/svipc.7.html
+[cbp]: https://en.wikipedia.org/wiki/Circuit_breaker_design_pattern
+[namespaces]: http://man7.org/linux/man-pages/man7/namespaces.7.html 
