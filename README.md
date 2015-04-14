@@ -265,7 +265,7 @@ the driver, it will throw an exception immediately. Otherwise the circuit will
 call the driver. If the driver fails to get data back from the data store, it
 will notify the circuit. The circuit will count the error so that if too many
 errors have happened recently, it will start rejecting requests immediately
-instead of waiting for the driver to time out. The exception will then be thrown
+instead of waiting for the driver to time out. The exception will then be raised
 back to the original caller. If the driver’s request was successful, it will
 return the data back to the calling method and notify the circuit that it made a
 successful call.
