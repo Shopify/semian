@@ -44,7 +44,7 @@ require 'semian/instrumentable'
 #
 #    Semian.register(:mysql_shard0, tickets: 10, timeout: 0.5, error_threshold: 3, error_timeout: 10, success_threshold: 2)
 #
-# This registers a new resource called <code>:mysql_shard0</code> that has 10 tickets andd a default timeout of 500 milliseconds.
+# This registers a new resource called <code>:mysql_shard0</code> that has 10 tickets and a default timeout of 500 milliseconds.
 #
 # After 3 failures in the span of 10 seconds the circuit will be open.
 # After an additional 10 seconds it will transition to half-open.

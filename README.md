@@ -13,9 +13,9 @@ allowing you to handle errors gracefully.** Semian does this by intercepting
 resource access through heuristic patterns inspired by [Hystrix][hystrix] and
 [Release It][release-it]:
 
-* [**Circuit breaker**](#circuit-breaker-pattern). A pattern for limiting the
+* [**Circuit breaker**](#circuit-breaker). A pattern for limiting the
   amount of requests to a dependency that is having issues.
-* [**Bulkheading**](#bulkheading-pattern). Controlling the concurrent access to
+* [**Bulkheading**](#bulkheading). Controlling the concurrent access to
   a single resource, access is coordinates server-wide with [SysV
   semaphores][sysv].
 
@@ -133,7 +133,7 @@ Semian works to solve these problems.
 
 ## Do I need Semian?
 
-Semian is not trivial library to understand, introduces complexity and thus
+Semian is not a trivial library to understand, introduces complexity and thus
 should be introduced with care. Remember, all Semian does is raise exceptions
 based on heuristics. It is paramount that you understand Semian before
 including it in production as you may otherwise be surprised by its behaviour.
@@ -144,25 +144,23 @@ slow resources. But it is by no means a magic wand that solves all your latency
 problems by being added to your `Gemfile`. This section describes the types of
 problems Semian solves.
 
-If your server isn't single threaded (e.g. Resque and Unicorn) or evented these
-problems are less immediate. However, still recommended at scale.
+If your application is not multithreaded or evented (e.g. Resque or Unicorn)
+these problems are not as pressing. You can still get use out of Semian however.
 
 ### Real World Example
 
-This is better illustrated with a real world example from Shopify. If you are
-browsing a store and you are signed in, Shopify stores your session in a session
-store. If the session store becomes unavailable, the data driver will start
-throwing driver errors. We rescue these exceptions and simply disable all
-customer sign in functionality on the store until the session store is back
-online.
+This is better illustrated with a real world example from Shopify. When you are
+browsing a store while signed in, Shopify stores your session in Redis.
+If Redis becomes unavailable, the driver will start throwing exceptions.
+We rescue these exceptions and simply disable all customer sign in functionality
+on the store until Redis is back online.
 
 This is great if querying the resource fails instantly, because it means we fail
-in just a single intra-dc roundtrip of ~1ms. But if the resource is
-unresponsive, or slow, this can take as long as our timeout which is easily
-200ms. This means every request, even if it does rescue the exception, now takes
-an extra 200ms. Because every resource takes that long, our capacity is also
-significantly degraded. These problems are explained in depth in the next two
-sections.
+in just a single roundtrip of ~1ms. But if the resource is unresponsive or slow,
+this can take as long as our timeout which is easily 200ms. This means every
+request, even if it does rescue the exception, now takes an extra 200ms.
+Because every resource takes that long, our capacity is also significantly
+degraded. These problems are explained in depth in the next two sections.
 
 With Semian, the slow resource would fail instantly (after a small amount of
 convergence time) preventing your response time from spiking and not decreasing
@@ -174,9 +172,9 @@ in which case it will just result in an error (e.g. a `HTTP 500`) faster.
 
 We will now examine the two problems in detail.
 
-#### In depth analysis of real world example
+#### In-depth analysis of real world example
 
-If a single resource is slow every single request is going to suffer. We saw
+If a single resource is slow, every single request is going to suffer. We saw
 this in the example before. Let's illustrate this more clearly in the following
 Rails example where the user session is stored in Redis:
 
@@ -197,11 +195,11 @@ end
 Our code is resilient to a failure of the session layer, it doesn't `HTTP 500`
 if the session store is unavailable (this can be tested with
 [Toxiproxy][toxiproxy]). If the `User` and `Post` data store is unavailable, the
-server will send back `HTTP 500`. We accept that, because it's the primary data
+server will send back `HTTP 500`. We accept that, because it's our primary data
 store. This could be prevented with a caching tier or something else out of
 scope.
 
-However, this code has two flaws:
+This code has two flaws however:
 
 1. **What happens if the session storage is consistently slow?** I.e. the majority
    of requests take, say, more than half the timeout time (but it should only
@@ -214,14 +212,14 @@ response time and capacity.
 
 #### Response time
 
-Requests that attempt to access session storage are all gracefully handled, the
-`@user` will simply be `nil` which the code copes with. However, this has a
-major impact on users as every request to the session data store has to time
-out. This causes the average response time to all pages that access the session
-layer to go up by however long your timeout is. Your timeout is proportional to
-your worst case timeout, as well as the number of attempts to hit it on each
-page. This is the problem Semian solves by using heuristics to fail these
-requests early which causes a much better user experience during those times.
+Requests that attempt to access a down session storage are all gracefully handled, the
+`@user` will simply be `nil`, which the code handles. There is still a
+major impact on users however, as every request to the storage has to time
+out. This causes the average response time to all pages that access it to go up by
+however long your timeout is. Your timeout is proportional to your worst case timeout,
+as well as the number of attempts to hit it on each page. This is the problem Semian
+solves by using heuristics to fail these requests early which causes a much better
+user experience during downtime.
 
 #### Capacity loss
 
@@ -237,13 +235,12 @@ capacity you lose.
 
 #### Timeouts aren't enough
 
-As demonstrated in the Response Time and Capacity Loss sections, timeouts aren't
-enough. Consistent timeouts will increase the average response time which causes
-a bad user experience, and ultimately compromise the performance of the entire
-system. Even if the timeout is as low as ~250ms (just enough to allow a single
-TCP retransmit) there's a large loss of capacity and for many applications a
-100-300% increase in average response time. This is the problem Semian solves by
-failing fast.
+It should be clear by now that timeouts aren't enough. Consistent timeouts will
+increase the average response time, which causes a bad user experience, and
+ultimately compromise the performance of the entire system. Even if the timeout
+is as low as ~250ms (just enough to allow a single TCP retransmit) there's a
+large loss of capacity and for many applications a 100-300% increase in average
+response time. This is the problem Semian solves by failing fast.
 
 ## How does Semian work?
 
@@ -281,20 +278,20 @@ all workers on a server.
 There are three configuration parameters for circuit breakers in Semian:
 
 * **error_threshold**. The amount of errors to encounter for the worker before
-  opening the circuit, i.e. start rejecting requests instantly.
+  opening the circuit, that is to start rejecting requests instantly.
 * **error_timeout**. The amount of time until trying to query the resource
   again.
 * **success_threshold**. The amount of successes on the circuit until closing it
-  again. I.e. accept all requests to the circuit.
+  again, that is to start accepting all requests to the circuit.
 
 ### Bulkheading
 
-However, circuit breakers for many applications are not enough. This is best
+For many applications, circuit breakers are not enough however. This is best
 illustrated with an extreme. Imagine if the timeout for our data store isn't as
-low as 200ms, but is actually 10s. For example, you might have a relational data
+low as 200ms, but actually 10 seconds. For example, you might have a relational data
 store where for some customers, 10s queries are (unfortunately) legitimate.
-Reducing the time of worst case queries requires a lot of effort . Dropping the
-query suddenly could potentially leave some customers unable to access certain
+Reducing the time of worst case queries requires a lot of effort. Dropping the
+query immediately could potentially leave some customers unable to access certain
 functionality. High timeouts are especially critical in a non-threaded
 environment where blocking IO means a worker is effectively doing nothing.
 
@@ -332,10 +329,10 @@ semaphores][sysv] to provide server-wide access control.
 
 #### Bulkhead Configuration
 
-There are two configuration values. It's generally quite problematic to choose
-good values and we're still experimenting with ways to figure out good ticket
-numbers.  Generally something below half the number of workers on the server for
-endpoints that are queried frequently has worked out well for us.
+There are two configuration values. It's not easy to choose good values and we're
+still experimenting with ways to figure out optimal ticket numbers. Generally
+something below half the number of workers on the server for endpoints that are
+queried frequently has worked well for us.
 
 * **tickets**. Number of workers that can concurrently access a resource.
 * **timeout**. Time to wait to acquire a ticket if there are no tickets left.
@@ -389,8 +386,8 @@ Exceptions raised by Semian's `MySQL2` adapter will also get caught.
 
 ### Patterns
 
-However, we do not recommend mindlessly sprinkling `rescue`s all over the place.
-We recommend writing decorators around secondary data stores (e.g. sessions)
+We do not recommend mindlessly sprinkling `rescue`s all over the place. What you
+should do instead is writing decorators around secondary data stores (e.g. sessions)
 that provide resiliency for free. For example, if we stored the tags associated
 with products in a secondary data store it could look something like this:
 
@@ -455,7 +452,7 @@ end
 
 # FAQ
 
-**How does Semian cope with containers?** Semian uses [SysV semaphores][sysv] to
+**How does Semian work with containers?** Semian uses [SysV semaphores][sysv] to
 coordinate access to a resource. The semaphore is only shared within the
 [IPC][namespaces]. Unless you are running many workers inside every container,
 this leaves the bulkheading pattern effectively useless. We recommend sharing
