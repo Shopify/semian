@@ -144,7 +144,7 @@ slow resources. But it is by no means a magic wand that solves all your latency
 problems by being added to your `Gemfile`. This section describes the types of
 problems Semian solves.
 
-If your application is not multithreaded or evented (e.g. Resque or Unicorn)
+If your application is multithreaded or evented (e.g. not Resque and Unicorn)
 these problems are not as pressing. You can still get use out of Semian however.
 
 ### Real World Example
