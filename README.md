@@ -1,5 +1,7 @@
 ## Semian [![Build Status](https://travis-ci.org/Shopify/semian.svg?branch=master)](https://travis-ci.org/Shopify/semian)
 
+![](http://i.imgur.com/7Vn2ibF.png)
+
 Semian is a library for controlling access to slow or unresponsive external
 services to avoid cascading failures. 
 
