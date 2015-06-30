@@ -6,9 +6,9 @@ if which toxiproxy > /dev/null; then
 fi
 
 if which apt-get > /dev/null; then
-  echo "Installing toxiproxy-1.0.0.deb"
-  wget -O /tmp/toxiproxy-1.0.0.deb https://github.com/Shopify/toxiproxy/releases/download/v1.0.0/toxiproxy_1.0.0_amd64.deb
-  sudo dpkg -i /tmp/toxiproxy-1.0.0.deb
+  echo "Installing toxiproxy"
+  wget -O /tmp/toxiproxy-1.1.0.deb https://github.com/Shopify/toxiproxy/releases/download/v1.1.0/toxiproxy_1.1.0_amd64.deb
+  sudo dpkg -i /tmp/toxiproxy-1.1.0.deb
   sudo service toxiproxy start
   exit 0
 fi
