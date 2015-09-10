@@ -278,8 +278,11 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE permission
   if (TYPE(default_timeout) != T_FIXNUM && TYPE(default_timeout) != T_FLOAT) {
     rb_raise(rb_eTypeError, "expected numeric type for default_timeout");
   }
-  if (FIX2LONG(tickets) < 0 || FIX2LONG(tickets) > system_max_semaphore_count) {
-    rb_raise(rb_eArgError, "ticket count must be a non-negative value and less than %d", system_max_semaphore_count);
+  if (FIX2LONG(tickets) < 0) {
+    rb_raise(rb_eArgError, "ticket count must be a non-negative value");
+  }
+  if (system_max_semaphore_count && FIX2LONG(tickets) > system_max_semaphore_count) {
+    rb_raise(rb_eArgError, "ticket count must be less than %d", system_max_semaphore_count);
   }
   if (NUM2DBL(default_timeout) < 0) {
     rb_raise(rb_eArgError, "default timeout must be non-negative value");
@@ -437,10 +440,25 @@ semian_resource_id(VALUE self)
   return LONG2FIX(res->sem_id);
 }
 
+static void
+init_max_semaphore_count()
+{
+#ifdef SEM_INFO
+  struct seminfo info_buf;
+
+  if (semctl(0, 0, SEM_INFO, &info_buf) == -1) {
+    rb_raise(eInternal, "unable to determine maximum semaphore count - semctl() returned %d: %s ", errno, strerror(errno));
+  }
+
+  system_max_semaphore_count = info_buf.semvmx;
+#else
+  system_max_semaphore_count = 0;
+#endif
+}
+
 void Init_semian()
 {
   VALUE cSemian, cResource;
-  struct seminfo info_buf;
 
   cSemian = rb_const_get(rb_cObject, rb_intern("Semian"));
 
@@ -487,10 +505,7 @@ void Init_semian()
 
   id_timeout = rb_intern("timeout");
 
-  if (semctl(0, 0, SEM_INFO, &info_buf) == -1) {
-    rb_raise(eInternal, "unable to determine maximum semaphore count - semctl() returned %d: %s ", errno, strerror(errno));
-  }
-  system_max_semaphore_count = info_buf.semvmx;
+  init_max_semaphore_count();
 
   /* Maximum number of tickets available on this system. */
   rb_define_const(cSemian, "MAX_TICKETS", INT2FIX(system_max_semaphore_count));
