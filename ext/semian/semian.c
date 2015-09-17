@@ -374,8 +374,8 @@ semian_resource_id(VALUE self)
   return LONG2FIX(res->sem_id);
 }
 
-static void
-init_max_semaphore_count()
+static int
+get_max_semaphore_count()
 {
 #ifdef SEM_INFO
   struct seminfo info_buf;
@@ -384,9 +384,9 @@ init_max_semaphore_count()
     rb_raise(eInternal, "unable to determine maximum semaphore count - semctl() returned %d: %s ", errno, strerror(errno));
   }
 
-  system_max_semaphore_count = info_buf.semvmx;
+  return info_buf.semvmx;
 #else
-  system_max_semaphore_count = 0;
+  return 0;
 #endif
 }
 
@@ -437,7 +437,7 @@ void Init_semian()
   rb_define_method(cResource, "semid", semian_resource_id, 0);
   rb_define_method(cResource, "destroy", semian_resource_destroy, 0);
 
-  init_max_semaphore_count();
+  system_max_semaphore_count = get_max_semaphore_count();
 
   /* Maximum number of tickets available on this system. */
   rb_define_const(cSemian, "MAX_TICKETS", INT2FIX(system_max_semaphore_count));
