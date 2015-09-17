@@ -117,10 +117,9 @@ class TestResource < MiniTest::Unit::TestCase
       end
 
       Process.kill("KILL", pid)
+      Process.waitpid(pid)
       resource.acquire { acquired = true }
       assert acquired
-
-      Process.wait
     ensure
       FileUtils.rm_f(path) if path
     end
