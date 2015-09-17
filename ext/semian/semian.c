@@ -332,7 +332,7 @@ semian_resource_acquire(VALUE self)
   WITHOUT_GVL(acquire_semaphore_without_gvl, &res, RUBY_UBF_IO, NULL);
   if (res.error != 0) {
     if (res.error == EAGAIN) {
-      rb_raise(eTimeout, "timed out waiting for resource '%s'", res.name);
+      rb_raise(eTimeout, "could not acquire ticket for resource '%s'", res.name);
     } else {
       raise_semian_syscall_error("semop()", res.error);
     }
