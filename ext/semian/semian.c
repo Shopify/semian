@@ -13,16 +13,6 @@
 
 #include <stdio.h>
 
-#if defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL) && defined(HAVE_RUBY_THREAD_H)
-// 2.0
-#include <ruby/thread.h>
-#define WITHOUT_GVL(fn,a,ubf,b) rb_thread_call_without_gvl((fn),(a),(ubf),(b))
-#elif defined(HAVE_RB_THREAD_BLOCKING_REGION)
- // 1.9
-typedef VALUE (*my_blocking_fn_t)(void*);
-#define WITHOUT_GVL(fn,a,ubf,b) rb_thread_blocking_region((my_blocking_fn_t)(fn),(a),(ubf),(b))
-#endif
-
 static VALUE eSyscall, eTimeout, eInternal;
 static int system_max_semaphore_count;
 
@@ -296,17 +286,6 @@ cleanup_semian_resource_acquire(VALUE self)
   return Qnil;
 }
 
-static void *
-acquire_semaphore_without_gvl(void *p)
-{
-  semian_resource_t *res = (semian_resource_t *) p;
-  res->error = 0;
-  if (perform_semop(res->sem_id, kIndexTickets, -1, SEM_UNDO) == -1) {
-    res->error = errno;
-  }
-  return NULL;
-}
-
 /*
  * call-seq:
  *    resource.acquire { ... }  -> result of the block
@@ -318,23 +297,19 @@ acquire_semaphore_without_gvl(void *p)
 static VALUE
 semian_resource_acquire(VALUE self)
 {
-  semian_resource_t *self_res = NULL;
-  semian_resource_t res = { 0 };
+  semian_resource_t *res = NULL;
 
   if (!rb_block_given_p()) {
     rb_raise(rb_eArgError, "acquire requires a block");
   }
 
-  TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, self_res);
-  res = *self_res;
+  TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
 
-  /* release the GVL to acquire the semaphore */
-  WITHOUT_GVL(acquire_semaphore_without_gvl, &res, RUBY_UBF_IO, NULL);
-  if (res.error != 0) {
-    if (res.error == EAGAIN) {
-      rb_raise(eTimeout, "could not acquire ticket for resource '%s'", res.name);
+  if (perform_semop(res->sem_id, kIndexTickets, -1, SEM_UNDO) < 0) {
+    if (errno == EAGAIN) {
+      rb_raise(eTimeout, "could not acquire ticket for resource '%s'", res->name);
     } else {
-      raise_semian_syscall_error("semop()", res.error);
+      raise_semian_syscall_error("semop()", errno);
     }
   }
 
