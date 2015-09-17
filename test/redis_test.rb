@@ -6,7 +6,6 @@ class TestRedis < MiniTest::Unit::TestCase
   SEMIAN_OPTIONS = {
     name: :testing,
     tickets: 1,
-    timeout: 0,
     error_threshold: ERROR_THRESHOLD,
     success_threshold: 2,
     error_timeout: ERROR_TIMEOUT,
