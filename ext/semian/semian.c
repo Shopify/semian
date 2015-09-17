@@ -23,7 +23,6 @@ typedef VALUE (*my_blocking_fn_t)(void*);
 #define WITHOUT_GVL(fn,a,ubf,b) rb_thread_blocking_region((my_blocking_fn_t)(fn),(a),(ubf),(b))
 #endif
 
-static ID id_timeout;
 static VALUE eSyscall, eTimeout, eInternal;
 static int system_max_semaphore_count;
 
@@ -35,7 +34,6 @@ static const int kNumSemaphores = 3;
 
 typedef struct {
   int sem_id;
-  struct timespec timeout;
   int error;
   char *name;
 } semian_resource_t;
@@ -50,13 +48,6 @@ generate_key(const char *name)
   SHA1((const unsigned char *) name, strlen(name), digest.str);
   /* TODO: compile-time assertion that sizeof(key_t) > SHA_DIGEST_LENGTH */
   return digest.key;
-}
-
-static void
-ms_to_timespec(long ms, struct timespec *ts)
-{
-  ts->tv_sec = ms / 1000;
-  ts->tv_nsec = (ms % 1000) * 1000000;
 }
 
 static void
@@ -249,12 +240,12 @@ get_semaphore(int key)
 
 /*
  * call-seq:
- *    Semian::Resource.new(id, tickets, permissions, default_timeout) -> resource
+ *    Semian::Resource.new(id, tickets, permissions) -> resource
  *
  * Creates a new Resource. Do not create resources directly. Use Semian.register.
  */
 static VALUE
-semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE permissions, VALUE default_timeout)
+semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE permissions)
 {
   key_t key;
   int created = 0;
@@ -266,17 +257,11 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE permission
   }
   Check_Type(tickets, T_FIXNUM);
   Check_Type(permissions, T_FIXNUM);
-  if (TYPE(default_timeout) != T_FIXNUM && TYPE(default_timeout) != T_FLOAT) {
-    rb_raise(rb_eTypeError, "expected numeric type for default_timeout");
-  }
   if (FIX2LONG(tickets) < 0) {
     rb_raise(rb_eArgError, "ticket count must be a non-negative value");
   }
   if (system_max_semaphore_count && FIX2LONG(tickets) > system_max_semaphore_count) {
     rb_raise(rb_eArgError, "ticket count must be less than %d", system_max_semaphore_count);
-  }
-  if (NUM2DBL(default_timeout) < 0) {
-    rb_raise(rb_eArgError, "default timeout must be non-negative value");
   }
 
   if (TYPE(id) == T_SYMBOL) {
@@ -286,7 +271,6 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE permission
   }
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
   key = generate_key(id_str);
-  ms_to_timespec(NUM2DBL(default_timeout) * 1000, &res->timeout);
   res->name = strdup(id_str);
 
   res->sem_id = FIX2LONG(tickets) == 0 ? get_semaphore(key) : create_semaphore(key, permissions, &created);
@@ -325,17 +309,14 @@ acquire_semaphore_without_gvl(void *p)
 
 /*
  * call-seq:
- *    resource.acquire(timeout: default_timeout) { ... }  -> result of the block
+ *    resource.acquire { ... }  -> result of the block
  *
- * Acquires a resource. The call will block for <code>timeout</code> seconds if a ticket
- * is not available. If no ticket is available within the timeout period, Semian::TimeoutError
+ * Acquires a resource for the duration of the block. If no ticket is available, Semian::TimeoutError
  * will be raised.
- *
- * If no timeout argument is provided, the default timeout passed to Semian.register will be used.
  *
  */
 static VALUE
-semian_resource_acquire(int argc, VALUE *argv, VALUE self)
+semian_resource_acquire(VALUE self)
 {
   semian_resource_t *self_res = NULL;
   semian_resource_t res = { 0 };
@@ -346,19 +327,6 @@ semian_resource_acquire(int argc, VALUE *argv, VALUE self)
 
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, self_res);
   res = *self_res;
-
-  /* allow the default timeout to be overridden by a "timeout" param */
-  if (argc == 1 && TYPE(argv[0]) == T_HASH) {
-    VALUE timeout = rb_hash_aref(argv[0], ID2SYM(id_timeout));
-    if (TYPE(timeout) != T_NIL) {
-      if (TYPE(timeout) != T_FLOAT && TYPE(timeout) != T_FIXNUM) {
-        rb_raise(rb_eArgError, "timeout parameter must be numeric");
-      }
-      ms_to_timespec(NUM2DBL(timeout) * 1000, &res.timeout);
-    }
-  } else if (argc > 0) {
-    rb_raise(rb_eArgError, "invalid arguments");
-  }
 
   /* release the GVL to acquire the semaphore */
   WITHOUT_GVL(acquire_semaphore_without_gvl, &res, RUBY_UBF_IO, NULL);
@@ -488,13 +456,11 @@ void Init_semian()
   eInternal = rb_const_get(cSemian, rb_intern("InternalError"));
 
   rb_define_alloc_func(cResource, semian_resource_alloc);
-  rb_define_method(cResource, "_initialize", semian_resource_initialize, 4);
-  rb_define_method(cResource, "acquire", semian_resource_acquire, -1);
+  rb_define_method(cResource, "_initialize", semian_resource_initialize, 3);
+  rb_define_method(cResource, "acquire", semian_resource_acquire, 0);
   rb_define_method(cResource, "count", semian_resource_count, 0);
   rb_define_method(cResource, "semid", semian_resource_id, 0);
   rb_define_method(cResource, "destroy", semian_resource_destroy, 0);
-
-  id_timeout = rb_intern("timeout");
 
   init_max_semaphore_count();
 
