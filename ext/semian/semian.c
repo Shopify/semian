@@ -133,19 +133,15 @@ get_max_tickets(int sem_id)
 }
 
 static int
-perform_semop(int sem_id, short index, short op, short flags, struct timespec *ts)
+perform_semop(int sem_id, short index, short op, short flags)
 {
   struct sembuf buf = { 0 };
 
   buf.sem_num = index;
   buf.sem_op  = op;
-  buf.sem_flg = flags;
+  buf.sem_flg = flags | IPC_NOWAIT;
 
-  if (ts) {
-    return semtimedop(sem_id, &buf, 1, ts);
-  } else {
-    return semop(sem_id, &buf, 1);
-  }
+  return semop(sem_id, &buf, 1);
 }
 
 typedef struct {
