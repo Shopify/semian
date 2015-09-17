@@ -23,7 +23,7 @@ have_header 'sys/types.h'
 have_func 'rb_thread_blocking_region'
 have_func 'rb_thread_call_without_gvl'
 
-$CFLAGS = "-D_GNU_SOURCE -Werror -Wall "
+$CFLAGS = "-D_GNU_SOURCE -Wall "
 if ENV.has_key?('DEBUG')
   $CFLAGS << "-O0 -g"
 else
