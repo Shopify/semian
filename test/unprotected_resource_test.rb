@@ -44,7 +44,7 @@ class UnprotectedResourceTest < MiniTest::Unit::TestCase
 
   def test_resource_acquire_with_timeout
     acquired = false
-    @resource.acquire(timeout: 2) do
+    @resource.acquire do
       acquired = true
     end
     assert acquired

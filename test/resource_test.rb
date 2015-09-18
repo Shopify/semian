@@ -52,7 +52,7 @@ class TestResource < MiniTest::Unit::TestCase
   end
 
   def test_acquire_timeout
-    resource = create_resource :testing, tickets: 1, timeout: 0.05
+    resource = create_resource :testing, tickets: 1
 
     acquired = false
     m = Monitor.new
@@ -78,35 +78,8 @@ class TestResource < MiniTest::Unit::TestCase
     assert acquired
   end
 
-  def test_acquire_timeout_override
-    resource = create_resource :testing, tickets: 1, timeout: 0.01
-
-    acquired = false
-    thread_acquired = false
-    m = Monitor.new
-    cond = m.new_cond
-
-    t = Thread.start do
-      m.synchronize do
-        cond.wait_until { acquired }
-        resource.acquire(timeout: 1) { thread_acquired = true }
-      end
-    end
-
-    resource.acquire do
-      acquired = true
-      m.synchronize { cond.signal }
-      sleep 0.2
-    end
-
-    t.join
-
-    assert acquired
-    assert thread_acquired
-  end
-
   def test_acquire_with_fork
-    resource = create_resource :testing, tickets: 2, timeout: 0.5
+    resource = create_resource :testing, tickets: 2
 
     resource.acquire do
       pid = fork do
@@ -123,7 +96,7 @@ class TestResource < MiniTest::Unit::TestCase
 
   def test_acquire_releases_on_kill
     begin
-      resource = create_resource :testing, tickets: 1, timeout: 0.1
+      resource = create_resource :testing, tickets: 1
       acquired = false
 
       # Ghetto process synchronization
@@ -144,10 +117,9 @@ class TestResource < MiniTest::Unit::TestCase
       end
 
       Process.kill("KILL", pid)
+      Process.waitpid(pid)
       resource.acquire { acquired = true }
       assert acquired
-
-      Process.wait
     ensure
       FileUtils.rm_f(path) if path
     end

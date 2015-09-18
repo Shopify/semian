@@ -24,14 +24,13 @@ require 'semian/instrumentable'
 # Each resource has a configurable number of tickets. Tickets are what controls
 # access to the external service. If a client does not have a ticket, it cannot access
 # a service. If there are no tickets available, the client will block for a configurable
-# amount of time until a ticket is available. If there are no tickets available after
-# the timeout period has elapsed, the client will be unable to access the service and
-# an error will be raised.
+# amount of time until a ticket is available. If there are no tickets available, the
+# client will be unable to access the service and an error will be raised.
 #
 # Resources also integrate a circuit breaker in order to fail faster and to let the
 # resource the time to recover. If `error_threshold` errors happen in the span of `error_timeout`
 # then the circuit will be opened and every attempt to acquire the resource will immediately fail.
-# 
+#
 # Once in open state, after `error_timeout` is elapsed, the ciruit will transition in the half-open state.
 # In that state a single error will fully re-open the circuit, and the circuit will transition back to the closed
 # state only after the resource is acquired `success_threshold` consecutive times.
@@ -42,9 +41,9 @@ require 'semian/instrumentable'
 #
 # ===== Registering a resource
 #
-#    Semian.register(:mysql_shard0, tickets: 10, timeout: 0.5, error_threshold: 3, error_timeout: 10, success_threshold: 2)
+#    Semian.register(:mysql_shard0, tickets: 10, error_threshold: 3, error_timeout: 10, success_threshold: 2)
 #
-# This registers a new resource called <code>:mysql_shard0</code> that has 10 tickets and a default timeout of 500 milliseconds.
+# This registers a new resource called <code>:mysql_shard0</code> that has 10 tickets.
 #
 # After 3 failures in the span of 10 seconds the circuit will be open.
 # After an additional 10 seconds it will transition to half-open.
@@ -58,14 +57,6 @@ require 'semian/instrumentable'
 #
 # This acquires a ticket for the <code>:mysql_shard0</code> resource. If we use the example above, the ticket count would
 # be lowered to 9 when block is executed, then raised to 10 when the block completes.
-#
-# ===== Overriding the default timeout
-#
-#    Semian[:mysql_shard0].acquire(timeout: 1) do
-#      # Perform a MySQL query here
-#    end
-#
-# This is the same as the previous example, but overrides the timeout from the default value of 500 milliseconds to 1 second.
 #
 module Semian
   extend self
@@ -106,8 +97,6 @@ module Semian
   #
   # +permissions+: Octal permissions of the resource.
   #
-  # +timeout+: Default timeout in seconds.
-  #
   # +error_threshold+: The number of errors that will trigger the circuit opening.
   #
   # +error_timeout+: The duration in seconds since the last error after which the error count is reset to 0.
@@ -117,14 +106,14 @@ module Semian
   # +exceptions+: An array of exception classes that should be accounted as resource errors.
   #
   # Returns the registered resource.
-  def register(name, tickets:, permissions: 0660, timeout: 0, error_threshold:, error_timeout:, success_threshold:, exceptions: [])
+  def register(name, tickets:, permissions: 0660, error_threshold:, error_timeout:, success_threshold:, exceptions: [])
     circuit_breaker = CircuitBreaker.new(
       success_threshold: success_threshold,
       error_threshold: error_threshold,
       error_timeout: error_timeout,
       exceptions: Array(exceptions) + [::Semian::BaseError],
     )
-    resource = Resource.new(name, tickets: tickets, permissions: permissions, timeout: timeout)
+    resource = Resource.new(name, tickets: tickets, permissions: permissions)
     resources[name] = ProtectedResource.new(resource, circuit_breaker)
   end
 
