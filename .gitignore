@@ -1,6 +1,6 @@
 /.bundle/
-/lib/semian/*.so
-/lib/semian/*.bundle
+/lib/semian*/*.so
+/lib/semian*/*.bundle
 /tmp/*
 *.gem
 /html/
