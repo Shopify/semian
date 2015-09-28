@@ -17,7 +17,7 @@ Gem::Specification.new do |s|
   s.license = 'MIT'
 
   s.files = `git ls-files`.split("\n")
-  s.extensions = ['ext/semian/extconf.rb']
+  s.extensions = ['ext/semian/extconf.rb','ext/semian_cb_data/extconf.rb']
   s.add_development_dependency 'rake-compiler', '~> 0.9'
   s.add_development_dependency 'timecop'
   s.add_development_dependency 'mysql2'
