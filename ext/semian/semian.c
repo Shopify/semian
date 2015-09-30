@@ -447,6 +447,9 @@ semian_resource_id(VALUE self)
   return LONG2FIX(res->sem_id);
 }
 
+
+void Init_semian_cb_data();
+
 void Init_semian()
 {
   VALUE cSemian, cResource;
@@ -504,4 +507,6 @@ void Init_semian()
 
   /* Maximum number of tickets available on this system. */
   rb_define_const(cSemian, "MAX_TICKETS", INT2FIX(system_max_semaphore_count));
+
+  Init_semian_cb_data();
 }

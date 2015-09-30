@@ -156,10 +156,9 @@ require 'semian/circuit_breaker'
 require 'semian/protected_resource'
 require 'semian/unprotected_resource'
 require 'semian/platform'
-require 'semian/circuit_breaker_shared_data'
+require 'semian/sliding_window'
 if Semian.sysv_semaphores_supported? && Semian.semaphores_enabled?
   require 'semian/semian'
-  require 'semian_cb_data/semian_cb_data'
 else
   Semian::MAX_TICKETS = 0
   unless Semian.sysv_semaphores_supported?

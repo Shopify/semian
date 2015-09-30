@@ -27,10 +27,6 @@ if Semian.sysv_semaphores_supported?
     ext.ext_dir = 'ext/semian'
     ext.lib_dir = 'lib/semian'
   end
-  Rake::ExtensionTask.new('semian_cb_data', GEMSPEC) do |ext|
-    ext.ext_dir = 'ext/semian_cb_data'
-    ext.lib_dir = 'lib/semian_cb_data'
-  end
   task :build => :compile
 else
   task :build do
@@ -53,7 +49,7 @@ task test: :build
 # ==========================================================
 require 'rdoc/task'
 RDoc::Task.new do |rdoc|
-  rdoc.rdoc_files.include("lib/*.rb", "ext/semian/*.c",  "ext/semian_cb_data/*.c")
+  rdoc.rdoc_files.include("lib/*.rb", "ext/semian/*.c")
 end
 
 task default: :test
