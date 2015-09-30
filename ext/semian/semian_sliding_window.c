@@ -12,6 +12,8 @@
 #include <unistd.h>
 #include <stdbool.h>
 
+#include <math.h>
+
 // needed for semctl
 union semun {
   int              val;    /* Value for SETVAL */
@@ -38,22 +40,21 @@ typedef VALUE (*my_blocking_fn_t)(void*);
 // };
 
 typedef struct {
-  int successes;
-  int arr_length;
-  double errors[];
+  int counter;
+  int window_length;
+  long window[];
 } shared_cb_data;
 
 typedef struct {
   //semaphore, shared memory data and pointer
   key_t key;
-  size_t arr_max_size;
+  size_t max_window_length;
   bool lock_triggered;
   int semid;
   int shmid;
   shared_cb_data *shm_address;
 } semian_cb_data;
 
-static int system_max_semaphore_count;
 static const int kCBSemaphoreCount = 1; // # semaphores to be acquired
 static const int kCBTicketMax = 1;
 static const int kCBInitializeWaitTimeout = 5; /* seconds */
@@ -70,7 +71,7 @@ static void semian_cb_data_free(void *ptr);
 static size_t semian_cb_data_memsize(const void *ptr);
 static VALUE semian_cb_data_alloc(VALUE klass);
 static VALUE semian_cb_data_init(VALUE self, VALUE name, VALUE size, VALUE permissions);
-static VALUE semian_cb_data_clean(VALUE self);
+static VALUE semian_cb_data_destroy(VALUE self);
 static void set_semaphore_permissions(int sem_id, int permissions);
 static void configure_tickets(int sem_id, int tickets, int should_initialize);
 static int create_semaphore(int key, int permissions, int *created);
@@ -83,17 +84,18 @@ static void *semian_cb_data_unlock_without_gvl(void *self);
 static VALUE semian_cb_data_acquire_memory(VALUE self, VALUE permissions);
 static void semian_cb_data_delete_memory_inner (semian_cb_data *ptr);
 static VALUE semian_cb_data_delete_memory (VALUE self);
-static VALUE semian_cb_data_get_successes(VALUE self);
-static VALUE semian_cb_data_set_successes(VALUE self, VALUE num);
+static VALUE semian_cb_data_get_counter(VALUE self);
+static VALUE semian_cb_data_set_counter(VALUE self, VALUE num);
 static VALUE semian_cb_data_semid(VALUE self);
 static VALUE semian_cb_data_shmid(VALUE self);
-static VALUE semian_cb_data_array_at_index(VALUE self, VALUE idx);
-static VALUE semian_cb_data_array_set_index(VALUE self, VALUE idx, VALUE val);
 static VALUE semian_cb_data_array_length(VALUE self);
 static VALUE semian_cb_data_set_push_back(VALUE self, VALUE num);
 static VALUE semian_cb_data_set_pop_back(VALUE self);
 static VALUE semian_cb_data_set_push_front(VALUE self, VALUE num);
 static VALUE semian_cb_data_set_pop_front(VALUE self);
+
+static VALUE semian_cb_data_is_shared(VALUE self);
+
 
 // needed for TypedData_Make_Struct && TypedData_Get_Struct
 static const rb_data_type_t
@@ -189,12 +191,12 @@ semian_cb_data_init(VALUE self, VALUE id, VALUE size, VALUE permissions)
   if (TYPE(id) != T_SYMBOL && TYPE(id) != T_STRING)
     rb_raise(rb_eTypeError, "id must be a symbol or string");
   if (TYPE(size) != T_FIXNUM /*|| TYPE(size) != T_BIGNUM*/)
-    rb_raise(rb_eTypeError, "expected integer for arr_max_size");
+    rb_raise(rb_eTypeError, "expected integer for max_window_length");
   if (TYPE(permissions) != T_FIXNUM)
     rb_raise(rb_eTypeError, "expected integer for permissions");
 
   if (NUM2SIZET(size) <= 0)
-    rb_raise(rb_eArgError, "arr_max_size must be larger than 0");
+    rb_raise(rb_eArgError, "max_window_length must be larger than 0");
 
   const char *id_str = NULL;
   if (TYPE(id) == T_SYMBOL) {
@@ -205,8 +207,8 @@ semian_cb_data_init(VALUE self, VALUE id, VALUE size, VALUE permissions)
   ptr->key = generate_key(id_str);
   //rb_warn("converted name %s to key %d", id_str, ptr->key);
 
-  // Guarantee arr_max_size >=1 or error thrown
-  ptr->arr_max_size = NUM2SIZET(size);
+  // Guarantee max_window_length >=1 or error thrown
+  ptr->max_window_length = NUM2SIZET(size);
 
   // id's default to -1
   ptr->semid = -1;
@@ -222,7 +224,7 @@ semian_cb_data_init(VALUE self, VALUE id, VALUE size, VALUE permissions)
 }
 
 static VALUE
-semian_cb_data_clean(VALUE self)
+semian_cb_data_destroy(VALUE self)
 {
   semian_cb_data_delete_memory(self);
   semian_cb_data_delete_semaphore(self);
@@ -260,8 +262,6 @@ configure_tickets(int sem_id, int tickets, int should_initialize)
     if (-1 == semctl(sem_id, 0, SETVAL, kCBTicketMax)) {
       rb_warn("semctl: failed to set semaphore with semid %d, position 0 to %d", sem_id, 1);
       raise_semian_syscall_error("semctl()", errno);
-    } else {
-      //rb_warn("semctl: set semaphore with semid %d, position 0 to %d", sem_id, 1);
     }
   } else if (tickets > 0) {
     // it's possible that we haven't actually initialized the
@@ -348,14 +348,16 @@ semian_cb_data_delete_semaphore(VALUE self)
   semian_cb_data *ptr;
   TypedData_Get_Struct(self, semian_cb_data, &semian_cb_data_type, ptr);
   if (-1 == ptr->semid) // do nothing if semaphore not acquired
-    return self;
+    return Qfalse;
 
   if (-1 == semctl(ptr->semid, 0, IPC_RMID)) {
     if (EIDRM == errno) {
       rb_warn("semctl: failed to delete semaphore set with semid %d: already removed", ptr->semid);
+      raise_semian_syscall_error("semctl()", errno);
       ptr->semid = -1;
     } else {
       rb_warn("semctl: failed to remove semaphore with semid %d, errno %d (%s)",ptr->semid, errno, strerror(errno));
+      raise_semian_syscall_error("semctl()", errno);
     }
   } else {
     //rb_warn("semctl: semaphore set with semid %d deleted", ptr->semid);
@@ -394,7 +396,7 @@ semian_cb_data_lock_without_gvl(void *self)
   ts.tv_sec = kCBInternalTimeout;
 
   if (-1 == semtimedop(ptr->semid,&decrement,1, &ts)) {
-    rb_raise(eInternal, "error with semop locking,  %d: (%s)", errno, strerror(errno));
+    rb_raise(eInternal, "error acquiring semaphore lock to mutate circuit breaker structure, %d: (%s)", errno, strerror(errno));
     retval=Qfalse;
   } else
     retval=Qtrue;
@@ -427,7 +429,7 @@ semian_cb_data_unlock_without_gvl(void *self)
   ts.tv_sec = kCBInternalTimeout;
 
   if (-1 == semtimedop(ptr->semid,&increment,1 , &ts)) {
-    rb_raise(eInternal, "error with semop unlocking, errno: %d (%s)", errno, strerror(errno));
+    rb_raise(eInternal, "error unlocking semaphore, %d (%s)", errno, strerror(errno));
     retval=Qfalse;
   } else
     retval=Qtrue;
@@ -458,38 +460,94 @@ semian_cb_data_acquire_memory(VALUE self, VALUE permissions)
     rb_raise(rb_eTypeError, "expected integer for permissions");
 
   if (!semian_cb_data_lock(self))
-    return self;
+    return Qfalse;
 
+  int created = 0;
   key_t key = ptr->key;
-  if (-1 == (ptr->shmid = shmget( key,
-                                  2*sizeof(int) + ptr->arr_max_size * sizeof(double),
-                                  IPC_CREAT | IPC_EXCL | FIX2LONG(permissions)))) {
-    if (errno == EEXIST)
-      ptr->shmid = shmget(key, ptr->arr_max_size, IPC_CREAT);
-  }
+  int byte_size = 2*sizeof(int) + ptr->max_window_length * sizeof(long);
+  int flags = IPC_CREAT | IPC_EXCL | FIX2LONG(permissions);
+
+  if (-1 == (ptr->shmid = shmget( key, byte_size, flags))) {
+    if (errno == EEXIST) {
+      ptr->shmid = shmget(key, byte_size, flags & ~IPC_EXCL);
+    }
+  } else
+    created = 1;
+
+  struct shared_cb_data *old_data=NULL;
+  int old_size = 0;
+
   if (-1 == ptr->shmid) {
-    rb_raise(eSyscall, "shmget() failed to acquire a memory shmid with key %d, size %zu, errno %d (%s)", key, ptr->arr_max_size, errno, strerror(errno));
-  } else {
-    //rb_warn("shmget: successfully got memory id with key %d, shmid %d, size %zu", key, ptr->shmid, ptr->arr_max_size);
+    if (errno == EINVAL) {
+      // EINVAL is either because
+      // 1. segment with key exists but size given >= size of segment
+      // 2. segment was requested to be created, but (size > SHMMAX || size < SHMMIN)
+
+      // Unlikely for 2 to occur, but we check by requesting a memory of size 1 byte
+      // We handle 1 by marking the old memory and shmid as IPC_RMID, not writing to it again,
+      //  copying as much data over to the new memory
+
+      // Changing memory size requires restarting semian with new args for initialization
+
+      int shmid = shmget(key, 1, flags & ~IPC_EXCL);
+      if (-1 != shmid) {
+        struct shared_cb_data *data = shmat(shmid, (void *)0, 0);
+        if ((void *)-1 != data) {
+          struct shmid_ds shm_info;
+          if (-1 != shmctl(shmid, IPC_STAT, &shm_info)) {
+            old_size = shm_info.shm_segsz;
+            if (byte_size != old_size) {
+              old_data = malloc(shm_info.shm_segsz);
+              memcpy(old_data,data,fmin(old_size, byte_size));
+              ptr->shmid = shmid;
+              ptr->shm_address = (shared_cb_data *)data;
+              semian_cb_data_delete_memory_inner(ptr);
+            }
+
+            // Flagging for deletion sets a shm's associated key to be 0 so shmget gets a different shmid.
+            if (-1 != (ptr->shmid = shmget(key, byte_size, flags))) {
+              created = 1;
+            }
+          }
+        }
+      }
+    }
+
+    if (-1 == ptr->shmid && errno == EINVAL) {
+      if (old_data)
+        free(old_data);
+      semian_cb_data_unlock(self);
+      rb_raise(eSyscall, "shmget() failed to acquire a memory shmid with key %d, size %zu, errno %d (%s)", key, ptr->max_window_length, errno, strerror(errno));
+    }
   }
 
   if (0 == ptr->shm_address) {
     ptr->shm_address = shmat(ptr->shmid, (void *)0, 0);
     if (((void*)-1) == ptr->shm_address) {
-      rb_raise(eSyscall, "shmat() failed to attach memory with shmid %d, size %zu, errno %d (%s)", ptr->shmid, ptr->arr_max_size, errno, strerror(errno));
+      semian_cb_data_unlock(self);
       ptr->shm_address = 0;
+      if (old_data)
+        free(old_data);
+      rb_raise(eSyscall, "shmat() failed to attach memory with shmid %d, size %zu, errno %d (%s)", ptr->shmid, ptr->max_window_length, errno, strerror(errno));
     } else {
-      //rb_warn("shmat: successfully attached shmid %d to %p", ptr->shmid, ptr->shm_address);
-      shared_cb_data *data = ptr->shm_address;
-      data->successes = 0;
-      data->arr_length = 0;
-      int i=0;
-      for (; i< data->arr_length; ++i)
-        data->errors[i]=0;
+      if (created) {
+        if (old_data) {
+          // transfer data over
+          memcpy(ptr->shm_address,old_data,fmin(old_size, byte_size));
 
+          ptr->shm_address->window_length = fmin(ptr->max_window_length-1, ptr->shm_address->window_length);
+        } else {
+          shared_cb_data *data = ptr->shm_address;
+          data->counter = 0;
+          data->window_length = 0;
+          for (int i=0; i< data->window_length; ++i)
+            data->window[i]=0;
+        }
+      }
     }
   }
-
+  if (old_data)
+    free(old_data);
   semian_cb_data_unlock(self);
   return self;
 }
@@ -501,7 +559,6 @@ semian_cb_data_delete_memory_inner (semian_cb_data *ptr)
     if (-1 == shmdt(ptr->shm_address)) {
       rb_raise(eSyscall,"shmdt: no attached memory at %p, errno %d (%s)", ptr->shm_address, errno, strerror(errno));
     } else {
-      rb_warn("shmdt: successfully detached memory at %p", ptr->shm_address);
     }
     ptr->shm_address = 0;
   }
@@ -512,7 +569,7 @@ semian_cb_data_delete_memory_inner (semian_cb_data *ptr)
       if (errno == EINVAL) {
         ptr->shmid = -1;
       } {
-        rb_raise(eSyscall,"shmctl: error removing memory with shmid %d, errno %d (%s)", ptr->shmid, errno, strerror(errno));
+        rb_raise(eSyscall,"shmctl: error flagging memory for removal with shmid %d, errno %d (%s)", ptr->shmid, errno, strerror(errno));
       }
     } else {
       ptr->shmid = -1;
@@ -541,12 +598,12 @@ semian_cb_data_delete_memory (VALUE self)
 
 
 /*
- * Below are methods for successes, semid, shmid, and array pop, push, peek at front and back
+ * Below are methods for counter, semid, shmid, and array pop, push, peek at front and back
  *  and clear, length
  */
 
 static VALUE
-semian_cb_data_get_successes(VALUE self)
+semian_cb_data_get_counter(VALUE self)
 {
   semian_cb_data *ptr;
   TypedData_Get_Struct(self, semian_cb_data, &semian_cb_data_type, ptr);
@@ -555,15 +612,17 @@ semian_cb_data_get_successes(VALUE self)
   if (0 == ptr->shm_address)
     return Qnil;
 
+  if (!semian_cb_data_lock(self))
+    return Qnil;
 
-  int successes = ptr->shm_address->successes;
+  int counter = ptr->shm_address->counter;
 
   semian_cb_data_unlock(self);
-  return INT2NUM(successes);
+  return INT2NUM(counter);
 }
 
 static VALUE
-semian_cb_data_set_successes(VALUE self, VALUE num)
+semian_cb_data_set_counter(VALUE self, VALUE num)
 {
   semian_cb_data *ptr;
   TypedData_Get_Struct(self, semian_cb_data, &semian_cb_data_type, ptr);
@@ -571,13 +630,13 @@ semian_cb_data_set_successes(VALUE self, VALUE num)
   if (0 == ptr->shm_address)
     return Qnil;
 
+  if (TYPE(num) != T_FIXNUM && TYPE(num) != T_FLOAT)
+    return Qnil;
+
   if (!semian_cb_data_lock(self))
     return Qnil;
 
-  if (TYPE(num) != T_FIXNUM && TYPE(num) != T_FLOAT/*|| TYPE(size) != T_BIGNUM*/)
-    return Qnil;
-
-  ptr->shm_address->successes = NUM2INT(num);
+  ptr->shm_address->counter = NUM2INT(num);
 
   semian_cb_data_unlock(self);
   return num;
@@ -600,68 +659,6 @@ semian_cb_data_shmid(VALUE self)
 }
 
 static VALUE
-semian_cb_data_array_at_index(VALUE self, VALUE idx)
-{
-  semian_cb_data *ptr;
-  TypedData_Get_Struct(self, semian_cb_data, &semian_cb_data_type, ptr);
-
-  if (0 == ptr->shm_address)
-    return Qnil;
-
-  if (TYPE(idx) != T_FIXNUM && TYPE(idx) != T_FLOAT/*|| TYPE(size) != T_BIGNUM*/)
-    return Qnil;
-
-  int index = NUM2INT(idx);
-
-  if (index <0 || index >= ptr->arr_max_size) {
-    return Qnil;
-  }
-
-  if (!semian_cb_data_lock(self))
-    return Qnil;
-  shared_cb_data *data = ptr->shm_address;
-  VALUE retval = index < (data->arr_length) ? DBL2NUM(data->errors[index]) : Qnil;
-
-  semian_cb_data_unlock(self);
-  return retval;
-
-}
-
-static VALUE
-semian_cb_data_array_set_index(VALUE self, VALUE idx, VALUE val)
-{
-  semian_cb_data *ptr;
-  TypedData_Get_Struct(self, semian_cb_data, &semian_cb_data_type, ptr);
-
-  // check shared memory for NULL
-  if (0 == ptr->shm_address)
-    return Qnil;
-
-  if (TYPE(idx) != T_FIXNUM && TYPE(idx) != T_FLOAT/*|| TYPE(size) != T_BIGNUM*/)
-    return Qnil;
-  if (TYPE(val) != T_FIXNUM && TYPE(val) != T_FLOAT/*|| TYPE(size) != T_BIGNUM*/)
-    return Qnil;
-
-  int index = NUM2INT(idx);
-  double value = NUM2DBL(val);
-
-  if (index <0 || index >= ptr->arr_max_size) {
-    return Qnil;
-  }
-
-  if (!semian_cb_data_lock(self)){
-    return Qnil;
-  }
-
-  ptr->shm_address->errors[index] = value;
-  ptr->shm_address->arr_length = index+1;
-
-  semian_cb_data_unlock(self);
-  return val;
-
-}
-
-static VALUE
 semian_cb_data_array_length(VALUE self)
 {
   semian_cb_data *ptr;
@@ -670,9 +667,9 @@ semian_cb_data_array_length(VALUE self)
     return Qnil;
   if (!semian_cb_data_lock(self))
     return Qnil;
-  int arr_length =ptr->shm_address->arr_length;
+  int window_length =ptr->shm_address->window_length;
   semian_cb_data_unlock(self);
-  return INT2NUM(arr_length);
+  return INT2NUM(window_length);
 }
 
 static VALUE
@@ -682,22 +679,21 @@ semian_cb_data_set_push_back(VALUE self, VALUE num)
   TypedData_Get_Struct(self, semian_cb_data, &semian_cb_data_type, ptr);
   if (0 == ptr->shm_address)
     return Qnil;
-  if (TYPE(num) != T_FIXNUM && TYPE(num) != T_FLOAT/*|| TYPE(size) != T_BIGNUM*/)
+  if (TYPE(num) != T_FIXNUM && TYPE(num) != T_FLOAT && TYPE(num) != T_BIGNUM)
     return Qnil;
 
   if (!semian_cb_data_lock(self))
     return Qnil;
 
   shared_cb_data *data = ptr->shm_address;
-  if (data->arr_length == ptr->arr_max_size) {
-    int i;
-    for (i=1; i< ptr->arr_max_size; ++i){
-      data->errors[i-1] = data->errors[i];
+  if (data->window_length == ptr->max_window_length) {
+    for (int i=1; i< ptr->max_window_length; ++i){
+      data->window[i-1] = data->window[i];
     }
-    --(data->arr_length);
+    --(data->window_length);
   }
-  data->errors[(data->arr_length)] = NUM2DBL(num);
-  ++(data->arr_length);
+  data->window[(data->window_length)] = NUM2LONG(num);
+  ++(data->window_length);
   semian_cb_data_unlock(self);
   return self;
 }
@@ -715,11 +711,11 @@ semian_cb_data_set_pop_back(VALUE self)
 
   VALUE retval;
   shared_cb_data *data = ptr->shm_address;
-  if (0 == data->arr_length)
+  if (0 == data->window_length)
     retval = Qnil;
   else {
-    retval = DBL2NUM(data->errors[data->arr_length-1]);
-    --(data->arr_length);
+    retval = LONG2NUM(data->window[data->window_length-1]);
+    --(data->window_length);
   }
 
   semian_cb_data_unlock(self);
@@ -739,14 +735,13 @@ semian_cb_data_set_pop_front(VALUE self)
 
   VALUE retval;
   shared_cb_data *data = ptr->shm_address;
-  if (0 >= data->arr_length)
+  if (0 >= data->window_length)
     retval = Qnil;
   else {
-    retval = DBL2NUM(data->errors[0]);
-    int i=0;
-    for (; i<data->arr_length-1; ++i)
-      data->errors[i]=data->errors[i+1];
-    --(data->arr_length);
+    retval = LONG2NUM(data->window[0]);
+    for (int i=0; i<data->window_length-1; ++i)
+      data->window[i]=data->window[i+1];
+    --(data->window_length);
   }
 
   semian_cb_data_unlock(self);
@@ -760,23 +755,23 @@ semian_cb_data_set_push_front(VALUE self, VALUE num)
   TypedData_Get_Struct(self, semian_cb_data, &semian_cb_data_type, ptr);
   if (0 == ptr->shm_address)
     return Qnil;
-  if (TYPE(num) != T_FIXNUM && TYPE(num) != T_FLOAT/*|| TYPE(size) != T_BIGNUM*/)
+  if (TYPE(num) != T_FIXNUM && TYPE(num) != T_FLOAT && TYPE(num) != T_BIGNUM)
     return Qnil;
 
   if (!semian_cb_data_lock(self))
     return Qnil;
 
-  double val = NUM2DBL(num);
+  long val = NUM2LONG(num);
   shared_cb_data *data = ptr->shm_address;
 
-  int i=data->arr_length;
+  int i=data->window_length;
   for (; i>0; --i)
-    data->errors[i]=data->errors[i-1];
+    data->window[i]=data->window[i-1];
 
-  data->errors[0] = val;
-  ++(data->arr_length);
-  if (data->arr_length>ptr->arr_max_size)
-    data->arr_length=ptr->arr_max_size;
+  data->window[0] = val;
+  ++(data->window_length);
+  if (data->window_length>ptr->max_window_length)
+    data->window_length=ptr->max_window_length;
 
   semian_cb_data_unlock(self);
   return self;
@@ -792,7 +787,7 @@ semian_cb_data_array_clear(VALUE self)
 
   if (!semian_cb_data_lock(self))
     return Qnil;
-  ptr->shm_address->arr_length=0;
+  ptr->shm_address->window_length=0;
 
   semian_cb_data_unlock(self);
   return self;
@@ -810,8 +805,8 @@ semian_cb_data_array_first(VALUE self)
     return Qnil;
 
   VALUE retval;
-  if (ptr->shm_address->arr_length >=1 && 1 <= ptr->arr_max_size)
-    retval = DBL2NUM(ptr->shm_address->errors[0]);
+  if (ptr->shm_address->window_length >=1)
+    retval = LONG2NUM(ptr->shm_address->window[0]);
   else
     retval = Qnil;
 
@@ -831,8 +826,8 @@ semian_cb_data_array_last(VALUE self)
     return Qnil;
 
   VALUE retval;
-  if (ptr->shm_address->arr_length > 0)
-    retval = DBL2NUM(ptr->shm_address->errors[ptr->shm_address->arr_length-1]);
+  if (ptr->shm_address->window_length > 0)
+    retval = LONG2NUM(ptr->shm_address->window[ptr->shm_address->window_length-1]);
   else
     retval = Qnil;
 
@@ -840,16 +835,22 @@ semian_cb_data_array_last(VALUE self)
   return retval;
 }
 
+static VALUE
+semian_cb_data_is_shared(VALUE self)
+{
+  return Qtrue;
+}
+
 void
 Init_semian_cb_data (void) {
 
   VALUE cSemianModule = rb_const_get(rb_cObject, rb_intern("Semian"));
 
-  VALUE cCircuitBreakerSharedData = rb_const_get(cSemianModule, rb_intern("CircuitBreakerSharedData"));
+  VALUE cCircuitBreakerSharedData = rb_const_get(cSemianModule, rb_intern("SlidingWindow"));
 
   rb_define_alloc_func(cCircuitBreakerSharedData, semian_cb_data_alloc);
   rb_define_method(cCircuitBreakerSharedData, "_initialize", semian_cb_data_init, 3);
-  rb_define_method(cCircuitBreakerSharedData, "_cleanup", semian_cb_data_clean, 0);
+  rb_define_method(cCircuitBreakerSharedData, "_destroy", semian_cb_data_destroy, 0);
   //rb_define_method(cCircuitBreakerSharedData, "acquire_semaphore", semian_cb_data_acquire_semaphore, 1);
   //rb_define_method(cCircuitBreakerSharedData, "delete_semaphore", semian_cb_data_delete_semaphore, 0);
   //rb_define_method(cCircuitBreakerSharedData, "lock", semian_cb_data_lock, 0);
@@ -859,12 +860,9 @@ Init_semian_cb_data (void) {
 
   rb_define_method(cCircuitBreakerSharedData, "semid", semian_cb_data_semid, 0);
   rb_define_method(cCircuitBreakerSharedData, "shmid", semian_cb_data_shmid, 0);
-  rb_define_method(cCircuitBreakerSharedData, "successes", semian_cb_data_get_successes, 0);
-  rb_define_method(cCircuitBreakerSharedData, "successes=", semian_cb_data_set_successes, 1);
+  rb_define_method(cCircuitBreakerSharedData, "successes", semian_cb_data_get_counter, 0);
+  rb_define_method(cCircuitBreakerSharedData, "successes=", semian_cb_data_set_counter, 1);
 
-  rb_define_method(cCircuitBreakerSharedData, "[]", semian_cb_data_array_at_index, 1);
-  rb_define_method(cCircuitBreakerSharedData, "[]=", semian_cb_data_array_set_index, 2);
-  rb_define_method(cCircuitBreakerSharedData, "length", semian_cb_data_array_length, 0);
   rb_define_method(cCircuitBreakerSharedData, "size", semian_cb_data_array_length, 0);
   rb_define_method(cCircuitBreakerSharedData, "count", semian_cb_data_array_length, 0);
   rb_define_method(cCircuitBreakerSharedData, "<<", semian_cb_data_set_push_back, 1);
@@ -875,6 +873,8 @@ Init_semian_cb_data (void) {
   rb_define_method(cCircuitBreakerSharedData, "clear", semian_cb_data_array_clear, 0);
   rb_define_method(cCircuitBreakerSharedData, "first", semian_cb_data_array_first, 0);
   rb_define_method(cCircuitBreakerSharedData, "last", semian_cb_data_array_last, 0);
+
+  rb_define_singleton_method(cCircuitBreakerSharedData, "shared?", semian_cb_data_is_shared, 0);
 
   eInternal = rb_const_get(cSemianModule, rb_intern("InternalError"));
   eSyscall = rb_const_get(cSemianModule, rb_intern("SyscallError"));
@@ -887,13 +887,6 @@ Init_semian_cb_data (void) {
   increment.sem_num = kCBIndexTicketLock;
   increment.sem_op = 1;
   increment.sem_flg = SEM_UNDO;
-
-  struct seminfo info_buf;
-
-  if (semctl(0, 0, SEM_INFO, &info_buf) == -1) {
-    rb_raise(eInternal, "unable to determine maximum semaphore count - semctl() returned %d: %s ", errno, strerror(errno));
-  }
-  system_max_semaphore_count = info_buf.semvmx;
 
   /* Maximum number of tickets available on this system. */
   rb_const_get(cSemianModule, rb_intern("MAX_TICKETS"));
