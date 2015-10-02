@@ -69,6 +69,18 @@ class TestMysql2 < MiniTest::Unit::TestCase
     Semian.unsubscribe(subscriber)
   end
 
+  def test_ping_returns_true
+    client = connect_to_mysql!
+    assert client.ping
+  end
+
+  def test_ping_returns_true_if_proxy_is_down
+    client = connect_to_mysql!
+    @proxy.down do
+      assert client.ping
+    end
+  end
+
   def test_resource_acquisition_for_connect
     client = connect_to_mysql!
 

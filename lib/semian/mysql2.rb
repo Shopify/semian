@@ -39,6 +39,9 @@ module Semian
 
       base.send(:alias_method, :raw_connect, :connect)
       base.send(:remove_method, :connect)
+
+      base.send(:alias_method, :raw_ping, :ping)
+      base.send(:remove_method, :ping)
     end
 
     def semian_identifier
@@ -50,6 +53,10 @@ module Semian
         end
         :"mysql_#{name}"
       end
+    end
+
+    def ping
+      true
     end
 
     def query(*args)
