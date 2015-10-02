@@ -322,6 +322,102 @@ semian_window_data_unlock_without_gvl(void *self)
 }
 
 
+static int
+create_and_resize_memory(key_t key, int max_window_size, long permissions, int should_keep_max_window_size_bool,
+  int *created, shared_window_data **data_copy, semian_window_data *ptr, VALUE self) {
+
+  // Below will handle acquiring/creating new memory, and possibly resizing the
+  //   memory or the ptr->max_window_size depending on
+  //   should_keep_max_window_size_bool
+
+  int shmid=-1;
+  int failed=0;
+
+  int requested_byte_size = 2*sizeof(int) + max_window_size * sizeof(long);
+  int flags = IPC_CREAT | IPC_EXCL | permissions;
+
+  int actual_byte_size = 0;
+
+  // We fill both actual_byte_size and requested_byte_size
+  // Logic matrix:
+  //                                         actual=>req     | actual=req |   actual<req
+  //                                    -----------------------------------------
+  //  should_keep_max_window_size_bool | no err, shrink mem  |   no err   | error, expand mem
+  // !should_keep_max_window_size_bool | no err, ++ max size |   no err   | error, -- max size
+
+  if (-1 == (shmid = shmget( key, requested_byte_size, flags))) {
+    if (errno == EEXIST) {
+      if (-1 != (shmid = shmget(key, requested_byte_size, flags & ~IPC_EXCL))) {
+        struct shmid_ds shm_info;
+        if (-1 != shmctl(shmid, IPC_STAT, &shm_info)){
+          actual_byte_size = shm_info.shm_segsz;
+        } else
+          failed = -1;
+      } else {
+        failed = -2;
+      }
+    }
+    // Else, this could be any number of errors
+    // 1. segment with key exists but requested size  > current mem size
+    // 2. segment was requested to be created, but (size > SHMMAX || size < SHMMIN)
+    // 3. Other error
+
+    // We can only see SHMMAX and SHMMIN through console commands
+    // Unlikely for 2 to occur, so we check by requesting a memory of size 1 byte
+    if (-1 != (shmid = shmget(key, 1, flags & ~IPC_EXCL))) {
+      struct shmid_ds shm_info;
+      if (-1 != shmctl(shmid, IPC_STAT, &shm_info)){
+        actual_byte_size = shm_info.shm_segsz;
+        failed = 0;
+      } else
+        failed=-3;
+    } else { // Error, exit
+      failed=-4;
+    }
+  } else {
+    *created = 1;
+    actual_byte_size = requested_byte_size;
+  }
+
+  if (should_keep_max_window_size_bool && !failed) { // memory resizing may occur
+    // We flag old mem by IPC_RMID, copy data, and fix it values if it needs fixing
+
+    if (actual_byte_size != requested_byte_size) {
+      shared_window_data *data;
+
+      if ((void *)-1 != (data = shmat(shmid, (void *)0, 0))) {
+
+        *data_copy = malloc(actual_byte_size);
+        memcpy(*data_copy,data,actual_byte_size);
+        ptr->shmid=shmid;
+        ptr->shm_address = data;
+        semian_window_data_delete_memory_inner(ptr, 1, self, *data_copy);
+
+        // Flagging for deletion sets a shm's associated key to be 0 so shmget gets a different shmid.
+        // If this worker is creating the new memory
+        if (-1 != (shmid = shmget(key, requested_byte_size, flags))) {
+          *created = 1;
+        } else { // failed to get new memory, exit
+          failed=-5;
+        }
+      } else { // failed to attach, exit
+        rb_raise(eInternal,"Failed to copy old data, key %d, shmid %d, errno %d (%s)",key, shmid, errno, strerror(errno));
+        failed=-6;
+      }
+    } else{
+      failed = -7;
+    }
+  } else if (!failed){ // ptr->max_window_size may be changed
+    ptr->max_window_size = (actual_byte_size - 2*sizeof(int))/(sizeof(long));
+  } else
+    failed=-8;
+  if (-1 != shmid) {
+    return shmid;
+  } else {
+    return failed;
+  }
+}
+
 /*
   Acquire memory by getting shmid, and then attaching it to a memory location,
     requires semaphore for locking/unlocking to be setup
@@ -356,93 +452,20 @@ semian_window_data_acquire_memory(VALUE self, VALUE permissions, VALUE should_ke
   if (!semian_window_data_lock(self))
     return Qfalse;
 
-  // Below will handle acquiring/creating new memory, and possibly resizing the
-  //   memory or the ptr->max_window_size depending on
-  //   should_keep_max_window_size_bool
 
   int created = 0;
   key_t key = ptr->key;
-  int requested_byte_size = 2*sizeof(int) + ptr->max_window_size * sizeof(long);
-  int flags = IPC_CREAT | IPC_EXCL | FIX2LONG(permissions);
+  shared_window_data *data_copy = NULL; // Will contain contents of old memory, if any
 
-  int actual_byte_size = 0;
-
-  // We fill both actual_byte_size and requested_byte_size
-  // Logic matrix:
-  //                                         actual=>req     | actual=req |   actual<req
-  //                                    -----------------------------------------
-  //  should_keep_max_window_size_bool | no err, shrink mem  |   no err   | error, expand mem
-  // !should_keep_max_window_size_bool | no err, ++ max size |   no err   | error, -- max size
-
-  int failed = 0;
-  if (-1 == (ptr->shmid = shmget( key, requested_byte_size, flags))) {
-    if (errno == EEXIST) {
-      ptr->shmid = shmget(key, requested_byte_size, flags & ~IPC_EXCL); // will succeed
-      if (-1 != ptr->shmid) {
-        struct shmid_ds shm_info;
-        if (-1 != shmctl(ptr->shmid, IPC_STAT, &shm_info)){
-          actual_byte_size = shm_info.shm_segsz;
-        }
-      } else {
-        failed = 1;
-      }
-    }
-    // Else, this could be any numberof errors
-    // 1. segment with key exists but requested size  > current mem size
-    // 2. segment was requested to be created, but (size > SHMMAX || size < SHMMIN)
-    // 3. Other error
-
-    // We can only see SHMMAX and SHMMIN through console commands
-    // Unlikely for 2 to occur, so we check by requesting a memory of size 1 byte
-    if (-1 != (ptr->shmid = shmget(key, 1, flags & ~IPC_EXCL))) {
-      struct shmid_ds shm_info;
-      if (-1 != shmctl(ptr->shmid, IPC_STAT, &shm_info)){
-        actual_byte_size = shm_info.shm_segsz;
-        failed = 0;
-      }
-    } else { // Error, exit
-      failed=2;
-    }
-
-  } else {
-    created = 1;
-    actual_byte_size = requested_byte_size;
-  }
-
-  shared_window_data *data_copy=NULL;
-  if (should_keep_max_window_size_bool && !failed) { // memory resizing may occur
-    // We flag old mem by IPC_RMID, copy data, and fix it values if it needs fixing
-    if (actual_byte_size != requested_byte_size) {
-      shared_window_data *data;
-
-      if ((void *)-1 != (data = shmat(ptr->shmid, (void *)0, 0))) {
-        data_copy = malloc(actual_byte_size);
-        memcpy(data_copy,data,actual_byte_size);
-        ptr->shm_address = data;
-        semian_window_data_delete_memory_inner(ptr, 1, self, data_copy);
-
-        // Flagging for deletion sets a shm's associated key to be 0 so shmget gets a different shmid.
-        // If this worker is creating the new memory
-        if (-1 != (ptr->shmid = shmget(key, requested_byte_size, flags))) {
-          created = 1;
-        } else { // failed to get new memory, exit
-          failed=5;
-        }
-      } else { // failed to attach, exit
-        rb_raise(eInternal,"Failed to copy old data, key %d, shmid %d, errno %d (%s)",key, ptr->shmid, errno, strerror(errno));
-        failed=6;
-      }
-    }
-  } else if (!failed){ // ptr->max_window_size may be changed
-    ptr->max_window_size = (actual_byte_size - 2*sizeof(int))/(sizeof(long));
-  }
-
-  if (failed) {
+  int shmid = create_and_resize_memory(key, ptr->max_window_size, FIX2LONG(permissions), should_keep_max_window_size_bool, &created, &data_copy, ptr, self);
+  if (shmid < 0) {// failed
     if (data_copy)
       free(data_copy);
     semian_window_data_unlock(self);
-    rb_raise(eSyscall, "shmget() failed to acquire a memory shmid with key %d, size %zu, errno %d (%s)", key, ptr->max_window_size, errno, strerror(errno));
-  }
+    rb_raise(eSyscall, "shmget() failed at %d to acquire a memory shmid with key %d, size %zu, errno %d (%s)", shmid, key, ptr->max_window_size, errno, strerror(errno));
+  } else
+    ptr->shmid = shmid;
+
 
   if (0 == ptr->shm_address) {
     ptr->shm_address = shmat(ptr->shmid, (void *)0, 0);
@@ -551,6 +574,8 @@ semian_window_data_check_and_resize_if_needed(VALUE self) {
     semian_window_data_delete_memory_inner(ptr, 1, self, NULL);
     semian_window_data_unlock(self);
     semian_window_data_acquire_memory(self, LONG2FIX(ptr->permissions), Qfalse);
+  } else {
+    semian_window_data_unlock(self);
   }
 }
 
