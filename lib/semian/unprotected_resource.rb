@@ -36,5 +36,9 @@ module Semian
 
     def mark_failed(_error)
     end
+
+    def mark_success
+    end
+
   end
 end

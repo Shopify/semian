@@ -156,7 +156,10 @@ require 'semian/circuit_breaker'
 require 'semian/protected_resource'
 require 'semian/unprotected_resource'
 require 'semian/platform'
+require 'semian/shared_memory_object'
 require 'semian/sliding_window'
+require 'semian/atomic_integer'
+require 'semian/atomic_enum'
 if Semian.sysv_semaphores_supported? && Semian.semaphores_enabled?
   require 'semian/semian'
 else

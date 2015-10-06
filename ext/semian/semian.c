@@ -1,7 +1,6 @@
 #include "semian.h"
 
 static ID id_timeout;
-static VALUE eSyscall, eTimeout, eInternal;
 static int system_max_semaphore_count;
 
 static const int kIndexTickets = 0;
@@ -417,7 +416,7 @@ semian_resource_id(VALUE self)
 }
 
 
-void Init_semian_sliding_window();
+void Init_semian_shm_object();
 
 void Init_semian()
 {
@@ -477,5 +476,5 @@ void Init_semian()
   /* Maximum number of tickets available on this system. */
   rb_define_const(cSemian, "MAX_TICKETS", INT2FIX(system_max_semaphore_count));
 
-  Init_semian_sliding_window();
+  Init_semian_shm_object();
 }

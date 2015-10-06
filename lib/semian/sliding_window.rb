@@ -1,11 +1,12 @@
 module Semian
-  class SlidingWindow #:nodoc:
-    def initialize(name, max_window_size, permissions)
-      if respond_to?(:_initialize)
-        _initialize(name, max_window_size, permissions)
+  class SlidingWindow < SharedMemoryObject #:nodoc:
+
+    def initialize(name, max_size, permissions)
+      data_layout=[:int, :int].concat(Array.new(max_size,:long))
+      if acquire(name, data_layout, permissions)
+
       else
-        @successes = 0
-        @max_window_size = max_window_size
+        @max_size = max_size
         @window = []
       end
     end
@@ -17,28 +18,17 @@ module Semian
     # in store, like this: if @max_window_size = 4, current time is 10, @window =[5,7,9,10].
     # Another push of (11) at 11 sec would make @window [7,9,10,11], popping off 5.
 
-    def self.shared?
-      false
+    def max_size
+      @max_size
     end
 
-    def max_window_size
-      @max_window_size
-    end
-
-    def successes
-      @successes
-    end
-
-    def successes=(num)
-      @successes=num
-    end
-
-    def semid
-      -1
-    end
-
-    def shmid
-      -1
+    def resize_to(size)
+      if 1 <= size
+        @max_size=size
+        @window.shift while @window.size >= @max_size
+      else
+        throw ArgumentError.new("size must be larger than 0")
+      end
     end
 
     def size
@@ -50,7 +40,7 @@ module Semian
     end
 
     def push(time_ms)
-      @window.shift while @window.size >= @max_window_size
+      @window.shift while @window.size >= @max_size
       @window << time_ms
     end
 
@@ -63,7 +53,7 @@ module Semian
     end
 
     def unshift (time_ms)
-      @window.pop while @window.size >= @max_window_size
+      @window.pop while @window.size >= @max_size
       @window.unshift(time_ms)
     end
 
