@@ -36,6 +36,8 @@ typedef VALUE (*my_blocking_fn_t)(void*);
 #define WITHOUT_GVL(fn,a,ubf,b) rb_thread_blocking_region((my_blocking_fn_t)(fn),(a),(ubf),(b))
 #endif
 
+VALUE eSyscall, eTimeout, eInternal;
+
 key_t
 generate_key(const char *name);
 

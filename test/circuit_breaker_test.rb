@@ -86,6 +86,58 @@ class TestCircuitBreaker < MiniTest::Unit::TestCase
     Semian.destroy(:three)
   end
 
+  def test_shared_error_threshold_between_workers_to_open
+    Semian.destroy(:testing) rescue nil
+    Semian.register(:testing, tickets: 1, exceptions: [SomeError], error_threshold: 10, error_timeout: 5, success_threshold: 4)
+    @resource = Semian[:testing]
+    10.times {
+      pid = fork {
+        @resource.mark_failed SomeError
+      }
+    }
+    Process.waitall
+    assert_circuit_opened
+  end
+
+
+  def test_shared_success_threshold_between_workers_to_close
+    test_shared_error_threshold_between_workers_to_open
+    Timecop.travel(6)
+    @resource = Semian[:testing]
+    5.times {
+      pid = fork {
+        @resource.mark_success
+      }
+    }
+    Process.waitall
+    assert_circuit_closed
+  end
+
+  def test_shared_fresh_worker_killed_should_not_reset_circuit_breaker_data
+    # Won't reset if at least one worker is still attached to it.
+
+    Semian.destroy(:testing) rescue nil
+    Semian.register(:unique_res, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5, success_threshold: 1)
+    @resource = Semian[:unique_res]
+
+    pid = fork {
+      Semian.register(:unique_res, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5, success_threshold: 1)
+      resource_inner = Semian[:unique_res]
+      open_circuit! resource_inner
+      sleep
+    }
+    sleep 1
+    Process.kill("KILL", pid)
+    Process.waitall
+    pid = fork {
+      Semian.register(:unique_res, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5, success_threshold: 1)
+      resource_inner = Semian[:unique_res]
+      assert_circuit_opened
+    }
+
+    Process.waitall
+  end
+
   private
 
   def open_circuit!(resource = @resource)
