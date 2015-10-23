@@ -21,6 +21,11 @@ Toxiproxy.populate([
     upstream: 'localhost:6379',
     listen: 'localhost:16379',
   },
+  {
+    name: 'semian_test_net_http',
+    upstream: 'localhost:41234',
+    listen: 'localhost:41235',
+  },
 ])
 
 class MiniTest::Unit::TestCase
