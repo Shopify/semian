@@ -36,5 +36,12 @@ module Semian
 
     def mark_failed(_error)
     end
+
+    def mark_success
+    end
+
+    def circuit_breaker_shared?
+      false
+    end
   end
 end

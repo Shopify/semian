@@ -94,6 +94,7 @@ module Semian
   end
 
   attr_accessor :logger
+  attr_accessor :extension_loaded
 
   self.logger = Logger.new(STDERR)
 
@@ -119,10 +120,12 @@ module Semian
   # Returns the registered resource.
   def register(name, tickets:, permissions: 0660, timeout: 0, error_threshold:, error_timeout:, success_threshold:, exceptions: [])
     circuit_breaker = CircuitBreaker.new(
+      name,
       success_threshold: success_threshold,
       error_threshold: error_threshold,
       error_timeout: error_timeout,
       exceptions: Array(exceptions) + [::Semian::BaseError],
+      permissions: permissions,
     )
     resource = Resource.new(name, tickets: tickets, permissions: permissions, timeout: timeout)
     resources[name] = ProtectedResource.new(resource, circuit_breaker)
@@ -154,7 +157,12 @@ require 'semian/circuit_breaker'
 require 'semian/protected_resource'
 require 'semian/unprotected_resource'
 require 'semian/platform'
-if Semian.sysv_semaphores_supported? && Semian.semaphores_enabled?
+require 'semian/shared_memory_object'
+require 'semian/sliding_window'
+require 'semian/atomic_integer'
+require 'semian/atomic_enum'
+Semian.extension_loaded = Semian.sysv_semaphores_supported? && Semian.semaphores_enabled?
+if Semian.extension_loaded
   require 'semian/semian'
 else
   Semian::MAX_TICKETS = 0

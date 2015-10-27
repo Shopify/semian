@@ -5,11 +5,17 @@ module Semian
     extend Forwardable
 
     def_delegators :@resource, :destroy, :count, :semid, :tickets, :name
-    def_delegators :@circuit_breaker, :reset, :mark_failed, :request_allowed?
+    def_delegators :@circuit_breaker, :reset, :mark_failed, :mark_success, :request_allowed?
+    def_delegator :@circuit_breaker, :shared?, :circuit_breaker_shared?
 
     def initialize(resource, circuit_breaker)
       @resource = resource
       @circuit_breaker = circuit_breaker
+    end
+
+    def destroy
+      @resource.destroy
+      @circuit_breaker.destroy
     end
 
     def acquire(timeout: nil, scope: nil, adapter: nil)

@@ -6,6 +6,7 @@ require 'toxiproxy'
 require 'timecop'
 require 'tempfile'
 require 'fileutils'
+require 'timeout'
 
 require 'helpers/background_helper'
 
