@@ -1,6 +1,9 @@
 require 'bundler/gem_tasks'
-
-task default: :test
+begin
+  require 'rubocop/rake_task'
+  RuboCop::RakeTask.new
+rescue LoadError
+end
 
 # ==========================================================
 # Packaging
@@ -48,3 +51,6 @@ require 'rdoc/task'
 RDoc::Task.new do |rdoc|
   rdoc.rdoc_files.include("lib/*.rb", "ext/semian/*.c")
 end
+
+task default: :test
+task default: :rubocop
