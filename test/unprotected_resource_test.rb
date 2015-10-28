@@ -15,7 +15,7 @@ class UnprotectedResourceTest < MiniTest::Unit::TestCase
   end
 
   def test_resource_tickets
-    assert_equal -1, @resource.tickets
+    assert_equal(-1, @resource.tickets)
   end
 
   def test_resource_count

@@ -79,7 +79,7 @@ class TestRedis < MiniTest::Unit::TestCase
   end
 
   def test_resource_acquisition_for_connect
-    client = connect_to_redis!
+    connect_to_redis!
 
     Semian[:redis_testing].acquire do
       error = assert_raises Redis::ResourceBusyError do
@@ -213,11 +213,11 @@ class TestRedis < MiniTest::Unit::TestCase
   def connect_to_redis!(semian_options = {})
     redis = Redis.new(
       host: '127.0.0.1',
-      port: 16379,
+      port: 16_379,
       reconnect_attempts: 0,
       db: 1,
       timeout: 0.5,
-      semian: SEMIAN_OPTIONS.merge(semian_options)
+      semian: SEMIAN_OPTIONS.merge(semian_options),
     )
     redis.client.connect
     redis

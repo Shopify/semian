@@ -10,7 +10,7 @@ module Semian
       reset
     end
 
-    def acquire(&block)
+    def acquire
       raise OpenCircuitError unless request_allowed?
 
       result = nil
@@ -31,7 +31,7 @@ module Semian
       !open?
     end
 
-    def mark_failed(error)
+    def mark_failed(_error)
       push_time(@errors, @error_count_threshold, duration: @error_timeout)
 
       if closed?
@@ -48,7 +48,7 @@ module Semian
     end
 
     def reset
-      @errors    = []
+      @errors = []
       @successes = 0
       close
     end

@@ -50,7 +50,7 @@ class TestInstrumentation < MiniTest::Unit::TestCase
 
   def assert_notify(*expected_events)
     events = []
-    subscription = Semian.subscribe do |event, resource|
+    subscription = Semian.subscribe do |event, _resource|
       events << event
     end
     yield

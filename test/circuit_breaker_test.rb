@@ -4,7 +4,11 @@ class TestCircuitBreaker < MiniTest::Unit::TestCase
   SomeError = Class.new(StandardError)
 
   def setup
-    Semian.destroy(:testing) rescue nil
+    begin
+      Semian.destroy(:testing)
+    rescue
+      nil
+    end
     Semian.register(:testing, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5, success_threshold: 1)
     @resource = Semian[:testing]
   end
@@ -108,7 +112,7 @@ class TestCircuitBreaker < MiniTest::Unit::TestCase
   def assert_circuit_opened(resource = @resource)
     open = false
     begin
-      resource.acquire { }
+      resource.acquire {}
     rescue Semian::OpenCircuitError
       open = true
     end

@@ -1,0 +1,113 @@
+AllCops:
+  Exclude:
+    - Gemfile
+    - lib/snippets/**/*
+    - vendor/**/*
+    - data/**/*
+    - db/schema.rb
+    - db/migrate/*
+    - test/dummy/**/*
+    - bin/rails
+    - lib/shipit-engine.rb
+    - tmp/**/*
+
+Style/GuardClause:
+  Enabled: false
+
+Lint/AssignmentInCondition:
+  Enabled: false
+
+Lint/HandleExceptions:
+  Enabled: false
+
+Lint/EndAlignment:
+  Enabled: false
+
+Style/NumericLiterals:
+  Exclude:
+    - db/schema.rb
+
+Style/SingleSpaceBeforeFirstArg:
+  Exclude:
+    - db/schema.rb
+
+Style/DoubleNegation:
+  Enabled: false
+
+Metrics/LineLength:
+  Max: 135
+
+Metrics/MethodLength:
+  Max: 40
+
+Metrics/ClassLength:
+  Max: 500
+
+Metrics/AbcSize:
+  Max: 50
+
+Metrics/CyclomaticComplexity:
+  Max: 10
+
+Style/Documentation:
+  Enabled: false
+
+Style/SingleLineBlockParams:
+  Enabled: false
+
+Style/SignalException:
+  Enabled: false
+
+Style/RaiseArgs:
+  Enabled: false
+
+Style/ModuleFunction:
+  Enabled: false
+
+Style/RedundantReturn:
+  AllowMultipleReturnValues: true
+
+Style/IndentHash:
+  Enabled: false
+
+Style/TrailingComma:
+  EnforcedStyleForMultiline: comma
+
+Style/ClassAndModuleChildren:
+  Enabled: false
+
+Style/PredicateName:
+  Exclude:
+    - app/serializers/**/*
+
+Style/SpaceInsideHashLiteralBraces:
+  EnforcedStyle: no_space
+
+Style/StringLiterals:
+  Enabled: false
+
+Style/PerlBackrefs:
+  Enabled: false
+
+Style/TrivialAccessors:
+  AllowPredicates: true
+
+Style/ExtraSpacing:
+  AllowForAlignment: false
+
+Style/GlobalVars:
+  Exclude:
+    - 'ext/semian/extconf.rb'
+
+Lint/Eval:
+  Exclude:
+    - 'Rakefile'
+
+Metrics/ParameterLists:
+  Enabled: false
+
+Style/IfUnlessModifier:
+  Enabled: false
+
+Style/CaseIndentation:
+  IndentWhenRelativeTo: end

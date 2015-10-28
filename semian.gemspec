@@ -1,4 +1,4 @@
-$:.unshift File.expand_path('../lib', __FILE__)
+$LOAD_PATH.unshift File.expand_path('../lib', __FILE__)
 
 require 'semian/version'
 require 'semian/platform'
@@ -13,7 +13,7 @@ Gem::Specification.new do |s|
   DOC
   s.homepage = 'https://github.com/csfrancis/semian'
   s.authors = ['Scott Francis', 'Simon Eskildsen']
-  s.email   = 'scott.francis@shopify.com'
+  s.email = 'scott.francis@shopify.com'
   s.license = 'MIT'
 
   s.files = `git ls-files`.split("\n")
