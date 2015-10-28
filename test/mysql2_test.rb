@@ -70,7 +70,7 @@ class TestMysql2 < MiniTest::Unit::TestCase
   end
 
   def test_resource_acquisition_for_connect
-    client = connect_to_mysql!
+    connect_to_mysql!
 
     Semian[:mysql_testing].acquire do
       error = assert_raises Mysql2::ResourceBusyError do
@@ -216,6 +216,7 @@ class TestMysql2 < MiniTest::Unit::TestCase
 
   class FakeMysql < Mysql2::Client
     private
+
     def connect(*)
     end
   end

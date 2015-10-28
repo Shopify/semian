@@ -31,7 +31,7 @@ require 'semian/instrumentable'
 # Resources also integrate a circuit breaker in order to fail faster and to let the
 # resource the time to recover. If `error_threshold` errors happen in the span of `error_timeout`
 # then the circuit will be opened and every attempt to acquire the resource will immediately fail.
-# 
+#
 # Once in open state, after `error_timeout` is elapsed, the ciruit will transition in the half-open state.
 # In that state a single error will fully re-open the circuit, and the circuit will transition back to the closed
 # state only after the resource is acquired `success_threshold` consecutive times.
@@ -158,7 +158,12 @@ if Semian.sysv_semaphores_supported? && Semian.semaphores_enabled?
   require 'semian/semian'
 else
   Semian::MAX_TICKETS = 0
-  Semian.logger.info("Semian sysv semaphores are not supported on #{RUBY_PLATFORM} - all operations will no-op") unless Semian.sysv_semaphores_supported?
-  Semian.logger.info("Semian semaphores are disabled, is this what you really want? - all operations will no-op") unless Semian.semaphores_enabled?
+  unless Semian.sysv_semaphores_supported?
+    Semian.logger.info("Semian sysv semaphores are not supported on #{RUBY_PLATFORM} - all operations will no-op")
+  end
+
+  unless Semian.semaphores_enabled?
+    Semian.logger.info("Semian semaphores are disabled, is this what you really want? - all operations will no-op")
+  end
 end
 require 'semian/version'

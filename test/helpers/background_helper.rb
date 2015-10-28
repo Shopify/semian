@@ -2,7 +2,7 @@ module BackgroundHelper
   attr_writer :threads
 
   def teardown
-    threads.each { |t| t.kill }
+    threads.each(&:kill)
     self.threads = []
   end
 

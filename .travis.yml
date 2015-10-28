@@ -5,6 +5,10 @@ sudo: true
 before_install:
   - scripts/install_toxiproxy.sh
 
+script:
+  - bundle exec rake
+  - bundle exec rubocop
+
 rvm:
   - 2.1.1
 

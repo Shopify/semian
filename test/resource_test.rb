@@ -2,7 +2,9 @@ require 'test_helper'
 
 class TestResource < MiniTest::Unit::TestCase
   def setup
-    Semian.destroy(:testing) rescue nil
+    Semian.destroy(:testing)
+  rescue
+    nil
   end
 
   def teardown
@@ -109,10 +111,10 @@ class TestResource < MiniTest::Unit::TestCase
     resource = create_resource :testing, tickets: 2, timeout: 0.5
 
     resource.acquire do
-      pid = fork do
+      fork do
         resource.acquire do
           assert_raises Semian::TimeoutError do
-            resource.acquire {  }
+            resource.acquire {}
           end
         end
       end
@@ -122,35 +124,33 @@ class TestResource < MiniTest::Unit::TestCase
   end
 
   def test_acquire_releases_on_kill
-    begin
-      resource = create_resource :testing, tickets: 1, timeout: 0.1
-      acquired = false
+    resource = create_resource :testing, tickets: 1, timeout: 0.1
+    acquired = false
 
-      # Ghetto process synchronization
-      file = Tempfile.new('semian')
-      path = file.path
-      file.close!
+    # Ghetto process synchronization
+    file = Tempfile.new('semian')
+    path = file.path
+    file.close!
 
-      pid = fork do
-        resource.acquire do
-          FileUtils.touch(path)
-          sleep 1000
-        end
+    pid = fork do
+      resource.acquire do
+        FileUtils.touch(path)
+        sleep 1000
       end
-
-      sleep 0.1 until File.exists?(path)
-      assert_raises Semian::TimeoutError do
-        resource.acquire {}
-      end
-
-      Process.kill("KILL", pid)
-      resource.acquire { acquired = true }
-      assert acquired
-
-      Process.wait
-    ensure
-      FileUtils.rm_f(path) if path
     end
+
+    sleep 0.1 until File.exist?(path)
+    assert_raises Semian::TimeoutError do
+      resource.acquire {}
+    end
+
+    Process.kill("KILL", pid)
+    resource.acquire { acquired = true }
+    assert acquired
+
+    Process.wait
+  ensure
+    FileUtils.rm_f(path) if path
   end
 
   def test_count
@@ -184,7 +184,7 @@ class TestResource < MiniTest::Unit::TestCase
     resource = create_resource :testing, tickets: 1
     resource.destroy
     assert_raises Semian::SyscallError do
-      resource.acquire { }
+      resource.acquire {}
     end
   end
 
@@ -287,9 +287,7 @@ class TestResource < MiniTest::Unit::TestCase
 
       f.flock(File::LOCK_UN)
 
-      while children.any? do
-        children.delete(Process.wait)
-      end
+      children.delete(Process.wait) while children.any?
 
       assert_equal 5, create_resource(:testing, tickets: 0).count
     ensure
@@ -307,7 +305,11 @@ class TestResource < MiniTest::Unit::TestCase
   def destroy_resources
     return unless @resources
     @resources.each do |resource|
-      resource.destroy rescue nil
+      begin
+        resource.destroy
+      rescue
+        nil
+      end
     end
     @resources = []
   end

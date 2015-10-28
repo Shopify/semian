@@ -2,7 +2,9 @@ require 'test_helper'
 
 class TestSemian < MiniTest::Unit::TestCase
   def setup
-    Semian.destroy(:testing) rescue nil
+    Semian.destroy(:testing)
+  rescue
+    nil
   end
 
   def test_unsupported_acquire_yields
@@ -27,5 +29,4 @@ class TestSemian < MiniTest::Unit::TestCase
   ensure
     ENV.delete('SEMIAN_SEMAPHORES_DISABLED')
   end
-
 end

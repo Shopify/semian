@@ -12,7 +12,7 @@ module Semian
       @circuit_breaker = circuit_breaker
     end
 
-    def acquire(timeout: nil, scope: nil, adapter: nil, &block)
+    def acquire(timeout: nil, scope: nil, adapter: nil)
       @circuit_breaker.acquire do
         begin
           @resource.acquire(timeout: timeout) do
