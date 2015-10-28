@@ -1,5 +1,5 @@
 module Semian
-  class SlidingWindow < SharedMemoryObject #:nodoc:
+  class SlidingWindow #:nodoc:
     extend Forwardable
 
     def_delegators :@window, :size, :pop, :shift, :first, :last
@@ -40,12 +40,16 @@ module Semian
     def clear
       @window = []
     end
-  end
 
-  class SysVSlidingWindow < SlidingWindow #:nodoc:
-    def initialize(name, max_size, permissions)
-      data_layout = [:int, :int].concat(Array.new(max_size, :long))
-      super unless acquire_memory_object(name, data_layout, permissions)
+    def execute_atomically
+      yield if block_given?
+    end
+
+    def shared?
+      false
+    end
+
+    def destroy
     end
   end
 end

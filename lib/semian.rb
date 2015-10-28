@@ -78,7 +78,7 @@ module Semian
   OpenCircuitError = Class.new(BaseError)
 
   def semaphores_enabled?
-    !ENV['SEMIAN_SEMAPHORES_DISABLED']
+    !ENV['SEMIAN_SEMAPHORES_DISABLED'] && Semian.sysv_semaphores_supported?
   end
 
   module AdapterError
@@ -94,7 +94,6 @@ module Semian
   end
 
   attr_accessor :logger
-  attr_accessor :extension_loaded
 
   self.logger = Logger.new(STDERR)
 
@@ -157,12 +156,10 @@ require 'semian/circuit_breaker'
 require 'semian/protected_resource'
 require 'semian/unprotected_resource'
 require 'semian/platform'
-require 'semian/shared_memory_object'
 require 'semian/sliding_window'
 require 'semian/atomic_integer'
 require 'semian/atomic_enum'
-Semian.extension_loaded = Semian.sysv_semaphores_supported? && Semian.semaphores_enabled?
-if Semian.extension_loaded
+if Semian.semaphores_enabled?
   require 'semian/semian'
 else
   Semian::MAX_TICKETS = 0
@@ -170,7 +167,7 @@ else
     Semian.logger.info("Semian sysv semaphores are not supported on #{RUBY_PLATFORM} - all operations will no-op")
   end
 
-  unless Semian.semaphores_enabled?
+  if ENV['SEMIAN_SEMAPHORES_DISABLED']
     Semian.logger.info("Semian semaphores are disabled, is this what you really want? - all operations will no-op")
   end
 end

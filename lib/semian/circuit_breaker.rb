@@ -1,20 +1,20 @@
 module Semian
   class CircuitBreaker #:nodoc:
     def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, permissions: 0660)
-      @name = "#{name}"
+      @name = name.to_s
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
       @error_timeout = error_timeout
       @exceptions = exceptions
 
-      @sliding_window = ::Semian::SysVSlidingWindow.new(
+      @sliding_window = ::Semian::SlidingWindow.new(
         "#{name}_sliding_window",
         @error_count_threshold,
         permissions)
-      @successes = ::Semian::SysVAtomicInteger.new(
+      @successes = ::Semian::AtomicInteger.new(
         "#{name}_atomic_integer",
         permissions)
-      @state = ::Semian::SysVAtomicEnum.new(
+      @state = ::Semian::AtomicEnum.new(
         "#{name}_atomic_enum",
         permissions,
         [:closed, :half_open, :open])
@@ -64,7 +64,7 @@ module Semian
 
     def mark_success
       return unless half_open?
-      @successes.increase_by 1
+      @successes.increment
       close if success_threshold_reached?
     end
 
