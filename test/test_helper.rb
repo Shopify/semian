@@ -23,8 +23,8 @@ Toxiproxy.populate([
   },
   {
     name: 'semian_test_net_http',
-    upstream: 'localhost:41234',
-    listen: 'localhost:41235',
+    upstream: 'localhost:31050',
+    listen: 'localhost:31051',
   },
 ])
 
