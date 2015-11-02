@@ -99,7 +99,7 @@ Init_semian_atomic_integer (void)
 {
   // Bind methods to AtomicInteger
   VALUE cSemianModule = rb_const_get(rb_cObject, rb_intern("Semian"));
-  VALUE cAtomicInteger = rb_const_get(cSemianModule, rb_intern("AtomicInteger"));
+  VALUE cAtomicInteger = rb_const_get(cSemianModule, rb_intern("SysVAtomicInteger"));
 
   rb_define_method(cAtomicInteger, "bind_init_fn", semian_atomic_integer_bind_init_fn_wrapper, 0);
   rb_define_method(cAtomicInteger, "value", semian_atomic_integer_get_value, 0);

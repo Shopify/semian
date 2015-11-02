@@ -1,26 +1,24 @@
 module Semian
   class AtomicInteger < SharedMemoryObject #:nodoc:
+    attr_accessor :value
 
+    def initialize(_name, _permissions)
+      @value = 0
+    end
+
+    def increment_by(val)
+      self.value += val
+    end
+
+    def increment
+      increment_by(1)
+    end
+  end
+
+  class SysVAtomicInteger < AtomicInteger #:nodoc:
     def initialize(name, permissions)
       data_layout = [:int]
-      if acquire(name, data_layout, permissions)
-      else
-        @value=0
-      end
+      super unless acquire_memory_object(name, data_layout, permissions)
     end
-
-    def value
-      @value
-    end
-
-    def value=(val)
-      @value=val
-    end
-
-    def increase_by(val)
-      @value += val
-      @value
-    end
-
   end
 end

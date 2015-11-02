@@ -4,8 +4,9 @@ module Semian
   class ProtectedResource
     extend Forwardable
 
-    def_delegators :@resource, :count, :semid, :tickets, :name
+    def_delegators :@resource, :destroy, :count, :semid, :tickets, :name
     def_delegators :@circuit_breaker, :reset, :mark_failed, :mark_success, :request_allowed?
+    def_delegator :@circuit_breaker, :shared?, :circuit_breaker_shared?
 
     def initialize(resource, circuit_breaker)
       @resource = resource
@@ -17,7 +18,7 @@ module Semian
       @circuit_breaker.destroy
     end
 
-    def acquire(timeout: nil, scope: nil, adapter: nil, &block)
+    def acquire(timeout: nil, scope: nil, adapter: nil)
       @circuit_breaker.acquire do
         begin
           @resource.acquire(timeout: timeout) do

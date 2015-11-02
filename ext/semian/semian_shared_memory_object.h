@@ -19,7 +19,6 @@ semian_shm_object_type;
  * Headers
  */
 
-VALUE semian_shm_object_is_shared(VALUE klass);
 VALUE semian_shm_object_sizeof(VALUE klass, VALUE type);
 
 VALUE semian_shm_object_acquire(VALUE self, VALUE id, VALUE byte_size, VALUE permissions);
@@ -33,7 +32,6 @@ VALUE semian_shm_object_acquire_memory(VALUE self, VALUE permissions, VALUE shou
 void semian_shm_object_delete_memory_inner (semian_shm_object *ptr, int should_unlock, VALUE self, void *should_free);
 VALUE semian_shm_object_delete_memory (VALUE self);
 VALUE semian_shm_object_check_and_resize_if_needed (VALUE self);
-
 
 void Init_semian_atomic_integer (void);
 void Init_semian_sliding_window (void);
