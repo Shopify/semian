@@ -67,11 +67,6 @@ semian_shm_object_alloc(VALUE klass)
  * Implementations
  */
 
-VALUE
-semian_shm_object_is_shared(VALUE klass)
-{
-  return Qtrue;
-}
 
 VALUE
 semian_shm_object_sizeof(VALUE klass, VALUE type)
@@ -603,7 +598,7 @@ Init_semian_shm_object (void) {
 
   rb_define_alloc_func(cSharedMemoryObject, semian_shm_object_alloc);
   rb_define_method(cSharedMemoryObject, "_acquire", semian_shm_object_acquire, 3);
-  rb_define_method(cSharedMemoryObject, "destroy", semian_shm_object_destroy, 0);
+  rb_define_method(cSharedMemoryObject, "_destroy", semian_shm_object_destroy, 0);
   rb_define_method(cSharedMemoryObject, "lock", semian_shm_object_lock, 0);
   rb_define_method(cSharedMemoryObject, "unlock", semian_shm_object_unlock, 0);
   rb_define_method(cSharedMemoryObject, "byte_size", semian_shm_object_byte_size, 0);
@@ -612,7 +607,6 @@ Init_semian_shm_object (void) {
   rb_define_method(cSharedMemoryObject, "shmid", semian_shm_object_shmid, 0);
   rb_define_method(cSharedMemoryObject, "execute_atomically", semian_shm_object_execute_atomically, 0);
 
-  rb_define_singleton_method(cSharedMemoryObject, "shared?", semian_shm_object_is_shared, 0);
   rb_define_singleton_method(cSharedMemoryObject, "_sizeof", semian_shm_object_sizeof, 1);
 
   decrement.sem_num = kSHMIndexTicketLock;

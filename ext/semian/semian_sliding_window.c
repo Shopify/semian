@@ -295,7 +295,7 @@ void
 Init_semian_sliding_window (void)
 {
   VALUE cSemianModule = rb_const_get(rb_cObject, rb_intern("Semian"));
-  VALUE cSlidingWindow = rb_const_get(cSemianModule, rb_intern("SlidingWindow"));
+  VALUE cSlidingWindow = rb_const_get(cSemianModule, rb_intern("SysVSlidingWindow"));
 
   rb_define_method(cSlidingWindow, "bind_init_fn", semian_sliding_window_bind_init_fn_wrapper, 0);
   rb_define_method(cSlidingWindow, "size", semian_sliding_window_size, 0);

@@ -94,6 +94,7 @@ module Semian
   end
 
   attr_accessor :logger
+  attr_accessor :extension_loaded
 
   self.logger = Logger.new(STDERR)
 
@@ -124,7 +125,7 @@ module Semian
       error_threshold: error_threshold,
       error_timeout: error_timeout,
       exceptions: Array(exceptions) + [::Semian::BaseError],
-      permissions: permissions
+      permissions: permissions,
     )
     resource = Resource.new(name, tickets: tickets, permissions: permissions, timeout: timeout)
     resources[name] = ProtectedResource.new(resource, circuit_breaker)
@@ -160,7 +161,8 @@ require 'semian/shared_memory_object'
 require 'semian/sliding_window'
 require 'semian/atomic_integer'
 require 'semian/atomic_enum'
-if Semian.sysv_semaphores_supported? && Semian.semaphores_enabled?
+Semian.extension_loaded = Semian.sysv_semaphores_supported? && Semian.semaphores_enabled?
+if Semian.extension_loaded
   require 'semian/semian'
 else
   Semian::MAX_TICKETS = 0

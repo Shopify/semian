@@ -87,53 +87,63 @@ class TestCircuitBreaker < MiniTest::Unit::TestCase
   end
 
   def test_shared_error_threshold_between_workers_to_open
-    Semian.destroy(:testing) rescue nil
+    # only valid if there's persistence
+    begin
+      Semian.destroy(:testing)
+    rescue
+      nil
+    end
     Semian.register(:testing, tickets: 1, exceptions: [SomeError], error_threshold: 10, error_timeout: 5, success_threshold: 4)
     @resource = Semian[:testing]
-    10.times {
-      pid = fork {
+    return unless @resource.circuit_breaker_shared?
+    10.times do
+      fork do
         @resource.mark_failed SomeError
-      }
-    }
+      end
+    end
     Process.waitall
     assert_circuit_opened
   end
 
-
   def test_shared_success_threshold_between_workers_to_close
+    return unless @resource.circuit_breaker_shared?
+
     test_shared_error_threshold_between_workers_to_open
     Timecop.travel(6)
     @resource = Semian[:testing]
-    5.times {
-      pid = fork {
+    5.times do
+      fork do
         @resource.mark_success
-      }
-    }
+      end
+    end
     Process.waitall
     assert_circuit_closed
   end
 
   def test_shared_fresh_worker_killed_should_not_reset_circuit_breaker_data
     # Won't reset if at least one worker is still attached to it.
-
-    Semian.destroy(:testing) rescue nil
+    begin
+      Semian.destroy(:testing)
+    rescue
+      nil
+    end
     Semian.register(:unique_res, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5, success_threshold: 1)
     @resource = Semian[:unique_res]
+    return unless @resource.circuit_breaker_shared?
 
-    pid = fork {
+    pid = fork do
       Semian.register(:unique_res, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5, success_threshold: 1)
       resource_inner = Semian[:unique_res]
       open_circuit! resource_inner
       sleep
-    }
+    end
     sleep 1
-    Process.kill("KILL", pid)
+    Process.kill('KILL', pid)
     Process.waitall
-    pid = fork {
+    fork do
       Semian.register(:unique_res, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5, success_threshold: 1)
-      resource_inner = Semian[:unique_res]
       assert_circuit_opened
-    }
+    end
 
     Process.waitall
   end

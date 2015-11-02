@@ -1,72 +1,51 @@
 module Semian
   class SlidingWindow < SharedMemoryObject #:nodoc:
+    extend Forwardable
 
-    def initialize(name, max_size, permissions)
-      data_layout=[:int, :int].concat(Array.new(max_size,:long))
-      if acquire(name, data_layout, permissions)
+    def_delegators :@window, :size, :pop, :shift, :first, :last
+    attr_reader :max_size
 
-      else
-        @max_size = max_size
-        @window = []
-      end
+    def initialize(_name, max_size, _permissions)
+      @max_size = max_size
+      @window = []
     end
 
-    # For anyone consulting this, the array stores an integer amount of seconds since epoch
-    # Use Time.at(_time_ms_ / 1000) to convert to time
-
-    # A sliding window is a structure that keeps at most @max_window_size recent timestamps
-    # in store, like this: if @max_window_size = 4, current time is 10, @window =[5,7,9,10].
-    # Another push of (11) at 11 sec would make @window [7,9,10,11], popping off 5.
-
-    def max_size
-      @max_size
-    end
+    # A sliding window is a structure that stores the most @max_size recent timestamps
+    # like this: if @max_size = 4, current time is 10, @window =[5,7,9,10].
+    # Another push of (11) at 11 sec would make @window [7,9,10,11], shifting off 5.
 
     def resize_to(size)
-      if 1 <= size
-        @max_size=size
-        @window.shift while @window.size >= @max_size
-      else
-        throw ArgumentError.new("size must be larger than 0")
-      end
+      throw ArgumentError.new('size must be larger than 0') if size < 1
+      @max_size = size
+      @window.shift while @window.size > @max_size
+      self
     end
 
-    def size
-      @window.size
-    end
-
-    def << (time_ms)
+    def <<(time_ms)
       push(time_ms)
     end
 
     def push(time_ms)
       @window.shift while @window.size >= @max_size
       @window << time_ms
+      self
     end
 
-    def pop
-      @window.pop
-    end
-
-    def shift
-      @window.shift
-    end
-
-    def unshift (time_ms)
+    def unshift(time_ms)
       @window.pop while @window.size >= @max_size
       @window.unshift(time_ms)
+      self
     end
 
     def clear
-      @window = [];
+      @window = []
     end
+  end
 
-    def first
-      @window.first
-    end
-
-    def last
-      @window.last
+  class SysVSlidingWindow < SlidingWindow #:nodoc:
+    def initialize(name, max_size, permissions)
+      data_layout = [:int, :int].concat(Array.new(max_size, :long))
+      super unless acquire_memory_object(name, data_layout, permissions)
     end
   end
 end

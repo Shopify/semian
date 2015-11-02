@@ -2,17 +2,16 @@ require 'test_helper'
 
 class TestAtomicEnum < MiniTest::Unit::TestCase
   def setup
-
-    @enum = Semian::AtomicEnum.new("TestAtomicEnum",0660, [:one, :two, :three])
+    @enum = Semian::SysVAtomicEnum.new('TestAtomicEnum', 0660, [:one, :two, :three])
   end
 
   def test_memory_is_shared
-    return if !Semian::AtomicEnum.shared?
-    assert_equal :one,@enum.value
-    @enum.value= :three
+    return unless @enum.shared?
+    assert_equal :one, @enum.value
+    @enum.value = :three
 
-    enum_2 = Semian::AtomicEnum.new("TestAtomicEnum",0660, [:one, :two, :three])
-    assert_equal :three,enum_2.value
+    enum_2 = Semian::SysVAtomicEnum.new('TestAtomicEnum', 0660, [:one, :two, :three])
+    assert_equal :three, enum_2.value
   end
 
   def test_will_throw_error_when_invalid_symbol_given
@@ -24,5 +23,4 @@ class TestAtomicEnum < MiniTest::Unit::TestCase
   def teardown
     @enum.destroy
   end
-
 end
