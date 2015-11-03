@@ -11,7 +11,7 @@ Gem::Specification.new do |s|
     A Ruby C extention that is used to control access to shared resources
     across process boundaries with SysV semaphores.
   DOC
-  s.homepage = 'https://github.com/csfrancis/semian'
+  s.homepage = 'https://github.com/shopify/semian'
   s.authors = ['Scott Francis', 'Simon Eskildsen']
   s.email = 'scott.francis@shopify.com'
   s.license = 'MIT'
