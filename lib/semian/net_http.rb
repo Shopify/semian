@@ -56,7 +56,7 @@ module Semian
     ].freeze # Net::HTTP can throw many different errors, this tries to capture most of them
 
     def resource_exceptions
-      Semian::NetHTTP.exceptions ||= DEFAULT_ERRORS.dup
+      Semian::NetHTTP.exceptions ||= Semian::NetHTTP::DEFAULT_ERRORS.dup
     end
 
     def enabled?
@@ -65,14 +65,14 @@ module Semian
 
     def connect
       return super unless enabled?
-      acquire_semian_resource(adapter: :nethttp, scope: :connection) do
+      acquire_semian_resource(adapter: :http, scope: :connection) do
         super
       end
     end
 
     def request(*req)
       return super unless enabled?
-      acquire_semian_resource(adapter: :nethttp, scope: :query) do
+      acquire_semian_resource(adapter: :http, scope: :query) do
         super
       end
     end
