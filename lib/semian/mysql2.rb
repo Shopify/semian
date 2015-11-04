@@ -32,6 +32,8 @@ module Semian
     DEFAULT_HOST = 'localhost'
     DEFAULT_PORT = 3306
 
+    QUERY_WHITELIST = [/\A\s*ROLLBACK/i, /\A\s*RELEASE\s+SAVEPOINT/i].freeze
+
     # The naked methods are exposed as `raw_query` and `raw_connect` for instrumentation purpose
     def self.included(base)
       base.send(:alias_method, :raw_query, :query)
@@ -53,10 +55,18 @@ module Semian
     end
 
     def query(*args)
-      acquire_semian_resource(adapter: :mysql, scope: :query) { raw_query(*args) }
+      if query_whitelisted?(*args)
+        raw_query(*args)
+      else
+        acquire_semian_resource(adapter: :mysql, scope: :query) { raw_query(*args) }
+      end
     end
 
     private
+
+    def query_whitelisted?(sql, *)
+      QUERY_WHITELIST.any? { |pattern| sql =~ pattern }
+    end
 
     def connect(*args)
       acquire_semian_resource(adapter: :mysql, scope: :connection) { raw_connect(*args) }

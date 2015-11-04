@@ -160,6 +160,42 @@ class TestMysql2 < MiniTest::Unit::TestCase
     end
   end
 
+  def test_semian_allows_rollback
+    client = connect_to_mysql!
+
+    client.query('START TRANSACTION;')
+
+    Semian[:mysql_testing].acquire do
+      client.query('ROLLBACK;')
+    end
+  end
+
+  def test_semian_allows_rollback_to_safepoint
+    client = connect_to_mysql!
+
+    client.query('START TRANSACTION;')
+    client.query('SAVEPOINT foobar;')
+
+    Semian[:mysql_testing].acquire do
+      client.query('ROLLBACK TO foobar;')
+    end
+
+    client.query('ROLLBACK;')
+  end
+
+  def test_semian_allows_release_savepoint
+    client = connect_to_mysql!
+
+    client.query('START TRANSACTION;')
+    client.query('SAVEPOINT foobar;')
+
+    Semian[:mysql_testing].acquire do
+      client.query('RELEASE SAVEPOINT foobar;')
+    end
+
+    client.query('ROLLBACK;')
+  end
+
   def test_resource_timeout_on_query
     client = connect_to_mysql!
     client2 = connect_to_mysql!
