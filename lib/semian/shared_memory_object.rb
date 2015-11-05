@@ -15,20 +15,25 @@ module Semian
       -1
     end
 
-    def execute_atomically
+    def execute_atomically(&proc)
+      return _execute_atomically(&proc) if respond_to?(:_execute_atomically) && @using_shared_memory
       yield if block_given?
     end
 
-    def shared?
-      @using_shared_memory ||= Semian.extension_loaded && @using_shared_memory
-    end
+    alias_method :transaction, :execute_atomically
 
     def destroy
       _destroy if respond_to?(:_destroy) && @using_shared_memory
     end
 
+    def shared?
+      @using_shared_memory ||= Semian.semaphores_enabled? && @using_shared_memory
+    end
+
+    private
+
     def acquire_memory_object(name, data_layout, permissions)
-      return @using_shared_memory = false unless Semian.extension_loaded && respond_to?(:_acquire)
+      return @using_shared_memory = false unless Semian.semaphores_enabled? && respond_to?(:_acquire)
 
       byte_size = data_layout.inject(0) { |sum, type| sum + ::Semian::SharedMemoryObject.sizeof(type) }
       raise TypeError.new("Given data layout is 0 bytes: #{data_layout.inspect}") if byte_size <= 0

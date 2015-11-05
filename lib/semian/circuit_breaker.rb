@@ -7,7 +7,7 @@ module Semian
       @error_timeout = error_timeout
       @exceptions = exceptions
 
-      @sliding_window = ::Semian::SysVSlidingWindow.new(
+      @errors = ::Semian::SysVSlidingWindow.new(
         "#{name}_sliding_window",
         @error_count_threshold,
         permissions)
@@ -22,14 +22,6 @@ module Semian
       # (0) if data is not shared, then it's zeroed already
       # (1) if no one is attached to the memory, zero it
       # (2) otherwise, keep the data
-    end
-
-    def shared?
-      @sliding_window.shared? && @successes.shared? && @state.shared?
-    end
-
-    def state
-      @state.value
     end
 
     def acquire
@@ -54,7 +46,7 @@ module Semian
     end
 
     def mark_failed(_error)
-      push_time(@sliding_window, @error_count_threshold, duration: @error_timeout)
+      push_time(@errors, duration: @error_timeout)
       if closed?
         open if error_threshold_reached?
       elsif half_open?
@@ -69,13 +61,13 @@ module Semian
     end
 
     def reset
-      @sliding_window.clear
+      @errors.clear
       @successes.value = 0
       close
     end
 
     def destroy
-      @sliding_window.destroy
+      @errors.destroy
       @successes.destroy
       @state.destroy
     end
@@ -89,7 +81,7 @@ module Semian
     def close
       log_state_transition(:closed)
       @state.value = :closed
-      @sliding_window.clear
+      @errors.clear
     end
 
     def open?
@@ -116,18 +108,17 @@ module Semian
     end
 
     def error_threshold_reached?
-      @sliding_window.size == @error_count_threshold
+      @errors.size == @error_count_threshold
     end
 
     def error_timeout_expired?
-      time_ms = @sliding_window.last
+      time_ms = @errors.last
       time_ms && (Time.at(time_ms / 1000) + @error_timeout < Time.now)
     end
 
-    def push_time(window, max_size, duration:, time: Time.now)
-      @sliding_window.execute_atomically do # Store an integer amount of milliseconds since epoch
+    def push_time(window, duration:, time: Time.now)
+      @errors.execute_atomically do # Store an integer amount of milliseconds since epoch
         window.shift while window.first && Time.at(window.first / 1000) + duration < time
-        window.shift if window.size == max_size
         window << (time.to_f * 1000).to_i
       end
     end
@@ -136,7 +127,7 @@ module Semian
       return if @state.nil? || new_state == @state.value
 
       str = "[#{self.class.name}] State transition from #{@state.value} to #{new_state}."
-      str << " success_count=#{@successes.value} error_count=#{@sliding_window.size}"
+      str << " success_count=#{@successes.value} error_count=#{@errors.size}"
       str << " success_count_threshold=#{@success_count_threshold} error_count_threshold=#{@error_count_threshold}"
       str << " error_timeout=#{@error_timeout} error_last_at=\"#{@error_last_at}\""
       Semian.logger.info(str)

@@ -605,7 +605,7 @@ Init_semian_shm_object (void) {
 
   rb_define_method(cSharedMemoryObject, "semid", semian_shm_object_semid, 0);
   rb_define_method(cSharedMemoryObject, "shmid", semian_shm_object_shmid, 0);
-  rb_define_method(cSharedMemoryObject, "execute_atomically", semian_shm_object_execute_atomically, 0);
+  rb_define_method(cSharedMemoryObject, "_execute_atomically", semian_shm_object_execute_atomically, 0);
 
   rb_define_singleton_method(cSharedMemoryObject, "_sizeof", semian_shm_object_sizeof, 1);
 

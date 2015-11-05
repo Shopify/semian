@@ -15,7 +15,7 @@ module Semian
     # Another push of (11) at 11 sec would make @window [7,9,10,11], shifting off 5.
 
     def resize_to(size)
-      throw ArgumentError.new('size must be larger than 0') if size < 1
+      raise ArgumentError.new('size must be larger than 0') if size < 1
       @max_size = size
       @window.shift while @window.size > @max_size
       self
@@ -39,13 +39,6 @@ module Semian
 
     def clear
       @window = []
-    end
-  end
-
-  class SysVSlidingWindow < SlidingWindow #:nodoc:
-    def initialize(name, max_size, permissions)
-      data_layout = [:int, :int].concat(Array.new(max_size, :long))
-      super unless acquire_memory_object(name, data_layout, permissions)
     end
   end
 end

@@ -8,7 +8,7 @@ static void semian_atomic_integer_bind_init_fn (size_t byte_size, void *dest, vo
 static VALUE semian_atomic_integer_bind_init_fn_wrapper(VALUE self);
 static VALUE semian_atomic_integer_get_value(VALUE self);
 static VALUE semian_atomic_integer_set_value(VALUE self, VALUE num);
-static VALUE semian_atomic_integer_increase_by(VALUE self, VALUE num);
+static VALUE semian_atomic_integer_increment(int argc, VALUE *argv, VALUE self);
 
 static void
 semian_atomic_integer_bind_init_fn (size_t byte_size, void *dest, void *prev_data, size_t prev_data_byte_size, int prev_mem_attach_count)
@@ -74,8 +74,13 @@ semian_atomic_integer_set_value(VALUE self, VALUE num)
 }
 
 static VALUE
-semian_atomic_integer_increase_by(VALUE self, VALUE num)
+semian_atomic_integer_increment(int argc, VALUE *argv, VALUE self)
 {
+  VALUE num;
+  rb_scan_args(argc, argv, "01", &num);
+  if (num == Qnil)
+    num = INT2NUM(1);
+
   semian_shm_object *ptr;
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
 
@@ -104,5 +109,5 @@ Init_semian_atomic_integer (void)
   rb_define_method(cAtomicInteger, "bind_init_fn", semian_atomic_integer_bind_init_fn_wrapper, 0);
   rb_define_method(cAtomicInteger, "value", semian_atomic_integer_get_value, 0);
   rb_define_method(cAtomicInteger, "value=", semian_atomic_integer_set_value, 1);
-  rb_define_method(cAtomicInteger, "increase_by", semian_atomic_integer_increase_by, 1);
+  rb_define_method(cAtomicInteger, "increment", semian_atomic_integer_increment, -1);
 }

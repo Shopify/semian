@@ -95,7 +95,6 @@ class TestCircuitBreaker < MiniTest::Unit::TestCase
     end
     Semian.register(:testing, tickets: 1, exceptions: [SomeError], error_threshold: 10, error_timeout: 5, success_threshold: 4)
     @resource = Semian[:testing]
-    return unless @resource.circuit_breaker_shared?
     10.times do
       fork do
         @resource.mark_failed SomeError
@@ -106,8 +105,6 @@ class TestCircuitBreaker < MiniTest::Unit::TestCase
   end
 
   def test_shared_success_threshold_between_workers_to_close
-    return unless @resource.circuit_breaker_shared?
-
     test_shared_error_threshold_between_workers_to_open
     Timecop.travel(6)
     @resource = Semian[:testing]
@@ -129,7 +126,6 @@ class TestCircuitBreaker < MiniTest::Unit::TestCase
     end
     Semian.register(:unique_res, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5, success_threshold: 1)
     @resource = Semian[:unique_res]
-    return unless @resource.circuit_breaker_shared?
 
     pid = fork do
       Semian.register(:unique_res, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5, success_threshold: 1)
