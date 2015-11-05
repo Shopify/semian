@@ -26,11 +26,11 @@ module Semian
       _destroy if respond_to?(:_destroy) && @using_shared_memory
     end
 
+    private
+
     def shared?
       @using_shared_memory ||= Semian.semaphores_enabled? && @using_shared_memory
     end
-
-    private
 
     def acquire_memory_object(name, data_layout, permissions)
       return @using_shared_memory = false unless Semian.semaphores_enabled? && respond_to?(:_acquire)

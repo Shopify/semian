@@ -26,7 +26,6 @@ class TestSysVAtomicEnum < MiniTest::Unit::TestCase
 
   def test_memory_is_shared
     run_test_with_atomic_enum_classes do |klass|
-      return unless @enum.shared?
       assert_equal :one, @enum.value
       @enum.value = :three
 

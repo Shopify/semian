@@ -6,7 +6,7 @@ module Semian
 
     def_delegators :@integer, :semid, :shmid, :execute_atomically, :transaction,
                    :shared?, :destroy, :acquire_memory_object, :bind_init_fn
-    private :acquire_memory_object, :bind_init_fn
+    private :shared?, :acquire_memory_object, :bind_init_fn
 
     def initialize(name, permissions, symbol_list)
       @integer = Semian::AtomicInteger.new(name, permissions)
