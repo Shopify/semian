@@ -27,7 +27,6 @@ class TestSlidingWindow < MiniTest::Unit::TestCase
 
   def test_forcefully_killing_worker_holding_on_to_semaphore_releases_it
     run_test_with_sliding_window_classes do |klass|
-      return unless @sliding_window.shared?
       Timeout.timeout(1) do # assure dont hang
         @sliding_window << 100
         assert_equal 100, @sliding_window.first
@@ -51,7 +50,6 @@ class TestSlidingWindow < MiniTest::Unit::TestCase
 
   def test_sliding_window_memory_is_actually_shared
     run_test_with_sliding_window_classes do |klass|
-      return unless @sliding_window.shared?
       assert_equal 0, @sliding_window.size
       sliding_window_2 = klass.new('TestSlidingWindow', 6, 0660)
       assert_equal 0, sliding_window_2.size
@@ -72,7 +70,6 @@ class TestSlidingWindow < MiniTest::Unit::TestCase
 
   def test_restarting_worker_should_not_reset_queue
     run_test_with_sliding_window_classes do |klass|
-      return unless @sliding_window.shared?
       @sliding_window << 10 << 20 << 30
       sliding_window_2 = klass.new('TestSlidingWindow', 6, 0660)
       assert_correct_first_and_last_and_size(@sliding_window, 10, 30, 3, 6)
@@ -90,7 +87,6 @@ class TestSlidingWindow < MiniTest::Unit::TestCase
 
   def test_other_workers_automatically_switching_to_new_memory_resizing_up_or_down
     run_test_with_sliding_window_classes do |klass|
-      return unless @sliding_window.shared?
       # Test explicit resizing, and resizing through making new memory associations
 
       sliding_window_2 = klass.new('TestSlidingWindow', 4, 0660)

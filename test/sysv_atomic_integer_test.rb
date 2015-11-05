@@ -26,7 +26,6 @@ class TestSysVAtomicInteger < MiniTest::Unit::TestCase
 
   def test_memory_is_shared
     run_test_with_atomic_integer_classes do |klass|
-      return unless @integer.shared?
       integer_2 = klass.new('TestAtomicInteger', 0660)
       integer_2.value = 100
       assert_equal 100, @integer.value
@@ -39,7 +38,6 @@ class TestSysVAtomicInteger < MiniTest::Unit::TestCase
 
   def test_memory_not_reset_when_at_least_one_worker_using_it
     run_test_with_atomic_integer_classes do |klass|
-      return unless @integer.shared?
       @integer.value = 109
       integer_2 = klass.new('TestAtomicInteger', 0660)
       assert_equal @integer.value, integer_2.value
