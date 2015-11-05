@@ -39,9 +39,5 @@ module Semian
 
     def mark_success
     end
-
-    def circuit_breaker_shared?
-      false
-    end
   end
 end
