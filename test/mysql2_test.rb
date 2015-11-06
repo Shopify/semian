@@ -170,6 +170,16 @@ class TestMysql2 < MiniTest::Unit::TestCase
     end
   end
 
+  def test_semian_allows_commit
+    client = connect_to_mysql!
+
+    client.query('START TRANSACTION;')
+
+    Semian[:mysql_testing].acquire do
+      client.query('COMMIT;')
+    end
+  end
+
   def test_semian_allows_rollback_to_safepoint
     client = connect_to_mysql!
 
