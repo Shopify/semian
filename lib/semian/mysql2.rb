@@ -32,7 +32,7 @@ module Semian
     DEFAULT_HOST = 'localhost'
     DEFAULT_PORT = 3306
 
-    QUERY_WHITELIST = [/\A\s*ROLLBACK/i, /\A\s*RELEASE\s+SAVEPOINT/i].freeze
+    QUERY_WHITELIST = Regexp.union(/\A\s*ROLLBACK/i, /\A\s*RELEASE\s+SAVEPOINT/i)
 
     # The naked methods are exposed as `raw_query` and `raw_connect` for instrumentation purpose
     def self.included(base)
@@ -65,7 +65,7 @@ module Semian
     private
 
     def query_whitelisted?(sql, *)
-      QUERY_WHITELIST.any? { |pattern| sql =~ pattern }
+      QUERY_WHITELIST =~ sql
     end
 
     def connect(*args)
