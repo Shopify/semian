@@ -70,6 +70,12 @@ module Semian
 
     def query_whitelisted?(sql, *)
       QUERY_WHITELIST =~ sql
+    rescue ArgumentError
+      # The above regexp match can fail if the input SQL string contains binary
+      # data that is not recognized as a valid encoding, in which case we just
+      # return false.
+      return false unless sql.valid_encoding?
+      raise
     end
 
     def connect(*args)
