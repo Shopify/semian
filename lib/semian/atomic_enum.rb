@@ -8,8 +8,8 @@ module Semian
                    :shared?, :destroy, :acquire_memory_object, :bind_init_fn
     private :shared?, :acquire_memory_object, :bind_init_fn
 
-    def initialize(name, permissions, symbol_list)
-      @integer = Semian::AtomicInteger.new(name, permissions)
+    def initialize(symbol_list, **options)
+      @integer = Semian::AtomicInteger.new
       initialize_lookup(symbol_list)
     end
 

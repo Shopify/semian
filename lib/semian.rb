@@ -149,6 +149,24 @@ module Semian
   def resources
     @resources ||= {}
   end
+
+  module ReentrantMutex
+    attr_reader :monitor
+
+    def self.included(base)
+      def base.surround_with_mutex(*names)
+        names.each do |name|
+          m = instance_method(name)
+          define_method(name) do |*args, &block|
+            @monitor ||= Monitor.new
+            @monitor.synchronize do
+              m.bind(self).call(*args, &block)
+            end
+          end
+        end
+      end
+    end
+  end
 end
 
 require 'semian/resource'

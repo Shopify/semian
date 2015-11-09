@@ -1,7 +1,7 @@
 module Semian
   class SysVAtomicEnum < AtomicEnum #:nodoc:
-    def initialize(name, permissions, symbol_list)
-      @integer = Semian::SysVAtomicInteger.new(name, permissions)
+    def initialize(symbol_list, name:,  permissions:)
+      @integer = Semian::SysVAtomicInteger.new(name: name, permissions: permissions)
       initialize_lookup(symbol_list)
     end
   end

@@ -1,8 +1,19 @@
 require 'test_helper'
 
 class TestAtomicInteger < MiniTest::Unit::TestCase
-  def test_access_value
-    run_test_with_atomic_integer_classes do
+  CLASS = ::Semian::AtomicInteger
+
+  def setup
+    @integer = CLASS.new(name: 'TestAtomicInteger', permissions: 0660)
+    @integer.value = 0
+  end
+
+  def teardown
+    @integer.destroy
+  end
+
+  module AtomicIntegerTestCases
+    def test_access_value
       @integer.value = 0
       assert_equal(0, @integer.value)
       @integer.value = 99
@@ -15,10 +26,8 @@ class TestAtomicInteger < MiniTest::Unit::TestCase
       @integer.value = 6
       assert_equal(6, @integer.value)
     end
-  end
 
-  def test_increment
-    run_test_with_atomic_integer_classes do
+    def test_increment
       @integer.value = 0
       @integer.increment(4)
       assert_equal(4, @integer.value)
@@ -29,21 +38,5 @@ class TestAtomicInteger < MiniTest::Unit::TestCase
     end
   end
 
-  private
-
-  def atomic_integer_classes
-    @classes ||= [::Semian::AtomicInteger]
-  end
-
-  def run_test_with_atomic_integer_classes(klasses = atomic_integer_classes)
-    klasses.each do |klass|
-      begin
-        @integer = klass.new('TestAtomicInteger', 0660)
-        @integer.value = 0
-        yield(klass)
-      ensure
-        @integer.destroy
-      end
-    end
-  end
+  include AtomicIntegerTestCases
 end
