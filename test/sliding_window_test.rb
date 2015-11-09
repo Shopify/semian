@@ -1,19 +1,27 @@
 require 'test_helper'
 
 class TestSlidingWindow < MiniTest::Unit::TestCase
-  def test_sliding_window_functionality
+  def test_sliding_window_push
     run_test_with_sliding_window_classes do
       assert_equal(0, @sliding_window.size)
       @sliding_window << 1
       assert_correct_first_and_last_and_size(@sliding_window, 1, 1, 1, 6)
       @sliding_window << 5
       assert_correct_first_and_last_and_size(@sliding_window, 1, 5, 2, 6)
-      @sliding_window.unshift(3)
-      assert_correct_first_and_last_and_size(@sliding_window, 3, 5, 3, 6)
-      @sliding_window.resize_to(3)
-      assert_correct_first_and_last_and_size(@sliding_window, 3, 5, 3, 3)
-      @sliding_window.resize_to(1)
-      assert_correct_first_and_last_and_size(@sliding_window, 5, 5, 1, 1)
+    end
+  end
+
+  def test_sliding_window_resize
+    run_test_with_sliding_window_classes do
+      assert_equal(0, @sliding_window.size)
+      @sliding_window << 1 << 2 << 3 << 4 << 5 << 6
+      assert_correct_first_and_last_and_size(@sliding_window, 1, 6, 6, 6)
+      @sliding_window.resize_to 6
+      assert_correct_first_and_last_and_size(@sliding_window, 1, 6, 6, 6)
+      @sliding_window.resize_to 5
+      assert_correct_first_and_last_and_size(@sliding_window, 2, 6, 5, 5)
+      @sliding_window.resize_to 6
+      assert_correct_first_and_last_and_size(@sliding_window, 2, 6, 5, 6)
     end
   end
 
@@ -24,20 +32,21 @@ class TestSlidingWindow < MiniTest::Unit::TestCase
       assert_correct_first_and_last_and_size(@sliding_window, 2, 7, 6, 6)
       @sliding_window.shift
       assert_correct_first_and_last_and_size(@sliding_window, 3, 7, 5, 6)
-      @sliding_window.clear
     end
   end
 
   private
 
   def sliding_window_classes
-    @classes ||= retrieve_descendants(::Semian::SlidingWindow)
+    @classes ||= [::Semian::SlidingWindow]
   end
 
   def run_test_with_sliding_window_classes(klasses = sliding_window_classes)
     klasses.each do |klass|
       begin
-        @sliding_window = klass.new('TestSlidingWindow', 6, 0660)
+        @sliding_window = klass.new(6,
+                                    name: 'TestSlidingWindow',
+                                    permissions: 0660)
         @sliding_window.clear
         yield(klass)
       ensure

@@ -9,7 +9,7 @@ require 'fileutils'
 require 'timeout'
 
 require 'helpers/background_helper'
-require 'helpers/class_test_helper'
+
 Semian.logger = Logger.new(nil)
 Toxiproxy.populate([
   {
@@ -26,5 +26,4 @@ Toxiproxy.populate([
 
 class MiniTest::Unit::TestCase
   include BackgroundHelper
-  include ClassTestHelper
 end
