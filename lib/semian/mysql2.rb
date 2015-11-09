@@ -69,6 +69,7 @@ module Semian
         semian_resource.mark_failed(error)
         error.semian_identifier = semian_identifier
       end
+      close if error.class == Mysql2::ResourceBusyError
       raise
     end
 

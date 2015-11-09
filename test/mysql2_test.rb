@@ -203,6 +203,19 @@ class TestMysql2 < MiniTest::Unit::TestCase
     assert_equal 2, client.query('SELECT 1 + 1 as sum;').to_a.first['sum']
   end
 
+  def test_resource_busy_error_closes_connection
+    client = connect_to_mysql!
+    assert client.ping
+
+    assert_raises Mysql2::ResourceBusyError do
+      Semian[:mysql_testing].acquire do
+        client.query('SELECT 1')
+      end
+    end
+
+    refute client.ping
+  end
+
   private
 
   def connect_to_mysql!(semian_options = {})
