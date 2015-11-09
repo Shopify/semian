@@ -1,23 +1,20 @@
 module Semian
   class CircuitBreaker #:nodoc:
-    def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, permissions: 0660)
+    def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, permissions:)
       @name = name.to_s
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
       @error_timeout = error_timeout
       @exceptions = exceptions
 
-      @errors = ::Semian::SysVSlidingWindow.new(
-        "#{name}_sliding_window",
-        @error_count_threshold,
-        permissions)
-      @successes = ::Semian::SysVAtomicInteger.new(
-        "#{name}_atomic_integer",
-        permissions)
-      @state = ::Semian::SysVAtomicEnum.new(
-        "#{name}_atomic_enum",
-        permissions,
-        [:closed, :half_open, :open])
+      @errors = ::Semian::SysVSlidingWindow.new(@error_count_threshold,
+                                                name: "#{name}_sliding_window",
+                                                permissions: permissions)
+      @successes = ::Semian::SysVAtomicInteger.new(name: "#{name}_atomic_integer",
+                                                   permissions: permissions)
+      @state = ::Semian::SysVAtomicEnum.new([:closed, :half_open, :open],
+                                            name: "#{name}_atomic_enum",
+                                            permissions: permissions)
       # We do not need to #reset here since initializing is handled like this:
       # (0) if data is not shared, then it's zeroed already
       # (1) if no one is attached to the memory, zero it
