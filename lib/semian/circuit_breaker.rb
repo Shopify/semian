@@ -105,11 +105,9 @@ module Semian
     end
 
     def push_time(window, duration:, time: Time.now)
-      @errors.execute_atomically do
-        # The sliding window stores the integer amount of seconds since epoch as a timestamp
-        window.shift while window.first && Time.at(window.first / 1000) + duration < time
-        window << (time.to_f * 1000).to_i
-      end
+      # The sliding window stores the integer amount of milliseconds since epoch as a timestamp
+      window.shift while window.first && Time.at(window.first / 1000) + duration < time
+      window << (time.to_f * 1000).to_i
     end
 
     def log_state_transition(new_state)

@@ -36,20 +36,8 @@ module Semian
       self
     end
 
-    def execute_atomically
-      yield if block_given?
-    end
-
-    alias_method :transaction, :execute_atomically
-
     def destroy
       clear
-    end
-
-    private
-
-    def shared?
-      false
     end
   end
 end

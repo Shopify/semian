@@ -4,8 +4,7 @@ module Semian
   class AtomicEnum #:nodoc:
     extend Forwardable
 
-    def_delegators :@integer, :execute_atomically, :transaction, :shared?, :destroy
-    private :shared?
+    def_delegators :@integer, :destroy
 
     def initialize(symbol_list)
       @integer = Semian::AtomicInteger.new
