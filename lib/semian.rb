@@ -78,7 +78,7 @@ module Semian
   OpenCircuitError = Class.new(BaseError)
 
   def semaphores_enabled?
-    !ENV['SEMIAN_SEMAPHORES_DISABLED']
+    !ENV['SEMIAN_SEMAPHORES_DISABLED'] && Semian.sysv_semaphores_supported?
   end
 
   module AdapterError
@@ -119,10 +119,12 @@ module Semian
   # Returns the registered resource.
   def register(name, tickets:, permissions: 0660, timeout: 0, error_threshold:, error_timeout:, success_threshold:, exceptions: [])
     circuit_breaker = CircuitBreaker.new(
+      name,
       success_threshold: success_threshold,
       error_threshold: error_threshold,
       error_timeout: error_timeout,
       exceptions: Array(exceptions) + [::Semian::BaseError],
+      permissions: permissions,
     )
     resource = Resource.new(name, tickets: tickets, permissions: permissions, timeout: timeout)
     resources[name] = ProtectedResource.new(resource, circuit_breaker)
@@ -147,6 +149,31 @@ module Semian
   def resources
     @resources ||= {}
   end
+
+  module ReentrantMutex
+    attr_reader :monitor
+
+    def call_with_mutex
+      @monitor ||= Monitor.new
+      @monitor.synchronize do
+        yield if block_given?
+      end
+    end
+
+    def self.included(base)
+      def base.surround_with_mutex(*names)
+        names.each do |name|
+          new_name = "#{name}_inner".freeze
+          alias_method new_name, name
+          define_method(name) do |*args, &block|
+            call_with_mutex do
+              method(new_name).call(*args, &block)
+            end
+          end
+        end
+      end
+    end
+  end
 end
 
 require 'semian/resource'
@@ -154,7 +181,14 @@ require 'semian/circuit_breaker'
 require 'semian/protected_resource'
 require 'semian/unprotected_resource'
 require 'semian/platform'
-if Semian.sysv_semaphores_supported? && Semian.semaphores_enabled?
+require 'semian/shared_memory_object'
+require 'semian/sliding_window'
+require 'semian/atomic_integer'
+require 'semian/atomic_enum'
+require 'semian/sysv_sliding_window'
+require 'semian/sysv_atomic_integer'
+require 'semian/sysv_atomic_enum'
+if Semian.semaphores_enabled?
   require 'semian/semian'
 else
   Semian::MAX_TICKETS = 0
@@ -162,7 +196,7 @@ else
     Semian.logger.info("Semian sysv semaphores are not supported on #{RUBY_PLATFORM} - all operations will no-op")
   end
 
-  unless Semian.semaphores_enabled?
+  if ENV['SEMIAN_SEMAPHORES_DISABLED']
     Semian.logger.info("Semian semaphores are disabled, is this what you really want? - all operations will no-op")
   end
 end
