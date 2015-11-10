@@ -1,9 +1,8 @@
 module Semian
   class AtomicInteger < SharedMemoryObject #:nodoc:
-    include ::Semian::ReentrantMutex
     attr_accessor :value
 
-    def initialize(**options)
+    def initialize
       @value = 0
     end
 

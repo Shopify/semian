@@ -42,9 +42,8 @@ class TestSysVAtomicEnum < MiniTest::Unit::TestCase
     @enum.value = :three
 
     enum_2 = CLASS.new([:one, :two, :three],
-                        name: 'TestAtomicEnum',
-                        permissions: 0660)
+                       name: 'TestAtomicEnum',
+                       permissions: 0660)
     assert_equal :three, enum_2.value
   end
-
 end

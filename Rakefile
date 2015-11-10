@@ -27,7 +27,7 @@ if Semian.sysv_semaphores_supported?
     ext.ext_dir = 'ext/semian'
     ext.lib_dir = 'lib/semian'
   end
-  task :build => :compile
+  task build: :compile
 else
   task :build do
   end

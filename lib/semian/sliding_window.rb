@@ -1,12 +1,11 @@
 module Semian
   class SlidingWindow < SharedMemoryObject #:nodoc:
     extend Forwardable
-    include ::Semian::ReentrantMutex
 
     def_delegators :@window, :size, :pop, :shift, :first, :last
     attr_reader :max_size
 
-    def initialize(max_size, **options)
+    def initialize(max_size)
       @max_size = max_size
       @window = []
     end

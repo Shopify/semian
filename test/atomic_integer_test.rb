@@ -4,7 +4,7 @@ class TestAtomicInteger < MiniTest::Unit::TestCase
   CLASS = ::Semian::AtomicInteger
 
   def setup
-    @integer = CLASS.new(name: 'TestAtomicInteger', permissions: 0660)
+    @integer = CLASS.new
     @integer.value = 0
   end
 

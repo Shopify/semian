@@ -153,14 +153,21 @@ module Semian
   module ReentrantMutex
     attr_reader :monitor
 
+    def call_with_mutex
+      @monitor ||= Monitor.new
+      @monitor.synchronize do
+        yield if block_given?
+      end
+    end
+
     def self.included(base)
       def base.surround_with_mutex(*names)
         names.each do |name|
-          m = instance_method(name)
+          new_name = "#{name}_inner".freeze
+          alias_method new_name, name
           define_method(name) do |*args, &block|
-            @monitor ||= Monitor.new
-            @monitor.synchronize do
-              m.bind(self).call(*args, &block)
+            call_with_mutex do
+              method(new_name).call(*args, &block)
             end
           end
         end

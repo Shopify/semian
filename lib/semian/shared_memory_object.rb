@@ -1,5 +1,7 @@
 module Semian
   class SharedMemoryObject #:nodoc:
+    include ReentrantMutex
+
     @type_size = {}
     def self.sizeof(type)
       size = (@type_size[type.to_sym] ||= (respond_to?(:_sizeof) ? _sizeof(type.to_sym) : 0))
@@ -16,8 +18,11 @@ module Semian
     end
 
     def execute_atomically(&proc)
-      return _execute_atomically(&proc) if respond_to?(:_execute_atomically) && @using_shared_memory
-      yield if block_given?
+      if respond_to?(:_execute_atomically) && @using_shared_memory
+        return _execute_atomically(&proc)
+      else
+        call_with_mutex(&proc)
+      end
     end
 
     alias_method :transaction, :execute_atomically
