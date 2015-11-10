@@ -78,7 +78,7 @@ module Semian
   OpenCircuitError = Class.new(BaseError)
 
   def semaphores_enabled?
-    !ENV['SEMIAN_SEMAPHORES_DISABLED']
+    !ENV['SEMIAN_SEMAPHORES_DISABLED'] && Semian.sysv_semaphores_supported?
   end
 
   module AdapterError
@@ -119,6 +119,7 @@ module Semian
   # Returns the registered resource.
   def register(name, tickets:, permissions: 0660, timeout: 0, error_threshold:, error_timeout:, success_threshold:, exceptions: [])
     circuit_breaker = CircuitBreaker.new(
+      name,
       success_threshold: success_threshold,
       error_threshold: error_threshold,
       error_timeout: error_timeout,
@@ -154,7 +155,10 @@ require 'semian/circuit_breaker'
 require 'semian/protected_resource'
 require 'semian/unprotected_resource'
 require 'semian/platform'
-if Semian.sysv_semaphores_supported? && Semian.semaphores_enabled?
+require 'semian/sliding_window'
+require 'semian/atomic_integer'
+require 'semian/atomic_enum'
+if Semian.semaphores_enabled?
   require 'semian/semian'
 else
   Semian::MAX_TICKETS = 0
@@ -162,7 +166,7 @@ else
     Semian.logger.info("Semian sysv semaphores are not supported on #{RUBY_PLATFORM} - all operations will no-op")
   end
 
-  unless Semian.semaphores_enabled?
+  if ENV['SEMIAN_SEMAPHORES_DISABLED']
     Semian.logger.info("Semian semaphores are disabled, is this what you really want? - all operations will no-op")
   end
 end
