@@ -1,7 +1,7 @@
 require 'test_helper'
 
-class TestAtomicInteger < MiniTest::Unit::TestCase
-  CLASS = ::Semian::AtomicInteger
+class TestSimpleInteger < MiniTest::Unit::TestCase
+  CLASS = ::Semian::Simple::Integer
 
   def setup
     @integer = CLASS.new
@@ -12,7 +12,7 @@ class TestAtomicInteger < MiniTest::Unit::TestCase
     @integer.destroy
   end
 
-  module AtomicIntegerTestCases
+  module IntegerTestCases
     def test_access_value
       @integer.value = 0
       assert_equal(0, @integer.value)
@@ -38,5 +38,5 @@ class TestAtomicInteger < MiniTest::Unit::TestCase
     end
   end
 
-  include AtomicIntegerTestCases
+  include IntegerTestCases
 end

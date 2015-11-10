@@ -1,7 +1,7 @@
 require 'test_helper'
 
-class TestSlidingWindow < MiniTest::Unit::TestCase
-  CLASS = ::Semian::SlidingWindow
+class TestSimpleSlidingWindow < MiniTest::Unit::TestCase
+  CLASS = ::Semian::Simple::SlidingWindow
 
   def setup
     @sliding_window = CLASS.new(6)

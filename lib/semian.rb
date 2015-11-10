@@ -125,6 +125,7 @@ module Semian
       error_timeout: error_timeout,
       exceptions: Array(exceptions) + [::Semian::BaseError],
       permissions: permissions,
+      type_namespace: ::Semian::SysV,
     )
     resource = Resource.new(name, tickets: tickets, permissions: permissions, timeout: timeout)
     resources[name] = ProtectedResource.new(resource, circuit_breaker)
@@ -151,11 +152,11 @@ module Semian
   end
 
   module ReentrantMutex
-    attr_reader :monitor
+    attr_reader :mutex
 
     def call_with_mutex
-      @monitor ||= Monitor.new
-      @monitor.synchronize do
+      @mutex ||= Monitor.new
+      @mutex.synchronize do
         yield if block_given?
       end
     end
@@ -182,12 +183,12 @@ require 'semian/protected_resource'
 require 'semian/unprotected_resource'
 require 'semian/platform'
 require 'semian/shared_memory_object'
-require 'semian/sliding_window'
-require 'semian/atomic_integer'
-require 'semian/atomic_enum'
+require 'semian/simple_sliding_window'
+require 'semian/simple_integer'
+require 'semian/simple_enum'
 require 'semian/sysv_sliding_window'
-require 'semian/sysv_atomic_integer'
-require 'semian/sysv_atomic_enum'
+require 'semian/sysv_integer'
+require 'semian/sysv_enum'
 if Semian.semaphores_enabled?
   require 'semian/semian'
 else

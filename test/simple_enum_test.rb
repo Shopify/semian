@@ -1,7 +1,7 @@
 require 'test_helper'
 
-class TestAtomicEnum < MiniTest::Unit::TestCase
-  CLASS = ::Semian::AtomicEnum
+class TestSimpleEnum < MiniTest::Unit::TestCase
+  CLASS = ::Semian::Simple::Enum
 
   def setup
     @enum = CLASS.new([:one, :two, :three])
@@ -11,7 +11,7 @@ class TestAtomicEnum < MiniTest::Unit::TestCase
     @enum.destroy
   end
 
-  module AtomicEnumTestCases
+  module EnumTestCases
     def test_assigning
       old = @enum.value
       @enum.value = @enum.value
@@ -43,5 +43,5 @@ class TestAtomicEnum < MiniTest::Unit::TestCase
     end
   end
 
-  include AtomicEnumTestCases
+  include EnumTestCases
 end

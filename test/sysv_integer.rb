@@ -1,8 +1,8 @@
 require 'test_helper'
 
-class TestSysVAtomicInteger < MiniTest::Unit::TestCase
+class TestSysVInteger < MiniTest::Unit::TestCase
   # Emulate sharedness to test correctness against real SysVAtomicInteger class
-  class FakeSysVAtomicInteger < Semian::AtomicInteger
+  class FakeSysVAtomicInteger < Semian::Simple::Integer
     class << self
       attr_accessor :resources
     end
@@ -23,7 +23,7 @@ class TestSysVAtomicInteger < MiniTest::Unit::TestCase
     end
   end
 
-  CLASS = ::Semian::SysVAtomicInteger
+  CLASS = ::Semian::SysV::Integer
 
   def setup
     @integer = CLASS.new(name: 'TestAtomicInteger', permissions: 0660)
@@ -34,7 +34,7 @@ class TestSysVAtomicInteger < MiniTest::Unit::TestCase
     @integer.destroy
   end
 
-  include TestAtomicInteger::AtomicIntegerTestCases
+  include TestSimpleInteger::IntegerTestCases
 
   def test_memory_is_shared
     integer_2 = CLASS.new(name: 'TestAtomicInteger', permissions: 0660)

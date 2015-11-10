@@ -1,8 +1,8 @@
 require 'test_helper'
 
-class TestSysVAtomicEnum < MiniTest::Unit::TestCase
+class TestSysVEnum < MiniTest::Unit::TestCase
   # Emulate sharedness to test correctness against real SysVAtomicEnum class
-  class FakeSysVAtomicEnum < Semian::AtomicEnum
+  class FakeSysVAtomicEnum < Semian::Simple::Enum
     class << self
       attr_accessor :resources
     end
@@ -23,7 +23,7 @@ class TestSysVAtomicEnum < MiniTest::Unit::TestCase
     end
   end
 
-  CLASS = ::Semian::SysVAtomicEnum
+  CLASS = ::Semian::SysV::Enum
 
   def setup
     @enum = CLASS.new([:one, :two, :three],
@@ -35,7 +35,7 @@ class TestSysVAtomicEnum < MiniTest::Unit::TestCase
     @enum.destroy
   end
 
-  include TestAtomicEnum::AtomicEnumTestCases
+  include TestSimpleEnum::EnumTestCases
 
   def test_memory_is_shared
     assert_equal :one, @enum.value

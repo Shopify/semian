@@ -2,7 +2,7 @@ require 'test_helper'
 
 class TestSysVSlidingWindow < MiniTest::Unit::TestCase
   # Emulate sharedness to test correctness against real SysVSlidingWindow class
-  class FakeSysVSlidingWindow < Semian::SlidingWindow
+  class FakeSysVSlidingWindow < Semian::Simple::SlidingWindow
     class << self
       attr_accessor :resources
     end
@@ -24,7 +24,7 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
     end
   end
 
-  CLASS = ::Semian::SysVSlidingWindow
+  CLASS = ::Semian::SysV::SlidingWindow
 
   def setup
     @sliding_window = CLASS.new(6,
@@ -37,7 +37,7 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
     @sliding_window.destroy
   end
 
-  include TestSlidingWindow::SlidingWindowTestCases
+  include TestSimpleSlidingWindow::SlidingWindowTestCases
 
   def test_forcefully_killing_worker_holding_on_to_semaphore_releases_it
     Timeout.timeout(1) do # assure dont hang
@@ -153,5 +153,5 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
 
   private
 
-  include TestSlidingWindow::SlidingWindowUtilityMethods
+  include TestSimpleSlidingWindow::SlidingWindowUtilityMethods
 end
