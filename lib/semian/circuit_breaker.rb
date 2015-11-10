@@ -1,13 +1,17 @@
 module Semian
-  class CircuitBreaker
-    attr_reader :state
+  class CircuitBreaker #:nodoc:
+    extend Forwardable
 
-    def initialize(exceptions:, success_threshold:, error_threshold:, error_timeout:)
+    def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, implementation:)
+      @name = name.to_sym
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
       @error_timeout = error_timeout
       @exceptions = exceptions
-      reset
+
+      @errors = implementation::SlidingWindow.new(max_size: @error_count_threshold)
+      @successes = implementation::Integer.new
+      @state = implementation::State.new
     end
 
     def acquire
@@ -32,8 +36,7 @@ module Semian
     end
 
     def mark_failed(_error)
-      push_time(@errors, @error_count_threshold, duration: @error_timeout)
-
+      push_time(@errors, duration: @error_timeout)
       if closed?
         open if error_threshold_reached?
       elsif half_open?
@@ -43,70 +46,68 @@ module Semian
 
     def mark_success
       return unless half_open?
-      @successes += 1
+      @successes.increment
       close if success_threshold_reached?
     end
 
     def reset
-      @errors = []
-      @successes = 0
+      @errors.clear
+      @successes.reset
       close
+    end
+
+    def destroy
+      @errors.destroy
+      @successes.destroy
+      @state.destroy
     end
 
     private
 
-    def closed?
-      state == :closed
-    end
+    def_delegators :@state, :closed?, :open?, :half_open?
+    private :closed?, :open?, :half_open?
 
     def close
       log_state_transition(:closed)
-      @state = :closed
-      @errors = []
-    end
-
-    def open?
-      state == :open
+      @state.close
+      @errors.clear
     end
 
     def open
       log_state_transition(:open)
-      @state = :open
-    end
-
-    def half_open?
-      state == :half_open
+      @state.open
     end
 
     def half_open
       log_state_transition(:half_open)
-      @state = :half_open
-      @successes = 0
+      @state.half_open
+      @successes.reset
     end
 
     def success_threshold_reached?
-      @successes >= @success_count_threshold
+      @successes.value >= @success_count_threshold
     end
 
     def error_threshold_reached?
-      @errors.count == @error_count_threshold
+      @errors.size == @error_count_threshold
     end
 
     def error_timeout_expired?
-      @errors.last && (@errors.last + @error_timeout < Time.now)
+      time_ms = @errors.last
+      time_ms && (Time.at(time_ms / 1000) + @error_timeout < Time.now)
     end
 
-    def push_time(window, max_size, duration:, time: Time.now)
-      window.shift while window.first && window.first + duration < time
-      window.shift if window.size == max_size
-      window << time
+    def push_time(window, duration:, time: Time.now)
+      # The sliding window stores the integer amount of milliseconds since epoch as a timestamp
+      window.shift while window.first && window.first / 1000 + duration < time.to_i
+      window << (time.to_f * 1000).to_i
     end
 
     def log_state_transition(new_state)
-      return if @state.nil? || new_state == @state
+      return if @state.nil? || new_state == @state.value
 
-      str = "[#{self.class.name}] State transition from #{@state} to #{new_state}."
-      str << " success_count=#{@successes} error_count=#{@errors.count}"
+      str = "[#{self.class.name}] State transition from #{@state.value} to #{new_state}."
+      str << " success_count=#{@successes.value} error_count=#{@errors.size}"
       str << " success_count_threshold=#{@success_count_threshold} error_count_threshold=#{@error_count_threshold}"
       str << " error_timeout=#{@error_timeout} error_last_at=\"#{@error_last_at}\""
       Semian.logger.info(str)
