@@ -1,24 +1,15 @@
 module Semian
   class CircuitBreaker #:nodoc:
-    def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, permissions:)
+    def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:)
       @name = name.to_s
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
       @error_timeout = error_timeout
       @exceptions = exceptions
 
-      @errors = ::Semian::SlidingWindow.new(@error_count_threshold,
-                                            name: "#{name}_sliding_window",
-                                            permissions: permissions)
-      @successes = ::Semian::AtomicInteger.new(name: "#{name}_atomic_integer",
-                                               permissions: permissions)
-      @state = ::Semian::AtomicEnum.new([:closed, :half_open, :open],
-                                        name: "#{name}_atomic_enum",
-                                        permissions: permissions)
-      # We do not need to #reset here since initializing is handled like this:
-      # (0) if data is not shared, then it's zeroed already
-      # (1) if no one is attached to the memory, zero it
-      # (2) otherwise, keep the data
+      @errors = ::Semian::SlidingWindow.new(@error_count_threshold)
+      @successes = ::Semian::AtomicInteger.new
+      @state = ::Semian::AtomicEnum.new([:closed, :half_open, :open])
     end
 
     def acquire
@@ -114,7 +105,8 @@ module Semian
     end
 
     def push_time(window, duration:, time: Time.now)
-      @errors.execute_atomically do # Store an integer amount of milliseconds since epoch
+      @errors.execute_atomically do
+        # The sliding window stores the integer amount of seconds since epoch as a timestamp
         window.shift while window.first && Time.at(window.first / 1000) + duration < time
         window << (time.to_f * 1000).to_i
       end

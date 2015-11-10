@@ -4,9 +4,7 @@ class TestSlidingWindow < MiniTest::Unit::TestCase
   CLASS = ::Semian::SlidingWindow
 
   def setup
-    @sliding_window = CLASS.new(6,
-                                name: 'TestSlidingWindow',
-                                permissions: 0660)
+    @sliding_window = CLASS.new(6)
     @sliding_window.clear
   end
 

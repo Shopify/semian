@@ -5,7 +5,7 @@ module Semian
     def_delegators :@window, :size, :pop, :shift, :first, :last
     attr_reader :max_size
 
-    def initialize(max_size, **_)
+    def initialize(max_size)
       @max_size = max_size
       @window = []
     end
@@ -32,7 +32,7 @@ module Semian
     end
 
     def clear
-      @window = []
+      @window.clear
       self
     end
 

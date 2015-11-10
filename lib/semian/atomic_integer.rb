@@ -2,7 +2,7 @@ module Semian
   class AtomicInteger #:nodoc:
     attr_accessor :value
 
-    def initialize(**_options)
+    def initialize
       @value = 0
     end
 

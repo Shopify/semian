@@ -124,7 +124,6 @@ module Semian
       error_threshold: error_threshold,
       error_timeout: error_timeout,
       exceptions: Array(exceptions) + [::Semian::BaseError],
-      permissions: permissions,
     )
     resource = Resource.new(name, tickets: tickets, permissions: permissions, timeout: timeout)
     resources[name] = ProtectedResource.new(resource, circuit_breaker)

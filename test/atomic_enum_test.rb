@@ -4,9 +4,7 @@ class TestAtomicEnum < MiniTest::Unit::TestCase
   CLASS = ::Semian::AtomicEnum
 
   def setup
-    @enum = CLASS.new([:one, :two, :three],
-                      name: 'TestAtomicEnum',
-                      permissions: 0660)
+    @enum = CLASS.new([:one, :two, :three])
   end
 
   def teardown

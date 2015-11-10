@@ -7,7 +7,7 @@ module Semian
     def_delegators :@integer, :execute_atomically, :transaction, :shared?, :destroy
     private :shared?
 
-    def initialize(symbol_list, **_options)
+    def initialize(symbol_list)
       @integer = Semian::AtomicInteger.new
       initialize_lookup(symbol_list)
     end
