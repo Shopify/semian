@@ -4,7 +4,7 @@ class TestSimpleEnum < MiniTest::Unit::TestCase
   CLASS = ::Semian::Simple::Enum
 
   def setup
-    @enum = CLASS.new(symbol_list: [:one, :two, :three])
+    @enum = CLASS.new
   end
 
   def teardown
@@ -12,34 +12,25 @@ class TestSimpleEnum < MiniTest::Unit::TestCase
   end
 
   module EnumTestCases
-    def test_assigning
-      old = @enum.value
-      @enum.value = @enum.value
-      assert_equal old, @enum.value
-      @enum.value = :two
-      assert_equal :two, @enum.value
+
+    def test_start_closed
+      assert @enum.closed?
     end
 
-    def test_iterate_enum
-      @enum.value = :one
-      @enum.increment
-      assert_equal :two, @enum.value
-      @enum.increment
-      assert_equal :three, @enum.value
-      @enum.increment
-      assert_equal :one, @enum.value
-      @enum.increment(2)
-      assert_equal :three, @enum.value
-      @enum.increment(4)
-      assert_equal :one, @enum.value
-      @enum.increment(0)
-      assert_equal :one, @enum.value
+    def test_open
+      @enum.open
+      assert @enum.open?
     end
 
-    def test_will_throw_error_when_invalid_symbol_given
-      assert_raises ArgumentError do
-        @enum.value = :four
-      end
+    def test_half_open
+      @enum.half_open
+      assert @enum.half_open?
+    end
+
+    def test_close
+      @enum.half_open
+      @enum.close
+      assert @enum.closed?
     end
   end
 

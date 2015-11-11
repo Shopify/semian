@@ -1,28 +1,42 @@
 module Semian
   module Simple
     class Enum #:nodoc:
-      def initialize(symbol_list:)
-        @allowed_symbols = symbol_list
+      attr_reader :value
+
+      def initialize
         reset
       end
 
-      attr_reader :value
-
-      def value=(sym)
-        raise ArgumentError unless @allowed_symbols.include?(sym)
-        @value = sym
+      def closed?
+        value == :closed
       end
 
-      def increment(val = 1)
-        @value = @allowed_symbols[(@allowed_symbols.index(@value) + val) % @allowed_symbols.size]
+      def open?
+        value == :open
+      end
+
+      def half_open?
+        value == :half_open
+      end
+
+      def close
+        @value = :closed
+      end
+
+      def open
+        @value = :open
+      end
+
+      def half_open
+        @value = :half_open
       end
 
       def reset
-        @value = @allowed_symbols.first
+        close
       end
 
       def destroy
-        reset
+        close
       end
     end
   end
