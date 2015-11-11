@@ -4,15 +4,19 @@ module Semian
       attr_accessor :value
 
       def initialize
-        @value = 0
+        reset
       end
 
       def increment(val = 1)
         @value += val
       end
 
-      def destroy
+      def reset
         @value = 0
+      end
+
+      def destroy
+        reset
       end
     end
   end

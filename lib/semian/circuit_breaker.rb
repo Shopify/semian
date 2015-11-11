@@ -1,15 +1,15 @@
 module Semian
   class CircuitBreaker #:nodoc:
-    def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, type_namespace:)
-      @name = name.to_s
+    def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, implementation:)
+      @name = name.to_sym
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
       @error_timeout = error_timeout
       @exceptions = exceptions
 
-      @errors = type_namespace::SlidingWindow.new(max_size: @error_count_threshold)
-      @successes = type_namespace::Integer.new
-      @state = type_namespace::Enum.new(symbol_list: [:closed, :half_open, :open])
+      @errors = implementation::SlidingWindow.new(max_size: @error_count_threshold)
+      @successes = implementation::Integer.new
+      @state = implementation::Enum.new(symbol_list: [:closed, :half_open, :open])
     end
 
     def acquire
@@ -50,7 +50,7 @@ module Semian
 
     def reset
       @errors.clear
-      @successes.value = 0
+      @successes.reset
       close
     end
 
@@ -88,7 +88,7 @@ module Semian
     def half_open
       log_state_transition(:half_open)
       @state.value = :half_open
-      @successes.value = 0
+      @successes.reset
     end
 
     def success_threshold_reached?
@@ -106,7 +106,7 @@ module Semian
 
     def push_time(window, duration:, time: Time.now)
       # The sliding window stores the integer amount of milliseconds since epoch as a timestamp
-      window.shift while window.first && Time.at(window.first / 1000) + duration < time
+      window.shift while window.first && window.first / 1000 + duration < time.to_i
       window << (time.to_f * 1000).to_i
     end
 

@@ -37,7 +37,7 @@ class TestSimpleEnum < MiniTest::Unit::TestCase
     end
 
     def test_will_throw_error_when_invalid_symbol_given
-      assert_raises KeyError do
+      assert_raises ArgumentError do
         @enum.value = :four
       end
     end

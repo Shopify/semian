@@ -36,6 +36,12 @@ class TestSimpleInteger < MiniTest::Unit::TestCase
       @integer.increment(-2)
       assert_equal(3, @integer.value)
     end
+
+    def test_reset
+      @integer.increment(5)
+      @integer.reset
+      assert_equal(0, @integer.value)
+    end
   end
 
   include IntegerTestCases
