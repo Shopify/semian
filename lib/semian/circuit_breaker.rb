@@ -1,5 +1,8 @@
 module Semian
   class CircuitBreaker #:nodoc:
+    extend Forwardable
+    def_delegators :@state, :closed?, :open?, :half_open?
+
     def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, implementation:)
       @name = name.to_sym
       @success_count_threshold = success_threshold
@@ -9,7 +12,7 @@ module Semian
 
       @errors = implementation::SlidingWindow.new(max_size: @error_count_threshold)
       @successes = implementation::Integer.new
-      @state = implementation::Enum.new(symbol_list: [:closed, :half_open, :open])
+      @state = implementation::Enum.new
     end
 
     def acquire
@@ -62,32 +65,20 @@ module Semian
 
     private
 
-    def closed?
-      @state.value == :closed
-    end
-
     def close
       log_state_transition(:closed)
-      @state.value = :closed
+      @state.close
       @errors.clear
-    end
-
-    def open?
-      @state.value == :open
     end
 
     def open
       log_state_transition(:open)
-      @state.value = :open
-    end
-
-    def half_open?
-      @state.value == :half_open
+      @state.open
     end
 
     def half_open
       log_state_transition(:half_open)
-      @state.value = :half_open
+      @state.half_open
       @successes.reset
     end
 
@@ -111,7 +102,7 @@ module Semian
     end
 
     def log_state_transition(new_state)
-      return if @state.nil? || new_state == @state.value
+      return if new_state == @state.value
 
       str = "[#{self.class.name}] State transition from #{@state.value} to #{new_state}."
       str << " success_count=#{@successes.value} error_count=#{@errors.size}"
