@@ -160,6 +160,61 @@ class TestMysql2 < MiniTest::Unit::TestCase
     end
   end
 
+  def test_semian_allows_rollback
+    client = connect_to_mysql!
+
+    client.query('START TRANSACTION;')
+
+    Semian[:mysql_testing].acquire do
+      client.query('ROLLBACK;')
+    end
+  end
+
+  def test_semian_allows_commit
+    client = connect_to_mysql!
+
+    client.query('START TRANSACTION;')
+
+    Semian[:mysql_testing].acquire do
+      client.query('COMMIT;')
+    end
+  end
+
+  def test_query_whitelisted_returns_false_for_binary_sql
+    client = connect_to_mysql!
+
+    q = "INSERT IGNORE INTO `theme_template_bodies` (`cityhash`, `body`, `created_at`) VALUES ('716374049952273167', \
+'\xB1\x01\xD0{\\\"current\\\":{\\\"bg_color\\\":\\\"#ff0000\\\"},\\\"presets\\\":{\\\"sandbox>,\\0\\07\x05\x01\x01, \
+grey_bg\\\":6M\\0\\06\x05\x01\x01!\fblueJ!\\0\x01l\x04ff\x01!\bredJ \\0$ff0000\\\"}}}', '2015-11-06 19:08:03.498432')"
+    refute client.send(:query_whitelisted?, q)
+  end
+
+  def test_semian_allows_rollback_to_safepoint
+    client = connect_to_mysql!
+
+    client.query('START TRANSACTION;')
+    client.query('SAVEPOINT foobar;')
+
+    Semian[:mysql_testing].acquire do
+      client.query('ROLLBACK TO foobar;')
+    end
+
+    client.query('ROLLBACK;')
+  end
+
+  def test_semian_allows_release_savepoint
+    client = connect_to_mysql!
+
+    client.query('START TRANSACTION;')
+    client.query('SAVEPOINT foobar;')
+
+    Semian[:mysql_testing].acquire do
+      client.query('RELEASE SAVEPOINT foobar;')
+    end
+
+    client.query('ROLLBACK;')
+  end
+
   def test_resource_timeout_on_query
     client = connect_to_mysql!
     client2 = connect_to_mysql!
