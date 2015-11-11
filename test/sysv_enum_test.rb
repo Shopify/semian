@@ -8,7 +8,7 @@ class TestSysVEnum < MiniTest::Unit::TestCase
     end
     self.resources = {}
     attr_accessor :name
-    def self.new(symbol_list, name:, permissions:)
+    def self.new(symbol_list:, name:, permissions:)
       obj = resources[name] ||= super
       obj.name = name
       obj
@@ -26,7 +26,7 @@ class TestSysVEnum < MiniTest::Unit::TestCase
   CLASS = ::Semian::SysV::Enum
 
   def setup
-    @enum = CLASS.new([:one, :two, :three],
+    @enum = CLASS.new(symbol_list: [:one, :two, :three],
                       name: 'TestAtomicEnum',
                       permissions: 0660)
   end
@@ -41,7 +41,7 @@ class TestSysVEnum < MiniTest::Unit::TestCase
     assert_equal :one, @enum.value
     @enum.value = :three
 
-    enum_2 = CLASS.new([:one, :two, :three],
+    enum_2 = CLASS.new(symbol_list: [:one, :two, :three],
                        name: 'TestAtomicEnum',
                        permissions: 0660)
     assert_equal :three, enum_2.value

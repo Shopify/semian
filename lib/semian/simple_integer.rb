@@ -11,6 +11,10 @@ module Semian
         @value += val
       end
 
+      def reset
+        @value = 0
+      end
+
       def destroy
         if shared?
           super

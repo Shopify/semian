@@ -4,7 +4,7 @@ class TestSimpleEnum < MiniTest::Unit::TestCase
   CLASS = ::Semian::Simple::Enum
 
   def setup
-    @enum = CLASS.new([:one, :two, :three])
+    @enum = CLASS.new(symbol_list: [:one, :two, :three])
   end
 
   def teardown

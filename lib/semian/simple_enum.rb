@@ -9,7 +9,7 @@ module Semian
                      :shared?, :destroy, :acquire_memory_object, :bind_init_fn
       private :shared?, :acquire_memory_object, :bind_init_fn
 
-      def initialize(symbol_list)
+      def initialize(symbol_list:)
         @integer = Semian::Simple::Integer.new
         initialize_lookup(symbol_list)
       end

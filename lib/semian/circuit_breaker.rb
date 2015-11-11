@@ -1,24 +1,20 @@
 module Semian
   class CircuitBreaker #:nodoc:
-    def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, permissions:, type_namespace:)
+    def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, permissions:, implementation:)
       @name = name.to_s
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
       @error_timeout = error_timeout
       @exceptions = exceptions
 
-      @errors = type_namespace::SlidingWindow.new(@error_count_threshold,
+      @errors = implementation::SlidingWindow.new(max_size: @error_count_threshold,
                                                   name: "#{name}_sysv_sliding_window",
                                                   permissions: permissions)
-      @successes = type_namespace::Integer.new(name: "#{name}_sysv_integer",
+      @successes = implementation::Integer.new(name: "#{name}_sysv_integer",
                                                permissions: permissions)
-      @state = type_namespace::Enum.new([:closed, :half_open, :open],
+      @state = implementation::Enum.new(symbol_list: [:closed, :half_open, :open],
                                         name: "#{name}_sysv_enum",
                                         permissions: permissions)
-      # We do not need to #reset here since initializing is handled like this:
-      # (0) if data is not shared, then it's zeroed already
-      # (1) if no one is attached to the memory, zero it
-      # (2) otherwise, keep the data
     end
 
     def acquire
@@ -59,7 +55,7 @@ module Semian
 
     def reset
       @errors.clear
-      @successes.value = 0
+      @successes.reset
       close
     end
 
@@ -115,7 +111,7 @@ module Semian
 
     def push_time(window, duration:, time: Time.now)
       @errors.execute_atomically do # Store an integer amount of milliseconds since epoch
-        window.shift while window.first && Time.at(window.first / 1000) + duration < time
+        window.shift while window.first && window.first / 1000 + duration < time.to_i
         window << (time.to_f * 1000).to_i
       end
     end

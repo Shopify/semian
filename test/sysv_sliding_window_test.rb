@@ -8,7 +8,7 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
     end
     self.resources = {}
     attr_accessor :name
-    def self.new(max_size, name:, permissions:)
+    def self.new(max_size:, name:, permissions:)
       obj = resources[name] ||= super
       obj.name = name
       obj.resize_to(max_size)
@@ -27,7 +27,7 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
   CLASS = ::Semian::SysV::SlidingWindow
 
   def setup
-    @sliding_window = CLASS.new(6,
+    @sliding_window = CLASS.new(max_size: 6,
                                 name: 'TestSlidingWindow',
                                 permissions: 0660)
     @sliding_window.clear
@@ -46,7 +46,7 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
     end
 
     pid = fork do
-      sliding_window_2 = CLASS.new(6,
+      sliding_window_2 = CLASS.new(max_size: 6,
                                    name: 'TestSlidingWindow',
                                    permissions: 0660)
       sliding_window_2.execute_atomically { sleep }
@@ -64,7 +64,7 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
 
   def test_sliding_window_memory_is_actually_shared
     assert_equal 0, @sliding_window.size
-    sliding_window_2 = CLASS.new(6,
+    sliding_window_2 = CLASS.new(max_size: 6,
                                  name: 'TestSlidingWindow',
                                  permissions: 0660)
     assert_equal 0, sliding_window_2.size
@@ -84,14 +84,14 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
 
   def test_restarting_worker_should_not_reset_queue
     @sliding_window << 10 << 20 << 30
-    sliding_window_2 = CLASS.new(6,
+    sliding_window_2 = CLASS.new(max_size: 6,
                                  name: 'TestSlidingWindow',
                                  permissions: 0660)
     assert_correct_first_and_last_and_size(@sliding_window, 10, 30, 3, 6)
     sliding_window_2.pop
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
 
-    sliding_window_3 = CLASS.new(6,
+    sliding_window_3 = CLASS.new(max_size: 6,
                                  name: 'TestSlidingWindow',
                                  permissions: 0660)
     assert_correct_first_and_last_and_size(@sliding_window, 10, 20, 2, 6)
@@ -104,14 +104,14 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
   def test_other_workers_automatically_switching_to_new_memory_resizing_up_or_down
     # Test explicit resizing, and resizing through making new memory associations
 
-    sliding_window_2 = CLASS.new(4,
+    sliding_window_2 = CLASS.new(max_size: 4,
                                  name: 'TestSlidingWindow',
                                  permissions: 0660)
     sliding_window_2 << 80 << 90 << 100 << 110 << 120
     assert_correct_first_and_last_and_size(@sliding_window, 90, 120, 4, 4)
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
 
-    sliding_window_2 = CLASS.new(3,
+    sliding_window_2 = CLASS.new(max_size: 3,
                                  name: 'TestSlidingWindow',
                                  permissions: 0660)
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
@@ -121,7 +121,7 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
     assert_correct_first_and_last_and_size(@sliding_window, 110, 120, 2, 2)
 
-    sliding_window_2 = CLASS.new(4,
+    sliding_window_2 = CLASS.new(max_size: 4,
                                  name: 'TestSlidingWindow',
                                  permissions: 0660)
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
@@ -132,7 +132,7 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
     assert_correct_first_and_last_and_size(@sliding_window, 110, 130, 3, 6)
 
-    sliding_window_2 = CLASS.new(2,
+    sliding_window_2 = CLASS.new(max_size: 2,
                                  name: 'TestSlidingWindow',
                                  permissions: 0660)
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
@@ -142,7 +142,7 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
     assert_correct_first_and_last_and_size(@sliding_window, 120, 130, 2, 4)
 
-    sliding_window_2 = CLASS.new(6,
+    sliding_window_2 = CLASS.new(max_size: 6,
                                  name: 'TestSlidingWindow',
                                  permissions: 0660)
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
@@ -152,6 +152,25 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
   end
 
   private
+
+  def assert_sliding_window(sliding_window, array, max_size)
+    assert_correct_first_and_last_and_size(sliding_window, array.first, array.last, array.size, max_size)
+  end
+
+  def assert_correct_first_and_last_and_size(sliding_window, first, last, size, max_size)
+    assert_equal(first, sliding_window.first)
+    assert_equal(last, sliding_window.last)
+    assert_equal(size, sliding_window.size)
+    assert_equal(max_size, sliding_window.max_size)
+  end
+
+  def assert_sliding_windows_in_sync(sliding_window_1, sliding_window_2)
+    # it only exposes ends, size, and max_size, so can only check those
+    assert_equal(sliding_window_1.first, sliding_window_2.first)
+    assert_equal(sliding_window_1.last, sliding_window_2.last)
+    assert_equal(sliding_window_1.size, sliding_window_2.size)
+    assert_equal(sliding_window_1.max_size, sliding_window_2.max_size)
+  end
 
   include TestSimpleSlidingWindow::SlidingWindowUtilityMethods
 end

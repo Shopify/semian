@@ -6,7 +6,7 @@ module Semian
       def_delegators :@window, :size, :pop, :shift, :first, :last
       attr_reader :max_size
 
-      def initialize(max_size)
+      def initialize(max_size:)
         @max_size = max_size
         @window = []
       end
@@ -22,15 +22,13 @@ module Semian
         self
       end
 
-      def <<(time_ms)
-        push(time_ms)
-      end
-
       def push(time_ms)
         @window.shift while @window.size >= @max_size
         @window << time_ms
         self
       end
+
+      alias_method :<<, :push
 
       def clear
         @window = []

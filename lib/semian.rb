@@ -125,7 +125,7 @@ module Semian
       error_timeout: error_timeout,
       exceptions: Array(exceptions) + [::Semian::BaseError],
       permissions: permissions,
-      type_namespace: ::Semian::SysV,
+      implementation: ::Semian::SysV,
     )
     resource = Resource.new(name, tickets: tickets, permissions: permissions, timeout: timeout)
     resources[name] = ProtectedResource.new(resource, circuit_breaker)
