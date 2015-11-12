@@ -150,31 +150,6 @@ module Semian
   def resources
     @resources ||= {}
   end
-
-  module ReentrantMutex
-    attr_reader :mutex
-
-    def call_with_mutex
-      @mutex ||= Monitor.new
-      @mutex.synchronize do
-        yield if block_given?
-      end
-    end
-
-    def self.included(base)
-      def base.surround_with_mutex(*names)
-        names.each do |name|
-          new_name = "#{name}_inner".freeze
-          alias_method new_name, name
-          define_method(name) do |*args, &block|
-            call_with_mutex do
-              method(new_name).call(*args, &block)
-            end
-          end
-        end
-      end
-    end
-  end
 end
 
 require 'semian/resource'
@@ -185,10 +160,10 @@ require 'semian/platform'
 require 'semian/shared_memory_object'
 require 'semian/simple_sliding_window'
 require 'semian/simple_integer'
-require 'semian/simple_enum'
+require 'semian/simple_state'
 require 'semian/sysv_sliding_window'
 require 'semian/sysv_integer'
-require 'semian/sysv_enum'
+require 'semian/sysv_state'
 if Semian.semaphores_enabled?
   require 'semian/semian'
 else

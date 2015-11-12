@@ -1,5 +1,7 @@
 module Semian
   class CircuitBreaker #:nodoc:
+    extend Forwardable
+
     def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, permissions:, implementation:)
       @name = name.to_s
       @success_count_threshold = success_threshold
@@ -12,9 +14,8 @@ module Semian
                                                   permissions: permissions)
       @successes = implementation::Integer.new(name: "#{name}_sysv_integer",
                                                permissions: permissions)
-      @state = implementation::Enum.new(symbol_list: [:closed, :half_open, :open],
-                                        name: "#{name}_sysv_enum",
-                                        permissions: permissions)
+      @state = implementation::State.new(name: "#{name}_sysv_state",
+                                         permissions: permissions)
     end
 
     def acquire
@@ -67,33 +68,24 @@ module Semian
 
     private
 
-    def closed?
-      @state.value == :closed
-    end
+    def_delegators :@state, :closed?, :open?, :half_open?
+    private :closed?, :open?, :half_open?
 
     def close
       log_state_transition(:closed)
-      @state.value = :closed
+      @state.close
       @errors.clear
-    end
-
-    def open?
-      @state.value == :open
     end
 
     def open
       log_state_transition(:open)
-      @state.value = :open
-    end
-
-    def half_open?
-      @state.value == :half_open
+      @state.open
     end
 
     def half_open
       log_state_transition(:half_open)
-      @state.value = :half_open
-      @successes.value = 0
+      @state.half_open
+      @successes.reset
     end
 
     def success_threshold_reached?

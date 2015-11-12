@@ -42,9 +42,6 @@ module Semian
           clear
         end
       end
-
-      surround_with_mutex :size, :pop, :shift, :first, :last, :max_size,
-                          :resize_to, :<<, :push, :clear
     end
   end
 end

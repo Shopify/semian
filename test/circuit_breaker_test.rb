@@ -138,7 +138,7 @@ class TestCircuitBreaker < MiniTest::Unit::TestCase
     Process.waitall
     fork do
       Semian.register(:unique_res, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5, success_threshold: 1)
-      assert_circuit_opened
+      assert_circuit_opened Semian[:unique_res]
     end
 
     Process.waitall

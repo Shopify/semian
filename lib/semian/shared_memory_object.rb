@@ -1,7 +1,5 @@
 module Semian
   class SharedMemoryObject #:nodoc:
-    include ReentrantMutex
-
     @type_size = {}
     def self.sizeof(type)
       size = (@type_size[type.to_sym] ||= (respond_to?(:_sizeof) ? _sizeof(type.to_sym) : 0))

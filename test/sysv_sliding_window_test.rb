@@ -1,34 +1,11 @@
 require 'test_helper'
 
 class TestSysVSlidingWindow < MiniTest::Unit::TestCase
-  # Emulate sharedness to test correctness against real SysVSlidingWindow class
-  class FakeSysVSlidingWindow < Semian::Simple::SlidingWindow
-    class << self
-      attr_accessor :resources
-    end
-    self.resources = {}
-    attr_accessor :name
-    def self.new(max_size:, name:, permissions:)
-      obj = resources[name] ||= super
-      obj.name = name
-      obj.resize_to(max_size)
-      obj
-    end
-
-    def destroy
-      self.class.resources.delete(@name)
-    end
-
-    def shared?
-      true
-    end
-  end
-
   CLASS = ::Semian::SysV::SlidingWindow
 
   def setup
     @sliding_window = CLASS.new(max_size: 6,
-                                name: 'TestSlidingWindow',
+                                name: 'TestSysVSlidingWindow',
                                 permissions: 0660)
     @sliding_window.clear
   end
@@ -47,7 +24,7 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
 
     pid = fork do
       sliding_window_2 = CLASS.new(max_size: 6,
-                                   name: 'TestSlidingWindow',
+                                   name: 'TestSysVSlidingWindow',
                                    permissions: 0660)
       sliding_window_2.execute_atomically { sleep }
     end
@@ -65,7 +42,7 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
   def test_sliding_window_memory_is_actually_shared
     assert_equal 0, @sliding_window.size
     sliding_window_2 = CLASS.new(max_size: 6,
-                                 name: 'TestSlidingWindow',
+                                 name: 'TestSysVSlidingWindow',
                                  permissions: 0660)
     assert_equal 0, sliding_window_2.size
 
@@ -85,14 +62,14 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
   def test_restarting_worker_should_not_reset_queue
     @sliding_window << 10 << 20 << 30
     sliding_window_2 = CLASS.new(max_size: 6,
-                                 name: 'TestSlidingWindow',
+                                 name: 'TestSysVSlidingWindow',
                                  permissions: 0660)
     assert_correct_first_and_last_and_size(@sliding_window, 10, 30, 3, 6)
     sliding_window_2.pop
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
 
     sliding_window_3 = CLASS.new(max_size: 6,
-                                 name: 'TestSlidingWindow',
+                                 name: 'TestSysVSlidingWindow',
                                  permissions: 0660)
     assert_correct_first_and_last_and_size(@sliding_window, 10, 20, 2, 6)
     sliding_window_3.pop
@@ -105,14 +82,14 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
     # Test explicit resizing, and resizing through making new memory associations
 
     sliding_window_2 = CLASS.new(max_size: 4,
-                                 name: 'TestSlidingWindow',
+                                 name: 'TestSysVSlidingWindow',
                                  permissions: 0660)
     sliding_window_2 << 80 << 90 << 100 << 110 << 120
     assert_correct_first_and_last_and_size(@sliding_window, 90, 120, 4, 4)
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
 
     sliding_window_2 = CLASS.new(max_size: 3,
-                                 name: 'TestSlidingWindow',
+                                 name: 'TestSysVSlidingWindow',
                                  permissions: 0660)
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
     assert_correct_first_and_last_and_size(@sliding_window, 100, 120, 3, 3)
@@ -122,7 +99,7 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
     assert_correct_first_and_last_and_size(@sliding_window, 110, 120, 2, 2)
 
     sliding_window_2 = CLASS.new(max_size: 4,
-                                 name: 'TestSlidingWindow',
+                                 name: 'TestSysVSlidingWindow',
                                  permissions: 0660)
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
     assert_correct_first_and_last_and_size(@sliding_window, 110, 120, 2, 4)
@@ -133,7 +110,7 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
     assert_correct_first_and_last_and_size(@sliding_window, 110, 130, 3, 6)
 
     sliding_window_2 = CLASS.new(max_size: 2,
-                                 name: 'TestSlidingWindow',
+                                 name: 'TestSysVSlidingWindow',
                                  permissions: 0660)
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
     assert_correct_first_and_last_and_size(@sliding_window, 120, 130, 2, 2)
@@ -143,7 +120,7 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
     assert_correct_first_and_last_and_size(@sliding_window, 120, 130, 2, 4)
 
     sliding_window_2 = CLASS.new(max_size: 6,
-                                 name: 'TestSlidingWindow',
+                                 name: 'TestSysVSlidingWindow',
                                  permissions: 0660)
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
     assert_correct_first_and_last_and_size(@sliding_window, 120, 130, 2, 6)

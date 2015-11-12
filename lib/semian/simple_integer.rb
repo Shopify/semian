@@ -22,8 +22,6 @@ module Semian
           @value = 0
         end
       end
-
-      surround_with_mutex :value, :value=, :increment
     end
   end
 end
