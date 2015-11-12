@@ -102,7 +102,7 @@ module Semian
     end
 
     def push_time(window, duration:, time: Time.now)
-      @errors.execute_atomically do # Store an integer amount of milliseconds since epoch
+      @errors.synchronize do # Store an integer amount of milliseconds since epoch
         window.shift while window.first && window.first / 1000 + duration < time.to_i
         window << (time.to_f * 1000).to_i
       end

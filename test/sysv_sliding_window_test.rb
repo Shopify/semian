@@ -26,7 +26,7 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
       sliding_window_2 = CLASS.new(max_size: 6,
                                    name: 'TestSysVSlidingWindow',
                                    permissions: 0660)
-      sliding_window_2.execute_atomically { sleep }
+      sliding_window_2.synchronize { sleep }
     end
 
     sleep 1

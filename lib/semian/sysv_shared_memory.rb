@@ -1,5 +1,5 @@
 module Semian
-  class SharedMemoryObject #:nodoc:
+  module SysVSharedMemory #:nodoc:
     @type_size = {}
     def self.sizeof(type)
       size = (@type_size[type.to_sym] ||= (respond_to?(:_sizeof) ? _sizeof(type.to_sym) : 0))
@@ -15,30 +15,34 @@ module Semian
       -1
     end
 
-    def execute_atomically(&proc)
-      if respond_to?(:_execute_atomically) && @using_shared_memory
-        return _execute_atomically(&proc)
+    def synchronize(&proc)
+      if respond_to?(:_synchronize) && @using_shared_memory
+        return _synchronize(&proc)
       else
-        call_with_mutex(&proc)
+        yield if block_given?
       end
     end
 
-    alias_method :transaction, :execute_atomically
+    alias_method :transaction, :synchronize
 
     def destroy
-      _destroy if respond_to?(:_destroy) && @using_shared_memory
+      if respond_to?(:_destroy) && @using_shared_memory
+        _destroy
+      else
+        super
+      end
     end
 
     private
 
     def shared?
-      @using_shared_memory ||= Semian.semaphores_enabled? && @using_shared_memory
+      @using_shared_memory
     end
 
     def acquire_memory_object(name, data_layout, permissions)
       return @using_shared_memory = false unless Semian.semaphores_enabled? && respond_to?(:_acquire)
 
-      byte_size = data_layout.inject(0) { |sum, type| sum + ::Semian::SharedMemoryObject.sizeof(type) }
+      byte_size = data_layout.inject(0) { |sum, type| sum + ::Semian::SysVSharedMemory.sizeof(type) }
       raise TypeError.new("Given data layout is 0 bytes: #{data_layout.inspect}") if byte_size <= 0
       # Calls C layer to acquire/create a memory block, calling #bind_init_fn in the process, see below
       _acquire(name, byte_size, permissions)

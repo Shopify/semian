@@ -1,9 +1,12 @@
+require 'forwardable'
+
 module Semian
   module SysV
     class State < Semian::Simple::State #:nodoc:
+      include SysVSharedMemory
       extend Forwardable
 
-      def_delegators :@integer, :semid, :shmid, :execute_atomically, :transaction,
+      def_delegators :@integer, :semid, :shmid, :synchronize, :transaction,
                      :shared?, :acquire_memory_object, :bind_init_fn
       private :shared?, :acquire_memory_object, :bind_init_fn
 

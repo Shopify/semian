@@ -1,6 +1,6 @@
 module Semian
   module Simple
-    class Integer < SharedMemoryObject #:nodoc:
+    class Integer #:nodoc:
       attr_accessor :value
 
       def initialize
@@ -16,11 +16,7 @@ module Semian
       end
 
       def destroy
-        if shared?
-          super
-        else
-          @value = 0
-        end
+        reset
       end
     end
   end

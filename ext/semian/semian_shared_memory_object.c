@@ -67,6 +67,12 @@ semian_shm_object_alloc(VALUE klass)
  * Implementations
  */
 
+VALUE
+semian_shm_object_replace_alloc(VALUE klass, VALUE target)
+{
+  rb_define_alloc_func(target, semian_shm_object_alloc);
+  return target;
+}
 
 VALUE
 semian_shm_object_sizeof(VALUE klass, VALUE type)
@@ -576,7 +582,7 @@ semian_shm_object_byte_size(VALUE self)
 }
 
 static VALUE
-semian_shm_object_execute_atomically_with_block(VALUE self)
+semian_shm_object_synchronize_with_block(VALUE self)
 {
   if (!rb_block_given_p())
     rb_raise(rb_eArgError, "Expected block");
@@ -584,30 +590,31 @@ semian_shm_object_execute_atomically_with_block(VALUE self)
 }
 
 static VALUE
-semian_shm_object_execute_atomically(VALUE self) {
+semian_shm_object_synchronize(VALUE self) {
   if (!semian_shm_object_lock(self))
     return Qnil;
-  return rb_ensure(semian_shm_object_execute_atomically_with_block, self, semian_shm_object_unlock_all, self);
+  return rb_ensure(semian_shm_object_synchronize_with_block, self, semian_shm_object_unlock_all, self);
 }
 
 void
 Init_semian_shm_object (void) {
 
   VALUE cSemianModule = rb_const_get(rb_cObject, rb_intern("Semian"));
-  VALUE cSharedMemoryObject = rb_const_get(cSemianModule, rb_intern("SharedMemoryObject"));
+  VALUE cSysVSharedMemory = rb_const_get(cSemianModule, rb_intern("SysVSharedMemory"));
 
-  rb_define_alloc_func(cSharedMemoryObject, semian_shm_object_alloc);
-  rb_define_method(cSharedMemoryObject, "_acquire", semian_shm_object_acquire, 3);
-  rb_define_method(cSharedMemoryObject, "_destroy", semian_shm_object_destroy, 0);
-  rb_define_method(cSharedMemoryObject, "lock", semian_shm_object_lock, 0);
-  rb_define_method(cSharedMemoryObject, "unlock", semian_shm_object_unlock, 0);
-  rb_define_method(cSharedMemoryObject, "byte_size", semian_shm_object_byte_size, 0);
+  //rb_define_alloc_func(cSysVSharedMemory, semian_shm_object_alloc);
+  rb_define_method(cSysVSharedMemory, "_acquire", semian_shm_object_acquire, 3);
+  rb_define_method(cSysVSharedMemory, "_destroy", semian_shm_object_destroy, 0);
+  rb_define_method(cSysVSharedMemory, "lock", semian_shm_object_lock, 0);
+  rb_define_method(cSysVSharedMemory, "unlock", semian_shm_object_unlock, 0);
+  rb_define_method(cSysVSharedMemory, "byte_size", semian_shm_object_byte_size, 0);
 
-  rb_define_method(cSharedMemoryObject, "semid", semian_shm_object_semid, 0);
-  rb_define_method(cSharedMemoryObject, "shmid", semian_shm_object_shmid, 0);
-  rb_define_method(cSharedMemoryObject, "_execute_atomically", semian_shm_object_execute_atomically, 0);
+  rb_define_method(cSysVSharedMemory, "semid", semian_shm_object_semid, 0);
+  rb_define_method(cSysVSharedMemory, "shmid", semian_shm_object_shmid, 0);
+  rb_define_method(cSysVSharedMemory, "_synchronize", semian_shm_object_synchronize, 0);
 
-  rb_define_singleton_method(cSharedMemoryObject, "_sizeof", semian_shm_object_sizeof, 1);
+  rb_define_singleton_method(cSysVSharedMemory, "_sizeof", semian_shm_object_sizeof, 1);
+  rb_define_singleton_method(cSysVSharedMemory, "replace_alloc", semian_shm_object_replace_alloc, 1);
 
   decrement.sem_num = kSHMIndexTicketLock;
   decrement.sem_op = -1;
@@ -617,7 +624,7 @@ Init_semian_shm_object (void) {
   increment.sem_op = 1;
   increment.sem_flg = SEM_UNDO;
 
-  Init_semian_atomic_integer();
+  Init_semian_integer();
   Init_semian_sliding_window();
 }
 

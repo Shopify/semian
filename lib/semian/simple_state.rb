@@ -1,8 +1,6 @@
-require 'forwardable'
-
 module Semian
   module Simple
-    class State < SharedMemoryObject #:nodoc:
+    class State #:nodoc:
       def initialize
         reset
       end
