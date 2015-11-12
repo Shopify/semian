@@ -1,6 +1,6 @@
 require 'test_helper'
 
-class TestSimpleEnum < MiniTest::Unit::TestCase
+class TestSimpleState < MiniTest::Unit::TestCase
   CLASS = ::Semian::Simple::State
 
   def setup

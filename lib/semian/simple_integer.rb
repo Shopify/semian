@@ -3,7 +3,7 @@ module Semian
     class Integer #:nodoc:
       attr_accessor :value
 
-      def initialize
+      def initialize(**_)
         reset
       end
 
