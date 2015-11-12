@@ -3,7 +3,7 @@ module Semian
     extend Forwardable
 
     def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, permissions:, implementation:)
-      @name = name.to_s
+      @name = name.to_sym
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
       @error_timeout = error_timeout
@@ -102,7 +102,8 @@ module Semian
     end
 
     def push_time(window, duration:, time: Time.now)
-      @errors.synchronize do # Store an integer amount of milliseconds since epoch
+      # The sliding window stores the integer amount of milliseconds since epoch as a timestamp
+      @errors.synchronize do
         window.shift while window.first && window.first / 1000 + duration < time.to_i
         window << (time.to_f * 1000).to_i
       end

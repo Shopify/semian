@@ -3,8 +3,8 @@ module Semian
     class Integer #:nodoc:
       attr_accessor :value
 
-      def initialize
-        @value = 0
+      def initialize(**_)
+        reset
       end
 
       def increment(val = 1)

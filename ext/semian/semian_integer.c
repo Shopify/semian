@@ -74,6 +74,12 @@ semian_integer_set_value(VALUE self, VALUE num)
 }
 
 static VALUE
+semian_integer_reset(VALUE self)
+{
+  return semian_integer_set_value(self, INT2NUM(0));
+}
+
+static VALUE
 semian_integer_increment(int argc, VALUE *argv, VALUE self)
 {
   VALUE num;
@@ -113,5 +119,6 @@ Init_semian_integer (void)
   rb_define_method(cInteger, "bind_init_fn", semian_integer_bind_init_fn_wrapper, 0);
   rb_define_method(cInteger, "value", semian_integer_get_value, 0);
   rb_define_method(cInteger, "value=", semian_integer_set_value, 1);
+  rb_define_method(cInteger, "reset", semian_integer_reset, 0);
   rb_define_method(cInteger, "increment", semian_integer_increment, -1);
 }
