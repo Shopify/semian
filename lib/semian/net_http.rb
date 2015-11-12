@@ -55,8 +55,10 @@ module Semian
       ::SystemCallError, # includes ::Errno::EINVAL, ::Errno::ECONNRESET, ::Errno::ECONNREFUSED, ::Errno::ETIMEDOUT, and more
     ].freeze # Net::HTTP can throw many different errors, this tries to capture most of them
 
+    Semian::NetHTTP.exceptions = Semian::NetHTTP::DEFAULT_ERRORS.dup
+
     def resource_exceptions
-      Semian::NetHTTP.exceptions ||= Semian::NetHTTP::DEFAULT_ERRORS.dup
+      Semian::NetHTTP.exceptions
     end
 
     def enabled?
