@@ -7,6 +7,21 @@ module Semian
       size
     end
 
+    def self.included(base)
+      def base.do_with_sync(*names)
+        names.each do |name|
+          new_name = "#{name}_inner".freeze.to_sym
+          alias_method new_name, name
+          private new_name
+          define_method(name) do |*args, &block|
+            synchronize do
+              method(new_name).call(*args, &block)
+            end
+          end
+        end
+      end
+    end
+
     def semid
       -1
     end
@@ -15,9 +30,9 @@ module Semian
       -1
     end
 
-    def synchronize(&proc)
+    def synchronize(&block)
       if respond_to?(:_synchronize) && @using_shared_memory
-        return _synchronize(&proc)
+        return _synchronize(&block)
       else
         yield if block_given?
       end
