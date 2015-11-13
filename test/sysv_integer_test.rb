@@ -5,7 +5,7 @@ class TestSysVInteger < MiniTest::Unit::TestCase
 
   def setup
     @integer = CLASS.new(name: 'TestSysVInteger', permissions: 0660)
-    @integer.value = 0
+    @integer.reset
   end
 
   def teardown
@@ -41,5 +41,15 @@ class TestSysVInteger < MiniTest::Unit::TestCase
       assert_equal 109, integer_3.value
     end
     Process.waitall
+  end
+
+  def test_memory_reset_when_no_workers_using_it
+    fork do
+      integer = CLASS.new(name: 'TestSysVInteger_2', permissions: 0660)
+      integer.value = 109
+    end
+    Process.waitall
+    @integer = CLASS.new(name: 'TestSysVInteger_2', permissions: 0660)
+    assert_equal 0, @integer.value
   end
 end

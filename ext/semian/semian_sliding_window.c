@@ -63,11 +63,7 @@ semian_sliding_window_size(VALUE self)
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
   if (0 == ptr->shm_address)
     return Qnil;
-  semian_shm_object_check_and_resize_if_needed(self);
-  if (!semian_shm_object_lock(self))
-    return Qnil;
   int window_size = ((semian_sliding_window *)(ptr->shm_address))->window_size;
-  semian_shm_object_unlock(self);
   return INT2NUM(window_size);
 }
 
@@ -78,11 +74,7 @@ semian_sliding_window_max_size(VALUE self)
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
   if (0 == ptr->shm_address)
     return Qnil;
-  semian_shm_object_check_and_resize_if_needed(self);
-  if (!semian_shm_object_lock(self))
-    return Qnil;
   int max_length = ((semian_sliding_window *)(ptr->shm_address))->max_window_size;
-  semian_shm_object_unlock(self);
   return INT2NUM(max_length);
 }
 
@@ -95,9 +87,6 @@ semian_sliding_window_push_back(VALUE self, VALUE num)
     return Qnil;
   if (TYPE(num) != T_FIXNUM && TYPE(num) != T_FLOAT && TYPE(num) != T_BIGNUM)
     return Qnil;
-  semian_shm_object_check_and_resize_if_needed(self);
-  if (!semian_shm_object_lock(self))
-    return Qnil;
 
   semian_sliding_window *data = ptr->shm_address;
   if (data->window_size == data->max_window_size) {
@@ -108,7 +97,6 @@ semian_sliding_window_push_back(VALUE self, VALUE num)
   }
   data->window[(data->window_size)] = NUM2LONG(num);
   ++(data->window_size);
-  semian_shm_object_unlock(self);
   return self;
 }
 
@@ -119,9 +107,6 @@ semian_sliding_window_pop_back(VALUE self)
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
   if (0 == ptr->shm_address)
     return Qnil;
-  semian_shm_object_check_and_resize_if_needed(self);
-  if (!semian_shm_object_lock(self))
-    return Qnil;
 
   VALUE retval;
   semian_sliding_window *data = ptr->shm_address;
@@ -131,8 +116,6 @@ semian_sliding_window_pop_back(VALUE self)
     retval = LONG2NUM(data->window[data->window_size-1]);
     --(data->window_size);
   }
-
-  semian_shm_object_unlock(self);
   return retval;
 }
 
@@ -144,9 +127,6 @@ semian_sliding_window_push_front(VALUE self, VALUE num)
   if (0 == ptr->shm_address)
     return Qnil;
   if (TYPE(num) != T_FIXNUM && TYPE(num) != T_FLOAT && TYPE(num) != T_BIGNUM)
-    return Qnil;
-  semian_shm_object_check_and_resize_if_needed(self);
-  if (!semian_shm_object_lock(self))
     return Qnil;
 
   long val = NUM2LONG(num);
@@ -161,7 +141,6 @@ semian_sliding_window_push_front(VALUE self, VALUE num)
   if (data->window_size>data->max_window_size)
     data->window_size=data->max_window_size;
 
-  semian_shm_object_unlock(self);
   return self;
 }
 
@@ -171,9 +150,6 @@ semian_sliding_window_pop_front(VALUE self)
   semian_shm_object *ptr;
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
   if (0 == ptr->shm_address)
-    return Qnil;
-  semian_shm_object_check_and_resize_if_needed(self);
-  if (!semian_shm_object_lock(self))
     return Qnil;
 
   VALUE retval;
@@ -187,7 +163,6 @@ semian_sliding_window_pop_front(VALUE self)
     --(data->window_size);
   }
 
-  semian_shm_object_unlock(self);
   return retval;
 }
 
@@ -198,13 +173,9 @@ semian_sliding_window_clear(VALUE self)
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
   if (0 == ptr->shm_address)
     return Qnil;
-  semian_shm_object_check_and_resize_if_needed(self);
-  if (!semian_shm_object_lock(self))
-    return Qnil;
   semian_sliding_window *data = ptr->shm_address;
   data->window_size=0;
 
-  semian_shm_object_unlock(self);
   return self;
 }
 
@@ -215,9 +186,6 @@ semian_sliding_window_first(VALUE self)
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
   if (0 == ptr->shm_address)
     return Qnil;
-  semian_shm_object_check_and_resize_if_needed(self);
-  if (!semian_shm_object_lock(self))
-    return Qnil;
 
   VALUE retval;
   semian_sliding_window *data = ptr->shm_address;
@@ -226,7 +194,6 @@ semian_sliding_window_first(VALUE self)
   else
     retval = Qnil;
 
-  semian_shm_object_unlock(self);
   return retval;
 }
 
@@ -237,9 +204,6 @@ semian_sliding_window_last(VALUE self)
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
   if (0 == ptr->shm_address)
     return Qnil;
-  semian_shm_object_check_and_resize_if_needed(self);
-  if (!semian_shm_object_lock(self))
-    return Qnil;
 
   VALUE retval;
   semian_sliding_window *data = ptr->shm_address;
@@ -248,7 +212,6 @@ semian_sliding_window_last(VALUE self)
   else
     retval = Qnil;
 
-  semian_shm_object_unlock(self);
   return retval;
 }
 
@@ -261,9 +224,6 @@ semian_sliding_window_resize_to(VALUE self, VALUE size) {
     return Qnil;
   if (NUM2INT(size) <= 0)
     rb_raise(rb_eArgError, "size must be larger than 0");
-
-  if (!semian_shm_object_lock(self))
-    return Qnil;
 
   semian_sliding_window *data_copy = NULL;
   size_t byte_size=0;
@@ -278,15 +238,12 @@ semian_sliding_window_resize_to(VALUE self, VALUE size) {
     }
   }
 
-  semian_shm_object_delete_memory_inner(ptr, 1, self, NULL);
+  semian_shm_object_delete_memory_inner(self);
   ptr->byte_size = 2*sizeof(int) + NUM2INT(size) * sizeof(long);
-  semian_shm_object_unlock(self);
 
-  semian_shm_object_acquire_memory(self, LONG2FIX(ptr->permissions), Qtrue);
-  if (!semian_shm_object_lock(self))
-    return Qnil;
+  semian_shm_object_acquire_memory(self, Qtrue);
+
   ptr->object_init_fn(ptr->byte_size, ptr->shm_address, data_copy, byte_size, prev_mem_attach_count);
-  semian_shm_object_unlock(self);
 
   return self;
 }
@@ -302,15 +259,15 @@ Init_semian_sliding_window (void)
   semian_shm_object_replace_alloc(cSysVSharedMemory, cSlidingWindow);
 
   rb_define_method(cSlidingWindow, "bind_init_fn", semian_sliding_window_bind_init_fn_wrapper, 0);
-  rb_define_method(cSlidingWindow, "size", semian_sliding_window_size, 0);
-  rb_define_method(cSlidingWindow, "max_size", semian_sliding_window_max_size, 0);
-  rb_define_method(cSlidingWindow, "resize_to", semian_sliding_window_resize_to, 1);
-  rb_define_method(cSlidingWindow, "<<", semian_sliding_window_push_back, 1);
-  rb_define_method(cSlidingWindow, "push", semian_sliding_window_push_back, 1);
-  rb_define_method(cSlidingWindow, "pop", semian_sliding_window_pop_back, 0);
-  rb_define_method(cSlidingWindow, "shift", semian_sliding_window_pop_front, 0);
-  rb_define_method(cSlidingWindow, "unshift", semian_sliding_window_push_front, 1);
-  rb_define_method(cSlidingWindow, "clear", semian_sliding_window_clear, 0);
-  rb_define_method(cSlidingWindow, "first", semian_sliding_window_first, 0);
-  rb_define_method(cSlidingWindow, "last", semian_sliding_window_last, 0);
+  define_method_with_synchronize(cSlidingWindow, "size", semian_sliding_window_size, 0);
+  define_method_with_synchronize(cSlidingWindow, "max_size", semian_sliding_window_max_size, 0);
+  define_method_with_synchronize(cSlidingWindow, "resize_to", semian_sliding_window_resize_to, 1);
+  define_method_with_synchronize(cSlidingWindow, "<<", semian_sliding_window_push_back, 1);
+  define_method_with_synchronize(cSlidingWindow, "push", semian_sliding_window_push_back, 1);
+  define_method_with_synchronize(cSlidingWindow, "pop", semian_sliding_window_pop_back, 0);
+  define_method_with_synchronize(cSlidingWindow, "shift", semian_sliding_window_pop_front, 0);
+  define_method_with_synchronize(cSlidingWindow, "unshift", semian_sliding_window_push_front, 1);
+  define_method_with_synchronize(cSlidingWindow, "clear", semian_sliding_window_clear, 0);
+  define_method_with_synchronize(cSlidingWindow, "first", semian_sliding_window_first, 0);
+  define_method_with_synchronize(cSlidingWindow, "last", semian_sliding_window_last, 0);
 }

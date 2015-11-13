@@ -43,12 +43,7 @@ semian_integer_get_value(VALUE self)
   if (0 == ptr->shm_address)
     return Qnil;
 
-  semian_shm_object_check_and_resize_if_needed(self);
-  if (!semian_shm_object_lock(self))
-    return Qnil;
-
   int value = ((semian_int *)(ptr->shm_address))->value;
-  semian_shm_object_unlock(self);
   return INT2NUM(value);
 }
 
@@ -63,13 +58,9 @@ semian_integer_set_value(VALUE self, VALUE num)
 
   if (TYPE(num) != T_FIXNUM && TYPE(num) != T_FLOAT)
     return Qnil;
-  semian_shm_object_check_and_resize_if_needed(self);
-  if (!semian_shm_object_lock(self))
-    return Qnil;
 
   ((semian_int *)(ptr->shm_address))->value = NUM2INT(num);
 
-  semian_shm_object_unlock(self);
   return num;
 }
 
@@ -95,13 +86,9 @@ semian_integer_increment(int argc, VALUE *argv, VALUE self)
 
   if (TYPE(num) != T_FIXNUM && TYPE(num) != T_FLOAT)
     return Qnil;
-  semian_shm_object_check_and_resize_if_needed(self);
-  if (!semian_shm_object_lock(self))
-    return Qnil;
 
   ((semian_int *)(ptr->shm_address))->value += NUM2INT(num);
 
-  semian_shm_object_unlock(self);
   return self;
 }
 
@@ -117,8 +104,8 @@ Init_semian_integer (void)
   semian_shm_object_replace_alloc(cSysVSharedMemory, cInteger);
 
   rb_define_method(cInteger, "bind_init_fn", semian_integer_bind_init_fn_wrapper, 0);
-  rb_define_method(cInteger, "value", semian_integer_get_value, 0);
-  rb_define_method(cInteger, "value=", semian_integer_set_value, 1);
-  rb_define_method(cInteger, "reset", semian_integer_reset, 0);
-  rb_define_method(cInteger, "increment", semian_integer_increment, -1);
+  define_method_with_synchronize(cInteger, "value", semian_integer_get_value, 0);
+  define_method_with_synchronize(cInteger, "value=", semian_integer_set_value, 1);
+  define_method_with_synchronize(cInteger, "reset", semian_integer_reset, 0);
+  define_method_with_synchronize(cInteger, "increment", semian_integer_increment, -1);
 }

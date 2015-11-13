@@ -6,6 +6,7 @@ class TestSysVState < MiniTest::Unit::TestCase
   def setup
     @state = CLASS.new(name: 'TestSysVState',
                        permissions: 0660)
+    @state.reset
   end
 
   def teardown

@@ -48,15 +48,15 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
 
     large_number = (Time.now.to_f * 1000).to_i
     @sliding_window << large_number
-    assert_correct_first_and_last_and_size(@sliding_window, large_number, large_number, 1, 6)
-    assert_correct_first_and_last_and_size(sliding_window_2, large_number, large_number, 1, 6)
+    assert_sliding_window(@sliding_window, [large_number], 6)
+    assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
     sliding_window_2 << 6 << 4 << 3 << 2
-    assert_correct_first_and_last_and_size(@sliding_window, large_number, 2, 5, 6)
-    assert_correct_first_and_last_and_size(sliding_window_2, large_number, 2, 5, 6)
+    assert_sliding_window(@sliding_window, [large_number, 6, 4, 3, 2], 6)
+    assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
 
     @sliding_window.clear
-    assert_correct_first_and_last_and_size(@sliding_window, nil, nil, 0, 6)
-    assert_correct_first_and_last_and_size(sliding_window_2, nil, nil, 0, 6)
+    assert_sliding_window(@sliding_window, [], 6)
+    assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
   end
 
   def test_restarting_worker_should_not_reset_queue
@@ -64,68 +64,75 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
     sliding_window_2 = CLASS.new(max_size: 6,
                                  name: 'TestSysVSlidingWindow',
                                  permissions: 0660)
-    assert_correct_first_and_last_and_size(@sliding_window, 10, 30, 3, 6)
+    assert_sliding_window(sliding_window_2, [10, 20, 30], 6)
     sliding_window_2.pop
+    assert_sliding_window(sliding_window_2, [10, 20], 6)
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
 
     sliding_window_3 = CLASS.new(max_size: 6,
                                  name: 'TestSysVSlidingWindow',
                                  permissions: 0660)
-    assert_correct_first_and_last_and_size(@sliding_window, 10, 20, 2, 6)
+    assert_sliding_window(sliding_window_3, [10, 20], 6)
     sliding_window_3.pop
-    assert_correct_first_and_last_and_size(@sliding_window, 10, 10, 1, 6)
+    assert_sliding_window(@sliding_window, [10], 6)
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
-    @sliding_window.clear
   end
 
   def test_other_workers_automatically_switching_to_new_memory_resizing_up_or_down
     # Test explicit resizing, and resizing through making new memory associations
 
+    # B resize down through init
     sliding_window_2 = CLASS.new(max_size: 4,
                                  name: 'TestSysVSlidingWindow',
                                  permissions: 0660)
     sliding_window_2 << 80 << 90 << 100 << 110 << 120
-    assert_correct_first_and_last_and_size(@sliding_window, 90, 120, 4, 4)
+    assert_sliding_window(sliding_window_2, [90, 100, 110, 120], 4)
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
 
-    sliding_window_2 = CLASS.new(max_size: 3,
-                                 name: 'TestSysVSlidingWindow',
-                                 permissions: 0660)
-    assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
-    assert_correct_first_and_last_and_size(@sliding_window, 100, 120, 3, 3)
-
+    # A explicit resize down,
     @sliding_window.resize_to(2)
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
-    assert_correct_first_and_last_and_size(@sliding_window, 110, 120, 2, 2)
+    assert_sliding_window(@sliding_window, [110, 120], 2)
 
+    # B resize up through init
     sliding_window_2 = CLASS.new(max_size: 4,
                                  name: 'TestSysVSlidingWindow',
                                  permissions: 0660)
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
-    assert_correct_first_and_last_and_size(@sliding_window, 110, 120, 2, 4)
+    assert_sliding_window(@sliding_window, [110, 120], 4)
 
+    # A explicit resize up
     @sliding_window.resize_to(6)
     @sliding_window << 130
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
-    assert_correct_first_and_last_and_size(@sliding_window, 110, 130, 3, 6)
+    assert_sliding_window(@sliding_window, [110, 120, 130], 6)
 
+    # B resize down through init
     sliding_window_2 = CLASS.new(max_size: 2,
                                  name: 'TestSysVSlidingWindow',
                                  permissions: 0660)
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
-    assert_correct_first_and_last_and_size(@sliding_window, 120, 130, 2, 2)
+    assert_sliding_window(@sliding_window, [120, 130], 2)
 
+    # A explicit resize up
     @sliding_window.resize_to(4)
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
-    assert_correct_first_and_last_and_size(@sliding_window, 120, 130, 2, 4)
+    assert_sliding_window(@sliding_window, [120, 130], 4)
 
+    # B resize up through init
     sliding_window_2 = CLASS.new(max_size: 6,
                                  name: 'TestSysVSlidingWindow',
                                  permissions: 0660)
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
-    assert_correct_first_and_last_and_size(@sliding_window, 120, 130, 2, 6)
+    assert_sliding_window(@sliding_window, [120, 130], 6)
 
-    sliding_window_2.clear
+    # B resize, but no final size change
+    sliding_window_2 << 140 << 150 << 160 << 170
+    sliding_window_2.resize_to(4)
+    sliding_window_2 << 180
+    sliding_window_2.resize_to(6)
+    assert_sliding_window(@sliding_window, [150, 160, 170, 180], 6)
+    assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
   end
 
   private
