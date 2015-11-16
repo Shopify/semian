@@ -1,7 +1,7 @@
 module Semian
   module Simple
     class State #:nodoc:
-      def initialize(**_)
+      def initialize(**)
         reset
       end
 

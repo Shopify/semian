@@ -7,12 +7,12 @@ module Semian
       extend Forwardable
 
       def_delegators :@integer, :semid, :shmid, :synchronize, :transaction,
-                     :shared?, :acquire_memory_object, :bind_init_fn
-      private :shared?, :acquire_memory_object, :bind_init_fn
+                     :shared?, :acquire_memory_object, :bind_initialize_memory_callback
+      private :shared?, :acquire_memory_object, :bind_initialize_memory_callback
 
       def initialize(name:, permissions:)
         @integer = Semian::SysV::Integer.new(name: name, permissions: permissions)
-        initialize_lookup([:closed, :open, :half_open])
+        initialize_lookup
       end
 
       def open
@@ -46,12 +46,12 @@ module Semian
         @integer.value = @sym_to_num.fetch(sym) { raise ArgumentError }
       end
 
-      def initialize_lookup(symbol_list)
+      def initialize_lookup
         # Assume symbol_list[0] is mapped to 0
         # Cannot just use #object_id since #object_id for symbols is different in every run
         # For now, implement a C-style enum type backed by integers
 
-        @sym_to_num = Hash[symbol_list.each_with_index.to_a]
+        @sym_to_num = {closed: 0, open: 1, half_open: 2}
         @num_to_sym = @sym_to_num.invert
       end
     end
