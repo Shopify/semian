@@ -245,6 +245,16 @@ class TestNetHTTP < MiniTest::Unit::TestCase
     end
   end
 
+  def test_adding_extra_errors_and_resetting_affects_exceptions_list
+    orig_errors = Semian::NetHTTP.exceptions.dup
+    Semian::NetHTTP.concat_exceptions([::OpenSSL::SSL::SSLError])
+    assert_equal(orig_errors + [::OpenSSL::SSL::SSLError], Semian::NetHTTP.exceptions)
+    Semian::NetHTTP.reset_exceptions
+    assert_equal(Semian::NetHTTP::DEFAULT_ERRORS, Semian::NetHTTP.exceptions)
+  ensure
+    Semian::NetHTTP.exceptions = orig_errors
+  end
+
   def test_adding_custom_errors_do_trip_circuit
     with_semian_options do
       with_custom_errors([::OpenSSL::SSL::SSLError]) do
@@ -316,8 +326,8 @@ class TestNetHTTP < MiniTest::Unit::TestCase
   end
 
   def with_custom_errors(errors)
-    orig_errors = Semian::NetHTTP.exceptions
-    Semian::NetHTTP.exceptions = Semian::NetHTTP::DEFAULT_ERRORS.dup + errors
+    orig_errors = Semian::NetHTTP.exceptions.dup
+    Semian::NetHTTP.concat_exceptions(errors)
     yield
   ensure
     Semian::NetHTTP.exceptions = orig_errors

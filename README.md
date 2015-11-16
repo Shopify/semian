@@ -3,7 +3,7 @@
 ![](http://i.imgur.com/7Vn2ibF.png)
 
 Semian is a library for controlling access to slow or unresponsive external
-services to avoid cascading failures. 
+services to avoid cascading failures.
 
 When services are down they typically fail fast with errors like `ECONNREFUSED`
 and `ECONNRESET` which can be rescued in code. However, slow resources fail
@@ -71,6 +71,7 @@ version is the version of the public gem with the same name:
 
 * [`semian/mysql2`][mysql-semian-adapter] (~> 0.3.16)
 * [`semian/redis`][redis-semian-adapter] (~> 3.2.1)
+* [`semian/net_http`][nethttp-semian-adapter]
 
 ### Creating Adapters
 
@@ -124,6 +125,49 @@ client = Redis.new(semian: {
   error_threshold: 4,
   error_timeout: 20
 })
+```
+
+#### Net::HTTP
+For the `Net::HTTP` specific Semian adapter, since many external libraries may create
+HTTP connections on the user's behalf, the parameters are instead provided
+by calling specific functions in `Semian::NetHTTP`, perhaps in an initialization file.
+
+To give Semian parameters, assign a `proc` to `Semian::NetHTTP.raw_semian_options`
+that takes a `semian_identifier` like `http_127_0_0_1_80` or `http_github_com_80`,
+and returns a `Hash` with keys as follows.
+
+```ruby
+SEMIAN_PARAMETERS = { tickets: 1,
+                      success_threshold: 1,
+                      error_threshold: 3,
+                      error_timeout: 10 }
+Semian::NetHTTP.raw_semian_options = proc do |semian_identifier|
+  # Let's make it only active for github.com
+  if semian_identifier == "http_github_com_80"
+    SEMIAN_PARAMETERS
+  else
+    nil
+  end
+end
+```
+
+A return value of `nil` means Semian is disabled for that `Net::HTTP` endpoint.
+This works well since the result of a failed Hash lookup is `nil` also.
+As such, this particular adapter defaults to whitelisting, although the
+behavior can be changed to blacklisting or even be completely disabled by varying
+the use of returning `nil`.
+
+Since we envision this particular adapter can be used in combination with many
+external libraries, we added functionality to expand the Exceptions that can be
+tracked as part of Semian's circuit breaker. Add exceptions and reset to the
+[`default`][nethttp-default-errors] list using the following:
+
+```ruby
+# assert_equal(Semian::NetHTTP.exceptions, Semian::NetHTTP::DEFAULT_ERRORS)
+Semian::NetHTTP.concat_exceptions([::OpenSSL::SSL::SSLError])
+
+Semian::NetHTTP.reset_exceptions
+# assert_equal(Semian::NetHTTP.exceptions, Semian::NetHTTP::DEFAULT_ERRORS)
 ```
 
 # Understanding Semian
@@ -248,7 +292,7 @@ response time. This is the problem Semian solves by failing fast.
 
 Semian consists of two parts: circuit breaker and bulkheading. To understand
 Semian, and especially how to configure it, we must understand these patterns
-and their implementation. 
+and their implementation.
 
 ### Circuit Breaker
 
@@ -319,7 +363,7 @@ five workers to talk to a resource at any given point in time, and accept the
 a connection instantly. This means that while the five workers are waiting for a
 timeout, all the other `W-5` workers on the node will instantly be failing on
 checking out the connection and opening their circuits. Our capacity is only
-degraded by a relatively small amount. 
+degraded by a relatively small amount.
 
 We call this limitation primitive "tickets". In this case, the resource access
 is limited to 5 tickets (see Configuration). The timeout value specifies the
@@ -361,7 +405,7 @@ will affect the circuit and Semian, which can make future calls fail faster.
 ## Failing gracefully
 
 Ok, great, we've got a way to fail fast with slow resources, how does that make
-my application more resilient? 
+my application more resilient?
 
 Failing fast is only half the battle. It's up to you what you do with these
 errors, in the [session example](#real-world-example) we handle it gracefully by
@@ -496,13 +540,15 @@ non-IO.
 [hystrix]: https://github.com/Netflix/Hystrix
 [release-it]: https://pragprog.com/book/mnee/release-it
 [shopify]: http://www.shopify.com/
-[mysql-semian-adapter]: https://github.com/Shopify/semian/blob/master/lib/semian/mysql2.rb
-[redis-semian-adapter]: https://github.com/Shopify/semian/blob/master/lib/semian/redis.rb
-[semian-adapter]: https://github.com/Shopify/semian/blob/master/lib/semian/adapter.rb
-[semian-instrumentable]: https://github.com/Shopify/semian/blob/master/lib/semian/instrumentable.rb
+[mysql-semian-adapter]: lib/semian/mysql2.rb
+[redis-semian-adapter]: lib/semian/redis.rb
+[semian-adapter]: lib/semian/adapter.rb
+[nethttp-semian-adapter]: lib/semian/net_http.rb
+[nethttp-default-errors]: lib/semian/net_http.rb#L29-L39
+[semian-instrumentable]: lib/semian/instrumentable.rb
 [statsd-instrument]: http://github.com/shopify/statsd-instrument
 [resiliency-blog-post]: http://www.shopify.com/technology/16906928-building-and-testing-resilient-ruby-on-rails-applications
 [toxiproxy]: https://github.com/Shopify/toxiproxy
 [sysv]: http://man7.org/linux/man-pages/man7/svipc.7.html
 [cbp]: https://en.wikipedia.org/wiki/Circuit_breaker_design_pattern
-[namespaces]: http://man7.org/linux/man-pages/man7/namespaces.7.html 
+[namespaces]: http://man7.org/linux/man-pages/man7/namespaces.7.html

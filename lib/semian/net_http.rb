@@ -26,23 +26,6 @@ module Semian
       "http_#{address.tr('.', '_')}_#{port}"
     end
 
-    class << self
-      attr_accessor :raw_semian_options
-      attr_accessor :exceptions
-
-      def retrieve_semian_options_by_identifier(semian_identifier)
-        if @raw_semian_options.respond_to?(:call)
-          @raw_semian_options.call(semian_identifier)
-        else
-          @raw_semian_options ||= nil # disabled by default
-        end
-      end
-    end
-
-    def raw_semian_options
-      Semian::NetHTTP.retrieve_semian_options_by_identifier(semian_identifier)
-    end
-
     DEFAULT_ERRORS = [
       ::Timeout::Error, # includes ::Net::ReadTimeout and ::Net::OpenTimeout
       ::TimeoutError, # alias for above
@@ -55,7 +38,32 @@ module Semian
       ::SystemCallError, # includes ::Errno::EINVAL, ::Errno::ECONNRESET, ::Errno::ECONNREFUSED, ::Errno::ETIMEDOUT, and more
     ].freeze # Net::HTTP can throw many different errors, this tries to capture most of them
 
-    Semian::NetHTTP.exceptions = Semian::NetHTTP::DEFAULT_ERRORS.dup
+    class << self
+      attr_accessor :raw_semian_options
+      attr_accessor :exceptions
+
+      def retrieve_semian_options_by_identifier(semian_identifier)
+        if @raw_semian_options.respond_to?(:call)
+          @raw_semian_options.call(semian_identifier)
+        else
+          @raw_semian_options ||= nil # disabled by default
+        end
+      end
+
+      def reset_exceptions
+        self.exceptions = Semian::NetHTTP::DEFAULT_ERRORS.dup
+      end
+
+      def concat_exceptions(exceptions)
+        self.exceptions.concat(exceptions)
+      end
+    end
+
+    Semian::NetHTTP.reset_exceptions
+
+    def raw_semian_options
+      Semian::NetHTTP.retrieve_semian_options_by_identifier(semian_identifier)
+    end
 
     def resource_exceptions
       Semian::NetHTTP.exceptions
