@@ -4,14 +4,14 @@ typedef struct {
   int value;
 } semian_int;
 
-static void semian_integer_bind_init_fn (size_t byte_size, void *dest, void *prev_data, size_t prev_data_byte_size, int prev_mem_attach_count);
-static VALUE semian_integer_bind_init_fn_wrapper(VALUE self);
+static void semian_integer_initialize_memory (size_t byte_size, void *dest, void *prev_data, size_t prev_data_byte_size, int prev_mem_attach_count);
+static VALUE semian_integer_bind_initialize_memory_callback(VALUE self);
 static VALUE semian_integer_get_value(VALUE self);
 static VALUE semian_integer_set_value(VALUE self, VALUE num);
 static VALUE semian_integer_increment(int argc, VALUE *argv, VALUE self);
 
 static void
-semian_integer_bind_init_fn (size_t byte_size, void *dest, void *prev_data, size_t prev_data_byte_size, int prev_mem_attach_count)
+semian_integer_initialize_memory (size_t byte_size, void *dest, void *prev_data, size_t prev_data_byte_size, int prev_mem_attach_count)
 {
   semian_int *ptr = dest;
   semian_int *old = prev_data;
@@ -25,11 +25,11 @@ semian_integer_bind_init_fn (size_t byte_size, void *dest, void *prev_data, size
 }
 
 static VALUE
-semian_integer_bind_init_fn_wrapper(VALUE self)
+semian_integer_bind_initialize_memory_callback(VALUE self)
 {
   semian_shm_object *ptr;
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
-  ptr->object_init_fn = &semian_integer_bind_init_fn;
+  ptr->initialize_memory = &semian_integer_initialize_memory;
   return self;
 }
 
@@ -103,7 +103,7 @@ Init_semian_integer (void)
 
   semian_shm_object_replace_alloc(cSysVSharedMemory, cInteger);
 
-  rb_define_method(cInteger, "bind_init_fn", semian_integer_bind_init_fn_wrapper, 0);
+  rb_define_private_method(cInteger, "bind_initialize_memory_callback", semian_integer_bind_initialize_memory_callback, 0);
   define_method_with_synchronize(cInteger, "value", semian_integer_get_value, 0);
   define_method_with_synchronize(cInteger, "value=", semian_integer_set_value, 1);
   define_method_with_synchronize(cInteger, "reset", semian_integer_reset, 0);

@@ -6,8 +6,8 @@ typedef struct {
   long window[];
 } semian_sliding_window;
 
-static void semian_sliding_window_bind_init_fn (size_t byte_size, void *dest, void *prev_data, size_t prev_data_byte_size, int prev_mem_attach_count);
-static VALUE semian_sliding_window_bind_init_fn_wrapper(VALUE self);
+static void semian_sliding_window_initialize_memory (size_t byte_size, void *dest, void *prev_data, size_t prev_data_byte_size, int prev_mem_attach_count);
+static VALUE semian_sliding_window_bind_initialize_memory_callback(VALUE self);
 static VALUE semian_sliding_window_size(VALUE self);
 static VALUE semian_sliding_window_max_size(VALUE self);
 static VALUE semian_sliding_window_push_back(VALUE self, VALUE num);
@@ -20,7 +20,7 @@ static VALUE semian_sliding_window_last(VALUE self);
 static VALUE semian_sliding_window_resize_to(VALUE self, VALUE size);
 
 static void
-semian_sliding_window_bind_init_fn (size_t byte_size, void *dest, void *prev_data, size_t prev_data_byte_size, int prev_mem_attach_count)
+semian_sliding_window_initialize_memory (size_t byte_size, void *dest, void *prev_data, size_t prev_data_byte_size, int prev_mem_attach_count)
 {
   semian_sliding_window *ptr = dest;
   semian_sliding_window *old = prev_data;
@@ -48,11 +48,11 @@ semian_sliding_window_bind_init_fn (size_t byte_size, void *dest, void *prev_dat
 }
 
 static VALUE
-semian_sliding_window_bind_init_fn_wrapper(VALUE self)
+semian_sliding_window_bind_initialize_memory_callback(VALUE self)
 {
   semian_shm_object *ptr;
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
-  ptr->object_init_fn = &semian_sliding_window_bind_init_fn;
+  ptr->initialize_memory = &semian_sliding_window_initialize_memory;
   return self;
 }
 
@@ -243,7 +243,7 @@ semian_sliding_window_resize_to(VALUE self, VALUE size) {
 
   semian_shm_object_acquire_memory(self, Qtrue);
 
-  ptr->object_init_fn(ptr->byte_size, ptr->shm_address, data_copy, byte_size, prev_mem_attach_count);
+  ptr->initialize_memory(ptr->byte_size, ptr->shm_address, data_copy, byte_size, prev_mem_attach_count);
 
   return self;
 }
@@ -258,7 +258,7 @@ Init_semian_sliding_window (void)
 
   semian_shm_object_replace_alloc(cSysVSharedMemory, cSlidingWindow);
 
-  rb_define_method(cSlidingWindow, "bind_init_fn", semian_sliding_window_bind_init_fn_wrapper, 0);
+  rb_define_private_method(cSlidingWindow, "bind_initialize_memory_callback", semian_sliding_window_bind_initialize_memory_callback, 0);
   define_method_with_synchronize(cSlidingWindow, "size", semian_sliding_window_size, 0);
   define_method_with_synchronize(cSlidingWindow, "max_size", semian_sliding_window_max_size, 0);
   define_method_with_synchronize(cSlidingWindow, "resize_to", semian_sliding_window_resize_to, 1);

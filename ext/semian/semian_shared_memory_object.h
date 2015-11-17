@@ -8,7 +8,7 @@ typedef struct {
   int permissions;
   int semid;
   int shmid;
-  void (*object_init_fn)(size_t byte_size, void *dest, void *prev_data, size_t prev_data_byte_size, int prev_mem_attach_count);
+  void (*initialize_memory)(size_t byte_size, void *dest, void *prev_data, size_t prev_data_byte_size, int prev_mem_attach_count);
   void *shm_address;
 } semian_shm_object;
 

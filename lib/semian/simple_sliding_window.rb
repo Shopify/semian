@@ -12,7 +12,7 @@ module Semian
       # like this: if @max_size = 4, current time is 10, @window =[5,7,9,10].
       # Another push of (11) at 11 sec would make @window [7,9,10,11], shifting off 5.
 
-      def initialize(max_size:, **_)
+      def initialize(max_size:, **)
         @max_size = max_size
         @window = []
       end

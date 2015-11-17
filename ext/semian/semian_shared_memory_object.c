@@ -39,11 +39,9 @@ static void
 semian_shm_object_free(void *ptr)
 {
   semian_shm_object *data = (semian_shm_object *) ptr;
-  // Under normal circumstances, memory use should be in the order of bytes,
-  //   and shouldn't increase if the same key/id is used
-  //   so there is no need to call this unless certain all other semian processes are stopped
-  //   (also raises concurrency errors: "object allocation during garbage collection phase")
-
+  // Under normal circumstances, memory use should be in the order of bytes, and shouldn't
+  // increase if the same key/id is used, so there is no need to delete the shared memory
+  // (also raises a concurrency-related bug: "object allocation during garbage collection phase")
   xfree(data);
 }
 static size_t
@@ -56,7 +54,6 @@ semian_shm_object_alloc(VALUE klass)
 {
   VALUE obj;
   semian_shm_object *ptr;
-
   obj = TypedData_Make_Struct(klass, semian_shm_object, &semian_shm_object_type, ptr);
   return obj;
 }
@@ -125,11 +122,10 @@ semian_shm_object_acquire(VALUE self, VALUE name, VALUE byte_size, VALUE permiss
   ptr->permissions = FIX2LONG(permissions);
 
   // Will throw NotImplementedError if not defined in concrete subclasses
-  // Implement bind_init_fn as a function with type
-  // static VALUE bind_init_fn(VALUE self)
-  // that binds ptr->object_init_fn to an init function called after memory is made
-  rb_funcall(self, rb_intern("bind_init_fn"), 0);
-
+  // Implement bind_initialize_memory_callback as a function with type
+  // static VALUE bind_initialize_memory_callback(VALUE self)
+  // that a callback to ptr->initialize_memory, called when memory needs to be initialized
+  rb_funcall(self, rb_intern("bind_initialize_memory_callback"), 0);
   semian_shm_object_acquire_semaphore(self);
   semian_shm_object_synchronize(self);
 
@@ -474,7 +470,7 @@ semian_shm_object_acquire_memory(VALUE self, VALUE should_keep_req_byte_size)
   } else
     ptr->shmid = shmid;
 
-  // Attach memory and call object_init_fn()
+  // Attach memory and call initialize_memory()
   if (0 == ptr->shm_address) {
     ptr->shm_address = shmat(ptr->shmid, (void *)0, 0);
     if (((void*)-1) == ptr->shm_address) {
@@ -483,7 +479,7 @@ semian_shm_object_acquire_memory(VALUE self, VALUE should_keep_req_byte_size)
         free(data_copy);
       rb_raise(eSyscall, "shmat() failed to attach memory with shmid %d, size %zu, errno %d (%s)", ptr->shmid, ptr->byte_size, errno, strerror(errno));
     } else {
-      ptr->object_init_fn(ptr->byte_size, ptr->shm_address, data_copy, data_copy_byte_size, prev_mem_attach_count);
+      ptr->initialize_memory(ptr->byte_size, ptr->shm_address, data_copy, data_copy_byte_size, prev_mem_attach_count);
     }
   }
   if (data_copy)
