@@ -10,11 +10,11 @@ module Semian
       @exceptions = exceptions
 
       @errors = implementation::SlidingWindow.new(max_size: @error_count_threshold,
-                                                  name: "#{name}_sysv_sliding_window",
+                                                  name: "#{name}_sliding_window",
                                                   permissions: permissions)
-      @successes = implementation::Integer.new(name: "#{name}_sysv_integer",
+      @successes = implementation::Integer.new(name: "#{name}_integer",
                                                permissions: permissions)
-      @state = implementation::State.new(name: "#{name}_sysv_state",
+      @state = implementation::State.new(name: "#{name}_state",
                                          permissions: permissions)
     end
 
