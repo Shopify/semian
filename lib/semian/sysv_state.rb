@@ -15,24 +15,8 @@ module Semian
         initialize_lookup
       end
 
-      def open
-        self.value = :open
-      end
-
-      def close
-        self.value = :closed
-      end
-
-      def half_open
-        self.value = :half_open
-      end
-
-      def reset
-        close
-      end
-
       def destroy
-        reset
+        super
         @integer.destroy
       end
 

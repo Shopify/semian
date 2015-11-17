@@ -5,7 +5,8 @@ module Semian
         reset
       end
 
-      attr_reader :value
+      attr_accessor :value
+      private :value=
 
       def open?
         value == :open
@@ -20,15 +21,15 @@ module Semian
       end
 
       def open
-        @value = :open
+        self.value = :open
       end
 
       def close
-        @value = :closed
+        self.value = :closed
       end
 
       def half_open
-        @value = :half_open
+        self.value = :half_open
       end
 
       def reset
