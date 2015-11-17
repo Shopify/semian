@@ -26,9 +26,7 @@ VALUE semian_shm_object_acquire(VALUE self, VALUE id, VALUE byte_size, VALUE per
 VALUE semian_shm_object_destroy(VALUE self);
 VALUE semian_shm_object_acquire_semaphore (VALUE self);
 VALUE semian_shm_object_delete_semaphore(VALUE self);
-VALUE semian_shm_object_acquire_memory(VALUE self, VALUE should_keep_req_byte_size);
-VALUE semian_shm_object_delete_memory_inner (VALUE self);
-VALUE semian_shm_object_delete_memory (VALUE self);
+VALUE semian_shm_object_cleanup_memory (VALUE self);
 VALUE semian_shm_object_check_and_resize_if_needed (VALUE self);
 
 VALUE semian_shm_object_synchronize(VALUE self);

@@ -238,10 +238,12 @@ semian_sliding_window_resize_to(VALUE self, VALUE size) {
     }
   }
 
-  semian_shm_object_delete_memory_inner(self);
+  semian_shm_object_cleanup_memory(self);
   ptr->byte_size = 2*sizeof(int) + NUM2INT(size) * sizeof(long);
+  ptr->shmid = -1;
+  ptr->shm_address = 0;
 
-  semian_shm_object_acquire_memory(self, Qtrue);
+  semian_shm_object_check_and_resize_if_needed(self);
 
   ptr->initialize_memory(ptr->byte_size, ptr->shm_address, data_copy, byte_size, prev_mem_attach_count);
 
