@@ -132,27 +132,32 @@ For the `Net::HTTP` specific Semian adapter, since many external libraries may c
 HTTP connections on the user's behalf, the parameters are instead provided
 by calling specific functions in `Semian::NetHTTP`, perhaps in an initialization file.
 
-To give Semian parameters, assign a `proc` to `Semian::NetHTTP.raw_semian_options`
-that takes a `semian_identifier` like `http_127_0_0_1_80` or `http_github_com_80`,
-and returns a `Hash` with keys as follows.
+To give Semian parameters, assign a `proc` to `Semian::NetHTTP.semian_configuration`
+that takes two parameters, `host` and `port like `127.0.0.1` and `80` or `github_com` and `80`,
+and returns two values, a `semian_identifier` and a `Hash` with the keys as follows.
 
 ```ruby
-SEMIAN_PARAMETERS = { tickets: 1,
-                      success_threshold: 1,
-                      error_threshold: 3,
-                      error_timeout: 10 }
-Semian::NetHTTP.raw_semian_options = proc do |semian_identifier|
+SEMIAN_OPTIONS = { tickets: 1,
+                   success_threshold: 1,
+                   error_threshold: 3,
+                   error_timeout: 10 }
+Semian::NetHTTP.semian_configuration = proc do |host, port|
+  semian_identifier = "nethttp_#{host}_#{port}"
   # Let's make it only active for github.com
-  if semian_identifier == "http_github_com_80"
-    SEMIAN_PARAMETERS
+  if semian_identifier == "nethttp_github.com_80"
+    [semian_identifier, SEMIAN_OPTIONS]
   else
-    nil
+    [semian_identifier, nil]
   end
 end
+
+# Called from within API:
+# semian_identifier, semian_options = Semian::NetHTTP.semian_configuration("github.com", 80)
 ```
 
-A return value of `nil` means Semian is disabled for that `Net::HTTP` endpoint.
-This works well since the result of a failed Hash lookup is `nil` also.
+The `semian_identifier` used as the name of the resource, and the `semian_options` are the
+configuration parameters. A return value of `nil` means Semian is disabled for that
+`Net::HTTP` endpoint. This works well since the result of a failed Hash lookup is `nil` also.
 As such, this particular adapter defaults to whitelisting, although the
 behavior can be changed to blacklisting or even be completely disabled by varying
 the use of returning `nil`.

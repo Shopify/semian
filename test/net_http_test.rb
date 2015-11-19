@@ -14,13 +14,15 @@ class TestNetHTTP < MiniTest::Unit::TestCase
   HOSTNAME = "localhost"
   PORT = 31_050
   TOXIC_PORT = PORT + 1
-
   DEFAULT_SEMIAN_OPTIONS = {
     tickets: 3,
     success_threshold: 1,
     error_threshold: 3,
     error_timeout: 10,
   }
+  DEFAULT_SEMIAN_CONFIGURATION = proc do |host, port|
+    ["nethttp_#{host}_#{port}", DEFAULT_SEMIAN_OPTIONS]
+  end
 
   def test_with_server_raises_if_binding_fails
     # Occurs when trying to bind to invalid addresses, like non-private
@@ -35,10 +37,10 @@ class TestNetHTTP < MiniTest::Unit::TestCase
   def test_semian_identifier
     with_server do
       Net::HTTP.start(HOSTNAME, TOXIC_PORT) do |http|
-        assert_equal "http_#{HOSTNAME.tr('.', '_')}_#{TOXIC_PORT}", http.semian_identifier
+        assert_equal "nethttp_#{HOSTNAME}_#{TOXIC_PORT}", http.semian_identifier
       end
       Net::HTTP.start("127.0.0.1", TOXIC_PORT) do |http|
-        assert_equal "http_127_0_0_1_#{TOXIC_PORT}", http.semian_identifier
+        assert_equal "nethttp_127.0.0.1_#{TOXIC_PORT}", http.semian_identifier
       end
     end
   end
@@ -65,8 +67,14 @@ class TestNetHTTP < MiniTest::Unit::TestCase
   end
 
   def test_bulkheads_tickets_are_working
-    options = DEFAULT_SEMIAN_OPTIONS.dup
-    options[:tickets] = 2
+    options = proc do |host, port|
+      ["nethttp_#{host}_#{port}", {
+        tickets: 2,
+        success_threshold: 1,
+        error_threshold: 3,
+        error_timeout: 10,
+      }]
+    end
     with_semian_options(options) do
       with_server do
         http_1 = Net::HTTP.new(HOSTNAME, TOXIC_PORT)
@@ -163,15 +171,12 @@ class TestNetHTTP < MiniTest::Unit::TestCase
     with_server do
       semian_config = {}
       semian_config["development"] = {}
-      semian_config["development"]["http_#{HOSTNAME.tr('.', '_')}_#{TOXIC_PORT}"] =
-        {"tickets" => 1,
-         "success_threshold" => 1,
-         "error_threshold" => 3,
-         "error_timeout" => 10}
+      semian_config["development"]["nethttp_#{HOSTNAME}_#{TOXIC_PORT}"] = DEFAULT_SEMIAN_OPTIONS
       sample_env = "development"
 
-      semian_options_proc = proc do |semian_identifier|
-        semian_config[sample_env][semian_identifier]
+      semian_options_proc = proc do |host, port|
+        semian_identifier = "nethttp_#{host}_#{port}"
+        [semian_identifier, semian_config[sample_env][semian_identifier]]
       end
 
       with_semian_options(semian_options_proc) do
@@ -186,26 +191,21 @@ class TestNetHTTP < MiniTest::Unit::TestCase
     with_server do
       semian_config = {}
       semian_config["development"] = {}
-      semian_config["development"]["http_default"] =
-        {"tickets" => 1,
-         "success_threshold" => 1,
-         "error_threshold" => 3,
-         "error_timeout" => 10}
+      semian_config["development"]["nethttp_default"] = DEFAULT_SEMIAN_OPTIONS
       sample_env = "development"
 
-      semian_options_proc = proc do |semian_identifier|
+      semian_options_proc = proc do |host, port|
+        semian_identifier = "nethttp_#{host}_#{port}"
         if !semian_config[sample_env].key?(semian_identifier)
-          semian_config[sample_env]["http_default"]
+          [semian_identifier, semian_config[sample_env]["nethttp_default"]]
         else
-          semian_config[sample_env][semian_identifier]
+          [semian_identifier, semian_config[sample_env][semian_identifier]]
         end
       end
 
       with_semian_options(semian_options_proc) do
         Net::HTTP.start(HOSTNAME, PORT) do |http|
-          assert_equal semian_config["development"]["http_default"], http.raw_semian_options
-          assert_equal semian_config["development"]["http_default"],
-                       Semian::NetHTTP.retrieve_semian_options_by_identifier(http.semian_identifier)
+          assert_equal semian_config["development"]["nethttp_default"], http.raw_semian_options
         end
       end
     end
@@ -213,10 +213,35 @@ class TestNetHTTP < MiniTest::Unit::TestCase
 
   def test_custom_raw_semian_options_can_disable_using_nil
     with_server do
-      semian_options_proc = proc { nil }
+      semian_options_proc = proc { |host, port| ["nethttp_#{host}_#{port}", nil] }
       with_semian_options(semian_options_proc) do
         http = Net::HTTP.new(HOSTNAME, TOXIC_PORT)
         assert_equal false, http.enabled?
+      end
+    end
+  end
+
+  def test_use_custom_configuration_to_combine_endpoints_into_one_resource
+    semian_config = {}
+    semian_config["development"] = {}
+    semian_config["development"]["nethttp_default"] = DEFAULT_SEMIAN_OPTIONS
+    sample_env = "development"
+
+    semian_options_proc = proc do
+      semian_identifier = "nethttp_default"
+      [semian_identifier, semian_config[sample_env][semian_identifier]]
+    end
+
+    with_semian_options(semian_options_proc) do
+      Semian["nethttp_default"].reset if Semian["nethttp_default"]
+      Semian.destroy("nethttp_default")
+      with_server do
+        open_circuit!
+      end
+      with_server(addresses: ["#{HOSTNAME}:#{PORT}", "#{HOSTNAME}:#{PORT + 100}"], reset_semian_state: false) do
+        assert_raises Net::CircuitOpenError do
+          Net::HTTP.get(URI("http://#{HOSTNAME}:#{TOXIC_PORT}/200"))
+        end
       end
     end
   end
@@ -225,15 +250,12 @@ class TestNetHTTP < MiniTest::Unit::TestCase
     with_server do
       semian_config = {}
       semian_config["development"] = {}
-      semian_config["development"]["http_#{HOSTNAME.tr('.', '_')}_#{TOXIC_PORT}"] =
-        {"tickets" => 1,
-         "success_threshold" => 1,
-         "error_threshold" => 3,
-         "error_timeout" => 10}
+      semian_config["development"]["nethttp_#{HOSTNAME}_#{TOXIC_PORT}"] = DEFAULT_SEMIAN_OPTIONS
       sample_env = "development"
 
-      semian_options_proc = proc do |semian_identifier|
-        semian_config[sample_env][semian_identifier]
+      semian_options_proc = proc do |host, port|
+        semian_identifier = "nethttp_#{host}_#{port}"
+        [semian_identifier, semian_config[sample_env][semian_identifier]]
       end
       with_semian_options(semian_options_proc) do
         http = Net::HTTP.new(HOSTNAME, TOXIC_PORT)
@@ -317,12 +339,12 @@ class TestNetHTTP < MiniTest::Unit::TestCase
 
   private
 
-  def with_semian_options(options = DEFAULT_SEMIAN_OPTIONS)
-    orig_semian_options = Semian::NetHTTP.raw_semian_options
-    Semian::NetHTTP.raw_semian_options = options
+  def with_semian_options(options = DEFAULT_SEMIAN_CONFIGURATION)
+    orig_semian_options = Semian::NetHTTP.semian_configuration
+    Semian::NetHTTP.semian_configuration = options
     yield
   ensure
-    Semian::NetHTTP.raw_semian_options = orig_semian_options
+    Semian::NetHTTP.semian_configuration = orig_semian_options
   end
 
   def with_custom_errors(errors)
@@ -400,15 +422,15 @@ class TestNetHTTP < MiniTest::Unit::TestCase
   end
 
   def reset_semian_resource(hostname:, port:)
-    Semian["http_#{hostname.tr('.', '_')}_#{port}"].reset if Semian["http_#{hostname.tr('.', '_')}_#{port}"]
-    Semian["http_#{hostname.tr('.', '_')}_#{port.to_i + 1}"].reset if Semian["http_#{hostname.tr('.', '_')}_#{port.to_i + 1}"]
-    Semian.destroy("http_#{hostname.tr('.', '_')}_#{port}")
-    Semian.destroy("http_#{hostname.tr('.', '_')}_#{port.to_i + 1}")
+    Semian["nethttp_#{hostname}_#{port}"].reset if Semian["nethttp_#{hostname}_#{port}"]
+    Semian["nethttp_#{hostname}_#{port.to_i + 1}"].reset if Semian["nethttp_#{hostname}_#{port.to_i + 1}"]
+    Semian.destroy("nethttp_#{hostname}_#{port}")
+    Semian.destroy("nethttp_#{hostname}_#{port.to_i + 1}")
   end
 
   def with_toxic(hostname: HOSTNAME, upstream_port: PORT, toxic_port: upstream_port + 1)
     old_proxy = @proxy
-    name = "semian_test_net_http_#{hostname.tr('.', '_')}_#{upstream_port}<-#{toxic_port}"
+    name = "semian_test_net_http_#{hostname}_#{upstream_port}<-#{toxic_port}"
     Toxiproxy.populate([
       {
         name: name,
