@@ -5,7 +5,7 @@ module Semian
     end
 
     def semian_resource
-      @semian_options ||= case semian_options
+      @semian_resource ||= case semian_options
       when false
         UnprotectedResource.new(semian_identifier)
       when nil
