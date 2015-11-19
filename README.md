@@ -133,31 +133,41 @@ HTTP connections on the user's behalf, the parameters are instead provided
 by calling specific functions in `Semian::NetHTTP`, perhaps in an initialization file.
 
 To give Semian parameters, assign a `proc` to `Semian::NetHTTP.semian_configuration`
-that takes two parameters, `host` and `port like `127.0.0.1` and `80` or `github_com` and `80`,
-and returns two values, a `semian_identifier` and a `Hash` with the keys as follows.
+that takes a two parameters, `host` and `port` like `127.0.0.1` and `80` or `github_com` and `80`,
+and returns a `Hash` with keys as follows.
 
 ```ruby
-SEMIAN_OPTIONS = { tickets: 1,
-                   success_threshold: 1,
-                   error_threshold: 3,
-                   error_timeout: 10 }
-Semian::NetHTTP.semian_configuration = proc do |host, port|
-  semian_identifier = "nethttp_#{host}_#{port}"
+SEMIAN_PARAMETERS = { tickets: 1,
+                      success_threshold: 1,
+                      error_threshold: 3,
+                      error_timeout: 10 }
+Semian::NetHTTP.raw_semian_options = proc do |host, port|
   # Let's make it only active for github.com
-  if semian_identifier == "nethttp_github.com_80"
-    [semian_identifier, SEMIAN_OPTIONS]
+  if host == "github.com" && port == "80"
+    SEMIAN_PARAMETERS.dup.tap do |options|
+      options[:name] = nethttp_github.com_80
+    end
   else
-    [semian_identifier, nil]
+    nil
   end
 end
 
 # Called from within API:
-# semian_identifier, semian_options = Semian::NetHTTP.semian_configuration("github.com", 80)
+# configuration = Semian::NetHTTP.semian_configuration("github.com", 80)
+# semian_identifier = configuration[:name]
+# semian_options = configuration.delete(:name) || configuration
 ```
 
-The `semian_identifier` used as the name of the resource, and the `semian_options` are the
-configuration parameters. A return value of `nil` means Semian is disabled for that
-`Net::HTTP` endpoint. This works well since the result of a failed Hash lookup is `nil` also.
+It is important to carefully choose the `name` provided, since it is used to identify,
+track, and fail quickly, if necessary, the resource it protects. The `name` specifies
+the `semian_identifier` of the resource for which the given `semian_options` apply.
+For most purposes, `"nethttp_#{host}_#{port}"` is a good default identifier.
+This can become useful when grouping related subdomains as one resource,
+so that they all contribute to the same circuit breaker and bulkhead state
+and fail quickly together.
+
+A return value of `nil` means Semian is disabled for that `Net::HTTP` endpoint.
+This works well since the result of a failed Hash lookup is `nil` also.
 As such, this particular adapter defaults to whitelisting, although the
 behavior can be changed to blacklisting or even be completely disabled by varying
 the use of returning `nil`.

@@ -23,8 +23,7 @@ module Semian
     CircuitOpenError = ::Net::CircuitOpenError
 
     def semian_identifier
-      @configuration ||= Semian::NetHTTP.retrieve_semian_configuration_by_host_port(address, port)
-      @configuration[0]
+      @identifier ||= Semian::NetHTTP.retrieve_semian_configuration_by_host_port(address, port)[:name]
     end
 
     DEFAULT_ERRORS = [
@@ -44,11 +43,10 @@ module Semian
       attr_accessor :exceptions
 
       def retrieve_semian_configuration_by_host_port(host, port)
-        if @semian_configuration.respond_to?(:call)
-          @semian_configuration.call(host, port) || ["nethttp_#{host}_#{port}", nil]
-        else
-          ["nethttp_#{host}_#{port}", nil] # adapter is disabled by default
-        end
+        proc_result = @semian_configuration.call(host, port) if @semian_configuration.respond_to?(:call)
+        proc_result ||= {}
+        proc_result[:name] ||= "nethttp_#{host}_#{port}"
+        proc_result
       end
 
       def reset_exceptions
@@ -63,8 +61,7 @@ module Semian
     Semian::NetHTTP.reset_exceptions
 
     def raw_semian_options
-      @configuration ||= Semian::NetHTTP.retrieve_semian_configuration_by_host_port(address, port)
-      @configuration[1]
+      @options ||= Semian::NetHTTP.retrieve_semian_configuration_by_host_port(address, port).dup.tap { |o| o.delete(:name) }
     end
 
     def resource_exceptions
@@ -72,7 +69,7 @@ module Semian
     end
 
     def enabled?
-      !raw_semian_options.nil?
+      !raw_semian_options.empty?
     end
 
     def connect

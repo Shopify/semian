@@ -21,7 +21,7 @@ class TestNetHTTP < MiniTest::Unit::TestCase
     error_timeout: 10,
   }
   DEFAULT_SEMIAN_CONFIGURATION = proc do |host, port|
-    ["nethttp_#{host}_#{port}", DEFAULT_SEMIAN_OPTIONS]
+    DEFAULT_SEMIAN_OPTIONS.dup.tap { |o| o[:name] = "nethttp_#{host}_#{port}" }
   end
 
   def test_with_server_raises_if_binding_fails
@@ -36,11 +36,13 @@ class TestNetHTTP < MiniTest::Unit::TestCase
 
   def test_semian_identifier
     with_server do
-      Net::HTTP.start(HOSTNAME, TOXIC_PORT) do |http|
-        assert_equal "nethttp_#{HOSTNAME}_#{TOXIC_PORT}", http.semian_identifier
-      end
-      Net::HTTP.start("127.0.0.1", TOXIC_PORT) do |http|
-        assert_equal "nethttp_127.0.0.1_#{TOXIC_PORT}", http.semian_identifier
+      with_semian_options do
+        Net::HTTP.start(HOSTNAME, TOXIC_PORT) do |http|
+          assert_equal "nethttp_#{HOSTNAME}_#{TOXIC_PORT}", http.semian_identifier
+        end
+        Net::HTTP.start("127.0.0.1", TOXIC_PORT) do |http|
+          assert_equal "nethttp_127.0.0.1_#{TOXIC_PORT}", http.semian_identifier
+        end
       end
     end
   end
@@ -68,12 +70,13 @@ class TestNetHTTP < MiniTest::Unit::TestCase
 
   def test_bulkheads_tickets_are_working
     options = proc do |host, port|
-      ["nethttp_#{host}_#{port}", {
+      {
         tickets: 2,
         success_threshold: 1,
         error_threshold: 3,
         error_timeout: 10,
-      }]
+        name: "nethttp_#{host}_#{port}",
+      }
     end
     with_semian_options(options) do
       with_server do
@@ -176,7 +179,7 @@ class TestNetHTTP < MiniTest::Unit::TestCase
 
       semian_options_proc = proc do |host, port|
         semian_identifier = "nethttp_#{host}_#{port}"
-        [semian_identifier, semian_config[sample_env][semian_identifier]]
+        semian_config[sample_env][semian_identifier].dup.tap { |o| o[:name] = semian_identifier }
       end
 
       with_semian_options(semian_options_proc) do
@@ -197,9 +200,9 @@ class TestNetHTTP < MiniTest::Unit::TestCase
       semian_options_proc = proc do |host, port|
         semian_identifier = "nethttp_#{host}_#{port}"
         if !semian_config[sample_env].key?(semian_identifier)
-          [semian_identifier, semian_config[sample_env]["nethttp_default"]]
+          semian_config[sample_env]["nethttp_default"].dup.tap { |o| o[:name] = semian_identifier }
         else
-          [semian_identifier, semian_config[sample_env][semian_identifier]]
+          semian_config[sample_env][semian_identifier].dup.tap { |o| o[:name] = semian_identifier }
         end
       end
 
@@ -213,7 +216,7 @@ class TestNetHTTP < MiniTest::Unit::TestCase
 
   def test_custom_raw_semian_options_can_disable_using_nil
     with_server do
-      semian_options_proc = proc { |host, port| ["nethttp_#{host}_#{port}", nil] }
+      semian_options_proc = proc { nil }
       with_semian_options(semian_options_proc) do
         http = Net::HTTP.new(HOSTNAME, TOXIC_PORT)
         assert_equal false, http.enabled?
@@ -229,7 +232,7 @@ class TestNetHTTP < MiniTest::Unit::TestCase
 
     semian_options_proc = proc do
       semian_identifier = "nethttp_default"
-      [semian_identifier, semian_config[sample_env][semian_identifier]]
+      semian_config[sample_env][semian_identifier].dup.tap { |o| o[:name] = semian_identifier }
     end
 
     with_semian_options(semian_options_proc) do
@@ -255,7 +258,7 @@ class TestNetHTTP < MiniTest::Unit::TestCase
 
       semian_options_proc = proc do |host, port|
         semian_identifier = "nethttp_#{host}_#{port}"
-        [semian_identifier, semian_config[sample_env][semian_identifier]]
+        semian_config[sample_env][semian_identifier]
       end
       with_semian_options(semian_options_proc) do
         http = Net::HTTP.new(HOSTNAME, TOXIC_PORT)
