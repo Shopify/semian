@@ -4,21 +4,19 @@ typedef struct {
   int value;
 } semian_int;
 
-static void semian_integer_initialize_memory (size_t byte_size, void *dest, void *prev_data, size_t prev_data_byte_size, int prev_mem_attach_count);
+static void semian_integer_initialize_memory (size_t byte_size, void *dest, void *prev_data, size_t prev_data_byte_size);
 static VALUE semian_integer_bind_initialize_memory_callback(VALUE self);
 static VALUE semian_integer_get_value(VALUE self);
 static VALUE semian_integer_set_value(VALUE self, VALUE num);
 static VALUE semian_integer_increment(int argc, VALUE *argv, VALUE self);
 
 static void
-semian_integer_initialize_memory (size_t byte_size, void *dest, void *prev_data, size_t prev_data_byte_size, int prev_mem_attach_count)
+semian_integer_initialize_memory (size_t byte_size, void *dest, void *prev_data, size_t prev_data_byte_size)
 {
   semian_int *ptr = dest;
   semian_int *old = prev_data;
-  if (prev_mem_attach_count){
-    if (prev_data){
-      ptr->value = old->value;
-    } // else copy nothing, data is same size and no need to copy
+  if (prev_data){
+    ptr->value = old->value;
   } else {
     ptr->value=0;
   }

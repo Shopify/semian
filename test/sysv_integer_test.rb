@@ -28,19 +28,21 @@ class TestSysVInteger < MiniTest::Unit::TestCase
     @integer.value = 109
     integer_2 = CLASS.new(name: 'TestSysVInteger', permissions: 0660)
     assert_equal @integer.value, integer_2.value
+
+    reader, writer = IO.pipe
     pid = fork do
+      reader.close
       integer_3 = CLASS.new(name: 'TestSysVInteger', permissions: 0660)
       assert_equal 109, integer_3.value
+      integer_3.value = 110
+      writer.puts "Done"
+      writer.close
       sleep
     end
-    sleep 1
-    Process.kill("KILL", pid)
-    Process.waitall
-    fork do
-      integer_3 = CLASS.new(name: 'TestSysVInteger', permissions: 0660)
-      assert_equal 109, integer_3.value
-    end
-    Process.waitall
+
+    reader.gets
+    Process.kill(9, pid)
+    assert_equal 110, integer_2.value
   end
 
   def test_memory_reset_when_no_workers_using_it

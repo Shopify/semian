@@ -8,7 +8,7 @@ typedef struct {
   int permissions;
   int semid;
   int shmid;
-  void (*initialize_memory)(size_t byte_size, void *dest, void *prev_data, size_t prev_data_byte_size, int prev_mem_attach_count);
+  void (*initialize_memory)(size_t byte_size, void *dest, void *prev_data, size_t prev_data_byte_size);
   void *shm_address;
 } semian_shm_object;
 
@@ -27,7 +27,7 @@ VALUE semian_shm_object_destroy(VALUE self);
 VALUE semian_shm_object_acquire_semaphore (VALUE self);
 VALUE semian_shm_object_delete_semaphore(VALUE self);
 VALUE semian_shm_object_cleanup_memory (VALUE self);
-VALUE semian_shm_object_check_and_resize_if_needed (VALUE self);
+VALUE semian_shm_object_synchronize_memory_and_size (VALUE self, VALUE is_master);
 
 VALUE semian_shm_object_synchronize(VALUE self);
 void define_method_with_synchronize(VALUE klass, const char *name, VALUE (*func)(ANYARGS), int argc);

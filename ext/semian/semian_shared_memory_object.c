@@ -255,7 +255,7 @@ typedef struct { // Workaround rb_ensure only allows one argument for each callb
 static VALUE
 semian_shm_object_synchronize_with_block(VALUE self)
 {
-  semian_shm_object_check_and_resize_if_needed(self);
+  semian_shm_object_synchronize_memory_and_size(self, Qfalse);
   if (!rb_block_given_p())
     return Qnil;
   return rb_yield(Qnil);
@@ -265,10 +265,17 @@ static VALUE
 semian_shm_object_synchronize_restore_lock_status(VALUE v_status)
 {
   lock_status *status = (lock_status *) v_status;
-  while (status->ptr->lock_count > status->pre_block_lock_count_state)
+  int tries = 0;
+  int allowed_tries = 5;
+  while (++tries < allowed_tries && status->ptr->lock_count > status->pre_block_lock_count_state)
     return (VALUE) WITHOUT_GVL(semian_shm_object_unlock_without_gvl, (void *)(status->ptr), RUBY_UBF_IO, NULL);
-  while (status->ptr->lock_count < status->pre_block_lock_count_state)
+  if (tries >= allowed_tries)
+    rb_raise(eSyscall, "Failed to restore lock status after %d tries", allowed_tries);
+  tries = 0;
+  while (++tries < allowed_tries && status->ptr->lock_count < status->pre_block_lock_count_state)
     return (VALUE) WITHOUT_GVL(semian_shm_object_lock_without_gvl, (void *)(status->ptr), RUBY_UBF_IO, NULL);
+  if (tries >= allowed_tries)
+    rb_raise(eSyscall, "Failed to restore lock status after %d tries", allowed_tries);
   return Qnil;
 }
 
@@ -293,194 +300,81 @@ define_method_with_synchronize(VALUE klass, const char *name, VALUE (*func)(ANYA
  * Memory functions
  */
 
-static int
-create_and_resize_memory(key_t key, int should_keep_req_byte_size_bool,
-  void **data_copy, size_t *data_copy_byte_size, int *prev_mem_attach_count, VALUE self) {
-
-  // Below will handle acquiring/creating new memory, and possibly resizing the
-  //   memory or the ptr->byte_size depending on
-  //   should_keep_req_byte_size_bool
-
-  semian_shm_object *ptr;
-  TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
-
-  int shmid=-1;
-  int failed=0;
-
-  int requested_byte_size = ptr->byte_size;
-  long permissions = ptr->permissions;
-  int flags = IPC_CREAT | IPC_EXCL | permissions;
-
-  int actual_byte_size = 0;
-
-  // We fill both actual_byte_size and requested_byte_size
-  // Logic matrix:
-  //                                         actual=>req   | actual=req |   actual<req
-  //                                    -----------------------------------------
-  //  should_keep_req_byte_size_bool | no err, shrink mem  |   no err   | error, expand mem
-  // !should_keep_req_byte_size_bool | no err, ++ max size |   no err   | error, -- max size
-
-  if (-1 == (shmid = shmget( key, requested_byte_size, flags))) {
-    if (errno == EEXIST) {
-      if (-1 != (shmid = shmget(key, requested_byte_size, flags & ~IPC_EXCL))) {
-        struct shmid_ds shm_info;
-        if (-1 != shmctl(shmid, IPC_STAT, &shm_info)){
-          actual_byte_size = shm_info.shm_segsz;
-          *prev_mem_attach_count = shm_info.shm_nattch;
-        } else
-          failed = -1;
-      } else {
-        failed = -2;
-      }
-    }
-    // Else, this could be any number of errors
-    // 1. segment with key exists but requested size  > current mem size
-    // 2. segment was requested to be created, but (size > SHMMAX || size < SHMMIN)
-    // 3. Other error
-
-    // We can only see SHMMAX and SHMMIN through console commands
-    // Unlikely for 2 to occur, so we check by requesting a memory of size 1 byte
-    if (-1 != (shmid = shmget(key, 1, flags & ~IPC_EXCL))) {
-      struct shmid_ds shm_info;
-      if (-1 != shmctl(shmid, IPC_STAT, &shm_info)){
-        actual_byte_size = shm_info.shm_segsz;
-        *prev_mem_attach_count = shm_info.shm_nattch;
-        failed = 0;
-      } else
-        failed=-3;
-    } else { // Error, exit
-      failed=-4;
-    }
-  } else {
-    actual_byte_size = requested_byte_size;
-  }
-
-  *data_copy_byte_size = actual_byte_size;
-  if (should_keep_req_byte_size_bool && !failed) { // resizing may occur
-    // we want to keep this worker's data
-    // We flag old mem by IPC_RMID and copy data
-
-    if (actual_byte_size != requested_byte_size) {
-      void *data;
-
-      if ((void *)-1 != (data = shmat(shmid, (void *)0, 0))) {
-
-        char copy_data[actual_byte_size];
-        memcpy(&copy_data, data, actual_byte_size);
-        ptr->shmid=shmid;
-        ptr->shm_address = data;
-        semian_shm_object_cleanup_memory(self);
-
-        *data_copy = malloc(actual_byte_size);
-        memcpy(*data_copy, &copy_data, actual_byte_size);
-
-        // Flagging for deletion sets a shm's associated key to be 0 so shmget gets a different shmid.
-        // If this worker is creating the new memory
-        if (-1 != (shmid = shmget(key, requested_byte_size, flags))) {
-        } else { // failed to get new memory, exit
-          failed=-5;
-        }
-      } else { // failed to attach, exit
-        rb_raise(eInternal,"Failed to copy old data, key %d, shmid %d, errno %d (%s)",key, shmid, errno, strerror(errno));
-        failed=-6;
-      }
-    } else{
-      failed = -7;
-    }
-  } else if (!failed){ // ptr->byte_size may be changed
-    // we don't want to keep this worker's data, it is old
-    ptr->byte_size = actual_byte_size;
-  } else
-    failed=-8;
-  if (-1 != shmid) {
-    return shmid;
-  } else {
-    return failed;
-  }
-}
-
-/*
-  Acquire memory by getting shmid, and then attaching it to a memory location,
-    requires semaphore for locking/unlocking to be setup
-
-  Note: should_keep_req_byte_size is a bool that decides how ptr->byte_size
-        is handled. There may be a discrepancy between the requested memory size and the actual
-        size of the memory block given. If it is false (0), ptr->byte_size will be modified
-        to the actual memory size if there is a difference. This matters when dynamicaly resizing
-        memory.
-        Think of should_keep_req_byte_size as this worker requesting a size, others resizing,
-        and !should_keep_req_byte_size as another worker requesting a size and this worker
-        resizing
-*/
 VALUE
-semian_shm_object_acquire_memory(VALUE self, VALUE should_keep_req_byte_size)
-{
+semian_shm_object_synchronize_memory_and_size(VALUE self, VALUE is_master_obj) {
   semian_shm_object *ptr;
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
 
-  int should_keep_req_byte_size_bool = RTEST(should_keep_req_byte_size);
-
+  struct shmid_ds shm_info = { };
+  const int SHMMIN = 1;
   key_t key = ptr->key;
-  void *data_copy = NULL; // Will contain contents of old memory, if any
-  size_t data_copy_byte_size = 0;
-  int prev_mem_attach_count = 0;
 
-  // Create/acquire memory and manage all resizing cases
-  int shmid = create_and_resize_memory(key, should_keep_req_byte_size_bool, &data_copy,
-                                       &data_copy_byte_size, &prev_mem_attach_count, self);
-  if (shmid < 0) {// failed
-    if (data_copy)
-      free(data_copy);
-    rb_raise(eSyscall, "shmget() failed at %d to acquire a memory shmid with key %d, size %zu, errno %d (%s)", shmid, key, ptr->byte_size, errno, strerror(errno));
-  } else
-    ptr->shmid = shmid;
+  int is_master = RTEST(is_master_obj);
+  is_master |= (-1 == ptr->shmid) && (0 == ptr->shm_address);
 
-  // Attach memory and call initialize_memory()
-  if (0 == ptr->shm_address) {
-    ptr->shm_address = shmat(ptr->shmid, (void *)0, 0);
-    if (((void*)-1) == ptr->shm_address) {
-      ptr->shm_address = 0;
-      if (data_copy)
-        free(data_copy);
-      rb_raise(eSyscall, "shmat() failed to attach memory with shmid %d, size %zu, errno %d (%s)", ptr->shmid, ptr->byte_size, errno, strerror(errno));
-    } else {
-      ptr->initialize_memory(ptr->byte_size, ptr->shm_address, data_copy, data_copy_byte_size, prev_mem_attach_count);
+  int shmid_out_of_sync = 0;
+  shmid_out_of_sync |= (-1 == ptr->shmid) && (0 == ptr->shm_address); // If not attached at all
+  if ((-1 != ptr->shmid) && (-1 != shmctl(ptr->shmid, IPC_STAT, &shm_info))) {
+    // If current attached memory is marked for deletion
+    shmid_out_of_sync |= shm_info.shm_perm.mode & SHM_DEST &&
+                         ptr->shmid != shmget(key, SHMMIN, IPC_CREAT | ptr->permissions);
+  }
+
+  size_t requested_byte_size = ptr->byte_size;
+  int first_sync = (-1 == ptr->shmid) && (shmid_out_of_sync);
+
+  if (shmid_out_of_sync) {
+    semian_shm_object_cleanup_memory(self);
+    if ((-1 == (ptr->shmid = shmget(key, SHMMIN, ptr->permissions)))) {
+      if ((-1 == (ptr->shmid = shmget(key, ptr->byte_size, IPC_CREAT | IPC_EXCL | ptr->permissions)))) {
+        rb_raise(eSyscall, "shmget failed to create or attach current memory with key %d shmid %d errno %d (%s)", key, ptr->shmid, errno, strerror(errno));
+      }
+    }
+    if ((void *)-1 == (ptr->shm_address = shmat(ptr->shmid, NULL, 0))) {
+      ptr->shm_address = NULL;
+      rb_raise(eSyscall, "shmat failed to mount current memory with key %d shmid %d errno %d (%s)", key, ptr->shmid, errno, strerror(errno));
     }
   }
-  if (data_copy)
-    free(data_copy);
+
+  if (-1 == shmctl(ptr->shmid, IPC_STAT, &shm_info)){
+    rb_raise(eSyscall, "shmctl failed to inspect current memory with key %d shmid %d errno %d (%s)", key, ptr->shmid, errno, strerror(errno));
+  }
+  ptr->byte_size = shm_info.shm_segsz;
+
+  int old_mem_attach_count = shm_info.shm_nattch;
+
+  if (is_master) {
+    if (ptr->byte_size == requested_byte_size && first_sync && 1 == old_mem_attach_count) {
+      ptr->initialize_memory(ptr->byte_size, ptr->shm_address, NULL, 0);
+    } else {
+      void *old_shm_address = ptr->shm_address;
+      size_t old_byte_size = ptr->byte_size;
+      void *old_memory_content = NULL;
+
+      char old_memory_content_tmp[old_byte_size];
+      memcpy(old_memory_content_tmp, old_shm_address, old_byte_size);
+      semian_shm_object_cleanup_memory(self);
+      old_memory_content = malloc(old_byte_size);
+      memcpy(old_memory_content, old_memory_content_tmp, old_byte_size);
+
+      if (-1 == (ptr->shmid = shmget(key, requested_byte_size, IPC_CREAT | IPC_EXCL | ptr->permissions))) {
+        rb_raise(eSyscall, "shmget failed to create new resized memory with key %d shmid %d errno %d (%s)", key, ptr->shmid, errno, strerror(errno));
+      }
+      if ((void *)-1 == (ptr->shm_address = shmat(ptr->shmid, NULL, 0))) {
+        rb_raise(eSyscall, "shmat failed to mount new resized memory with key %d shmid %d errno %d (%s)", key, ptr->shmid, errno, strerror(errno));
+      }
+      ptr->byte_size = requested_byte_size;
+
+      ptr->initialize_memory(ptr->byte_size, ptr->shm_address, old_memory_content, old_byte_size);
+      free(old_memory_content);
+    }
+  }
   return self;
 }
 
-VALUE
-semian_shm_object_check_and_resize_if_needed(VALUE self) {
-  semian_shm_object *ptr;
-  TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
-
-  struct shmid_ds shm_info;
-  int needs_resize = 0;
-  if (-1 != ptr->shmid && -1 != shmctl(ptr->shmid, IPC_STAT, &shm_info)) {
-    needs_resize = shm_info.shm_perm.mode & SHM_DEST;
-  }
-  VALUE priority = Qfalse;
-  if (-1 == ptr->shmid && 0 == ptr->shm_address){
-    needs_resize = 1;
-    priority = Qtrue;
-  }
-  if (needs_resize) {
-    semian_shm_object_cleanup_memory(self);
-    semian_shm_object_acquire_memory(self, priority);
-  }
-  return self;
-}
-
-VALUE
+static VALUE
 semian_shm_object_cleanup_memory_inner(VALUE self)
 {
-  // This internal function may be called from a variety of contexts
-  // Sometimes it is under a semaphore lock, sometimes it has extra malloc ptrs
-  // Arguments handle these conditions
-
   semian_shm_object *ptr;
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
 
@@ -542,11 +436,11 @@ Init_semian_shm_object (void) {
 
   rb_define_method(cSysVSharedMemory, "_acquire", semian_shm_object_acquire, 3);
   rb_define_method(cSysVSharedMemory, "_destroy", semian_shm_object_destroy, 0);
-  rb_define_method(cSysVSharedMemory, "byte_size", semian_shm_object_byte_size, 0);
+  rb_define_method(cSysVSharedMemory, "_synchronize", semian_shm_object_synchronize, 0);
 
   rb_define_method(cSysVSharedMemory, "semid", semian_shm_object_semid, 0);
   rb_define_method(cSysVSharedMemory, "shmid", semian_shm_object_shmid, 0);
-  rb_define_method(cSysVSharedMemory, "_synchronize", semian_shm_object_synchronize, 0);
+  rb_define_method(cSysVSharedMemory, "byte_size", semian_shm_object_byte_size, 0);
 
   rb_define_singleton_method(cSysVSharedMemory, "_sizeof", semian_shm_object_sizeof, 1);
   rb_define_singleton_method(cSysVSharedMemory, "replace_alloc", semian_shm_object_replace_alloc, 1);

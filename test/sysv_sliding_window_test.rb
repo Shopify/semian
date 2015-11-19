@@ -22,16 +22,21 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
       assert_equal 100, @sliding_window.first
     end
 
+    reader, writer = IO.pipe
     pid = fork do
+      reader.close
       sliding_window_2 = CLASS.new(max_size: 6,
                                    name: 'TestSysVSlidingWindow',
                                    permissions: 0660)
-      sliding_window_2.synchronize { sleep }
+      sliding_window_2.synchronize do
+        writer.puts "Done"
+        writer.close
+        sleep
+      end
     end
 
-    sleep 1
-    Process.kill('KILL', pid)
-    Process.waitall
+    reader.gets
+    Process.kill(9, pid)
 
     Timeout.timeout(1) do # assure dont hang
       @sliding_window << 100

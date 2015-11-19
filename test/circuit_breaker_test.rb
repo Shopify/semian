@@ -124,24 +124,23 @@ class TestCircuitBreaker < MiniTest::Unit::TestCase
     rescue
       nil
     end
-    Semian.register(:unique_res, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5, success_threshold: 1)
-    @resource = Semian[:unique_res]
 
+    reader, writer = IO.pipe
     pid = fork do
+      reader.close
       Semian.register(:unique_res, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5, success_threshold: 1)
       resource_inner = Semian[:unique_res]
+      resource_inner.reset
       open_circuit! resource_inner
+      writer.puts "Done"
+      writer.close
       sleep
     end
-    sleep 1
-    Process.kill('KILL', pid)
-    Process.waitall
-    fork do
-      Semian.register(:unique_res, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5, success_threshold: 1)
-      assert_circuit_opened Semian[:unique_res]
-    end
 
-    Process.waitall
+    reader.gets
+    Semian.register(:unique_res, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5, success_threshold: 1)
+    Process.kill(9, pid)
+    assert_circuit_opened Semian[:unique_res]
   end
 
   private

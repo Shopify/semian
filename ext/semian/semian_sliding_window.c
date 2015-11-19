@@ -6,7 +6,7 @@ typedef struct {
   long window[];
 } semian_sliding_window;
 
-static void semian_sliding_window_initialize_memory (size_t byte_size, void *dest, void *prev_data, size_t prev_data_byte_size, int prev_mem_attach_count);
+static void semian_sliding_window_initialize_memory (size_t byte_size, void *dest, void *prev_data, size_t prev_data_byte_size);
 static VALUE semian_sliding_window_bind_initialize_memory_callback(VALUE self);
 static VALUE semian_sliding_window_size(VALUE self);
 static VALUE semian_sliding_window_max_size(VALUE self);
@@ -20,30 +20,28 @@ static VALUE semian_sliding_window_last(VALUE self);
 static VALUE semian_sliding_window_resize_to(VALUE self, VALUE size);
 
 static void
-semian_sliding_window_initialize_memory (size_t byte_size, void *dest, void *prev_data, size_t prev_data_byte_size, int prev_mem_attach_count)
+semian_sliding_window_initialize_memory (size_t byte_size, void *dest, void *prev_data, size_t prev_data_byte_size)
 {
   semian_sliding_window *ptr = dest;
   semian_sliding_window *old = prev_data;
 
   // Logic to initialize: initialize to 0 only if you're the first to attach (else body)
   // Otherwise, copy previous data into new data
-  if (prev_mem_attach_count) {
-    if (prev_data) {
-      // transfer data over
-      ptr->max_window_size = (byte_size-2*sizeof(int))/sizeof(long);
-      ptr->window_size = fmin(ptr->max_window_size, old->window_size);
+  if (prev_data) {
+    // transfer data over
+    ptr->max_window_size = (byte_size - 2 * sizeof(int)) / sizeof(long);
+    ptr->window_size = fmin(ptr->max_window_size, old->window_size);
 
-      // Copy the most recent ptr->shm_address->window_size numbers to new memory
-      memcpy(&(ptr->window),
-            ((long *)(&(old->window[0])))+old->window_size-ptr->window_size,
-            ptr->window_size * sizeof(long));
-    } // else copy nothing, data is same size and no need to copy
+    // Copy the most recent ptr->shm_address->window_size numbers to new memory
+    memcpy(&(ptr->window),
+          ((long *)(&(old->window[0]))) + old->window_size - ptr->window_size,
+          ptr->window_size * sizeof(long));
   } else {
     semian_sliding_window *data = dest;
-    data->max_window_size = (byte_size-2*sizeof(int))/sizeof(long);
+    data->max_window_size = (byte_size - 2 * sizeof(int)) / sizeof(long);
     data->window_size = 0;
-    for (int i=0; i< data->window_size; ++i)
-      data->window[i]=0;
+    for (int i = 0; i < data->window_size; ++i)
+      data->window[i] = 0;
   }
 }
 
@@ -90,8 +88,8 @@ semian_sliding_window_push_back(VALUE self, VALUE num)
 
   semian_sliding_window *data = ptr->shm_address;
   if (data->window_size == data->max_window_size) {
-    for (int i=1; i< data->max_window_size; ++i){
-      data->window[i-1] = data->window[i];
+    for (int i = 1; i < data->max_window_size; ++i){
+      data->window[i - 1] = data->window[i];
     }
     --(data->window_size);
   }
@@ -113,7 +111,7 @@ semian_sliding_window_pop_back(VALUE self)
   if (0 == data->window_size)
     retval = Qnil;
   else {
-    retval = LONG2NUM(data->window[data->window_size-1]);
+    retval = LONG2NUM(data->window[data->window_size - 1]);
     --(data->window_size);
   }
   return retval;
@@ -132,13 +130,12 @@ semian_sliding_window_push_front(VALUE self, VALUE num)
   long val = NUM2LONG(num);
   semian_sliding_window *data = ptr->shm_address;
 
-  int i=data->window_size;
-  for (; i>0; --i)
-    data->window[i]=data->window[i-1];
+  for (int i=data->window_size; i > 0; --i)
+    data->window[i] = data->window[i - 1];
 
   data->window[0] = val;
   ++(data->window_size);
-  if (data->window_size>data->max_window_size)
+  if (data->window_size > data->max_window_size)
     data->window_size=data->max_window_size;
 
   return self;
@@ -158,8 +155,8 @@ semian_sliding_window_pop_front(VALUE self)
     retval = Qnil;
   else {
     retval = LONG2NUM(data->window[0]);
-    for (int i=0; i<data->window_size-1; ++i)
-      data->window[i]=data->window[i+1];
+    for (int i = 0; i < data->window_size - 1; ++i)
+      data->window[i] = data->window[i + 1];
     --(data->window_size);
   }
 
@@ -174,7 +171,7 @@ semian_sliding_window_clear(VALUE self)
   if (0 == ptr->shm_address)
     return Qnil;
   semian_sliding_window *data = ptr->shm_address;
-  data->window_size=0;
+  data->window_size = 0;
 
   return self;
 }
@@ -189,7 +186,7 @@ semian_sliding_window_first(VALUE self)
 
   VALUE retval;
   semian_sliding_window *data = ptr->shm_address;
-  if (data->window_size >=1)
+  if (data->window_size >= 1)
     retval = LONG2NUM(data->window[0]);
   else
     retval = Qnil;
@@ -208,7 +205,7 @@ semian_sliding_window_last(VALUE self)
   VALUE retval;
   semian_sliding_window *data = ptr->shm_address;
   if (data->window_size > 0)
-    retval = LONG2NUM(data->window[data->window_size-1]);
+    retval = LONG2NUM(data->window[data->window_size - 1]);
   else
     retval = Qnil;
 
@@ -225,27 +222,8 @@ semian_sliding_window_resize_to(VALUE self, VALUE size) {
   if (NUM2INT(size) <= 0)
     rb_raise(rb_eArgError, "size must be larger than 0");
 
-  semian_sliding_window *data_copy = NULL;
-  size_t byte_size=0;
-  int prev_mem_attach_count = 0;
-  if (-1 != ptr->shmid && (void *)-1 != ptr->shm_address) {
-    data_copy = malloc(ptr->byte_size);
-    memcpy(data_copy,ptr->shm_address,ptr->byte_size);
-    byte_size = ptr->byte_size;
-    struct shmid_ds shm_info;
-    if (-1 != shmctl(ptr->shmid, IPC_STAT, &shm_info)){
-      prev_mem_attach_count = shm_info.shm_nattch;
-    }
-  }
-
-  semian_shm_object_cleanup_memory(self);
-  ptr->byte_size = 2*sizeof(int) + NUM2INT(size) * sizeof(long);
-  ptr->shmid = -1;
-  ptr->shm_address = 0;
-
-  semian_shm_object_check_and_resize_if_needed(self);
-
-  ptr->initialize_memory(ptr->byte_size, ptr->shm_address, data_copy, byte_size, prev_mem_attach_count);
+  ptr->byte_size = 2 * sizeof(int) + NUM2INT(size) * sizeof(long);
+  semian_shm_object_synchronize_memory_and_size(self, Qtrue);
 
   return self;
 }
