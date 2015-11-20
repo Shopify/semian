@@ -1,12 +1,5 @@
 module Semian
   module SysVSharedMemory #:nodoc:
-    @type_size = {}
-    def self.sizeof(type)
-      size = (@type_size[type.to_sym] ||= (respond_to?(:_sizeof) ? _sizeof(type.to_sym) : 0))
-      raise TypeError.new("#{type} is not a valid C type") if size <= 0
-      size
-    end
-
     def self.included(base)
       def base.do_with_sync(*names)
         names.each do |name|
@@ -30,38 +23,20 @@ module Semian
       -1
     end
 
-    def synchronize(&block)
-      if respond_to?(:_synchronize) && @using_shared_memory
-        return _synchronize(&block)
-      else
-        yield if block_given?
-      end
+    def synchronize
+      yield if block_given?
     end
 
-    alias_method :transaction, :synchronize
-
     def destroy
-      if respond_to?(:_destroy) && @using_shared_memory
-        _destroy
-      else
-        super
-      end
+      super
     end
 
     private
 
-    def shared?
-      @using_shared_memory
-    end
-
-    def acquire_memory_object(name, data_layout, permissions)
-      return @using_shared_memory = false unless Semian.semaphores_enabled? && respond_to?(:_acquire)
-
-      byte_size = data_layout.inject(0) { |sum, type| sum + ::Semian::SysVSharedMemory.sizeof(type) }
-      raise TypeError.new("Given data layout is 0 bytes: #{data_layout.inspect}") if byte_size <= 0
-      # Calls C layer to acquire/create a memory block, calling #bind_initialize_memory_callback in the process, see below
-      _acquire(name, byte_size, permissions)
-      @using_shared_memory = true
+    def acquire_memory_object(*)
+      # Concrete classes must call this method before accessing shared memory
+      # If SysV is enabled, a C method overrides this stub and returns true if acquiring succeeds
+      false
     end
 
     def bind_initialize_memory_callback
