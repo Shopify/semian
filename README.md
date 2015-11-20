@@ -144,8 +144,7 @@ SEMIAN_PARAMETERS = { tickets: 1,
 Semian::NetHTTP.semian_configuration = proc do |host, port|
   # Let's make it only active for github.com
   if host == "github.com" && port == "80"
-    SEMIAN_PARAMETERS.dup.tap do |options|
-      options[:identifier] = nethttp_github.com_80
+    SEMIAN_PARAMETERS.merge(identifier: "nethttp_github.com_80")
     end
   else
     nil

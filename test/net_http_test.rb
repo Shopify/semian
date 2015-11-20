@@ -21,7 +21,7 @@ class TestNetHTTP < MiniTest::Unit::TestCase
     error_timeout: 10,
   }.freeze
   DEFAULT_SEMIAN_CONFIGURATION = proc do |host, port|
-    DEFAULT_SEMIAN_OPTIONS.dup.tap { |o| o[:identifier] = "nethttp_#{host}_#{port}" }
+    DEFAULT_SEMIAN_OPTIONS.merge(identifier: "nethttp_#{host}_#{port}")
   end
 
   def test_with_server_raises_if_binding_fails
@@ -179,7 +179,7 @@ class TestNetHTTP < MiniTest::Unit::TestCase
 
       semian_options_proc = proc do |host, port|
         semian_identifier = "nethttp_#{host}_#{port}"
-        semian_config[sample_env][semian_identifier].dup.tap { |o| o[:identifier] = "nethttp_#{host}_#{port}" }
+        semian_config[sample_env][semian_identifier].merge(identifier: "nethttp_#{host}_#{port}")
       end
 
       with_semian_options(semian_options_proc) do
@@ -200,9 +200,10 @@ class TestNetHTTP < MiniTest::Unit::TestCase
       semian_options_proc = proc do |host, port|
         semian_identifier = "nethttp_#{host}_#{port}"
         semian_identifier = "nethttp_default" unless semian_config[sample_env].key?(semian_identifier)
-        semian_config[sample_env][semian_identifier].dup.tap { |o| o[:identifier] = "nethttp_default" }
+        semian_config[sample_env][semian_identifier].merge(identifier: "nethttp_default")
       end
-
+      Semian["nethttp_default"].reset if Semian["nethttp_default"]
+      Semian.destroy("nethttp_default")
       with_semian_options(semian_options_proc) do
         Net::HTTP.start(HOSTNAME, PORT) do |http|
           expected_config = semian_config["development"]["nethttp_default"].dup
@@ -230,7 +231,7 @@ class TestNetHTTP < MiniTest::Unit::TestCase
 
     semian_options_proc = proc do
       semian_identifier = "nethttp_default"
-      semian_config[sample_env][semian_identifier].dup.tap { |o| o[:identifier] = "nethttp_default" }
+      semian_config[sample_env][semian_identifier].merge(identifier: "nethttp_default")
     end
 
     with_semian_options(semian_options_proc) do
