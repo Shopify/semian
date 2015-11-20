@@ -1,10 +1,10 @@
 require 'test_helper'
 
 class TestSimpleState < MiniTest::Unit::TestCase
-  CLASS = ::Semian::Simple::State
+  KLASS = ::Semian::Simple::State
 
   def setup
-    @state = CLASS.new
+    @state = KLASS.new
   end
 
   def teardown

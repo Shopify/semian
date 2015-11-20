@@ -108,19 +108,29 @@ class TestResource < MiniTest::Unit::TestCase
   end
 
   def test_acquire_with_fork
-    resource = create_resource :testing, tickets: 2, timeout: 0.5
+    pids = []
 
-    resource.acquire do
-      fork do
-        resource.acquire do
-          assert_raises Semian::TimeoutError do
-            resource.acquire {}
-          end
+    2.times do
+      reader, writer = IO.pipe
+      pids << fork do
+        create_resource(:testing, tickets: 2, timeout: 0.5).acquire do
+          reader.close
+          writer.puts "Acquired"
+          writer.close
+          sleep
         end
       end
-
-      Process.wait
+      reader.gets
     end
+
+    assert_raises Semian::TimeoutError do
+      create_resource(:testing, tickets: 2, timeout: 0.5).acquire {}
+    end
+
+    pids.each do |pid|
+      Process.kill(9, pid)
+    end
+    Process.waitall
   end
 
   def test_acquire_releases_on_kill

@@ -82,25 +82,29 @@ semian_shm_object_sizeof(VALUE klass, VALUE type)
     return INT2NUM(sizeof(long));
   // Can definitely add more
   else
-    return INT2NUM(0);
+    rb_raise(rb_eTypeError, "%s is not a valid C type", rb_id2name(SYM2ID(type)));
 }
 
 
 VALUE
-semian_shm_object_acquire(VALUE self, VALUE name, VALUE byte_size, VALUE permissions)
+semian_shm_object_acquire(VALUE self, VALUE name, VALUE data_layout, VALUE permissions)
 {
   semian_shm_object *ptr;
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
 
   if (TYPE(name) != T_SYMBOL && TYPE(name) != T_STRING)
     rb_raise(rb_eTypeError, "id must be a symbol or string");
-  if (TYPE(byte_size) != T_FIXNUM)
-    rb_raise(rb_eTypeError, "expected integer for byte_size");
+  if (TYPE(data_layout) != T_ARRAY)
+    rb_raise(rb_eTypeError, "expected array for data_layout");
   if (TYPE(permissions) != T_FIXNUM)
     rb_raise(rb_eTypeError, "expected integer for permissions");
 
-  if (NUM2SIZET(byte_size) <= 0)
-    rb_raise(rb_eArgError, "byte_size must be larger than 0");
+  int byte_size = 0;
+  for (int i = 0; i < RARRAY_LEN(data_layout); ++i)
+    byte_size += NUM2INT(semian_shm_object_sizeof(rb_cObject, RARRAY_PTR(data_layout)[i]));
+
+  if (byte_size <= 0)
+    rb_raise(rb_eArgError, "total size must be larger than 0");
 
   const char *id_str = NULL;
   if (TYPE(name) == T_SYMBOL) {
@@ -109,7 +113,7 @@ semian_shm_object_acquire(VALUE self, VALUE name, VALUE byte_size, VALUE permiss
     id_str = RSTRING_PTR(name);
   }
   ptr->key = generate_key(id_str);
-  ptr->byte_size = NUM2SIZET(byte_size); // byte_size >=1 or error would have been raised earlier
+  ptr->byte_size = byte_size; // byte_size >=1 or error would have been raised earlier
   ptr->semid = -1; // id's default to -1
   ptr->shmid = -1;
   ptr->shm_address = 0; // address defaults to NULL
@@ -124,7 +128,9 @@ semian_shm_object_acquire(VALUE self, VALUE name, VALUE byte_size, VALUE permiss
   semian_shm_object_acquire_semaphore(self);
   semian_shm_object_synchronize(self);
 
-  return self;
+
+
+  return Qtrue;
 }
 
 VALUE
@@ -349,13 +355,10 @@ semian_shm_object_synchronize_memory_and_size(VALUE self, VALUE is_master_obj) {
     } else {
       void *old_shm_address = ptr->shm_address;
       size_t old_byte_size = ptr->byte_size;
-      void *old_memory_content = NULL;
+      unsigned char old_memory_content[old_byte_size];
 
-      char old_memory_content_tmp[old_byte_size];
-      memcpy(old_memory_content_tmp, old_shm_address, old_byte_size);
+      memcpy(old_memory_content, old_shm_address, old_byte_size);
       semian_shm_object_cleanup_memory(self);
-      old_memory_content = malloc(old_byte_size);
-      memcpy(old_memory_content, old_memory_content_tmp, old_byte_size);
 
       if (-1 == (ptr->shmid = shmget(key, requested_byte_size, IPC_CREAT | IPC_EXCL | ptr->permissions))) {
         rb_raise(eSyscall, "shmget failed to create new resized memory with key %d shmid %d errno %d (%s)", key, ptr->shmid, errno, strerror(errno));
@@ -366,7 +369,6 @@ semian_shm_object_synchronize_memory_and_size(VALUE self, VALUE is_master_obj) {
       ptr->byte_size = requested_byte_size;
 
       ptr->initialize_memory(ptr->byte_size, ptr->shm_address, old_memory_content, old_byte_size);
-      free(old_memory_content);
     }
   }
   return self;
@@ -419,30 +421,19 @@ semian_shm_object_shmid(VALUE self)
   return INT2NUM(ptr->shmid);
 }
 
-static VALUE
-semian_shm_object_byte_size(VALUE self)
-{
-  semian_shm_object *ptr;
-  TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
-  semian_shm_object_synchronize(self);
-  return INT2NUM(ptr->byte_size);
-}
-
 void
 Init_semian_shm_object (void) {
 
   VALUE cSemianModule = rb_const_get(rb_cObject, rb_intern("Semian"));
   VALUE cSysVSharedMemory = rb_const_get(cSemianModule, rb_intern("SysVSharedMemory"));
 
-  rb_define_method(cSysVSharedMemory, "_acquire", semian_shm_object_acquire, 3);
-  rb_define_method(cSysVSharedMemory, "_destroy", semian_shm_object_destroy, 0);
-  rb_define_method(cSysVSharedMemory, "_synchronize", semian_shm_object_synchronize, 0);
+  rb_define_method(cSysVSharedMemory, "acquire_memory_object", semian_shm_object_acquire, 3);
+  rb_define_method(cSysVSharedMemory, "destroy", semian_shm_object_destroy, 0);
+  rb_define_method(cSysVSharedMemory, "synchronize", semian_shm_object_synchronize, 0);
 
   rb_define_method(cSysVSharedMemory, "semid", semian_shm_object_semid, 0);
   rb_define_method(cSysVSharedMemory, "shmid", semian_shm_object_shmid, 0);
-  rb_define_method(cSysVSharedMemory, "byte_size", semian_shm_object_byte_size, 0);
 
-  rb_define_singleton_method(cSysVSharedMemory, "_sizeof", semian_shm_object_sizeof, 1);
   rb_define_singleton_method(cSysVSharedMemory, "replace_alloc", semian_shm_object_replace_alloc, 1);
 
   decrement.sem_num = kSHMIndexTicketLock;

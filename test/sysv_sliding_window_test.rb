@@ -1,10 +1,10 @@
 require 'test_helper'
 
 class TestSysVSlidingWindow < MiniTest::Unit::TestCase
-  CLASS = ::Semian::SysV::SlidingWindow
+  KLASS = ::Semian::SysV::SlidingWindow
 
   def setup
-    @sliding_window = CLASS.new(max_size: 6,
+    @sliding_window = KLASS.new(max_size: 6,
                                 name: 'TestSysVSlidingWindow',
                                 permissions: 0660)
     @sliding_window.clear
@@ -25,7 +25,7 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
     reader, writer = IO.pipe
     pid = fork do
       reader.close
-      sliding_window_2 = CLASS.new(max_size: 6,
+      sliding_window_2 = KLASS.new(max_size: 6,
                                    name: 'TestSysVSlidingWindow',
                                    permissions: 0660)
       sliding_window_2.synchronize do
@@ -37,6 +37,7 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
 
     reader.gets
     Process.kill(9, pid)
+    Process.waitall
 
     Timeout.timeout(1) do # assure dont hang
       @sliding_window << 100
@@ -46,7 +47,7 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
 
   def test_sliding_window_memory_is_actually_shared
     assert_equal 0, @sliding_window.size
-    sliding_window_2 = CLASS.new(max_size: 6,
+    sliding_window_2 = KLASS.new(max_size: 6,
                                  name: 'TestSysVSlidingWindow',
                                  permissions: 0660)
     assert_equal 0, sliding_window_2.size
@@ -66,7 +67,7 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
 
   def test_restarting_worker_should_not_reset_queue
     @sliding_window << 10 << 20 << 30
-    sliding_window_2 = CLASS.new(max_size: 6,
+    sliding_window_2 = KLASS.new(max_size: 6,
                                  name: 'TestSysVSlidingWindow',
                                  permissions: 0660)
     assert_sliding_window(sliding_window_2, [10, 20, 30], 6)
@@ -74,7 +75,7 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
     assert_sliding_window(sliding_window_2, [10, 20], 6)
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
 
-    sliding_window_3 = CLASS.new(max_size: 6,
+    sliding_window_3 = KLASS.new(max_size: 6,
                                  name: 'TestSysVSlidingWindow',
                                  permissions: 0660)
     assert_sliding_window(sliding_window_3, [10, 20], 6)
@@ -87,7 +88,7 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
     # Test explicit resizing, and resizing through making new memory associations
 
     # B resize down through init
-    sliding_window_2 = CLASS.new(max_size: 4,
+    sliding_window_2 = KLASS.new(max_size: 4,
                                  name: 'TestSysVSlidingWindow',
                                  permissions: 0660)
     sliding_window_2 << 80 << 90 << 100 << 110 << 120
@@ -100,7 +101,7 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
     assert_sliding_window(@sliding_window, [110, 120], 2)
 
     # B resize up through init
-    sliding_window_2 = CLASS.new(max_size: 4,
+    sliding_window_2 = KLASS.new(max_size: 4,
                                  name: 'TestSysVSlidingWindow',
                                  permissions: 0660)
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
@@ -113,7 +114,7 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
     assert_sliding_window(@sliding_window, [110, 120, 130], 6)
 
     # B resize down through init
-    sliding_window_2 = CLASS.new(max_size: 2,
+    sliding_window_2 = KLASS.new(max_size: 2,
                                  name: 'TestSysVSlidingWindow',
                                  permissions: 0660)
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)
@@ -125,7 +126,7 @@ class TestSysVSlidingWindow < MiniTest::Unit::TestCase
     assert_sliding_window(@sliding_window, [120, 130], 4)
 
     # B resize up through init
-    sliding_window_2 = CLASS.new(max_size: 6,
+    sliding_window_2 = KLASS.new(max_size: 6,
                                  name: 'TestSysVSlidingWindow',
                                  permissions: 0660)
     assert_sliding_windows_in_sync(@sliding_window, sliding_window_2)

@@ -1,10 +1,10 @@
 require 'test_helper'
 
 class TestSimpleInteger < MiniTest::Unit::TestCase
-  CLASS = ::Semian::Simple::Integer
+  KLASS = ::Semian::Simple::Integer
 
   def setup
-    @integer = CLASS.new
+    @integer = KLASS.new
   end
 
   def teardown

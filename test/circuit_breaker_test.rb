@@ -140,6 +140,7 @@ class TestCircuitBreaker < MiniTest::Unit::TestCase
     reader.gets
     Semian.register(:unique_res, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5, success_threshold: 1)
     Process.kill(9, pid)
+    Process.waitall
     assert_circuit_opened Semian[:unique_res]
   end
 

@@ -1,10 +1,10 @@
 require 'test_helper'
 
 class TestSimpleSlidingWindow < MiniTest::Unit::TestCase
-  CLASS = ::Semian::Simple::SlidingWindow
+  KLASS = ::Semian::Simple::SlidingWindow
 
   def setup
-    @sliding_window = CLASS.new(max_size: 6)
+    @sliding_window = KLASS.new(max_size: 6)
     @sliding_window.clear
   end
 
