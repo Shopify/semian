@@ -141,11 +141,11 @@ SEMIAN_PARAMETERS = { tickets: 1,
                       success_threshold: 1,
                       error_threshold: 3,
                       error_timeout: 10 }
-Semian::NetHTTP.raw_semian_options = proc do |host, port|
+Semian::NetHTTP.semian_configuration = proc do |host, port|
   # Let's make it only active for github.com
   if host == "github.com" && port == "80"
     SEMIAN_PARAMETERS.dup.tap do |options|
-      options[:name] = nethttp_github.com_80
+      options[:identifier] = nethttp_github.com_80
     end
   else
     nil
@@ -154,8 +154,8 @@ end
 
 # Called from within API:
 # configuration = Semian::NetHTTP.semian_configuration("github.com", 80)
-# semian_identifier = configuration[:name]
-# semian_options = configuration.delete(:name) || configuration
+# semian_identifier = configuration[:identifier]
+# semian_options = configuration.delete(:identifier) || configuration
 ```
 
 It is important to carefully choose the `name` provided, since it is used to identify,
@@ -174,12 +174,13 @@ the use of returning `nil`.
 
 Since we envision this particular adapter can be used in combination with many
 external libraries, we added functionality to expand the Exceptions that can be
-tracked as part of Semian's circuit breaker. Add exceptions and reset to the
-[`default`][nethttp-default-errors] list using the following:
+tracked as part of Semian's circuit breaker. This may be necessary for libraries
+that introduce new exceptions that want to be tracked. Add exceptions and reset
+to the [`default`][nethttp-default-errors] list using the following:
 
 ```ruby
 # assert_equal(Semian::NetHTTP.exceptions, Semian::NetHTTP::DEFAULT_ERRORS)
-Semian::NetHTTP.concat_exceptions([::OpenSSL::SSL::SSLError])
+Semian::NetHTTP.exceptions += [::OpenSSL::SSL::SSLError]
 
 Semian::NetHTTP.reset_exceptions
 # assert_equal(Semian::NetHTTP.exceptions, Semian::NetHTTP::DEFAULT_ERRORS)

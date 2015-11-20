@@ -23,7 +23,7 @@ module Semian
     CircuitOpenError = ::Net::CircuitOpenError
 
     def semian_identifier
-      @identifier ||= Semian::NetHTTP.retrieve_semian_configuration_by_host_port(address, port)[:name]
+      Semian::NetHTTP.retrieve_semian_configuration(address, port)[:identifier]
     end
 
     DEFAULT_ERRORS = [
@@ -42,45 +42,43 @@ module Semian
       attr_accessor :semian_configuration
       attr_accessor :exceptions
 
-      def retrieve_semian_configuration_by_host_port(host, port)
-        proc_result = @semian_configuration.call(host, port) if @semian_configuration.respond_to?(:call)
-        proc_result ||= {}
-        proc_result[:name] ||= "nethttp_#{host}_#{port}"
-        proc_result
+      def retrieve_semian_configuration(host, port)
+        @semian_configuration.call(host, port) if @semian_configuration.respond_to?(:call)
       end
 
       def reset_exceptions
         self.exceptions = Semian::NetHTTP::DEFAULT_ERRORS.dup
-      end
-
-      def concat_exceptions(exceptions)
-        self.exceptions.concat(exceptions)
       end
     end
 
     Semian::NetHTTP.reset_exceptions
 
     def raw_semian_options
-      @options ||= Semian::NetHTTP.retrieve_semian_configuration_by_host_port(address, port).dup.tap { |o| o.delete(:name) }
+      options = Semian::NetHTTP.retrieve_semian_configuration(address, port)
+      unless options.nil?
+        options = options.dup
+        options.delete(:identifier)
+      end
+      options
     end
 
     def resource_exceptions
       Semian::NetHTTP.exceptions
     end
 
-    def enabled?
-      !raw_semian_options.empty?
+    def disabled?
+      raw_semian_options.nil?
     end
 
     def connect
-      return super unless enabled?
+      return super if disabled?
       acquire_semian_resource(adapter: :http, scope: :connection) do
         super
       end
     end
 
     def request(*req)
-      return super unless enabled?
+      return super if disabled?
       acquire_semian_resource(adapter: :http, scope: :query) do
         super
       end

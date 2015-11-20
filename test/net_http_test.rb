@@ -19,9 +19,9 @@ class TestNetHTTP < MiniTest::Unit::TestCase
     success_threshold: 1,
     error_threshold: 3,
     error_timeout: 10,
-  }
+  }.freeze
   DEFAULT_SEMIAN_CONFIGURATION = proc do |host, port|
-    DEFAULT_SEMIAN_OPTIONS.dup.tap { |o| o[:name] = "nethttp_#{host}_#{port}" }
+    DEFAULT_SEMIAN_OPTIONS.dup.tap { |o| o[:identifier] = "nethttp_#{host}_#{port}" }
   end
 
   def test_with_server_raises_if_binding_fails
@@ -75,7 +75,7 @@ class TestNetHTTP < MiniTest::Unit::TestCase
         success_threshold: 1,
         error_threshold: 3,
         error_timeout: 10,
-        name: "nethttp_#{host}_#{port}",
+        identifier: "nethttp_#{host}_#{port}",
       }
     end
     with_semian_options(options) do
@@ -179,7 +179,7 @@ class TestNetHTTP < MiniTest::Unit::TestCase
 
       semian_options_proc = proc do |host, port|
         semian_identifier = "nethttp_#{host}_#{port}"
-        semian_config[sample_env][semian_identifier].dup.tap { |o| o[:name] = semian_identifier }
+        semian_config[sample_env][semian_identifier].dup.tap { |o| o[:identifier] = "nethttp_#{host}_#{port}" }
       end
 
       with_semian_options(semian_options_proc) do
@@ -199,16 +199,14 @@ class TestNetHTTP < MiniTest::Unit::TestCase
 
       semian_options_proc = proc do |host, port|
         semian_identifier = "nethttp_#{host}_#{port}"
-        if !semian_config[sample_env].key?(semian_identifier)
-          semian_config[sample_env]["nethttp_default"].dup.tap { |o| o[:name] = semian_identifier }
-        else
-          semian_config[sample_env][semian_identifier].dup.tap { |o| o[:name] = semian_identifier }
-        end
+        semian_identifier = "nethttp_default" unless semian_config[sample_env].key?(semian_identifier)
+        semian_config[sample_env][semian_identifier].dup.tap { |o| o[:identifier] = "nethttp_default" }
       end
 
       with_semian_options(semian_options_proc) do
         Net::HTTP.start(HOSTNAME, PORT) do |http|
-          assert_equal semian_config["development"]["nethttp_default"], http.raw_semian_options
+          expected_config = semian_config["development"]["nethttp_default"].dup
+          assert_equal expected_config, http.raw_semian_options
         end
       end
     end
@@ -219,7 +217,7 @@ class TestNetHTTP < MiniTest::Unit::TestCase
       semian_options_proc = proc { nil }
       with_semian_options(semian_options_proc) do
         http = Net::HTTP.new(HOSTNAME, TOXIC_PORT)
-        assert_equal false, http.enabled?
+        assert_equal true, http.disabled?
       end
     end
   end
@@ -232,7 +230,7 @@ class TestNetHTTP < MiniTest::Unit::TestCase
 
     semian_options_proc = proc do
       semian_identifier = "nethttp_default"
-      semian_config[sample_env][semian_identifier].dup.tap { |o| o[:name] = semian_identifier }
+      semian_config[sample_env][semian_identifier].dup.tap { |o| o[:identifier] = "nethttp_default" }
     end
 
     with_semian_options(semian_options_proc) do
@@ -262,17 +260,17 @@ class TestNetHTTP < MiniTest::Unit::TestCase
       end
       with_semian_options(semian_options_proc) do
         http = Net::HTTP.new(HOSTNAME, TOXIC_PORT)
-        assert_equal true, http.enabled?
+        assert_equal false, http.disabled?
 
         http = Net::HTTP.new(HOSTNAME, TOXIC_PORT + 100)
-        assert_equal false, http.enabled?
+        assert_equal true, http.disabled?
       end
     end
   end
 
   def test_adding_extra_errors_and_resetting_affects_exceptions_list
     orig_errors = Semian::NetHTTP.exceptions.dup
-    Semian::NetHTTP.concat_exceptions([::OpenSSL::SSL::SSLError])
+    Semian::NetHTTP.exceptions += [::OpenSSL::SSL::SSLError]
     assert_equal(orig_errors + [::OpenSSL::SSL::SSLError], Semian::NetHTTP.exceptions)
     Semian::NetHTTP.reset_exceptions
     assert_equal(Semian::NetHTTP::DEFAULT_ERRORS, Semian::NetHTTP.exceptions)
@@ -352,7 +350,7 @@ class TestNetHTTP < MiniTest::Unit::TestCase
 
   def with_custom_errors(errors)
     orig_errors = Semian::NetHTTP.exceptions.dup
-    Semian::NetHTTP.concat_exceptions(errors)
+    Semian::NetHTTP.exceptions += errors
     yield
   ensure
     Semian::NetHTTP.exceptions = orig_errors
