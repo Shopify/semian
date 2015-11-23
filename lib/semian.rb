@@ -160,6 +160,8 @@ require 'semian/simple_sliding_window'
 require 'semian/simple_integer'
 require 'semian/simple_state'
 if Semian.semaphores_enabled?
+  require 'semian/sysv_shared_memory'
+  require 'semian/sysv_integer'
   require 'semian/semian'
 else
   Semian::MAX_TICKETS = 0

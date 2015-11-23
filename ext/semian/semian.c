@@ -1,38 +1,6 @@
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/sem.h>
-#include <sys/time.h>
-#include <errno.h>
-#include <string.h>
-
-#include <ruby.h>
-#include <ruby/util.h>
-#include <ruby/io.h>
-
-#include <openssl/sha.h>
-
-#include <stdio.h>
-
-union semun {
-  int              val;    /* Value for SETVAL */
-  struct semid_ds *buf;    /* Buffer for IPC_STAT, IPC_SET */
-  unsigned short  *array;  /* Array for GETALL, SETALL */
-  struct seminfo  *__buf;  /* Buffer for IPC_INFO
-                             (Linux-specific) */
-};
-
-#if defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL) && defined(HAVE_RUBY_THREAD_H)
-// 2.0
-#include <ruby/thread.h>
-#define WITHOUT_GVL(fn,a,ubf,b) rb_thread_call_without_gvl((fn),(a),(ubf),(b))
-#elif defined(HAVE_RB_THREAD_BLOCKING_REGION)
- // 1.9
-typedef VALUE (*my_blocking_fn_t)(void*);
-#define WITHOUT_GVL(fn,a,ubf,b) rb_thread_blocking_region((my_blocking_fn_t)(fn),(a),(ubf),(b))
-#endif
+#include "semian.h"
 
 static ID id_timeout;
-static VALUE eSyscall, eTimeout, eInternal;
 static int system_max_semaphore_count;
 
 static const int kIndexTickets = 0;
@@ -48,7 +16,7 @@ typedef struct {
   char *name;
 } semian_resource_t;
 
-static key_t
+key_t
 generate_key(const char *name)
 {
   union {
@@ -67,7 +35,7 @@ ms_to_timespec(long ms, struct timespec *ts)
   ts->tv_nsec = (ms % 1000) * 1000000;
 }
 
-static void
+void
 raise_semian_syscall_error(const char *syscall, int error_num)
 {
   rb_raise(eSyscall, "%s failed, errno: %d (%s)", syscall, error_num, strerror(error_num));
@@ -115,7 +83,7 @@ semian_resource_alloc(VALUE klass)
   return obj;
 }
 
-static void
+void
 set_semaphore_permissions(int sem_id, int permissions)
 {
   union semun sem_opts;
@@ -447,6 +415,9 @@ semian_resource_id(VALUE self)
   return LONG2FIX(res->sem_id);
 }
 
+
+void Init_semian_shm_object();
+
 void Init_semian()
 {
   VALUE cSemian, cResource;
@@ -504,4 +475,6 @@ void Init_semian()
 
   /* Maximum number of tickets available on this system. */
   rb_define_const(cSemian, "MAX_TICKETS", INT2FIX(system_max_semaphore_count));
+
+  Init_semian_shm_object();
 }
