@@ -132,6 +132,7 @@ For the `Net::HTTP` specific Semian adapter, since many external libraries may c
 HTTP connections on the user's behalf, the parameters are instead provided
 by calling specific functions in `Semian::NetHTTP`, perhaps in an initialization file.
 
+##### Naming and Options
 To give Semian parameters, assign a `proc` to `Semian::NetHTTP.semian_configuration`
 that takes a two parameters, `host` and `port` like `127.0.0.1` and `80` or `github_com` and `80`,
 and returns a `Hash` with keys as follows.
@@ -144,38 +145,38 @@ SEMIAN_PARAMETERS = { tickets: 1,
 Semian::NetHTTP.semian_configuration = proc do |host, port|
   # Let's make it only active for github.com
   if host == "github.com" && port == "80"
-    SEMIAN_PARAMETERS.merge(identifier: "nethttp_github.com_80")
-    end
+    SEMIAN_PARAMETERS.merge(name: "github.com_80")
   else
     nil
   end
 end
 
 # Called from within API:
-# configuration = Semian::NetHTTP.semian_configuration("github.com", 80)
-# semian_identifier = configuration[:identifier]
-# semian_options = configuration.delete(:identifier) || configuration
+# semian_options = Semian::NetHTTP.semian_configuration("github.com", 80)
+# semian_identifier = "nethttp_#{semian_options[:name]}"
 ```
 
-It is important to carefully choose the `name` provided, since it is used to identify,
-track, and fail quickly, if necessary, the resource it protects. The `name` specifies
-the `semian_identifier` of the resource for which the given `semian_options` apply.
-For most purposes, `"nethttp_#{host}_#{port}"` is a good default identifier.
-This can become useful when grouping related subdomains as one resource,
-so that they all contribute to the same circuit breaker and bulkhead state
-and fail quickly together.
+The `name` should be carefully chosen since it identifies the resource being protected.
+The `semian_options` passed apply to that resource. Semian creates the `semian_identifier`
+from the `name` to look up and store changes in the circuit breaker and bulkhead states
+and associate successes, failures, errors with the protected resource.
 
-A return value of `nil` means Semian is disabled for that `Net::HTTP` endpoint.
-This works well since the result of a failed Hash lookup is `nil` also.
-As such, this particular adapter defaults to whitelisting, although the
+For most purposes, `"#{host}_#{port}"` is a good default `name`. Custom `name` formats
+can be useful to grouping related subdomains as one resource, so that they all
+contribute to the same circuit breaker and bulkhead state and fail together.
+
+A return value of `nil` for `semian_configuration` means Semian is disabled for that
+HTTP endpoint. This works well since the result of a failed Hash lookup is `nil` also.
+This behavior lets the adapter default to whitelisting, although the
 behavior can be changed to blacklisting or even be completely disabled by varying
-the use of returning `nil`.
+the use of returning `nil` in the assigned closure.
 
+##### Additional Exceptions
 Since we envision this particular adapter can be used in combination with many
-external libraries, we added functionality to expand the Exceptions that can be
-tracked as part of Semian's circuit breaker. This may be necessary for libraries
-that introduce new exceptions that want to be tracked. Add exceptions and reset
-to the [`default`][nethttp-default-errors] list using the following:
+external libraries, that can raise additional exceptions, we added functionality to
+expand the Exceptions that can be tracked as part of Semian's circuit breaker.
+This may be necessary for libraries that introduce new exceptions or re-raise them.
+Add exceptions and reset to the [`default`][nethttp-default-errors] list using the following:
 
 ```ruby
 # assert_equal(Semian::NetHTTP.exceptions, Semian::NetHTTP::DEFAULT_ERRORS)
@@ -559,7 +560,7 @@ non-IO.
 [redis-semian-adapter]: lib/semian/redis.rb
 [semian-adapter]: lib/semian/adapter.rb
 [nethttp-semian-adapter]: lib/semian/net_http.rb
-[nethttp-default-errors]: lib/semian/net_http.rb#L29-L39
+[nethttp-default-errors]: lib/semian/net_http.rb#L33-L43
 [semian-instrumentable]: lib/semian/instrumentable.rb
 [statsd-instrument]: http://github.com/shopify/statsd-instrument
 [resiliency-blog-post]: http://www.shopify.com/technology/16906928-building-and-testing-resilient-ruby-on-rails-applications

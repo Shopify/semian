@@ -22,8 +22,12 @@ module Semian
     ResourceBusyError = ::Net::ResourceBusyError
     CircuitOpenError = ::Net::CircuitOpenError
 
+    def semian_configuration
+      Semian::NetHTTP.retrieve_semian_configuration(address, port)
+    end
+
     def semian_identifier
-      Semian::NetHTTP.retrieve_semian_configuration(address, port)[:identifier]
+      "nethttp_#{semian_configuration[:name]}"
     end
 
     DEFAULT_ERRORS = [
@@ -54,11 +58,8 @@ module Semian
     Semian::NetHTTP.reset_exceptions
 
     def raw_semian_options
-      options = Semian::NetHTTP.retrieve_semian_configuration(address, port)
-      unless options.nil?
-        options = options.dup
-        options.delete(:identifier)
-      end
+      options = semian_configuration
+      options = options.dup unless options.nil?
       options
     end
 
@@ -67,7 +68,7 @@ module Semian
     end
 
     def disabled?
-      raw_semian_options.nil?
+      semian_configuration.nil?
     end
 
     def connect
