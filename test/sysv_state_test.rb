@@ -1,10 +1,10 @@
 require 'test_helper'
 
 class TestSysVState < MiniTest::Unit::TestCase
-  CLASS = ::Semian::SysV::State
+  KLASS = ::Semian::SysV::State
 
   def setup
-    @state = CLASS.new(name: 'TestSysVState',
+    @state = KLASS.new(name: 'TestSysVState',
                        permissions: 0660)
     @state.reset
   end

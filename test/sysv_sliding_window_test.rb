@@ -1,10 +1,10 @@
 require 'test_helper'
 
 class TestSysVSlidingWindow < MiniTest::Unit::TestCase
-  CLASS = ::Semian::SysV::SlidingWindow
+  KLASS = ::Semian::SysV::SlidingWindow
 
   def setup
-    @sliding_window = CLASS.new(max_size: 6,
+    @sliding_window = KLASS.new(max_size: 6,
                                 name: 'TestSysVSlidingWindow',
                                 permissions: 0660)
     @sliding_window.clear
