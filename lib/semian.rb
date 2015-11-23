@@ -124,7 +124,8 @@ module Semian
       error_threshold: error_threshold,
       error_timeout: error_timeout,
       exceptions: Array(exceptions) + [::Semian::BaseError],
-      implementation: ::Semian::Simple,
+      permissions: permissions,
+      implementation: Semian.semaphores_enabled? ? ::Semian::SysV : ::Semian::Simple,
     )
     resource = Resource.new(name, tickets: tickets, permissions: permissions, timeout: timeout)
     resources[name] = ProtectedResource.new(resource, circuit_breaker)
@@ -160,6 +161,10 @@ require 'semian/simple_sliding_window'
 require 'semian/simple_integer'
 require 'semian/simple_state'
 if Semian.semaphores_enabled?
+  require 'semian/sysv_shared_memory'
+  require 'semian/sysv_sliding_window'
+  require 'semian/sysv_integer'
+  require 'semian/sysv_state'
   require 'semian/semian'
 else
   Semian::MAX_TICKETS = 0

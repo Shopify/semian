@@ -2,16 +2,20 @@ module Semian
   class CircuitBreaker #:nodoc:
     extend Forwardable
 
-    def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, implementation:)
+    def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, permissions:, implementation:)
       @name = name.to_sym
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
       @error_timeout = error_timeout
       @exceptions = exceptions
 
-      @errors = implementation::SlidingWindow.new(max_size: @error_count_threshold)
-      @successes = implementation::Integer.new
-      @state = implementation::State.new
+      @errors = implementation::SlidingWindow.new(max_size: @error_count_threshold,
+                                                  name: "#{name}_sliding_window",
+                                                  permissions: permissions)
+      @successes = implementation::Integer.new(name: "#{name}_integer",
+                                               permissions: permissions)
+      @state = implementation::State.new(name: "#{name}_state",
+                                         permissions: permissions)
     end
 
     def acquire
