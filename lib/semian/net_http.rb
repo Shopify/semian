@@ -42,6 +42,15 @@ module Semian
       ::SystemCallError, # includes ::Errno::EINVAL, ::Errno::ECONNRESET, ::Errno::ECONNREFUSED, ::Errno::ETIMEDOUT, and more
     ].freeze # Net::HTTP can throw many different errors, this tries to capture most of them
 
+    # The naked methods are exposed as `raw_query` and `raw_connect` for instrumentation purpose
+    def self.included(base)
+      base.send(:alias_method, :raw_request, :request)
+      base.send(:remove_method, :request)
+
+      base.send(:alias_method, :raw_connect, :connect)
+      base.send(:remove_method, :connect)
+    end
+
     class << self
       attr_accessor :semian_configuration
       attr_accessor :exceptions
@@ -72,19 +81,15 @@ module Semian
     end
 
     def connect
-      return super if disabled?
-      acquire_semian_resource(adapter: :http, scope: :connection) do
-        super
-      end
+      return raw_connect if disabled?
+      acquire_semian_resource(adapter: :http, scope: :connection) { raw_connect }
     end
 
-    def request(*req)
-      return super if disabled?
-      acquire_semian_resource(adapter: :http, scope: :query) do
-        super
-      end
+    def request(req, body = nil, &block)
+      return raw_request(req, body, &block) if disabled?
+      acquire_semian_resource(adapter: :http, scope: :query) { raw_request(req, body, &block) }
     end
   end
 end
 
-Net::HTTP.prepend(Semian::NetHTTP)
+Net::HTTP.include(Semian::NetHTTP)
