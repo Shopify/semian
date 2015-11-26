@@ -22,12 +22,14 @@ module Semian
     ResourceBusyError = ::Net::ResourceBusyError
     CircuitOpenError = ::Net::CircuitOpenError
 
-    def semian_configuration
-      Semian::NetHTTP.retrieve_semian_configuration(address, port)
+    class SemianConfigurationChangedError < RuntimeError
+      def initialize(msg = "Cannot re-initialize semian_configuration")
+        super
+      end
     end
 
     def semian_identifier
-      "nethttp_#{semian_configuration[:name]}"
+      "nethttp_#{raw_semian_options[:name]}"
     end
 
     DEFAULT_ERRORS = [
@@ -52,8 +54,13 @@ module Semian
     end
 
     class << self
-      attr_accessor :semian_configuration
       attr_accessor :exceptions
+      attr_reader :semian_configuration
+
+      def semian_configuration=(configuration)
+        raise Semian::NetHTTP::SemianConfigurationChangedError unless @semian_configuration.nil?
+        @semian_configuration = configuration
+      end
 
       def retrieve_semian_configuration(host, port)
         @semian_configuration.call(host, port) if @semian_configuration.respond_to?(:call)
@@ -67,9 +74,10 @@ module Semian
     Semian::NetHTTP.reset_exceptions
 
     def raw_semian_options
-      options = semian_configuration
-      options = options.dup unless options.nil?
-      options
+      @raw_semian_options ||= begin
+        @raw_semian_options = Semian::NetHTTP.retrieve_semian_configuration(address, port)
+        @raw_semian_options = @raw_semian_options.dup unless @raw_semian_options.nil?
+      end
     end
 
     def resource_exceptions
@@ -77,7 +85,7 @@ module Semian
     end
 
     def disabled?
-      semian_configuration.nil?
+      raw_semian_options.nil?
     end
 
     def connect

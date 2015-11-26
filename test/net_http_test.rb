@@ -192,6 +192,17 @@ class TestNetHTTP < MiniTest::Unit::TestCase
     end
   end
 
+  def test_custom_raw_semian_options_can_only_assign_once
+    semian_configuration_proc = proc do |host, port|
+      DEFAULT_SEMIAN_OPTIONS.merge(name: "#{host}_#{port}")
+    end
+    with_semian_configuration(semian_configuration_proc) do
+      assert_raises(Semian::NetHTTP::SemianConfigurationChangedError) do
+        Semian::NetHTTP.semian_configuration = semian_configuration_proc
+      end
+    end
+  end
+
   def test_custom_raw_semian_options_work_with_default_fallback
     with_server do
       semian_config = {}
@@ -346,10 +357,31 @@ class TestNetHTTP < MiniTest::Unit::TestCase
 
   def with_semian_configuration(options = DEFAULT_SEMIAN_CONFIGURATION)
     orig_semian_options = Semian::NetHTTP.semian_configuration
+    Semian::NetHTTP.instance_variable_set(:@semian_configuration, nil)
+    mutated_objects = {}
+    Semian::NetHTTP.send(:alias_method, :orig_semian_resource, :semian_resource)
+    Semian::NetHTTP.send(:alias_method, :orig_raw_semian_options, :raw_semian_options)
+    Semian::NetHTTP.send(:define_method, :semian_resource) do
+      mutated_objects[self] = [@semian_resource, @raw_semian_options] unless mutated_objects.key?(self)
+      orig_semian_resource
+    end
+    Semian::NetHTTP.send(:define_method, :raw_semian_options) do
+      mutated_objects[self] = [@semian_resource, @raw_semian_options] unless mutated_objects.key?(self)
+      orig_raw_semian_options
+    end
+
     Semian::NetHTTP.semian_configuration = options
     yield
   ensure
+    Semian::NetHTTP.instance_variable_set(:@semian_configuration, nil)
     Semian::NetHTTP.semian_configuration = orig_semian_options
+    Semian::NetHTTP.send(:alias_method, :semian_resource, :orig_semian_resource)
+    Semian::NetHTTP.send(:alias_method, :raw_semian_options, :orig_raw_semian_options)
+    Semian::NetHTTP.send(:undef_method, :orig_semian_resource, :orig_raw_semian_options)
+    mutated_objects.each do |instance, (res, opt)| # Sadly, only way to fully restore cached properties
+      instance.instance_variable_set(:@semian_resource, res)
+      instance.instance_variable_set(:@raw_semian_options, opt)
+    end
   end
 
   def with_custom_errors(errors)
