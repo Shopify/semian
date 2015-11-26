@@ -1,10 +1,11 @@
 #include "semian_shared_memory_object.h"
 
-const int kSHMSemaphoreCount = 1; // # semaphores to be acquired
+const int kSHMSemaphoreCount = 1; // semaphores to be acquired
 const int kSHMTicketMax = 1;
 const int kSHMInitializeWaitTimeout = 5; /* seconds */
 const int kSHMIndexTicketLock = 0;
 const int kSHMInternalTimeout = 5; /* seconds */
+const int kSHMRestoreLockStateRetryCount = 5; // perform semtimedop 5 times max
 
 static struct sembuf decrement; // = { kSHMIndexTicketLock, -1, SEM_UNDO};
 static struct sembuf increment; // = { kSHMIndexTicketLock, 1, SEM_UNDO};
@@ -15,9 +16,6 @@ static struct sembuf increment; // = { kSHMIndexTicketLock, 1, SEM_UNDO};
 static void semian_shm_object_mark(void *ptr);
 static void semian_shm_object_free(void *ptr);
 static size_t semian_shm_object_memsize(const void *ptr);
-
-static void *semian_shm_object_lock_without_gvl(void *v_ptr);
-static void *semian_shm_object_unlock_without_gvl(void *v_ptr);
 
 const rb_data_type_t
 semian_shm_object_type = {
@@ -70,23 +68,6 @@ semian_shm_object_replace_alloc(VALUE klass, VALUE target)
 }
 
 VALUE
-semian_shm_object_sizeof(VALUE klass, VALUE type)
-{
-  if (TYPE(type) != T_SYMBOL){
-    rb_raise(rb_eTypeError, "id must be a symbol or string");
-  }
-
-  if (rb_intern("int") == SYM2ID(type))
-    return INT2NUM(sizeof(int));
-  else if (rb_intern("long") == SYM2ID(type))
-    return INT2NUM(sizeof(long));
-  // Can definitely add more
-  else
-    rb_raise(rb_eTypeError, "%s is not a valid C type", rb_id2name(SYM2ID(type)));
-}
-
-
-VALUE
 semian_shm_object_acquire(VALUE self, VALUE name, VALUE data_layout, VALUE permissions)
 {
   semian_shm_object *ptr;
@@ -100,8 +81,19 @@ semian_shm_object_acquire(VALUE self, VALUE name, VALUE data_layout, VALUE permi
     rb_raise(rb_eTypeError, "expected integer for permissions");
 
   int byte_size = 0;
-  for (int i = 0; i < RARRAY_LEN(data_layout); ++i)
-    byte_size += NUM2INT(semian_shm_object_sizeof(rb_cObject, RARRAY_PTR(data_layout)[i]));
+  for (int i = 0; i < RARRAY_LEN(data_layout); ++i) {
+    VALUE type_symbol = RARRAY_PTR(data_layout)[i];
+    if (TYPE(type_symbol) != T_SYMBOL)
+      rb_raise(rb_eTypeError, "id must be a symbol or string");
+
+    if (rb_intern("int") == SYM2ID(type_symbol))
+      byte_size += sizeof(int);
+    else if (rb_intern("long") == SYM2ID(type_symbol))
+      byte_size += sizeof(long);
+    // Can definitely add more
+    else
+      rb_raise(rb_eTypeError, "%s is not a valid C type", rb_id2name(SYM2ID(type_symbol)));
+  }
 
   if (byte_size <= 0)
     rb_raise(rb_eArgError, "total size must be larger than 0");
@@ -119,16 +111,17 @@ semian_shm_object_acquire(VALUE self, VALUE name, VALUE data_layout, VALUE permi
   ptr->shm_address = 0; // address defaults to NULL
   ptr->lock_count = 0; // Emulates recursive mutex, 0->1 locks, 1->0 unlocks, rest noops
   ptr->permissions = FIX2LONG(permissions);
+  ptr->initialize_memory = NULL;
 
-  // Will throw NotImplementedError if not defined in concrete subclasses
-  // Implement bind_initialize_memory_callback as a function with type
-  // static VALUE bind_initialize_memory_callback(VALUE self)
-  // that a callback to ptr->initialize_memory, called when memory needs to be initialized
+  // Concrete classes must implement this in a subclass in C to bind a callback function of type
+  // void (*initialize_memory)(size_t byte_size, void *dest, void *prev_data, size_t prev_data_byte_size);
+  // to location ptr->initialize_memory, where ptr is a semian_shm_object*
+  // It is called when memory needs to be initialized or resized, possibly using previous memory
   rb_funcall(self, rb_intern("bind_initialize_memory_callback"), 0);
+  if (NULL == ptr->initialize_memory)
+    rb_raise(rb_eNotImpError, "callback was not bound to ptr->initialize_memory");
   semian_shm_object_acquire_semaphore(self);
   semian_shm_object_synchronize(self);
-
-
 
   return Qtrue;
 }
@@ -180,12 +173,9 @@ semian_shm_object_acquire_semaphore (VALUE self)
   semian_shm_object *ptr;
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
 
-  key_t key = ptr->key;
-  int semid = create_semaphore_and_initialize_and_set_permissions(key, ptr->permissions);
-  if (-1 == semid) {
+  if (-1 == (ptr->semid = create_semaphore_and_initialize_and_set_permissions(ptr->key, ptr->permissions))) {
     raise_semian_syscall_error("semget()", errno);
   }
-  ptr->semid = semid;
   return self;
 }
 
@@ -241,7 +231,7 @@ semian_shm_object_unlock_without_gvl(void *v_ptr)
   if (-1 == ptr->semid){
     rb_raise(eInternal, "semid not set, errno %d: (%s)", errno, strerror(errno));
   }
-  if (1 != ptr->lock_count || -1 != semop(ptr->semid, &increment, 1)) {
+  if (1 != ptr->lock_count || -1 != semop(ptr->semid, &increment, 1)) { // No need for semtimedop
     ptr->lock_count -= 1;
   } else {
     rb_raise(eInternal, "error unlocking semaphore, %d (%s)", errno, strerror(errno));
@@ -272,16 +262,15 @@ semian_shm_object_synchronize_restore_lock_status(VALUE v_status)
 {
   lock_status *status = (lock_status *) v_status;
   int tries = 0;
-  int allowed_tries = 5;
-  while (++tries < allowed_tries && status->ptr->lock_count > status->pre_block_lock_count_state)
+  while (++tries < kSHMRestoreLockStateRetryCount && status->ptr->lock_count > status->pre_block_lock_count_state)
     return (VALUE) WITHOUT_GVL(semian_shm_object_unlock_without_gvl, (void *)(status->ptr), RUBY_UBF_IO, NULL);
-  if (tries >= allowed_tries)
-    rb_raise(eSyscall, "Failed to restore lock status after %d tries", allowed_tries);
+  if (tries >= kSHMRestoreLockStateRetryCount)
+    rb_raise(eSyscall, "Failed to restore lock status after %d tries", kSHMRestoreLockStateRetryCount);
   tries = 0;
-  while (++tries < allowed_tries && status->ptr->lock_count < status->pre_block_lock_count_state)
+  while (++tries < kSHMRestoreLockStateRetryCount && status->ptr->lock_count < status->pre_block_lock_count_state)
     return (VALUE) WITHOUT_GVL(semian_shm_object_lock_without_gvl, (void *)(status->ptr), RUBY_UBF_IO, NULL);
-  if (tries >= allowed_tries)
-    rb_raise(eSyscall, "Failed to restore lock status after %d tries", allowed_tries);
+  if (tries >= kSHMRestoreLockStateRetryCount)
+    rb_raise(eSyscall, "Failed to restore lock status after %d tries", kSHMRestoreLockStateRetryCount);
   return Qnil;
 }
 
@@ -290,8 +279,7 @@ semian_shm_object_synchronize(VALUE self) { // receives a block
   semian_shm_object *ptr;
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
   lock_status status = { ptr->lock_count, ptr };
-  if (!(WITHOUT_GVL(semian_shm_object_lock_without_gvl, (void *)ptr, RUBY_UBF_IO, NULL)))
-    return Qnil;
+  WITHOUT_GVL(semian_shm_object_lock_without_gvl, (void *)ptr, RUBY_UBF_IO, NULL);
   return rb_ensure(semian_shm_object_synchronize_with_block, self, semian_shm_object_synchronize_restore_lock_status, (VALUE)&status);
 }
 
@@ -312,29 +300,28 @@ semian_shm_object_synchronize_memory_and_size(VALUE self, VALUE is_master_obj) {
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
 
   struct shmid_ds shm_info = { };
-  const int SHMMIN = 1;
+  const int SHMMIN = 1; // minimum size of shared memory on linux
   key_t key = ptr->key;
 
-  int is_master = RTEST(is_master_obj);
+  int is_master = RTEST(is_master_obj); // Controls whether synchronization is master or slave (both fast-forward, only master resizes/initializes)
   is_master |= (-1 == ptr->shmid) && (0 == ptr->shm_address);
 
   int shmid_out_of_sync = 0;
   shmid_out_of_sync |= (-1 == ptr->shmid) && (0 == ptr->shm_address); // If not attached at all
   if ((-1 != ptr->shmid) && (-1 != shmctl(ptr->shmid, IPC_STAT, &shm_info))) {
-    // If current attached memory is marked for deletion
-    shmid_out_of_sync |= shm_info.shm_perm.mode & SHM_DEST &&
-                         ptr->shmid != shmget(key, SHMMIN, IPC_CREAT | ptr->permissions);
+    shmid_out_of_sync |= shm_info.shm_perm.mode & SHM_DEST && // If current attached memory is marked for deletion
+                         ptr->shmid != shmget(key, SHMMIN, IPC_CREAT | ptr->permissions); // If shmid not in sync
   }
 
   size_t requested_byte_size = ptr->byte_size;
   int first_sync = (-1 == ptr->shmid) && (shmid_out_of_sync);
 
-  if (shmid_out_of_sync) {
+  if (shmid_out_of_sync) { // We need to fast-forward to the current state and memory attachment
     semian_shm_object_cleanup_memory(self);
     if ((-1 == (ptr->shmid = shmget(key, SHMMIN, ptr->permissions)))) {
       if ((-1 == (ptr->shmid = shmget(key, ptr->byte_size, IPC_CREAT | IPC_EXCL | ptr->permissions)))) {
         rb_raise(eSyscall, "shmget failed to create or attach current memory with key %d shmid %d errno %d (%s)", key, ptr->shmid, errno, strerror(errno));
-      }
+      } // If we can neither create a new memory block nor get the current one with a key, something's wrong
     }
     if ((void *)-1 == (ptr->shm_address = shmat(ptr->shmid, NULL, 0))) {
       ptr->shm_address = NULL;
@@ -351,14 +338,13 @@ semian_shm_object_synchronize_memory_and_size(VALUE self, VALUE is_master_obj) {
 
   if (is_master) {
     if (ptr->byte_size == requested_byte_size && first_sync && 1 == old_mem_attach_count) {
-      ptr->initialize_memory(ptr->byte_size, ptr->shm_address, NULL, 0);
-    } else {
+      ptr->initialize_memory(ptr->byte_size, ptr->shm_address, NULL, 0); // We clear the memory if worker is first to attach
+    } else if (ptr->byte_size != requested_byte_size) {
       void *old_shm_address = ptr->shm_address;
       size_t old_byte_size = ptr->byte_size;
-      unsigned char old_memory_content[old_byte_size];
-
+      unsigned char old_memory_content[old_byte_size]; // It is unsafe to use malloc here to store a copy of the memory
       memcpy(old_memory_content, old_shm_address, old_byte_size);
-      semian_shm_object_cleanup_memory(self);
+      semian_shm_object_cleanup_memory(self); // This may fail
 
       if (-1 == (ptr->shmid = shmget(key, requested_byte_size, IPC_CREAT | IPC_EXCL | ptr->permissions))) {
         rb_raise(eSyscall, "shmget failed to create new resized memory with key %d shmid %d errno %d (%s)", key, ptr->shmid, errno, strerror(errno));
@@ -399,8 +385,7 @@ semian_shm_object_cleanup_memory(VALUE self)
   semian_shm_object *ptr;
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
   lock_status status = { ptr->lock_count, ptr };
-  if (!(WITHOUT_GVL(semian_shm_object_lock_without_gvl, (void *)ptr, RUBY_UBF_IO, NULL)))
-    return Qnil;
+  WITHOUT_GVL(semian_shm_object_lock_without_gvl, (void *)ptr, RUBY_UBF_IO, NULL);
   return rb_ensure(semian_shm_object_cleanup_memory_inner, self, semian_shm_object_synchronize_restore_lock_status, (VALUE)&status);
 }
 
@@ -409,6 +394,8 @@ semian_shm_object_semid(VALUE self)
 {
   semian_shm_object *ptr;
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
+  if (-1 == ptr->semid)
+    return -1;
   semian_shm_object_synchronize(self);
   return INT2NUM(ptr->semid);
 }
@@ -417,7 +404,6 @@ semian_shm_object_shmid(VALUE self)
 {
   semian_shm_object *ptr;
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
-  semian_shm_object_synchronize(self);
   return INT2NUM(ptr->shmid);
 }
 
@@ -432,7 +418,7 @@ Init_semian_shm_object (void) {
   rb_define_method(cSysVSharedMemory, "synchronize", semian_shm_object_synchronize, 0);
 
   rb_define_method(cSysVSharedMemory, "semid", semian_shm_object_semid, 0);
-  rb_define_method(cSysVSharedMemory, "shmid", semian_shm_object_shmid, 0);
+  define_method_with_synchronize(cSysVSharedMemory, "shmid", semian_shm_object_shmid, 0);
 
   rb_define_singleton_method(cSysVSharedMemory, "replace_alloc", semian_shm_object_replace_alloc, 1);
 

@@ -25,17 +25,14 @@ semian_sliding_window_initialize_memory (size_t byte_size, void *dest, void *pre
   semian_sliding_window *ptr = dest;
   semian_sliding_window *old = prev_data;
 
-  // Logic to initialize: initialize to 0 only if you're the first to attach (else body)
-  // Otherwise, copy previous data into new data
   if (prev_data) {
-    // transfer data over
     ptr->max_window_size = (byte_size - 2 * sizeof(int)) / sizeof(long);
     ptr->window_size = fmin(ptr->max_window_size, old->window_size);
 
     // Copy the most recent ptr->shm_address->window_size numbers to new memory
     memcpy(&(ptr->window),
-          ((long *)(&(old->window[0]))) + old->window_size - ptr->window_size,
-          ptr->window_size * sizeof(long));
+           ((long *)(&(old->window[0]))) + old->window_size - ptr->window_size,
+           ptr->window_size * sizeof(long));
   } else {
     semian_sliding_window *data = dest;
     data->max_window_size = (byte_size - 2 * sizeof(int)) / sizeof(long);
