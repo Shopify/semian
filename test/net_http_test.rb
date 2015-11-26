@@ -21,6 +21,7 @@ class TestNetHTTP < MiniTest::Unit::TestCase
     error_timeout: 10,
   }.freeze
   DEFAULT_SEMIAN_CONFIGURATION = proc do |host, port|
+    next nil if host == "127.0.0.1" && port == 8474 # disable if toxiproxy
     DEFAULT_SEMIAN_OPTIONS.merge(name: "#{host}_#{port}")
   end
 
@@ -230,7 +231,8 @@ class TestNetHTTP < MiniTest::Unit::TestCase
     semian_config["development"]["nethttp_default"] = DEFAULT_SEMIAN_OPTIONS
     sample_env = "development"
 
-    semian_configuration_proc = proc do
+    semian_configuration_proc = proc do |host, port|
+      next nil if host == "127.0.0.1" && port == 8474 # # disable if toxiproxy
       semian_identifier = "nethttp_default"
       semian_config[sample_env][semian_identifier].merge(name: "default")
     end
