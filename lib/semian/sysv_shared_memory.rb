@@ -1,10 +1,10 @@
 module Semian
   module SysVSharedMemory #:nodoc:
-    def self.included(base)
+    module SysVSynchronizeHelper
       # This is a helper method for wrapping a method in :synchronize
       # Its usage is to be called from C: where rb_define_method() is originally
       #   used, define_method_with_synchronize() is used instead, which calls this
-      def base.do_with_sync(*names)
+      def do_with_sync(*names)
         names.each do |name|
           new_name = "#{name}_inner"
           alias_method new_name, name
@@ -16,6 +16,12 @@ module Semian
           end
         end
       end
+    end
+
+    extend SysVSynchronizeHelper
+
+    def self.included(base)
+      base.extend(SysVSynchronizeHelper)
     end
 
     def semid

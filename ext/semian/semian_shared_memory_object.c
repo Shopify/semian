@@ -1,10 +1,11 @@
 #include "semian_shared_memory_object.h"
 
-const int kSHMSemaphoreCount = 1; // # semaphores to be acquired
+const int kSHMSemaphoreCount = 1; // semaphores to be acquired
 const int kSHMTicketMax = 1;
 const int kSHMInitializeWaitTimeout = 5; /* seconds */
 const int kSHMIndexTicketLock = 0;
 const int kSHMInternalTimeout = 5; /* seconds */
+const int kSHMRestoreLockStateRetryCount = 5; // perform semtimedop 5 times max
 
 static struct sembuf decrement; // = { kSHMIndexTicketLock, -1, SEM_UNDO};
 static struct sembuf increment; // = { kSHMIndexTicketLock, 1, SEM_UNDO};
@@ -172,12 +173,9 @@ semian_shm_object_acquire_semaphore (VALUE self)
   semian_shm_object *ptr;
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
 
-  key_t key = ptr->key;
-  int semid = create_semaphore_and_initialize_and_set_permissions(key, ptr->permissions);
-  if (-1 == semid) {
+  if (-1 == (ptr->semid = create_semaphore_and_initialize_and_set_permissions(ptr->key, ptr->permissions))) {
     raise_semian_syscall_error("semget()", errno);
   }
-  ptr->semid = semid;
   return self;
 }
 
@@ -233,7 +231,7 @@ semian_shm_object_unlock_without_gvl(void *v_ptr)
   if (-1 == ptr->semid){
     rb_raise(eInternal, "semid not set, errno %d: (%s)", errno, strerror(errno));
   }
-  if (1 != ptr->lock_count || -1 != semop(ptr->semid, &increment, 1)) {
+  if (1 != ptr->lock_count || -1 != semop(ptr->semid, &increment, 1)) { // No need for semtimedop
     ptr->lock_count -= 1;
   } else {
     rb_raise(eInternal, "error unlocking semaphore, %d (%s)", errno, strerror(errno));
@@ -264,16 +262,15 @@ semian_shm_object_synchronize_restore_lock_status(VALUE v_status)
 {
   lock_status *status = (lock_status *) v_status;
   int tries = 0;
-  int allowed_tries = 5;
-  while (++tries < allowed_tries && status->ptr->lock_count > status->pre_block_lock_count_state)
+  while (++tries < kSHMRestoreLockStateRetryCount && status->ptr->lock_count > status->pre_block_lock_count_state)
     return (VALUE) WITHOUT_GVL(semian_shm_object_unlock_without_gvl, (void *)(status->ptr), RUBY_UBF_IO, NULL);
-  if (tries >= allowed_tries)
-    rb_raise(eSyscall, "Failed to restore lock status after %d tries", allowed_tries);
+  if (tries >= kSHMRestoreLockStateRetryCount)
+    rb_raise(eSyscall, "Failed to restore lock status after %d tries", kSHMRestoreLockStateRetryCount);
   tries = 0;
-  while (++tries < allowed_tries && status->ptr->lock_count < status->pre_block_lock_count_state)
+  while (++tries < kSHMRestoreLockStateRetryCount && status->ptr->lock_count < status->pre_block_lock_count_state)
     return (VALUE) WITHOUT_GVL(semian_shm_object_lock_without_gvl, (void *)(status->ptr), RUBY_UBF_IO, NULL);
-  if (tries >= allowed_tries)
-    rb_raise(eSyscall, "Failed to restore lock status after %d tries", allowed_tries);
+  if (tries >= kSHMRestoreLockStateRetryCount)
+    rb_raise(eSyscall, "Failed to restore lock status after %d tries", kSHMRestoreLockStateRetryCount);
   return Qnil;
 }
 
@@ -282,8 +279,7 @@ semian_shm_object_synchronize(VALUE self) { // receives a block
   semian_shm_object *ptr;
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
   lock_status status = { ptr->lock_count, ptr };
-  if (!(WITHOUT_GVL(semian_shm_object_lock_without_gvl, (void *)ptr, RUBY_UBF_IO, NULL)))
-    return Qnil;
+  WITHOUT_GVL(semian_shm_object_lock_without_gvl, (void *)ptr, RUBY_UBF_IO, NULL);
   return rb_ensure(semian_shm_object_synchronize_with_block, self, semian_shm_object_synchronize_restore_lock_status, (VALUE)&status);
 }
 
@@ -389,8 +385,7 @@ semian_shm_object_cleanup_memory(VALUE self)
   semian_shm_object *ptr;
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
   lock_status status = { ptr->lock_count, ptr };
-  if (!(WITHOUT_GVL(semian_shm_object_lock_without_gvl, (void *)ptr, RUBY_UBF_IO, NULL)))
-    return Qnil;
+  WITHOUT_GVL(semian_shm_object_lock_without_gvl, (void *)ptr, RUBY_UBF_IO, NULL);
   return rb_ensure(semian_shm_object_cleanup_memory_inner, self, semian_shm_object_synchronize_restore_lock_status, (VALUE)&status);
 }
 
@@ -399,6 +394,8 @@ semian_shm_object_semid(VALUE self)
 {
   semian_shm_object *ptr;
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
+  if (-1 == ptr->semid)
+    return -1;
   semian_shm_object_synchronize(self);
   return INT2NUM(ptr->semid);
 }
@@ -407,7 +404,6 @@ semian_shm_object_shmid(VALUE self)
 {
   semian_shm_object *ptr;
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
-  semian_shm_object_synchronize(self);
   return INT2NUM(ptr->shmid);
 }
 
@@ -425,7 +421,7 @@ Init_semian_shm_object (void) {
   rb_define_method(cSysVSharedMemory, "synchronize", semian_shm_object_synchronize, 0);
 
   rb_define_method(cSysVSharedMemory, "semid", semian_shm_object_semid, 0);
-  rb_define_method(cSysVSharedMemory, "shmid", semian_shm_object_shmid, 0);
+  define_method_with_synchronize(cSysVSharedMemory, "shmid", semian_shm_object_shmid, 0);
 
   rb_define_singleton_method(cSysVSharedMemory, "replace_alloc", semian_shm_object_replace_alloc, 1);
 

@@ -36,11 +36,8 @@ semian_integer_get_value(VALUE self)
 {
   semian_shm_object *ptr;
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
-
-  // check shared memory for NULL
   if (0 == ptr->shm_address)
     return Qnil;
-
   int value = ((semian_int *)(ptr->shm_address))->value;
   return INT2NUM(value);
 }
@@ -50,15 +47,11 @@ semian_integer_set_value(VALUE self, VALUE num)
 {
   semian_shm_object *ptr;
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
-
   if (0 == ptr->shm_address)
     return Qnil;
-
   if (TYPE(num) != T_FIXNUM && TYPE(num) != T_FLOAT)
     return Qnil;
-
   ((semian_int *)(ptr->shm_address))->value = NUM2INT(num);
-
   return num;
 }
 
@@ -78,15 +71,11 @@ semian_integer_increment(int argc, VALUE *argv, VALUE self)
 
   semian_shm_object *ptr;
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
-
   if (0 == ptr->shm_address)
     return Qnil;
-
   if (TYPE(num) != T_FIXNUM && TYPE(num) != T_FLOAT)
     return Qnil;
-
   ((semian_int *)(ptr->shm_address))->value += NUM2INT(num);
-
   return self;
 }
 

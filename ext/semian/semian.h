@@ -44,6 +44,5 @@ generate_key(const char *name);
 void
 raise_semian_syscall_error(const char *syscall, int error_num);
 
-
 void
 set_semaphore_permissions(int sem_id, int permissions);
