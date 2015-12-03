@@ -68,34 +68,19 @@ semian_shm_object_replace_alloc(VALUE klass, VALUE target)
 }
 
 VALUE
-semian_shm_object_acquire(VALUE self, VALUE name, VALUE data_layout, VALUE permissions)
+semian_shm_object_acquire(VALUE self, VALUE name, VALUE byte_size, VALUE permissions)
 {
   semian_shm_object *ptr;
   TypedData_Get_Struct(self, semian_shm_object, &semian_shm_object_type, ptr);
 
   if (TYPE(name) != T_SYMBOL && TYPE(name) != T_STRING)
     rb_raise(rb_eTypeError, "id must be a symbol or string");
-  if (TYPE(data_layout) != T_ARRAY)
-    rb_raise(rb_eTypeError, "expected array for data_layout");
+  if (TYPE(byte_size) != T_FIXNUM)
+    rb_raise(rb_eTypeError, "expected integer for byte_size");
   if (TYPE(permissions) != T_FIXNUM)
     rb_raise(rb_eTypeError, "expected integer for permissions");
 
-  int byte_size = 0;
-  for (int i = 0; i < RARRAY_LEN(data_layout); ++i) {
-    VALUE type_symbol = RARRAY_PTR(data_layout)[i];
-    if (TYPE(type_symbol) != T_SYMBOL)
-      rb_raise(rb_eTypeError, "id must be a symbol or string");
-
-    if (rb_intern("int") == SYM2ID(type_symbol))
-      byte_size += sizeof(int);
-    else if (rb_intern("long") == SYM2ID(type_symbol))
-      byte_size += sizeof(long);
-    // Can definitely add more
-    else
-      rb_raise(rb_eTypeError, "%s is not a valid C type", rb_id2name(SYM2ID(type_symbol)));
-  }
-
-  if (byte_size <= 0)
+  if (NUM2SIZET(byte_size) <= 0)
     rb_raise(rb_eArgError, "total size must be larger than 0");
 
   const char *id_str = NULL;
@@ -105,7 +90,7 @@ semian_shm_object_acquire(VALUE self, VALUE name, VALUE data_layout, VALUE permi
     id_str = RSTRING_PTR(name);
   }
   ptr->key = generate_key(id_str);
-  ptr->byte_size = byte_size; // byte_size >=1 or error would have been raised earlier
+  ptr->byte_size = NUM2SIZET(byte_size); // byte_size >=1 or error would have been raised earlier
   ptr->semid = -1; // id's default to -1
   ptr->shmid = -1;
   ptr->shm_address = 0; // address defaults to NULL

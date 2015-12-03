@@ -225,6 +225,12 @@ semian_sliding_window_resize_to(VALUE self, VALUE size) {
   return self;
 }
 
+static VALUE
+semian_sliding_window_calculate_byte_size(VALUE klass, VALUE size)
+{
+  return INT2NUM(2 * sizeof(int) + NUM2INT(size) * sizeof(long));
+}
+
 void
 Init_semian_sliding_window (void)
 {
@@ -247,4 +253,5 @@ Init_semian_sliding_window (void)
   define_method_with_synchronize(cSlidingWindow, "clear", semian_sliding_window_clear, 0);
   define_method_with_synchronize(cSlidingWindow, "first", semian_sliding_window_first, 0);
   define_method_with_synchronize(cSlidingWindow, "last", semian_sliding_window_last, 0);
+  rb_define_method(cSlidingWindow, "calculate_byte_size", semian_sliding_window_calculate_byte_size, 1);
 }
