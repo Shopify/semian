@@ -79,6 +79,12 @@ semian_integer_increment(int argc, VALUE *argv, VALUE self)
   return self;
 }
 
+static VALUE
+semian_integer_calculate_byte_size(VALUE klass)
+{
+  return SIZET2NUM(sizeof(int));
+}
+
 void
 Init_semian_integer (void)
 {
@@ -95,4 +101,5 @@ Init_semian_integer (void)
   define_method_with_synchronize(cInteger, "value=", semian_integer_set_value, 1);
   define_method_with_synchronize(cInteger, "reset", semian_integer_reset, 0);
   define_method_with_synchronize(cInteger, "increment", semian_integer_increment, -1);
+  rb_define_method(cInteger, "calculate_byte_size", semian_integer_calculate_byte_size, 0);
 }

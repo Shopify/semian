@@ -4,8 +4,7 @@ module Semian
       include SysVSharedMemory
 
       def initialize(name:, permissions:)
-        data_layout = [:int]
-        acquire_memory_object(name, data_layout, permissions)
+        acquire_memory_object(name, calculate_byte_size, permissions)
       end
     end
   end
