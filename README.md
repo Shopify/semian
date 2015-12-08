@@ -130,12 +130,13 @@ client = Redis.new(semian: {
 #### Net::HTTP
 For the `Net::HTTP` specific Semian adapter, since many external libraries may create
 HTTP connections on the user's behalf, the parameters are instead provided
-by calling specific functions in `Semian::NetHTTP`, perhaps in an initialization file.
+by associating callback functions with `Semian::NetHTTP`, perhaps in an initialization file.
 
 ##### Naming and Options
 To give Semian parameters, assign a `proc` to `Semian::NetHTTP.semian_configuration`
-that takes a two parameters, `host` and `port` like `127.0.0.1` and `80` or `github_com` and `80`,
-and returns a `Hash` with keys as follows.
+that takes a two parameters, `host` and `port` like `127.0.0.1`,`443` or `github_com`,`80`,
+and returns a `Hash` with configuration parameters as follows. The `proc` is used as a
+callback to initialize the configuration options, similar to other adapters.
 
 ```ruby
 SEMIAN_PARAMETERS = { tickets: 1,
@@ -160,6 +161,11 @@ The `name` should be carefully chosen since it identifies the resource being pro
 The `semian_options` passed apply to that resource. Semian creates the `semian_identifier`
 from the `name` to look up and store changes in the circuit breaker and bulkhead states
 and associate successes, failures, errors with the protected resource.
+
+We only require that:
+* the `semian_configuration` be **set only once** over the lifetime of the library
+* the output of the `proc` be the same over time, that is, the configuration produced by
+  each pair of `host`, `port` is **the same each time** the callback is invoked.
 
 For most purposes, `"#{host}_#{port}"` is a good default `name`. Custom `name` formats
 can be useful to grouping related subdomains as one resource, so that they all
@@ -560,7 +566,7 @@ non-IO.
 [redis-semian-adapter]: lib/semian/redis.rb
 [semian-adapter]: lib/semian/adapter.rb
 [nethttp-semian-adapter]: lib/semian/net_http.rb
-[nethttp-default-errors]: lib/semian/net_http.rb#L33-L43
+[nethttp-default-errors]: lib/semian/net_http.rb#L35-L45
 [semian-instrumentable]: lib/semian/instrumentable.rb
 [statsd-instrument]: http://github.com/shopify/statsd-instrument
 [resiliency-blog-post]: http://www.shopify.com/technology/16906928-building-and-testing-resilient-ruby-on-rails-applications
