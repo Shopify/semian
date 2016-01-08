@@ -20,8 +20,7 @@ Gem::Specification.new do |s|
   s.extensions = ['ext/semian/extconf.rb']
   s.add_development_dependency 'rake-compiler', '~> 0.9'
   s.add_development_dependency 'timecop'
-  s.add_development_dependency 'mysql2'
+  s.add_development_dependency 'mysql2', '~> 0.3.20'
   s.add_development_dependency 'redis'
   s.add_development_dependency 'thin'
-  s.add_development_dependency 'toxiproxy'
 end
