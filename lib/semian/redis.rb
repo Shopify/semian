@@ -5,7 +5,7 @@ require 'redis'
 class Redis
   Redis::BaseConnectionError.include(::Semian::AdapterError)
   ::Errno::EINVAL.include(::Semian::AdapterError)
-  ::RuntimeError.include(::Semian::AdapterError) # Second Hiredis bug https://github.com/redis/hiredis-rb/issues/40
+  ::SocketError.include(::Semian::AdapterError)
 
   class SemianError < Redis::BaseConnectionError
     def initialize(semian_identifier, *args)
@@ -63,18 +63,11 @@ module Semian
 
     private
 
-    def acquire_semian_resource(*)
-      super
-    rescue RuntimeError => error
-      # We are afraid to rescue unrelated RuntimeError, so we need a special case here
-      error.semian_identifier = semian_identifier if error.message =~ /Name or service not known/i
-      raise
-    end
-
     def resource_exceptions
       [
         ::Redis::BaseConnectionError,
         ::Errno::EINVAL, # Hiredis bug: https://github.com/redis/hiredis-rb/issues/21
+        ::SocketError,
       ]
     end
 
