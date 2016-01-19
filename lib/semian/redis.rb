@@ -30,6 +30,17 @@ end
 
 module Semian
   module Redis
+    module DnsResolutionErrorPatch
+      def raw_connect
+        super
+      rescue ::SocketError, RuntimeError => exception
+        raise unless exception.message =~ /Name or service not known/
+        new_exception = ::Redis::BaseConnectionError.new(exception.message)
+        new_exception.set_backtrace(exception.backtrace)
+        raise new_exception
+      end
+    end
+
     include Semian::Adapter
 
     ResourceBusyError = ::Redis::ResourceBusyError
@@ -42,6 +53,8 @@ module Semian
 
       base.send(:alias_method, :raw_connect, :connect)
       base.send(:remove_method, :connect)
+
+      base.prepend(DnsResolutionErrorPatch)
     end
 
     def semian_identifier
