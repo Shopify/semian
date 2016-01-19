@@ -52,7 +52,7 @@ class TestRedis < MiniTest::Unit::TestCase
   end
 
   def test_dns_resolution_errors_in_ruby_driver_open_the_circuit
-    redis_options = { host: "invalid-dns-name", semian: SEMIAN_OPTIONS, reconnect_attempts: 0 }
+    redis_options = {host: "invalid-dns-name", semian: SEMIAN_OPTIONS, reconnect_attempts: 0}
 
     clients = [
       Redis.new(driver: 'ruby', **redis_options),
