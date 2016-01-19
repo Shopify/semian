@@ -51,6 +51,29 @@ class TestRedis < MiniTest::Unit::TestCase
     end
   end
 
+  def test_dns_resolution_errors_open_the_circuit
+    redis_options = { host: "invalid-dns-name", semian: SEMIAN_OPTIONS, reconnect_attempts: 0 }
+
+    clients = [
+      Redis.new(**redis_options),
+      Redis.new(driver: 'hiredis', **redis_options)
+    ]
+
+    clients.each do |client|
+      ERROR_THRESHOLD.times do
+        assert_raises ::Redis::BaseConnectionError do
+          client.get('foo')
+        end
+      end
+
+      assert_raises ::Redis::CircuitOpenError do
+        client.get('foo')
+      end
+
+      Semian.destroy(:redis_testing)
+    end
+  end
+
   def test_command_errors_does_not_open_the_circuit
     client = connect_to_redis!
     client.hset('my_hash', 'foo', 'bar')
