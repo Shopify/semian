@@ -21,17 +21,10 @@ class TestNetHTTP < MiniTest::Unit::TestCase
     error_timeout: 10,
   }.freeze
   DEFAULT_SEMIAN_CONFIGURATION = proc do |host, port|
-    next nil if host == "127.0.0.1" && port == 8474 # disable if toxiproxy
-    DEFAULT_SEMIAN_OPTIONS.merge(name: "#{host}_#{port}")
-  end
-
-  def test_with_server_raises_if_binding_fails
-    # Occurs when trying to bind to invalid addresses, like non-private
-    # addresses, or when the address is already bound to something else
-    with_server do
-      assert_raises RuntimeError do
-        with_server {}
-      end
+    if host == "127.0.0.1" && port == 8474 # disable if toxiproxy
+      nil
+    else
+      DEFAULT_SEMIAN_OPTIONS.merge(name: "#{host}_#{port}")
     end
   end
 
@@ -243,9 +236,12 @@ class TestNetHTTP < MiniTest::Unit::TestCase
     sample_env = "development"
 
     semian_configuration_proc = proc do |host, port|
-      next nil if host == "127.0.0.1" && port == 8474 # # disable if toxiproxy
-      semian_identifier = "nethttp_default"
-      semian_config[sample_env][semian_identifier].merge(name: "default")
+      if host == "127.0.0.1" && port == 8474 # # disable if toxiproxy
+        nil
+      else
+        semian_identifier = "nethttp_default"
+        semian_config[sample_env][semian_identifier].merge(name: "default")
+      end
     end
 
     with_semian_configuration(semian_configuration_proc) do
@@ -453,7 +449,7 @@ class TestNetHTTP < MiniTest::Unit::TestCase
         yield(hostname, port.to_i)
       ensure
         server_thread.kill
-        poll_until_gone(hostname: hostname, port: port)
+        poll_until_gone(server_thread)
       end
     end
   end
@@ -499,17 +495,13 @@ class TestNetHTTP < MiniTest::Unit::TestCase
     end
   end
 
-  def poll_until_gone(hostname: HOSTNAME, port: PORT, time_to_wait: 1)
+  def poll_until_gone(thread, time_to_wait: 1)
     start_time = Time.now.to_i
     loop do
       if Time.now.to_i > start_time + time_to_wait
-        raise "Could still reach the service on hostname #{hostname} port #{port} after #{time_to_wait}s"
+        raise "Thread #{thread} still running with a staus of #{thread.status} after waiting #{time_to_wait} seconds"
       end
-      begin
-        TCPSocket.new(hostname, port).close
-      rescue Errno::ECONNREFUSED, Errno::ECONNRESET
-        return true
-      end
+      return true unless thread.status
     end
   end
 end

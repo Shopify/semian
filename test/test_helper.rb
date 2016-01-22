@@ -6,6 +6,7 @@ require 'toxiproxy'
 require 'timecop'
 require 'tempfile'
 require 'fileutils'
+require 'yaml'
 
 require 'helpers/background_helper'
 
@@ -27,6 +28,20 @@ Toxiproxy.populate([
     listen: 'localhost:31051',
   },
 ])
+
+def mysql_config
+  defaults = {
+    username: ENV['USER'],
+    host: '127.0.0.1',
+    port: '13306',
+  }
+  defaults.merge(user_config['mysql2'])
+end
+
+def user_config
+  Hash.new({})
+    .merge(File.exist?(Dir.pwd + '/test/test_config.yml') ? YAML.load_file(Dir.pwd + '/test/test_config.yml') : {})
+end
 
 class MiniTest::Unit::TestCase
   include BackgroundHelper
