@@ -25,7 +25,7 @@ class TestMysql2 < MiniTest::Unit::TestCase
   end
 
   def test_semian_can_be_disabled
-    resource = Mysql2::Client.new(semian: false).semian_resource
+    resource = Mysql2::Client.new(mysql_config.merge(semian: false)).semian_resource
     assert_instance_of Semian::UnprotectedResource, resource
   end
 
@@ -254,7 +254,7 @@ grey_bg\\\":6M\\0\\06\x05\x01\x01!\fblueJ!\\0\x01l\x04ff\x01!\bredJ \\0$ff0000\\
   end
 
   def test_unconfigured
-    client = Mysql2::Client.new(host: '127.0.0.1', port: '13306')
+    client = Mysql2::Client.new(mysql_config)
     assert_equal 2, client.query('SELECT 1 + 1 as sum;').to_a.first['sum']
   end
 
@@ -262,10 +262,10 @@ grey_bg\\\":6M\\0\\06\x05\x01\x01!\fblueJ!\\0\x01l\x04ff\x01!\bredJ \\0$ff0000\\
 
   def connect_to_mysql!(semian_options = {})
     Mysql2::Client.new(
-      connect_timeout: 1,
-      host: '127.0.0.1',
-      port: '13306',
-      semian: SEMIAN_OPTIONS.merge(semian_options),
+      mysql_config.merge(
+        connect_timeout: 1,
+        semian: SEMIAN_OPTIONS.merge(semian_options),
+      ),
     )
   end
 

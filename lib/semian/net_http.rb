@@ -3,6 +3,7 @@ require 'semian/adapter'
 
 module Net
   ProtocolError.include(::Semian::AdapterError)
+  HTTPBadResponse.include(::Semian::AdapterError)
 
   class SemianError < ::Net::ProtocolError
     def initialize(semian_identifier, *args)
@@ -76,7 +77,11 @@ module Semian
     def raw_semian_options
       @raw_semian_options ||= begin
         @raw_semian_options = Semian::NetHTTP.retrieve_semian_configuration(address, port)
-        @raw_semian_options = @raw_semian_options.dup unless @raw_semian_options.nil?
+        unless @raw_semian_options.nil?
+          @raw_semian_options = @raw_semian_options.dup
+          @raise_on = @raw_semian_options.delete(:raise_on)
+        end
+        @raw_semian_options
       end
     end
 
@@ -88,6 +93,10 @@ module Semian
       raw_semian_options.nil?
     end
 
+    def raise_on?(code)
+      @raise_on && @raise_on.include?(code.to_i)
+    end
+
     def connect
       return raw_connect if disabled?
       acquire_semian_resource(adapter: :http, scope: :connection) { raw_connect }
@@ -95,7 +104,13 @@ module Semian
 
     def request(req, body = nil, &block)
       return raw_request(req, body, &block) if disabled?
-      acquire_semian_resource(adapter: :http, scope: :query) { raw_request(req, body, &block) }
+      response = acquire_semian_resource(adapter: :http, scope: :query) { raw_request(req, body, &block) }
+
+      return response unless raise_on?(response.code)
+
+      error = ::Net::HTTPBadResponse.new
+      error.semian_identifier = semian_identifier
+      raise error
     end
   end
 end

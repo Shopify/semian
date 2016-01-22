@@ -6,3 +6,5 @@
 /html/
 Gemfile.lock
 vendor/
+
+test/test_config.yml
