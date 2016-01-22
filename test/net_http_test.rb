@@ -308,6 +308,25 @@ class TestNetHTTP < MiniTest::Unit::TestCase
     end
   end
 
+  def test_raise_on_response_codes_trips_circuit
+    custom_config = proc do |host, port|
+      DEFAULT_SEMIAN_OPTIONS.merge(name: "#{host}_#{port}", raise_on: [500])
+    end
+    with_semian_configuration(custom_config) do
+      with_server do
+        http = Net::HTTP.new(HOSTNAME, PORT)
+        http.raw_semian_options[:error_threshold].times do
+          assert_raises ::Net::HTTPBadResponse do
+            http.get("/500")
+          end
+        end
+        assert_raises Net::CircuitOpenError do
+          http.get("/200")
+        end
+      end
+    end
+  end
+
   def test_multiple_different_endpoints_and_ports_are_tracked_differently
     with_semian_configuration do
       addresses = ["#{HOSTNAME}:#{PORT}", "#{HOSTNAME}:#{PORT + 100}"]
