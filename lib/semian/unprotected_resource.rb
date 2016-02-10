@@ -1,6 +1,6 @@
 module Semian
   # This class acts as a replacement for `ProtectedResource` when
-  # the semian configuration of an `Adatper` is missing or explicitly disabled
+  # the semian configuration of an `Adapter` is missing or explicitly disabled
   class UnprotectedResource
     attr_reader :name
 
