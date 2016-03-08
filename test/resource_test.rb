@@ -26,6 +26,12 @@ class TestResource < MiniTest::Unit::TestCase
     end
   end
 
+  def test_initialize_with_float
+    resource = create_resource :testing, tickets: 1.0
+    assert resource
+    assert_equal 1, resource.tickets
+  end
+
   def test_max_tickets
     assert Semian::MAX_TICKETS > 0
   end

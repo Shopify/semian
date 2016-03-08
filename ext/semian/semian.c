@@ -283,6 +283,10 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE permission
   if (TYPE(id) != T_SYMBOL && TYPE(id) != T_STRING) {
     rb_raise(rb_eTypeError, "id must be a symbol or string");
   }
+  if (TYPE(tickets) == T_FLOAT) {
+    rb_warn("semian ticket value %f is a float, converting to fixnum", RFLOAT_VALUE(tickets));
+    tickets = INT2FIX((int) RFLOAT_VALUE(tickets));
+  }
   Check_Type(tickets, T_FIXNUM);
   Check_Type(permissions, T_FIXNUM);
   if (TYPE(default_timeout) != T_FIXNUM && TYPE(default_timeout) != T_FLOAT) {
