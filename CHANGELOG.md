@@ -1,3 +1,6 @@
+# v0.4.1
+* resource: cast float ticket count to fixnum #75
+
 # v0.4.0
 
 * net/http: add adapter for net/http #58
