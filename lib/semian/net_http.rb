@@ -34,7 +34,6 @@ module Semian
 
     DEFAULT_ERRORS = [
       ::Timeout::Error, # includes ::Net::ReadTimeout and ::Net::OpenTimeout
-      ::TimeoutError, # alias for above
       ::SocketError,
       ::Net::HTTPBadResponse,
       ::Net::HTTPHeaderSyntaxError,
