@@ -181,12 +181,9 @@ class TestMysql2 < MiniTest::Unit::TestCase
   end
 
   def test_query_whitelisted_returns_false_for_binary_sql
+    binary_query = File.read(File.expand_path('../fixtures/binary.sql', __FILE__))
     client = connect_to_mysql!
-
-    q = "INSERT IGNORE INTO `theme_template_bodies` (`cityhash`, `body`, `created_at`) VALUES ('716374049952273167', \
-'\xB1\x01\xD0{\\\"current\\\":{\\\"bg_color\\\":\\\"#ff0000\\\"},\\\"presets\\\":{\\\"sandbox>,\\0\\07\x05\x01\x01, \
-grey_bg\\\":6M\\0\\06\x05\x01\x01!\fblueJ!\\0\x01l\x04ff\x01!\bredJ \\0$ff0000\\\"}}}', '2015-11-06 19:08:03.498432')"
-    refute client.send(:query_whitelisted?, q)
+    refute client.send(:query_whitelisted?, binary_query)
   end
 
   def test_semian_allows_rollback_to_safepoint

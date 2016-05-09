@@ -1,0 +1,1 @@
+INSERT IGNORE INTO `theme_template_bodies` (`cityhash`, `body`, `created_at`) VALUES ('716374049952273167', '±Ð{\"current\":{\"bg_color\":\"#ff0000\"},\"presets\":{\"sandbox>,\0\07, grey_bg\":6M\0\06!blueJ!\0lff!redJ \0$ff0000\"}}}', '2015-11-06 19:08:03.498432')
