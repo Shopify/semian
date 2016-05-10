@@ -19,9 +19,9 @@ class TestRedis < MiniTest::Unit::TestCase
   end
 
   def test_semian_identifier
-    assert_equal :redis_foo, Redis.new(semian: {name: 'foo'}).client.semian_identifier
-    assert_equal :'redis_127.0.0.1:6379/0', Redis.new.client.semian_identifier
-    assert_equal :'redis_example.com:42/0', Redis.new(host: 'example.com', port: 42).client.semian_identifier
+    assert_equal :redis_foo, new_redis(semian: {name: 'foo'}).client.semian_identifier
+    assert_equal :'redis_127.0.0.1:16379/1', new_redis(semian: {name: nil}).client.semian_identifier
+    assert_equal :'redis_example.com:42/1', new_redis(host: 'example.com', port: 42, semian: {name: nil}).client.semian_identifier
   end
 
   def test_client_alias
@@ -33,6 +33,13 @@ class TestRedis < MiniTest::Unit::TestCase
   def test_semian_can_be_disabled
     resource = Redis.new(semian: false).client.semian_resource
     assert_instance_of Semian::UnprotectedResource, resource
+  end
+
+  def test_semian_resource_in_pipeline
+    redis = connect_to_redis!
+    redis.pipelined do
+      assert_instance_of Semian::ProtectedResource, redis.semian_resource
+    end
   end
 
   def test_connection_errors_open_the_circuit
@@ -210,15 +217,20 @@ class TestRedis < MiniTest::Unit::TestCase
 
   private
 
-  def connect_to_redis!(semian_options = {})
-    redis = Redis.new(
+  def new_redis(options = {})
+    semian_options = SEMIAN_OPTIONS.merge(options.delete(:semian) || {})
+    Redis.new({
       host: '127.0.0.1',
       port: 16_379,
       reconnect_attempts: 0,
       db: 1,
       timeout: 0.5,
-      semian: SEMIAN_OPTIONS.merge(semian_options),
-    )
+      semian: semian_options,
+    }.merge(options))
+  end
+
+  def connect_to_redis!(semian_options = {})
+    redis = new_redis(semian: semian_options)
     redis.client.connect
     redis
   end
