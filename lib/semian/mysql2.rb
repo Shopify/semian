@@ -39,12 +39,9 @@ module Semian
     )
 
     # The naked methods are exposed as `raw_query` and `raw_connect` for instrumentation purpose
-    def self.included(base)
+    def self.prepended(base)
       base.send(:alias_method, :raw_query, :query)
-      base.send(:remove_method, :query)
-
       base.send(:alias_method, :raw_connect, :connect)
-      base.send(:remove_method, :connect)
     end
 
     def semian_identifier
@@ -60,9 +57,9 @@ module Semian
 
     def query(*args)
       if query_whitelisted?(*args)
-        raw_query(*args)
+        super
       else
-        acquire_semian_resource(adapter: :mysql, scope: :query) { raw_query(*args) }
+        acquire_semian_resource(adapter: :mysql, scope: :query) { super }
       end
     end
 
@@ -79,7 +76,7 @@ module Semian
     end
 
     def connect(*args)
-      acquire_semian_resource(adapter: :mysql, scope: :connection) { raw_connect(*args) }
+      acquire_semian_resource(adapter: :mysql, scope: :connection) { super }
     end
 
     def acquire_semian_resource(*)
@@ -99,4 +96,4 @@ module Semian
   end
 end
 
-::Mysql2::Client.include(Semian::Mysql2)
+::Mysql2::Client.prepend(Semian::Mysql2)
