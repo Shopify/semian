@@ -3,6 +3,7 @@ language: ruby
 sudo: true
 
 before_install:
+  - gem install bundler
   - scripts/install_toxiproxy.sh
 
 rvm:
