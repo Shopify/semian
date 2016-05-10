@@ -44,12 +44,9 @@ module Semian
     ].freeze # Net::HTTP can throw many different errors, this tries to capture most of them
 
     # The naked methods are exposed as `raw_query` and `raw_connect` for instrumentation purpose
-    def self.included(base)
+    def self.prepended(base)
       base.send(:alias_method, :raw_request, :request)
-      base.send(:remove_method, :request)
-
       base.send(:alias_method, :raw_connect, :connect)
-      base.send(:remove_method, :connect)
     end
 
     class << self
@@ -88,15 +85,21 @@ module Semian
     end
 
     def connect
-      return raw_connect if disabled?
-      acquire_semian_resource(adapter: :http, scope: :connection) { raw_connect }
+      if disabled?
+        super
+      else
+        acquire_semian_resource(adapter: :http, scope: :connection) { super }
+      end
     end
 
-    def request(req, body = nil, &block)
-      return raw_request(req, body, &block) if disabled?
-      acquire_semian_resource(adapter: :http, scope: :query) { raw_request(req, body, &block) }
+    def request(*)
+      if disabled?
+        super
+      else
+        acquire_semian_resource(adapter: :http, scope: :query) { super }
+      end
     end
   end
 end
 
-Net::HTTP.include(Semian::NetHTTP)
+Net::HTTP.prepend(Semian::NetHTTP)

@@ -3,11 +3,13 @@ language: ruby
 sudo: true
 
 before_install:
+  - gem install bundler
   - scripts/install_toxiproxy.sh
 
 rvm:
-  - 2.1.1
-  - 2.3.0
+  - '2.1'
+  - '2.2'
+  - '2.3.1'
 
 services:
   - redis-server

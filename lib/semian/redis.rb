@@ -2,52 +2,47 @@ require 'semian'
 require 'semian/adapter'
 require 'redis'
 
-class Redis
-  Redis::BaseConnectionError.include(::Semian::AdapterError)
-  ::Errno::EINVAL.include(::Semian::AdapterError)
+::Redis::BaseConnectionError.include(::Semian::AdapterError)
+::Errno::EINVAL.include(::Semian::AdapterError)
 
-  class SemianError < Redis::BaseConnectionError
-    def initialize(semian_identifier, *args)
-      super(*args)
-      @semian_identifier = semian_identifier
-    end
-  end
-
-  ResourceBusyError = Class.new(SemianError)
-  CircuitOpenError = Class.new(SemianError)
-
-  attr_reader :semian_resource
-
-  alias_method :_original_initialize, :initialize
-
-  def initialize(*args, &block)
-    _original_initialize(*args, &block)
-
-    # This alias is necessary because during a `pipelined` block
-    # the client is replaced by an instance of `Redis::Pipeline` and there is
-    # no way to access the original client.
-    @semian_resource = client.semian_resource
-  end
-
-  def semian_identifier
-    semian_resource.name
+class Redis::SemianError < Redis::BaseConnectionError
+  def initialize(semian_identifier, *args)
+    super(*args)
+    @semian_identifier = semian_identifier
   end
 end
 
+::Redis::ResourceBusyError = Class.new(::Redis::SemianError)
+::Redis::CircuitOpenError = Class.new(::Redis::SemianError)
+
 module Semian
   module Redis
+    attr_reader :semian_resource
+
+    def initialize(*)
+      super
+
+      # This alias is necessary because during a `pipelined` block
+      # the client is replaced by an instance of `Redis::Pipeline` and there is
+      # no way to access the original client.
+      @semian_resource = client.semian_resource
+    end
+
+    def semian_identifier
+      semian_resource.name
+    end
+  end
+
+  module RedisClient
     include Semian::Adapter
 
     ResourceBusyError = ::Redis::ResourceBusyError
     CircuitOpenError = ::Redis::CircuitOpenError
 
     # The naked methods are exposed as `raw_query` and `raw_connect` for instrumentation purpose
-    def self.included(base)
+    def self.prepended(base)
       base.send(:alias_method, :raw_io, :io)
-      base.send(:remove_method, :io)
-
       base.send(:alias_method, :raw_connect, :connect)
-      base.send(:remove_method, :connect)
     end
 
     def semian_identifier
@@ -58,12 +53,12 @@ module Semian
       end
     end
 
-    def io(&block)
-      acquire_semian_resource(adapter: :redis, scope: :query) { raw_io(&block) }
+    def io
+      acquire_semian_resource(adapter: :redis, scope: :query) { super }
     end
 
     def connect
-      acquire_semian_resource(adapter: :redis, scope: :connection) { raw_connect }
+      acquire_semian_resource(adapter: :redis, scope: :connection) { super }
     end
 
     private
@@ -82,4 +77,5 @@ module Semian
   end
 end
 
-::Redis::Client.include(Semian::Redis)
+::Redis.prepend(Semian::Redis)
+::Redis::Client.prepend(Semian::RedisClient)
