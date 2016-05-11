@@ -164,11 +164,11 @@ if Semian.semaphores_enabled?
 else
   Semian::MAX_TICKETS = 0
   unless Semian.sysv_semaphores_supported?
-    Semian.logger.info("Semian sysv semaphores are not supported on #{RUBY_PLATFORM} - all operations will no-op")
+    Semian.logger.debug("Semian sysv semaphores are not supported on #{RUBY_PLATFORM} - all operations will no-op")
   end
 
   if ENV['SEMIAN_SEMAPHORES_DISABLED']
-    Semian.logger.info("Semian semaphores are disabled, is this what you really want? - all operations will no-op")
+    Semian.logger.debug("Semian semaphores are disabled, is this what you really want? - all operations will no-op")
   end
 end
 require 'semian/version'

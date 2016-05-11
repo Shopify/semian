@@ -9,7 +9,7 @@ module Semian
       when false
         UnprotectedResource.new(semian_identifier)
       when nil
-        Semian.logger.info("Semian is not configured for #{self.class.name}: #{semian_identifier}")
+        Semian.logger.debug("Semian is not configured for #{self.class.name}: #{semian_identifier}")
         UnprotectedResource.new(semian_identifier)
       else
         options = semian_options.dup
