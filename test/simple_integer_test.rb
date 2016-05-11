@@ -1,6 +1,6 @@
 require 'test_helper'
 
-class TestSimpleInteger < MiniTest::Unit::TestCase
+class TestSimpleInteger < Minitest::Test
   CLASS = ::Semian::Simple::Integer
 
   def setup

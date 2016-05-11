@@ -28,6 +28,6 @@ Toxiproxy.populate([
   },
 ])
 
-class MiniTest::Unit::TestCase
+class Minitest::Test
   include BackgroundHelper
 end

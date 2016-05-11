@@ -2,7 +2,7 @@ require 'test_helper'
 require 'semian/net_http'
 require 'thin'
 
-class TestNetHTTP < MiniTest::Unit::TestCase
+class TestNetHTTP < Minitest::Test
   class RackServer
     def self.call(env)
       response_code = env['REQUEST_URI'].delete("/")

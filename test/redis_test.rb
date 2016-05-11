@@ -1,6 +1,6 @@
 require 'test_helper'
 
-class TestRedis < MiniTest::Unit::TestCase
+class TestRedis < Minitest::Test
   ERROR_TIMEOUT = 5
   ERROR_THRESHOLD = 1
   SEMIAN_OPTIONS = {

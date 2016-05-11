@@ -1,6 +1,6 @@
 require 'test_helper'
 
-class TestInstrumentation < MiniTest::Unit::TestCase
+class TestInstrumentation < Minitest::Test
   def setup
     Semian.destroy(:testing) if Semian[:testing]
     Semian.register(:testing, tickets: 1, error_threshold: 1, error_timeout: 5, success_threshold: 1)

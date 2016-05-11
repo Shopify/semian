@@ -1,6 +1,6 @@
 require 'test_helper'
 
-class TestCircuitBreaker < MiniTest::Unit::TestCase
+class TestCircuitBreaker < Minitest::Test
   SomeError = Class.new(StandardError)
 
   def setup

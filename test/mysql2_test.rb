@@ -1,6 +1,6 @@
 require 'test_helper'
 
-class TestMysql2 < MiniTest::Unit::TestCase
+class TestMysql2 < Minitest::Test
   ERROR_TIMEOUT = 5
   ERROR_THRESHOLD = 1
   SEMIAN_OPTIONS = {

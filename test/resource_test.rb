@@ -1,6 +1,6 @@
 require 'test_helper'
 
-class TestResource < MiniTest::Unit::TestCase
+class TestResource < Minitest::Test
   def setup
     Semian.destroy(:testing)
   rescue

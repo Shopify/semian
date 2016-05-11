@@ -1,6 +1,6 @@
 require 'test_helper'
 
-class UnprotectedResourceTest < MiniTest::Unit::TestCase
+class UnprotectedResourceTest < Minitest::Test
   def setup
     @resource = Semian::UnprotectedResource.new(:foo)
   end
