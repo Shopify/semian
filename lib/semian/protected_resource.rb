@@ -1,5 +1,3 @@
-require 'forwardable'
-
 module Semian
   class ProtectedResource
     extend Forwardable
