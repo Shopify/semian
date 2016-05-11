@@ -1,3 +1,5 @@
+require 'semian'
+
 module Semian
   module Adapter
     def semian_identifier
