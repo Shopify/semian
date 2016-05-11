@@ -1,4 +1,3 @@
-require 'semian'
 require 'semian/adapter'
 require 'redis'
 

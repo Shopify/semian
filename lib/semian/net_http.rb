@@ -1,5 +1,5 @@
-require 'semian'
 require 'semian/adapter'
+require 'net/http'
 
 module Net
   ProtocolError.include(::Semian::AdapterError)
