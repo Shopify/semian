@@ -3,7 +3,11 @@ module Semian
     attr_reader :tickets, :name
 
     def initialize(name, tickets:, permissions: 0660, timeout: 0)
-      _initialize(name, tickets, permissions, timeout) if respond_to?(:_initialize)
+      if Semian.semaphores_enabled?
+        initialize_semaphore(name, tickets, permissions, timeout)
+      else
+        Semian.issue_disabled_semaphores_warning
+      end
       @name = name
       @tickets = tickets
     end
