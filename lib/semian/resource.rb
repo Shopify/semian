@@ -4,7 +4,7 @@ module Semian
 
     def initialize(name, tickets:, permissions: 0660, timeout: 0)
       if Semian.semaphores_enabled?
-        initialize_semaphore(name, tickets, permissions, timeout)
+        initialize_semaphore(name, tickets, permissions, timeout) if respond_to?(:initialize_semaphore)
       else
         Semian.issue_disabled_semaphores_warning
       end
