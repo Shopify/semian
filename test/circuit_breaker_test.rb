@@ -86,6 +86,18 @@ class TestCircuitBreaker < Minitest::Test
     Semian.destroy(:three)
   end
 
+  def test_request_allowed_query_doesnt_trigger_transitions
+    Timecop.travel(Time.now - 6) do
+      open_circuit!
+
+      refute_predicate @resource, :request_allowed?
+      assert_predicate @resource, :open?
+    end
+
+    assert_predicate @resource, :request_allowed?
+    assert_predicate @resource, :open?
+  end
+
   private
 
   def open_circuit!(resource = @resource)

@@ -2,6 +2,8 @@ module Semian
   class CircuitBreaker #:nodoc:
     extend Forwardable
 
+    def_delegators :@state, :closed?, :open?, :half_open?
+
     def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, implementation:)
       @name = name.to_sym
       @success_count_threshold = success_threshold
@@ -15,6 +17,8 @@ module Semian
     end
 
     def acquire
+      half_open if open? && error_timeout_expired?
+
       raise OpenCircuitError unless request_allowed?
 
       result = nil
@@ -30,9 +34,10 @@ module Semian
     end
 
     def request_allowed?
-      return true if closed?
-      half_open if error_timeout_expired?
-      !open?
+      closed? ||
+        half_open? ||
+        # The circuit breaker is officially open, but it will transition to half-open on the next attempt.
+        (open? && error_timeout_expired?)
     end
 
     def mark_failed(_error)
@@ -63,9 +68,6 @@ module Semian
     end
 
     private
-
-    def_delegators :@state, :closed?, :open?, :half_open?
-    private :closed?, :open?, :half_open?
 
     def close
       log_state_transition(:closed)

@@ -3,7 +3,8 @@ module Semian
     extend Forwardable
 
     def_delegators :@resource, :destroy, :count, :semid, :tickets, :name
-    def_delegators :@circuit_breaker, :reset, :mark_failed, :mark_success, :request_allowed?
+    def_delegators :@circuit_breaker, :reset, :mark_failed, :mark_success, :request_allowed?,
+                   :open?, :closed?, :half_open?
 
     def initialize(resource, circuit_breaker)
       @resource = resource
