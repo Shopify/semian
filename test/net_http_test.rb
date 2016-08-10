@@ -11,7 +11,7 @@ class TestNetHTTP < Minitest::Test
     end
   end
 
-  HOSTNAME = "localhost"
+  HOSTNAME = "127.0.0.1"
   PORT = 31_050
   TOXIC_PORT = PORT + 1
   DEFAULT_SEMIAN_OPTIONS = {
@@ -346,7 +346,7 @@ class TestNetHTTP < Minitest::Test
       with_server(addresses: ["#{HOSTNAME}:#{PORT + 100}"], reset_semian_state: false) do |hostname, port|
         with_toxic(hostname: hostname, upstream_port: port, toxic_port: port + 1) do |_|
           assert_raises Net::CircuitOpenError do
-            Net::HTTP.get(URI("http://localhost:#{port + 1}/200"))
+            Net::HTTP.get(URI("http://#{HOSTNAME}:#{port + 1}/200"))
           end
         end
       end
