@@ -30,6 +30,18 @@ module Semian
     def reset
     end
 
+    def open?
+      false
+    end
+
+    def closed?
+      true
+    end
+
+    def half_open?
+      false
+    end
+
     def request_allowed?
       true
     end
