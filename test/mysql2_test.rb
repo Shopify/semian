@@ -255,11 +255,32 @@ class TestMysql2 < Minitest::Test
     assert_equal 2, client.query('SELECT 1 + 1 as sum;').to_a.first['sum']
   end
 
+  def test_pings_are_circuit_broken
+    client = connect_to_mysql!
+
+    def client.raw_ping
+      @real_pings ||= 0
+      @real_pings += 1
+      super
+    end
+
+    @proxy.downstream(:latency, latency: 1200).apply do
+      ERROR_THRESHOLD.times do
+        client.ping
+      end
+
+      assert_equal false, client.ping
+    end
+
+    assert_equal ERROR_THRESHOLD, client.instance_variable_get(:@real_pings)
+  end
+
   private
 
   def connect_to_mysql!(semian_options = {})
     Mysql2::Client.new(
       connect_timeout: 1,
+      read_timeout: 1,
       host: '127.0.0.1',
       port: '13306',
       semian: SEMIAN_OPTIONS.merge(semian_options),
