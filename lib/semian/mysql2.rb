@@ -21,7 +21,7 @@ module Semian
 
     CONNECTION_ERROR = Regexp.union(
       /Can't connect to MySQL server on/i,
-      /Lost connection to MySQL server during query/i,
+      /Lost connection to MySQL server/i,
       /MySQL server has gone away/i,
     )
 
