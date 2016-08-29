@@ -21,12 +21,13 @@ module Semian
 
     CONNECTION_ERROR = Regexp.union(
       /Can't connect to MySQL server on/i,
-      /Lost connection to MySQL server during query/i,
+      /Lost connection to MySQL server/i,
       /MySQL server has gone away/i,
     )
 
     ResourceBusyError = ::Mysql2::ResourceBusyError
     CircuitOpenError = ::Mysql2::CircuitOpenError
+    PingFailure = Class.new(::Mysql2::Error)
 
     DEFAULT_HOST = 'localhost'
     DEFAULT_PORT = 3306
@@ -44,6 +45,9 @@ module Semian
 
       base.send(:alias_method, :raw_connect, :connect)
       base.send(:remove_method, :connect)
+
+      base.send(:alias_method, :raw_ping, :ping)
+      base.send(:remove_method, :ping)
     end
 
     def semian_identifier
@@ -55,6 +59,17 @@ module Semian
         end
         :"mysql_#{name}"
       end
+    end
+
+    def ping
+      result = nil
+      acquire_semian_resource(adapter: :mysql, scope: :ping) do
+        result = raw_ping
+        raise PingFailure.new(result.to_s) unless result
+      end
+      result
+    rescue ResourceBusyError, CircuitOpenError, PingFailure
+      false
     end
 
     def query(*args)
@@ -84,7 +99,7 @@ module Semian
     def acquire_semian_resource(*)
       super
     rescue ::Mysql2::Error => error
-      if error.message =~ CONNECTION_ERROR
+      if error.message =~ CONNECTION_ERROR || error.is_a?(PingFailure)
         semian_resource.mark_failed(error)
         error.semian_identifier = semian_identifier
       end
