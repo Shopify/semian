@@ -23,6 +23,7 @@ module Semian
       /Can't connect to MySQL server on/i,
       /Lost connection to MySQL server/i,
       /MySQL server has gone away/i,
+      /Too many connections/i,
     )
 
     ResourceBusyError = ::Mysql2::ResourceBusyError
