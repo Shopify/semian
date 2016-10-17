@@ -173,3 +173,9 @@ if Semian.semaphores_enabled?
 else
   Semian::MAX_TICKETS = 0
 end
+
+if defined? ActiveSupport
+  ActiveSupport.on_load :active_record do
+    require 'semian/rails'
+  end
+end
