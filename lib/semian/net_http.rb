@@ -33,11 +33,12 @@ module Semian
     end
 
     DEFAULT_ERRORS = [
-      ::Timeout::Error, # includes ::Net::ReadTimeout and ::Net::OpenTimeout
+      ::Timeout::Error, # includes ::Net::ReadTimeout
       ::SocketError,
       ::Net::HTTPBadResponse,
       ::Net::HTTPHeaderSyntaxError,
       ::Net::ProtocolError,
+      ::Net::OpenTimeout, # https://github.com/ruby/ruby/blob/trunk/lib/net/http.rb#L902
       ::EOFError,
       ::IOError,
       ::SystemCallError, # includes ::Errno::EINVAL, ::Errno::ECONNRESET, ::Errno::ECONNREFUSED, ::Errno::ETIMEDOUT, and more
