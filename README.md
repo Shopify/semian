@@ -407,6 +407,15 @@ queried frequently has worked well for us.
   We recommend this to be `0` unless you have very few workers running (i.e.
   less than ~5).
 
+Note that there are system-wide limitations on how many tickets can be allocated
+on a system. `cat /proc/sys/kernel/sem` will tell you.
+
+> System-wide limit on the number of semaphore sets.  On Linux
+  systems before version 3.19, the default value for this limit
+  was 128.  Since Linux 3.19, the default value is 32,000.  On
+  Linux, this limit can be read and modified via the fourth
+  field of `/proc/sys/kernel/sem`.
+
 ## Defense line
 
 The finished defense line for resource access with circuit breakers and
