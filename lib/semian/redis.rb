@@ -40,15 +40,6 @@ module Semian
     ResourceBusyError = ::Redis::ResourceBusyError
     CircuitOpenError = ::Redis::CircuitOpenError
 
-    # The naked methods are exposed as `raw_query` and `raw_connect` for instrumentation purpose
-    def self.included(base)
-      base.send(:alias_method, :raw_io, :io)
-      base.send(:remove_method, :io)
-
-      base.send(:alias_method, :raw_connect, :connect)
-      base.send(:remove_method, :connect)
-    end
-
     def semian_identifier
       @semian_identifier ||= begin
         name = semian_options && semian_options[:name]
@@ -57,12 +48,12 @@ module Semian
       end
     end
 
-    def io(&block)
-      acquire_semian_resource(adapter: :redis, scope: :query) { raw_io(&block) }
+    def io(*)
+      acquire_semian_resource(adapter: :redis, scope: :query) { super }
     end
 
-    def connect
-      acquire_semian_resource(adapter: :redis, scope: :connection) { raw_connect }
+    def connect(*)
+      acquire_semian_resource(adapter: :redis, scope: :connection) { super }
     end
 
     private
@@ -81,4 +72,4 @@ module Semian
   end
 end
 
-::Redis::Client.include(Semian::Redis)
+::Redis::Client.prepend(Semian::Redis)
