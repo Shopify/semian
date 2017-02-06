@@ -354,24 +354,25 @@ There are three configuration parameters for circuit breakers in Semian:
 
 ### Bulkheading
 
-For many applications, circuit breakers are not enough however. This is best
-illustrated with an extreme. Imagine if the timeout for our data store isn't as
-low as 200ms, but actually 10 seconds. For example, you might have a relational data
+For some applications, circuit breakers are not enough. This is best illustrated
+with an example. Imagine if the timeout for our data store isn't as low as
+200ms, but actually 10 seconds. For example, you might have a relational data
 store where for some customers, 10s queries are (unfortunately) legitimate.
 Reducing the time of worst case queries requires a lot of effort. Dropping the
-query immediately could potentially leave some customers unable to access certain
-functionality. High timeouts are especially critical in a non-threaded
+query immediately could potentially leave some customers unable to access
+certain functionality. High timeouts are especially critical in a non-threaded
 environment where blocking IO means a worker is effectively doing nothing.
 
 In this case, circuit breakers aren't sufficient. Assuming the circuit is shared
 across all processes on a server, it will still take at least 10s before the
-circuit is open—in that time every worker is blocked. Meaning we are in a
-reduced capacity state for at least 20s, with the last 10s timeouts
-occurring just before the circuit opens at the 10s mark when a couple of
-workers have hit a timeout and the circuit opens. We thought of a number of
-potential solutions to this problem - stricter timeouts, grouping timeouts by
-section of our application, timeouts per statement—but they all still revolved
-around timeouts, and those are extremely hard to get right.
+circuit is open. In that time every worker is blocked (see also "Defense Line"
+section for an in-depth explanation of the co-operation between circuit breakers
+and bulkheads) this means we're at reduced capacity for at least 20s, with the
+last 10s timeouts occurring just before the circuit opens at the 10s mark when a
+couple of workers have hit a timeout and the circuit opens. We thought of a
+number of potential solutions to this problem - stricter timeouts, grouping
+timeouts by section of our application, timeouts per statement—but they all
+still revolved around timeouts, and those are extremely hard to get right.
 
 Instead of thinking about timeouts, we took inspiration from Hystrix by Netflix
 and the book Release It (the resiliency bible), and look at our services as
@@ -432,6 +433,35 @@ the RPC. If the data store is slow or fails, this is our last line of defense
 against a misbehaving resource. The driver will raise an exception after trying
 to connect with a timeout or after an immediate failure. These driver actions
 will affect the circuit and Semian, which can make future calls fail faster.
+
+A useful way to think about the co-operation between bulkheads and circuit
+breakers is through visualizing a failure scenario graphing capacity as a
+function of time. If an incident strikes that makes the server unresponsive
+with a `20s` timeout on the client and you only have circuit breakers
+enabled--you will lose capacity until all workers have tripped their circuit
+breakers. The slope of this line will depend on the amount of traffic to the now
+unavailable service. If the slope is steep (i.e. high traffic), you'll lose
+capacity quicker. The higher the client driver timeout, the longer you'll lose
+capacity for. In the example below we have the circuit breakers configured to
+open after 3 failures:
+
+![resiliency- circuit breakers](https://cloud.githubusercontent.com/assets/97400/22405538/53229758-e612-11e6-81b2-824f873c3fb7.png)
+
+If we imagine the same scenario but with _only_ bulkheads, configured to have
+tickets for 50% of workers at any given time, we'll see the following
+flat-lining scenario:
+
+![resiliency- bulkheads](https://cloud.githubusercontent.com/assets/97400/22405542/6832a372-e612-11e6-88c4-2452b64b3121.png)
+
+Circuit breakers have the nice property of re-gaining 100% capacity. Bulkheads
+have the desirable property of guaranteeing a minimum capacity. If we do
+addition of the two graphs, marrying bulkheads and circuit breakers, we have a
+plummy outcome:
+
+![resiliency- circuit breakers bulkheads](https://cloud.githubusercontent.com/assets/97400/22405550/a25749c2-e612-11e6-8bc8-5fe29e212b3b.png)
+
+This means that if the slope or client timeout is sufficiently low, bulkheads
+will provide little value and are likely not necessary.
 
 ## Failing gracefully
 
