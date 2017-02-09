@@ -40,12 +40,16 @@ typedef enum
   SI_SEM_TICKETS,            // semaphore for the tickets currently issued
   SI_SEM_CONFIGURED_TICKETS, // semaphore to track the desired number of tickets available for issue
   SI_SEM_LOCK,               // metadata lock to act as a mutex, ensuring thread-safety for updating other semaphores
+  SI_SEM_REGISTERED_WORKERS, // semaphore for the number of workers currently registered
+  SI_SEM_CONFIGURED_WORKERS, // semaphore for the number of workers that our quota is using for configured tickets
+// -----------------------------
   SI_NUM_SEMAPHORES          // always leave this as last entry for count to be accurate
 } semaphore_indices;
 
 typedef struct {
   int sem_id;
   struct timespec timeout;
+  double quota;
   int error;
   char *name;
 } semian_resource_t;
@@ -197,7 +201,11 @@ configure_tickets(int sem_id, int tickets, int should_initialize)
   int state;
 
   if (should_initialize) {
+
+    // desired tickets and configured tickets must be calculated based on quota if quota is provided
+    // if a quoted is provided, should be initialzied to 0 instead of tickets
     init_vals[SI_SEM_TICKETS] = init_vals[SI_SEM_CONFIGURED_TICKETS] = tickets;
+    init_vals[SI_SEM_REGISTERED_WORKERS] = init_vals[SI_SEM_CONFIGURED_WORKERS] = 0;
     init_vals[SI_SEM_LOCK] = 1;
     if (semctl(sem_id, 0, SETALL, init_vals) == -1) {
       raise_semian_syscall_error("semctl()", errno);
@@ -275,12 +283,14 @@ get_semaphore(int key)
  * Creates a new Resource. Do not create resources directly. Use Semian.register.
  */
 static VALUE
-semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE permissions, VALUE default_timeout)
+semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE permissions, VALUE default_timeout)
 {
   key_t key;
   int created = 0;
   semian_resource_t *res = NULL;
   const char *id_str = NULL;
+  char semset_size_key[10];
+  char *uniq_id_str;
 
   if (TYPE(id) != T_SYMBOL && TYPE(id) != T_STRING) {
     rb_raise(rb_eTypeError, "id must be a symbol or string");
@@ -294,8 +304,14 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE permission
   if (TYPE(default_timeout) != T_FIXNUM && TYPE(default_timeout) != T_FLOAT) {
     rb_raise(rb_eTypeError, "expected numeric type for default_timeout");
   }
+  if (TYPE(quota) != T_FIXNUM && TYPE(quota) != T_FLOAT) {
+    rb_raise(rb_eTypeError, "expected decimal type for quota");
+  }
   if (FIX2LONG(tickets) < 0 || FIX2LONG(tickets) > system_max_semaphore_count) {
     rb_raise(rb_eArgError, "ticket count must be a non-negative value and less than %d", system_max_semaphore_count);
+  }
+  if (NUM2DBL(quota) < 0 || NUM2DBL(quota) > 1) {
+    rb_raise(rb_eArgError, "quota must be a decimal between 0 and 1");
   }
   if (NUM2DBL(default_timeout) < 0) {
     rb_raise(rb_eArgError, "default timeout must be non-negative value");
@@ -306,10 +322,20 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE permission
   } else if (TYPE(id) == T_STRING) {
     id_str = RSTRING_PTR(id);
   }
+
+  // It is necessary for the cardinatily of the semaphore set to be part of the key
+  // or else sem_get will complain that we have requested an incorrect number of sems
+  // for the desired key
+  sprintf(semset_size_key, "_SEMS_%d", SI_NUM_SEMAPHORES);
+  uniq_id_str = malloc(strlen(id_str)+strlen(semset_size_key)+1);
+  strcpy(uniq_id_str, id_str);
+  strcat(uniq_id_str, semset_size_key);
+  key = generate_key(uniq_id_str);
+
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
-  key = generate_key(id_str);
   ms_to_timespec(NUM2DBL(default_timeout) * 1000, &res->timeout);
   res->name = strdup(id_str);
+  res->quota = NUM2DBL(quota);
 
   res->sem_id = FIX2LONG(tickets) == 0 ? get_semaphore(key) : create_semaphore(key, permissions, &created);
   if (res->sem_id == -1) {
@@ -495,7 +521,7 @@ void Init_semian()
   eInternal = rb_const_get(cSemian, rb_intern("InternalError"));
 
   rb_define_alloc_func(cResource, semian_resource_alloc);
-  rb_define_method(cResource, "initialize_semaphore", semian_resource_initialize, 4);
+  rb_define_method(cResource, "initialize_semaphore", semian_resource_initialize, 5);
   rb_define_method(cResource, "acquire", semian_resource_acquire, -1);
   rb_define_method(cResource, "count", semian_resource_count, 0);
   rb_define_method(cResource, "semid", semian_resource_id, 0);
