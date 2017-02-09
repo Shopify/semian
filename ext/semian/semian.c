@@ -35,11 +35,13 @@ static ID id_timeout;
 static VALUE eSyscall, eTimeout, eInternal;
 static int system_max_semaphore_count;
 
-static const int kIndexTickets = 0;
-static const int kIndexTicketMax = 1;
-static const int kIndexLock = 2;
-
-static const int kNumSemaphores = 3;
+typedef enum
+{
+  SI_SEM_TICKETS,            // semaphore for the tickets currently issued
+  SI_SEM_CONFIGURED_TICKETS, // semaphore to track the desired number of tickets available for issue
+  SI_SEM_LOCK,               // metadata lock to act as a mutex, ensuring thread-safety for updating other semaphores
+  SI_NUM_SEMAPHORES          // always leave this as last entry for count to be accurate
+} semaphore_indices;
 
 typedef struct {
   int sem_id;
@@ -135,7 +137,7 @@ static const int kInternalTimeout = 5; /* seconds */
 static int
 get_max_tickets(int sem_id)
 {
-  int ret = semctl(sem_id, kIndexTicketMax, GETVAL);
+  int ret = semctl(sem_id, SI_SEM_CONFIGURED_TICKETS, GETVAL);
   if (ret == -1) {
     rb_raise(eInternal, "error getting max ticket count, errno: %d (%s)", errno, strerror(errno));
   }
@@ -173,11 +175,11 @@ update_ticket_count(update_ticket_count_t *tc)
   if (get_max_tickets(tc->sem_id) != tc->tickets) {
     delta = tc->tickets - get_max_tickets(tc->sem_id);
 
-    if (perform_semop(tc->sem_id, kIndexTickets, delta, 0, &ts) == -1) {
+    if (perform_semop(tc->sem_id, SI_SEM_TICKETS, delta, 0, &ts) == -1) {
       rb_raise(eInternal, "error setting ticket count, errno: %d (%s)", errno, strerror(errno));
     }
 
-    if (semctl(tc->sem_id, kIndexTicketMax, SETVAL, tc->tickets) == -1) {
+    if (semctl(tc->sem_id, SI_SEM_CONFIGURED_TICKETS, SETVAL, tc->tickets) == -1) {
       rb_raise(eInternal, "error updating max ticket count, errno: %d (%s)", errno, strerror(errno));
     }
   }
@@ -189,14 +191,14 @@ static void
 configure_tickets(int sem_id, int tickets, int should_initialize)
 {
   struct timespec ts = { 0 };
-  unsigned short init_vals[kNumSemaphores];
+  unsigned short init_vals[SI_NUM_SEMAPHORES];
   struct timeval start_time, cur_time;
   update_ticket_count_t tc;
   int state;
 
   if (should_initialize) {
-    init_vals[kIndexTickets] = init_vals[kIndexTicketMax] = tickets;
-    init_vals[kIndexLock] = 1;
+    init_vals[SI_SEM_TICKETS] = init_vals[SI_SEM_CONFIGURED_TICKETS] = tickets;
+    init_vals[SI_SEM_LOCK] = 1;
     if (semctl(sem_id, 0, SETALL, init_vals) == -1) {
       raise_semian_syscall_error("semctl()", errno);
     }
@@ -222,7 +224,7 @@ configure_tickets(int sem_id, int tickets, int should_initialize)
     if (get_max_tickets(sem_id) != tickets) {
       ts.tv_sec = kInternalTimeout;
 
-      if (perform_semop(sem_id, kIndexLock, -1, SEM_UNDO, &ts) == -1) {
+      if (perform_semop(sem_id, SI_SEM_LOCK, -1, SEM_UNDO, &ts) == -1) {
         raise_semian_syscall_error("error acquiring internal semaphore lock, semtimedop()", errno);
       }
 
@@ -230,7 +232,7 @@ configure_tickets(int sem_id, int tickets, int should_initialize)
       tc.tickets = tickets;
       rb_protect((VALUE (*)(VALUE)) update_ticket_count, (VALUE) &tc, &state);
 
-      if (perform_semop(sem_id, kIndexLock, 1, SEM_UNDO, NULL) == -1) {
+      if (perform_semop(sem_id, SI_SEM_LOCK, 1, SEM_UNDO, NULL) == -1) {
         raise_semian_syscall_error("error releasing internal semaphore lock, semop()", errno);
       }
 
@@ -250,12 +252,12 @@ create_semaphore(int key, int permissions, int *created)
   *created = 0;
   flags = IPC_EXCL | IPC_CREAT | FIX2LONG(permissions);
 
-  semid = semget(key, kNumSemaphores, flags);
+  semid = semget(key, SI_NUM_SEMAPHORES, flags);
   if (semid >= 0) {
     *created = 1;
   } else if (semid == -1 && errno == EEXIST) {
     flags &= ~IPC_EXCL;
-    semid = semget(key, kNumSemaphores, flags);
+    semid = semget(key, SI_NUM_SEMAPHORES, flags);
   }
   return semid;
 }
@@ -263,7 +265,7 @@ create_semaphore(int key, int permissions, int *created)
 static int
 get_semaphore(int key)
 {
-  return semget(key, kNumSemaphores, 0);
+  return semget(key, SI_NUM_SEMAPHORES, 0);
 }
 
 /*
@@ -326,7 +328,7 @@ cleanup_semian_resource_acquire(VALUE self)
 {
   semian_resource_t *res = NULL;
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
-  if (perform_semop(res->sem_id, kIndexTickets, 1, SEM_UNDO, NULL) == -1) {
+  if (perform_semop(res->sem_id, SI_SEM_TICKETS, 1, SEM_UNDO, NULL) == -1) {
     res->error = errno;
   }
   return Qnil;
@@ -337,7 +339,7 @@ acquire_semaphore_without_gvl(void *p)
 {
   semian_resource_t *res = (semian_resource_t *) p;
   res->error = 0;
-  if (perform_semop(res->sem_id, kIndexTickets, -1, SEM_UNDO, &res->timeout) == -1) {
+  if (perform_semop(res->sem_id, SI_SEM_TICKETS, -1, SEM_UNDO, &res->timeout) == -1) {
     res->error = errno;
   }
   return NULL;
