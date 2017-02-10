@@ -221,6 +221,55 @@ update_ticket_count(update_ticket_count_t *tc)
 }
 
 static void
+sem_meta_lock(int sem_id)
+{
+  struct timespec ts = { 0 };
+  ts.tv_sec = INTERNAL_TIMEOUT;
+
+  if (perform_semop(sem_id, SI_SEM_LOCK, -1, SEM_UNDO, &ts) == -1) {
+    raise_semian_syscall_error("error acquiring internal semaphore lock, semtimedop()", errno);
+  }
+}
+
+static void
+sem_meta_unlock(int sem_id)
+{
+  if (perform_semop(sem_id, SI_SEM_LOCK, 1, SEM_UNDO, NULL) == -1) {
+    raise_semian_syscall_error("error releasing internal semaphore lock, semop()", errno);
+  }
+}
+
+static int
+update_tickets_from_quota(int sem_id, double quota)
+{
+  int delta = 0;
+  int tickets = 0;
+  int state;
+  update_ticket_count_t tc;
+  struct timespec ts = { 0 };
+
+  ts.tv_sec = INTERNAL_TIMEOUT;
+
+  // If the configured worker count doesn't match the registered worker count, adjust it.
+  // and adjust the underlying tickets available to match.
+  delta = get_sem_val(sem_id, SI_SEM_CONFIGURED_WORKERS) - get_sem_val(sem_id, SI_SEM_REGISTERED_WORKERS);
+  if (delta != 0) {
+    if (perform_semop(sem_id, SI_SEM_CONFIGURED_WORKERS, delta, 0, &ts) == -1) {
+      rb_raise(eInternal, "error setting configured workers, errno: %d (%s)", errno, strerror(errno));
+    }
+
+    // Compute the ticket count
+    tickets = (int) ceil(get_sem_val(sem_id, SI_SEM_CONFIGURED_WORKERS) * quota);
+    printf("Configured ticket count %d with quota %f and workers %d", tickets, quota, get_sem_val(sem_id, SI_SEM_CONFIGURED_WORKERS));
+    tc.sem_id = sem_id;
+    tc.tickets = tickets;
+    rb_protect((VALUE (*)(VALUE)) update_ticket_count, (VALUE) &tc, &state);
+  }
+
+  return state;
+}
+
+static void
 configure_tickets(int sem_id, int tickets, double quota, int should_initialize)
 {
   struct timespec ts = { 0 };
@@ -268,56 +317,31 @@ configure_tickets(int sem_id, int tickets, double quota, int should_initialize)
        (tickets - current_configured_tickets) to the semaphore value.
     */
     if (get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS) != tickets) {
-      ts.tv_sec = INTERNAL_TIMEOUT;
 
-      if (perform_semop(sem_id, SI_SEM_LOCK, -1, SEM_UNDO, &ts) == -1) {
-        raise_semian_syscall_error("error acquiring internal semaphore lock, semtimedop()", errno);
-      }
+      sem_meta_lock(sem_id);
 
       tc.sem_id = sem_id;
       tc.tickets = tickets;
       rb_protect((VALUE (*)(VALUE)) update_ticket_count, (VALUE) &tc, &state);
 
-      if (perform_semop(sem_id, SI_SEM_LOCK, 1, SEM_UNDO, NULL) == -1) {
-        raise_semian_syscall_error("error releasing internal semaphore lock, semop()", errno);
-      }
+      sem_meta_unlock(sem_id);
 
       if (state) {
         rb_jump_tag(state);
       }
     }
   } else if (quota > 0) {
-    int delta;
-    ts.tv_sec = INTERNAL_TIMEOUT;
 
-    if (perform_semop(sem_id, SI_SEM_LOCK, -1, SEM_UNDO, &ts) == -1) {
-      raise_semian_syscall_error("error acquiring internal semaphore lock, semtimedop()", errno);
-    }
+    sem_meta_lock(sem_id);
 
     // Ensure that a worker for this process is registered
     if (perform_semop(sem_id, SI_SEM_REGISTERED_WORKERS, 1, 0, &ts) == -1) {
       rb_raise(eInternal, "error incrementing registered workers, errno: %d (%s)", errno, strerror(errno));
     }
 
-    // If the configured worker count doesn't match the registered worker count, adjust it.
-    // and adjust the underlying tickets available to match.
-    delta = get_sem_val(sem_id, SI_SEM_CONFIGURED_WORKERS) - get_sem_val(sem_id, SI_SEM_REGISTERED_WORKERS);
-    if (delta != 0) {
-      if (perform_semop(sem_id, SI_SEM_CONFIGURED_WORKERS, delta, 0, &ts) == -1) {
-        rb_raise(eInternal, "error setting configured workers, errno: %d (%s)", errno, strerror(errno));
-      }
-
-      // Compute the ticket count
-      tickets = (int) ceil(get_sem_val(sem_id, SI_SEM_CONFIGURED_WORKERS) * quota);
-      printf("Configured ticket count %d with quota %f and workers %d", tickets, quota, get_sem_val(sem_id, SI_SEM_CONFIGURED_WORKERS));
-      tc.sem_id = sem_id;
-      tc.tickets = tickets;
-      rb_protect((VALUE (*)(VALUE)) update_ticket_count, (VALUE) &tc, &state);
-    }
-
-    if (perform_semop(sem_id, SI_SEM_LOCK, 1, SEM_UNDO, NULL) == -1) {
-      raise_semian_syscall_error("error releasing internal semaphore lock, semop()", errno);
-    }
+    // Ensure that our max tickets matches the quota
+    state = update_tickets_from_quota(sem_id, quota);
+    sem_meta_unlock(sem_id);
 
     if (state) {
       rb_jump_tag(state);
@@ -472,6 +496,13 @@ semian_resource_acquire(int argc, VALUE *argv, VALUE self)
 
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, self_res);
   res = *self_res;
+
+  if (res.quota > 0) {
+    // Ensure that configured tickets matches quota before acquiring
+    sem_meta_lock(res.sem_id);
+    update_tickets_from_quota(res.sem_id, res.quota);
+    sem_meta_unlock(res.sem_id);
+  }
 
   /* allow the default timeout to be overridden by a "timeout" param */
   if (argc == 1 && TYPE(argv[0]) == T_HASH) {
