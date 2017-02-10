@@ -57,11 +57,23 @@ typedef struct {
 static key_t
 generate_key(const char *name)
 {
+  char semset_size_key[20];
+  char *uniq_id_str;
+
+  // It is necessary for the cardinatily of the semaphore set to be part of the key
+  // or else sem_get will complain that we have requested an incorrect number of sems
+  // for the desired key
+  sprintf(semset_size_key, "_NUM_SEMS_%d", SI_NUM_SEMAPHORES);
+  uniq_id_str = malloc(strlen(name)+strlen(semset_size_key)+1);
+  strcpy(uniq_id_str, name);
+  strcat(uniq_id_str, semset_size_key);
+
   union {
     unsigned char str[SHA_DIGEST_LENGTH];
     key_t key;
   } digest;
-  SHA1((const unsigned char *) name, strlen(name), digest.str);
+  SHA1((const unsigned char *) uniq_id_str, strlen(uniq_id_str), digest.str);
+  free(uniq_id_str);
   /* TODO: compile-time assertion that sizeof(key_t) > SHA_DIGEST_LENGTH */
   return digest.key;
 }
@@ -192,7 +204,7 @@ update_ticket_count(update_ticket_count_t *tc)
 }
 
 static void
-configure_tickets(int sem_id, int tickets, int should_initialize)
+configure_tickets(int sem_id, int tickets, double quota, int should_initialize)
 {
   struct timespec ts = { 0 };
   unsigned short init_vals[SI_NUM_SEMAPHORES];
@@ -289,60 +301,63 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VAL
   int created = 0;
   semian_resource_t *res = NULL;
   const char *id_str = NULL;
-  char semset_size_key[10];
-  char *uniq_id_str;
+  double c_quota = -1.0f;
+  int c_tickets = -1;
 
+
+  if ((TYPE(tickets) == T_NIL && TYPE(quota) == T_NIL) ||(TYPE(tickets) != T_NIL && TYPE(quota) != T_NIL)){
+    rb_raise(rb_eArgError, "Must pass exactly one of ticket or quota");
+  }
+  else if (TYPE(quota) == T_NIL) {
+    // If a quota has been specified, ignore the ticket count
+    if (TYPE(tickets) == T_FLOAT) {
+      rb_warn("semian ticket value %f is a float, converting to fixnum", RFLOAT_VALUE(tickets));
+      tickets = INT2FIX((int) RFLOAT_VALUE(tickets));
+    }
+    Check_Type(tickets, T_FIXNUM);
+
+    if (FIX2LONG(tickets) < 0 || FIX2LONG(tickets) > system_max_semaphore_count) {
+      rb_raise(rb_eArgError, "ticket count must be a non-negative value and less than %d", system_max_semaphore_count);
+    }
+    c_tickets = FIX2LONG(tickets);
+  }
+  else if (TYPE(tickets) == T_NIL) {
+    if (TYPE(quota) != T_FIXNUM && TYPE(quota) != T_FLOAT) {
+      rb_raise(rb_eTypeError, "expected decimal type for quota");
+    }
+    if (NUM2DBL(quota) < 0 || NUM2DBL(quota) > 1) {
+      rb_raise(rb_eArgError, "quota must be a decimal between 0 and 1");
+    }
+    c_quota = NUM2DBL(quota);
+  }
   if (TYPE(id) != T_SYMBOL && TYPE(id) != T_STRING) {
     rb_raise(rb_eTypeError, "id must be a symbol or string");
   }
-  if (TYPE(tickets) == T_FLOAT) {
-    rb_warn("semian ticket value %f is a float, converting to fixnum", RFLOAT_VALUE(tickets));
-    tickets = INT2FIX((int) RFLOAT_VALUE(tickets));
-  }
-  Check_Type(tickets, T_FIXNUM);
   Check_Type(permissions, T_FIXNUM);
   if (TYPE(default_timeout) != T_FIXNUM && TYPE(default_timeout) != T_FLOAT) {
     rb_raise(rb_eTypeError, "expected numeric type for default_timeout");
   }
-  if (TYPE(quota) != T_FIXNUM && TYPE(quota) != T_FLOAT) {
-    rb_raise(rb_eTypeError, "expected decimal type for quota");
-  }
-  if (FIX2LONG(tickets) < 0 || FIX2LONG(tickets) > system_max_semaphore_count) {
-    rb_raise(rb_eArgError, "ticket count must be a non-negative value and less than %d", system_max_semaphore_count);
-  }
-  if (NUM2DBL(quota) < 0 || NUM2DBL(quota) > 1) {
-    rb_raise(rb_eArgError, "quota must be a decimal between 0 and 1");
-  }
   if (NUM2DBL(default_timeout) < 0) {
     rb_raise(rb_eArgError, "default timeout must be non-negative value");
   }
-
   if (TYPE(id) == T_SYMBOL) {
     id_str = rb_id2name(rb_to_id(id));
   } else if (TYPE(id) == T_STRING) {
     id_str = RSTRING_PTR(id);
   }
 
-  // It is necessary for the cardinatily of the semaphore set to be part of the key
-  // or else sem_get will complain that we have requested an incorrect number of sems
-  // for the desired key
-  sprintf(semset_size_key, "_SEMS_%d", SI_NUM_SEMAPHORES);
-  uniq_id_str = malloc(strlen(id_str)+strlen(semset_size_key)+1);
-  strcpy(uniq_id_str, id_str);
-  strcat(uniq_id_str, semset_size_key);
-  key = generate_key(uniq_id_str);
-
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
   ms_to_timespec(NUM2DBL(default_timeout) * 1000, &res->timeout);
   res->name = strdup(id_str);
-  res->quota = NUM2DBL(quota);
+  res->quota = c_quota;
 
-  res->sem_id = FIX2LONG(tickets) == 0 ? get_semaphore(key) : create_semaphore(key, permissions, &created);
+  key = generate_key(id_str);
+  res->sem_id = c_tickets == 0 ? get_semaphore(key) : create_semaphore(key, permissions, &created);
   if (res->sem_id == -1) {
     raise_semian_syscall_error("semget()", errno);
   }
 
-  configure_tickets(res->sem_id, FIX2LONG(tickets), created);
+  configure_tickets(res->sem_id, c_tickets, c_quota, created);
 
   set_semaphore_permissions(res->sem_id, FIX2LONG(permissions));
 

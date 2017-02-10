@@ -127,6 +127,29 @@ client = Redis.new(semian: {
 })
 ```
 
+#### Quotas
+
+You may now set quotas per worker:
+
+```
+client = Redis.new(semian: {
+  name: "inventory",
+  quota: 0.5,
+  success_threshold: 2,
+  error_threshold: 4,
+  error_timeout: 20
+})
+
+```
+
+Per the above example, you no longer need to care about the number of tickets.
+
+Rather, the tickets shall be computed as a proportion of the number of active workers.
+
+In this case, we'd allow 50% of the workers on a particular host to connect to this redis resource.
+
+**Note**: You must pass **exactly** one of ticket or quota.
+
 #### Net::HTTP
 For the `Net::HTTP` specific Semian adapter, since many external libraries may create
 HTTP connections on the user's behalf, the parameters are instead provided
