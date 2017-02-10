@@ -31,20 +31,39 @@ typedef VALUE (*my_blocking_fn_t)(void*);
 #define WITHOUT_GVL(fn,a,ubf,b) rb_thread_blocking_region((my_blocking_fn_t)(fn),(a),(ubf),(b))
 #endif
 
+#define INTERNAL_TIMEOUT 5 // seconds
+
+// Here we define an enum value and string representation of each semaphore
+// This allows us to key the sem value and string rep in sync easily
+// utilizing pre-processor macros.
+//   SI_SEM_TICKETS             semaphore for the tickets currently issued
+//   SI_SEM_CONFIGURED_TICKETS  semaphore to track the desired number of tickets available for issue
+//   SI_SEM_LOCK                metadata lock to act as a mutex, ensuring thread-safety for updating other semaphores
+//   SI_SEM_REGISTERED_WORKERS  semaphore for the number of workers currently registered
+//   SI_SEM_CONFIGURED_WORKERS  semaphore for the number of workers that our quota is using for configured tickets
+//   SI_NUM_SEMAPHORES          always leave this as last entry for count to be accurate
+#define FOREACH_SEMINDEX(SEMINDEX) \
+        SEMINDEX(SI_SEM_TICKETS)   \
+        SEMINDEX(SI_SEM_CONFIGURED_TICKETS)  \
+        SEMINDEX(SI_SEM_LOCK)   \
+        SEMINDEX(SI_SEM_REGISTERED_WORKERS)  \
+        SEMINDEX(SI_SEM_CONFIGURED_WORKERS)  \
+        SEMINDEX(SI_NUM_SEMAPHORES)  \
+
+#define GENERATE_ENUM(ENUM) ENUM,
+#define GENERATE_STRING(STRING) #STRING,
+
+enum SEMINDEX_ENUM {
+    FOREACH_SEMINDEX(GENERATE_ENUM)
+};
+
+static const char *SEMINDEX_STRING[] = {
+    FOREACH_SEMINDEX(GENERATE_STRING)
+};
+
 static ID id_timeout;
 static VALUE eSyscall, eTimeout, eInternal;
 static int system_max_semaphore_count;
-
-typedef enum
-{
-  SI_SEM_TICKETS,            // semaphore for the tickets currently issued
-  SI_SEM_CONFIGURED_TICKETS, // semaphore to track the desired number of tickets available for issue
-  SI_SEM_LOCK,               // metadata lock to act as a mutex, ensuring thread-safety for updating other semaphores
-  SI_SEM_REGISTERED_WORKERS, // semaphore for the number of workers currently registered
-  SI_SEM_CONFIGURED_WORKERS, // semaphore for the number of workers that our quota is using for configured tickets
-// -----------------------------
-  SI_NUM_SEMAPHORES          // always leave this as last entry for count to be accurate
-} semaphore_indices;
 
 typedef struct {
   int sem_id;
@@ -148,14 +167,12 @@ set_semaphore_permissions(int sem_id, int permissions)
   }
 }
 
-static const int kInternalTimeout = 5; /* seconds */
-
 static int
-get_max_tickets(int sem_id)
+get_sem_val(int sem_id, int sem_index)
 {
-  int ret = semctl(sem_id, SI_SEM_CONFIGURED_TICKETS, GETVAL);
+  int ret = semctl(sem_id, sem_index, GETVAL);
   if (ret == -1) {
-    rb_raise(eInternal, "error getting max ticket count, errno: %d (%s)", errno, strerror(errno));
+    rb_raise(eInternal, "error getting value of %s, errno: %d (%s)", SEMINDEX_STRING[sem_index], errno, strerror(errno));
   }
   return ret;
 }
@@ -186,17 +203,17 @@ update_ticket_count(update_ticket_count_t *tc)
 {
   short delta;
   struct timespec ts = { 0 };
-  ts.tv_sec = kInternalTimeout;
+  ts.tv_sec = INTERNAL_TIMEOUT;
 
-  if (get_max_tickets(tc->sem_id) != tc->tickets) {
-    delta = tc->tickets - get_max_tickets(tc->sem_id);
+  if (get_sem_val(tc->sem_id, SI_SEM_CONFIGURED_TICKETS) != tc->tickets) {
+    delta = tc->tickets - get_sem_val(tc->sem_id, SI_SEM_CONFIGURED_TICKETS);
 
     if (perform_semop(tc->sem_id, SI_SEM_TICKETS, delta, 0, &ts) == -1) {
       rb_raise(eInternal, "error setting ticket count, errno: %d (%s)", errno, strerror(errno));
     }
 
     if (semctl(tc->sem_id, SI_SEM_CONFIGURED_TICKETS, SETVAL, tc->tickets) == -1) {
-      rb_raise(eInternal, "error updating max ticket count, errno: %d (%s)", errno, strerror(errno));
+      rb_raise(eInternal, "error updating configured ticket count, errno: %d (%s)", errno, strerror(errno));
     }
   }
 
@@ -218,12 +235,12 @@ configure_tickets(int sem_id, int tickets, double quota, int should_initialize)
     // if a quoted is provided, should be initialzied to 0 instead of tickets
 
     // ticket was specified, not quota
-    if (tickets >= 0) {
+    if (tickets > 0) {
       init_vals[SI_SEM_TICKETS] = init_vals[SI_SEM_CONFIGURED_TICKETS] = tickets;
       init_vals[SI_SEM_REGISTERED_WORKERS] = init_vals[SI_SEM_CONFIGURED_WORKERS] = 0;
     }
     // quota was specified, not tickets
-    else if (quota >= 0) {
+    else if (quota > 0) {
       init_vals[SI_SEM_TICKETS] = init_vals[SI_SEM_CONFIGURED_TICKETS] = 0;
       init_vals[SI_SEM_REGISTERED_WORKERS] = init_vals[SI_SEM_CONFIGURED_WORKERS] = 0;
     }
@@ -234,24 +251,24 @@ configure_tickets(int sem_id, int tickets, double quota, int should_initialize)
   } else if (tickets > 0) {
     /* it's possible that we haven't actually initialized the
        semaphore structure yet - wait a bit in that case */
-    if (get_max_tickets(sem_id) == 0) {
+    if (get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS) == 0) {
       gettimeofday(&start_time, NULL);
-      while (get_max_tickets(sem_id) == 0) {
+      while (get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS) == 0) {
         usleep(10000); /* 10ms */
         gettimeofday(&cur_time, NULL);
-        if ((cur_time.tv_sec - start_time.tv_sec) > kInternalTimeout) {
+        if ((cur_time.tv_sec - start_time.tv_sec) > INTERNAL_TIMEOUT) {
           rb_raise(eInternal, "timeout waiting for semaphore initialization");
         }
       }
     }
 
     /*
-       If the current max ticket count is not the same as the requested ticket
+       If the current configured ticket count is not the same as the requested ticket
        count, we need to resize the count. We do this by adding the delta of
-       (tickets - current_max_tickets) to the semaphore value.
+       (tickets - current_configured_tickets) to the semaphore value.
     */
-    if (get_max_tickets(sem_id) != tickets) {
-      ts.tv_sec = kInternalTimeout;
+    if (get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS) != tickets) {
+      ts.tv_sec = INTERNAL_TIMEOUT;
 
       if (perform_semop(sem_id, SI_SEM_LOCK, -1, SEM_UNDO, &ts) == -1) {
         raise_semian_syscall_error("error acquiring internal semaphore lock, semtimedop()", errno);
@@ -268,6 +285,42 @@ configure_tickets(int sem_id, int tickets, double quota, int should_initialize)
       if (state) {
         rb_jump_tag(state);
       }
+    }
+  } else if (quota > 0) {
+    int delta;
+    ts.tv_sec = INTERNAL_TIMEOUT;
+
+    if (perform_semop(sem_id, SI_SEM_LOCK, -1, SEM_UNDO, &ts) == -1) {
+      raise_semian_syscall_error("error acquiring internal semaphore lock, semtimedop()", errno);
+    }
+
+    // Ensure that a worker for this process is registered
+    if (perform_semop(sem_id, SI_SEM_REGISTERED_WORKERS, 1, 0, &ts) == -1) {
+      rb_raise(eInternal, "error incrementing registered workers, errno: %d (%s)", errno, strerror(errno));
+    }
+
+    // If the configured worker count doesn't match the registered worker count, adjust it.
+    // and adjust the underlying tickets available to match.
+    delta = get_sem_val(sem_id, SI_SEM_CONFIGURED_WORKERS) - get_sem_val(sem_id, SI_SEM_REGISTERED_WORKERS);
+    if (delta != 0) {
+      if (perform_semop(sem_id, SI_SEM_CONFIGURED_WORKERS, delta, 0, &ts) == -1) {
+        rb_raise(eInternal, "error setting configured workers, errno: %d (%s)", errno, strerror(errno));
+      }
+
+      // Compute the ticket count
+      tickets = (int) ceil(get_sem_val(sem_id, SI_SEM_CONFIGURED_WORKERS) * quota);
+      printf("Configured ticket count %d with quota %f and workers %d", tickets, quota, get_sem_val(sem_id, SI_SEM_CONFIGURED_WORKERS));
+      tc.sem_id = sem_id;
+      tc.tickets = tickets;
+      rb_protect((VALUE (*)(VALUE)) update_ticket_count, (VALUE) &tc, &state);
+    }
+
+    if (perform_semop(sem_id, SI_SEM_LOCK, 1, SEM_UNDO, NULL) == -1) {
+      raise_semian_syscall_error("error releasing internal semaphore lock, semop()", errno);
+    }
+
+    if (state) {
+      rb_jump_tag(state);
     }
   }
 }
@@ -312,7 +365,6 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VAL
   const char *id_str = NULL;
   double c_quota = -1.0f;
   int c_tickets = -1;
-  int sem_id;
 
 
   if ((TYPE(tickets) == T_NIL && TYPE(quota) == T_NIL) ||(TYPE(tickets) != T_NIL && TYPE(quota) != T_NIL)){
@@ -362,12 +414,8 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VAL
   res->quota = c_quota;
 
   key = generate_key(id_str);
-  if (c_tickets == 0) {
-    sem_id = get_semaphore(key);
-  } else {
-    sem_id = create_semaphore(key, permissions, &created);
-  }
-  res->sem_id = sem_id;
+  res->sem_id = c_tickets == 0 ? get_semaphore(key) : create_semaphore(key, permissions, &created);
+
   if (res->sem_id == -1) {
     raise_semian_syscall_error("semget()", errno);
   }
