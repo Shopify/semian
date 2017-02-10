@@ -250,9 +250,10 @@ update_tickets_from_quota(int sem_id, double quota)
 
   ts.tv_sec = INTERNAL_TIMEOUT;
 
+  //printf("Updating based on quota %f\n", quota);
   // If the configured worker count doesn't match the registered worker count, adjust it.
   // and adjust the underlying tickets available to match.
-  delta = get_sem_val(sem_id, SI_SEM_CONFIGURED_WORKERS) - get_sem_val(sem_id, SI_SEM_REGISTERED_WORKERS);
+  delta = get_sem_val(sem_id, SI_SEM_REGISTERED_WORKERS) - get_sem_val(sem_id, SI_SEM_CONFIGURED_WORKERS);
   if (delta != 0) {
     if (perform_semop(sem_id, SI_SEM_CONFIGURED_WORKERS, delta, 0, &ts) == -1) {
       rb_raise(eInternal, "error setting configured workers, errno: %d (%s)", errno, strerror(errno));
@@ -260,7 +261,7 @@ update_tickets_from_quota(int sem_id, double quota)
 
     // Compute the ticket count
     tickets = (int) ceil(get_sem_val(sem_id, SI_SEM_CONFIGURED_WORKERS) * quota);
-    printf("Configured ticket count %d with quota %f and workers %d", tickets, quota, get_sem_val(sem_id, SI_SEM_CONFIGURED_WORKERS));
+    //printf("Configured ticket count %d with quota %f and workers %d\n", tickets, quota, get_sem_val(sem_id, SI_SEM_CONFIGURED_WORKERS));
     tc.sem_id = sem_id;
     tc.tickets = tickets;
     rb_protect((VALUE (*)(VALUE)) update_ticket_count, (VALUE) &tc, &state);
@@ -330,8 +331,9 @@ configure_tickets(int sem_id, int tickets, double quota, int should_initialize)
         rb_jump_tag(state);
       }
     }
-  } else if (quota > 0) {
-
+  }
+  if (quota > 0) {
+    // TO DO - is a spinwait needed here?
     sem_meta_lock(sem_id);
 
     // Ensure that a worker for this process is registered
