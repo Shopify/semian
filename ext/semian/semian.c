@@ -62,7 +62,7 @@ generate_key(const char *name)
 
   // It is necessary for the cardinatily of the semaphore set to be part of the key
   // or else sem_get will complain that we have requested an incorrect number of sems
-  // for the desired key
+  // for the desired key, and have changed the number of semaphores for a given key
   sprintf(semset_size_key, "_NUM_SEMS_%d", SI_NUM_SEMAPHORES);
   uniq_id_str = malloc(strlen(name)+strlen(semset_size_key)+1);
   strcpy(uniq_id_str, name);
@@ -216,8 +216,17 @@ configure_tickets(int sem_id, int tickets, double quota, int should_initialize)
 
     // desired tickets and configured tickets must be calculated based on quota if quota is provided
     // if a quoted is provided, should be initialzied to 0 instead of tickets
-    init_vals[SI_SEM_TICKETS] = init_vals[SI_SEM_CONFIGURED_TICKETS] = tickets;
-    init_vals[SI_SEM_REGISTERED_WORKERS] = init_vals[SI_SEM_CONFIGURED_WORKERS] = 0;
+
+    // ticket was specified, not quota
+    if (tickets >= 0) {
+      init_vals[SI_SEM_TICKETS] = init_vals[SI_SEM_CONFIGURED_TICKETS] = tickets;
+      init_vals[SI_SEM_REGISTERED_WORKERS] = init_vals[SI_SEM_CONFIGURED_WORKERS] = 0;
+    }
+    // quota was specified, not tickets
+    else if (quota >= 0) {
+      init_vals[SI_SEM_TICKETS] = init_vals[SI_SEM_CONFIGURED_TICKETS] = 0;
+      init_vals[SI_SEM_REGISTERED_WORKERS] = init_vals[SI_SEM_CONFIGURED_WORKERS] = 0;
+    }
     init_vals[SI_SEM_LOCK] = 1;
     if (semctl(sem_id, 0, SETALL, init_vals) == -1) {
       raise_semian_syscall_error("semctl()", errno);
@@ -303,6 +312,7 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VAL
   const char *id_str = NULL;
   double c_quota = -1.0f;
   int c_tickets = -1;
+  int sem_id;
 
 
   if ((TYPE(tickets) == T_NIL && TYPE(quota) == T_NIL) ||(TYPE(tickets) != T_NIL && TYPE(quota) != T_NIL)){
@@ -352,7 +362,12 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VAL
   res->quota = c_quota;
 
   key = generate_key(id_str);
-  res->sem_id = c_tickets == 0 ? get_semaphore(key) : create_semaphore(key, permissions, &created);
+  if (c_tickets == 0) {
+    sem_id = get_semaphore(key);
+  } else {
+    sem_id = create_semaphore(key, permissions, &created);
+  }
+  res->sem_id = sem_id;
   if (res->sem_id == -1) {
     raise_semian_syscall_error("semget()", errno);
   }
