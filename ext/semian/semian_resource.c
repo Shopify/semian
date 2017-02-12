@@ -1,5 +1,29 @@
 #include <semian_resource.h>
 
+static VALUE
+cleanup_semian_resource_acquire(VALUE self);
+
+static void
+check_tickets_xor_quota_arg(VALUE tickets, VALUE quota);
+
+static int
+check_tickets_arg(VALUE tickets);
+
+static double
+check_quota_arg(VALUE quota);
+
+static long
+check_permissions_arg(VALUE permissions);
+
+static const
+char *check_id_arg(VALUE id);
+
+static double
+check_default_timeout_arg(VALUE default_timeout);
+
+static void
+ms_to_timespec(long ms, struct timespec *ts);
+
 VALUE
 semian_resource_acquire(int argc, VALUE *argv, VALUE self)
 {
@@ -14,7 +38,7 @@ semian_resource_acquire(int argc, VALUE *argv, VALUE self)
   res = *self_res;
 
   if (res.quota > 0) {
-    // Ensure that configured tickets matches quota before acquiring
+    // Ensure that configured tickets match the quota before acquiring
     sem_meta_lock(res.sem_id);
     update_tickets_from_quota(res.sem_id, res.quota);
     sem_meta_unlock(res.sem_id);
@@ -52,7 +76,7 @@ semian_resource_destroy(VALUE self)
   semian_resource_t *res = NULL;
 
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
-  if (semctl(res->sem_id, 0, IPC_RMID) == -1) {
+  if (semctl(res->sem_id, SI_NUM_SEMAPHORES, IPC_RMID) == -1) {
     raise_semian_syscall_error("semctl()", errno);
   }
 
@@ -66,7 +90,7 @@ semian_resource_count(VALUE self)
   semian_resource_t *res = NULL;
 
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
-  ret = semctl(res->sem_id, 0, GETVAL);
+  ret = semctl(res->sem_id, SI_SEM_TICKETS, GETVAL);
   if (ret == -1) {
     raise_semian_syscall_error("semctl()", errno);
   }
@@ -81,14 +105,6 @@ semian_resource_id(VALUE self)
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
   return LONG2FIX(res->sem_id);
 }
-
-static void check_tickets_xor_quota_arg(VALUE tickets, VALUE quota);
-static int check_tickets_arg(VALUE tickets);
-static double check_quota_arg(VALUE quota);
-static long check_permissions_arg(VALUE permissions);
-static const char *check_id_arg(VALUE id);
-static double check_default_timeout_arg(VALUE default_timeout);
-
 
 // FIXME refactor
 // - break type checking in resource_initialization into separate checks
@@ -148,7 +164,7 @@ These functions are specific to semian resource interals, not intended for outsi
 *********************************************************************************************************
 */
 
-VALUE
+static VALUE
 cleanup_semian_resource_acquire(VALUE self)
 {
   semian_resource_t *res = NULL;
@@ -239,3 +255,11 @@ static double check_default_timeout_arg(VALUE default_timeout)
   }
   return NUM2DBL(default_timeout);
 }
+
+static void
+ms_to_timespec(long ms, struct timespec *ts)
+{
+  ts->tv_sec = ms / 1000;
+  ts->tv_nsec = (ms % 1000) * 1000000;
+}
+

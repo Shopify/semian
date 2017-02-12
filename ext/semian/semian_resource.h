@@ -66,17 +66,4 @@ semian_resource_count(VALUE self);
 VALUE
 semian_resource_id(VALUE self);
 
-// Private
-
-VALUE
-cleanup_semian_resource_acquire(VALUE self);
-
-
-static inline void
-ms_to_timespec(long ms, struct timespec *ts)
-{
-  ts->tv_sec = ms / 1000;
-  ts->tv_nsec = (ms % 1000) * 1000000;
-}
-
 #endif //SEMIAN_RESOURCE_H
