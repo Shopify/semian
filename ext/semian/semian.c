@@ -1,77 +1,4 @@
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/sem.h>
-#include <sys/time.h>
-#include <errno.h>
-#include <string.h>
-
-#include <ruby.h>
-#include <ruby/util.h>
-#include <ruby/io.h>
-
-#include <openssl/sha.h>
-
-#include <stdio.h>
-
-union semun {
-  int              val;    /* Value for SETVAL */
-  struct semid_ds *buf;    /* Buffer for IPC_STAT, IPC_SET */
-  unsigned short  *array;  /* Array for GETALL, SETALL */
-  struct seminfo  *__buf;  /* Buffer for IPC_INFO
-                             (Linux-specific) */
-};
-
-#if defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL) && defined(HAVE_RUBY_THREAD_H)
-// 2.0
-#include <ruby/thread.h>
-#define WITHOUT_GVL(fn,a,ubf,b) rb_thread_call_without_gvl((fn),(a),(ubf),(b))
-#elif defined(HAVE_RB_THREAD_BLOCKING_REGION)
- // 1.9
-typedef VALUE (*my_blocking_fn_t)(void*);
-#define WITHOUT_GVL(fn,a,ubf,b) rb_thread_blocking_region((my_blocking_fn_t)(fn),(a),(ubf),(b))
-#endif
-
-#define INTERNAL_TIMEOUT 5 // seconds
-
-// Here we define an enum value and string representation of each semaphore
-// This allows us to key the sem value and string rep in sync easily
-// utilizing pre-processor macros.
-//   SI_SEM_TICKETS             semaphore for the tickets currently issued
-//   SI_SEM_CONFIGURED_TICKETS  semaphore to track the desired number of tickets available for issue
-//   SI_SEM_LOCK                metadata lock to act as a mutex, ensuring thread-safety for updating other semaphores
-//   SI_SEM_REGISTERED_WORKERS  semaphore for the number of workers currently registered
-//   SI_SEM_CONFIGURED_WORKERS  semaphore for the number of workers that our quota is using for configured tickets
-//   SI_NUM_SEMAPHORES          always leave this as last entry for count to be accurate
-#define FOREACH_SEMINDEX(SEMINDEX) \
-        SEMINDEX(SI_SEM_TICKETS)   \
-        SEMINDEX(SI_SEM_CONFIGURED_TICKETS)  \
-        SEMINDEX(SI_SEM_LOCK)   \
-        SEMINDEX(SI_SEM_REGISTERED_WORKERS)  \
-        SEMINDEX(SI_SEM_CONFIGURED_WORKERS)  \
-        SEMINDEX(SI_NUM_SEMAPHORES)  \
-
-#define GENERATE_ENUM(ENUM) ENUM,
-#define GENERATE_STRING(STRING) #STRING,
-
-enum SEMINDEX_ENUM {
-    FOREACH_SEMINDEX(GENERATE_ENUM)
-};
-
-static const char *SEMINDEX_STRING[] = {
-    FOREACH_SEMINDEX(GENERATE_STRING)
-};
-
-static ID id_timeout;
-static VALUE eSyscall, eTimeout, eInternal;
-static int system_max_semaphore_count;
-
-typedef struct {
-  int sem_id;
-  struct timespec timeout;
-  double quota;
-  int error;
-  char *name;
-} semian_resource_t;
+#include <semian.h>
 
 static key_t
 generate_key(const char *name)
@@ -110,47 +37,6 @@ raise_semian_syscall_error(const char *syscall, int error_num)
   rb_raise(eSyscall, "%s failed, errno: %d (%s)", syscall, error_num, strerror(error_num));
 }
 
-static void
-semian_resource_mark(void *ptr)
-{
-  /* noop */
-}
-
-static void
-semian_resource_free(void *ptr)
-{
-  semian_resource_t *res = (semian_resource_t *) ptr;
-  if (res->name) {
-    free(res->name);
-    res->name = NULL;
-  }
-  xfree(res);
-}
-
-static size_t
-semian_resource_memsize(const void *ptr)
-{
-  return sizeof(semian_resource_t);
-}
-
-static const rb_data_type_t
-semian_resource_type = {
-  "semian_resource",
-  {
-    semian_resource_mark,
-    semian_resource_free,
-    semian_resource_memsize
-  },
-  NULL, NULL, RUBY_TYPED_FREE_IMMEDIATELY
-};
-
-static VALUE
-semian_resource_alloc(VALUE klass)
-{
-  semian_resource_t *res;
-  VALUE obj = TypedData_Make_Struct(klass, semian_resource_t, &semian_resource_type, res);
-  return obj;
-}
 
 static void
 set_semaphore_permissions(int sem_id, int permissions)
@@ -192,11 +78,6 @@ perform_semop(int sem_id, short index, short op, short flags, struct timespec *t
     return semop(sem_id, &buf, 1);
   }
 }
-
-typedef struct {
-  int sem_id;
-  int tickets;
-} update_ticket_count_t;
 
 static VALUE
 update_ticket_count(update_ticket_count_t *tc)
@@ -376,12 +257,6 @@ get_semaphore(int key)
   return semget(key, SI_NUM_SEMAPHORES, 0);
 }
 
-/*
- * call-seq:
- *    Semian::Resource.new(id, tickets, permissions, default_timeout) -> resource
- *
- * Creates a new Resource. Do not create resources directly. Use Semian.register.
- */
 static VALUE
 semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE permissions, VALUE default_timeout)
 {
