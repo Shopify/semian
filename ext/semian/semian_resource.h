@@ -8,6 +8,7 @@ Functions here are associated with rubyland operations.
 
 #include <semian.h>
 
+// Ruby variables
 ID id_timeout;
 int system_max_semaphore_count;
 
