@@ -1,58 +1,5 @@
 #include <semian_resource.h>
 
-const rb_data_type_t
-semian_resource_type = {
-  "semian_resource",
-  {
-    semian_resource_mark,
-    semian_resource_free,
-    semian_resource_memsize
-  },
-  NULL, NULL, RUBY_TYPED_FREE_IMMEDIATELY
-};
-
-void
-semian_resource_mark(void *ptr)
-{
-  /* noop */
-}
-
-void
-semian_resource_free(void *ptr)
-{
-  semian_resource_t *res = (semian_resource_t *) ptr;
-  if (res->name) {
-    free(res->name);
-    res->name = NULL;
-  }
-  xfree(res);
-}
-
-size_t
-semian_resource_memsize(const void *ptr)
-{
-  return sizeof(semian_resource_t);
-}
-
-VALUE
-semian_resource_alloc(VALUE klass)
-{
-  semian_resource_t *res;
-  VALUE obj = TypedData_Make_Struct(klass, semian_resource_t, &semian_resource_type, res);
-  return obj;
-}
-
-VALUE
-cleanup_semian_resource_acquire(VALUE self)
-{
-  semian_resource_t *res = NULL;
-  TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
-  if (perform_semop(res->sem_id, SI_SEM_TICKETS, 1, SEM_UNDO, NULL) == -1) {
-    res->error = errno;
-  }
-  return Qnil;
-}
-
 /*
  * call-seq:
  *    resource.acquire(timeout: default_timeout) { ... }  -> result of the block
@@ -64,6 +11,7 @@ cleanup_semian_resource_acquire(VALUE self)
  * If no timeout argument is provided, the default timeout passed to Semian.register will be used.
  *
  */
+// EXPORTED
 VALUE
 semian_resource_acquire(int argc, VALUE *argv, VALUE self)
 {
@@ -110,6 +58,18 @@ semian_resource_acquire(int argc, VALUE *argv, VALUE self)
   return rb_ensure(rb_yield, self, cleanup_semian_resource_acquire, self);
 }
 
+// PRIVATE
+VALUE
+cleanup_semian_resource_acquire(VALUE self)
+{
+  semian_resource_t *res = NULL;
+  TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
+  if (perform_semop(res->sem_id, SI_SEM_TICKETS, 1, SEM_UNDO, NULL) == -1) {
+    res->error = errno;
+  }
+  return Qnil;
+}
+
 /*
  * call-seq:
  *   resource.destroy() -> true
@@ -120,6 +80,7 @@ semian_resource_acquire(int argc, VALUE *argv, VALUE self)
  *
  * Use this method very carefully.
  */
+// EXPORTED
 VALUE
 semian_resource_destroy(VALUE self)
 {
@@ -133,6 +94,7 @@ semian_resource_destroy(VALUE self)
   return Qtrue;
 }
 
+// EXPORTED
 VALUE
 semian_resource_count(VALUE self)
 {
@@ -148,6 +110,7 @@ semian_resource_count(VALUE self)
   return LONG2FIX(ret);
 }
 
+// EXPORTED
 VALUE
 semian_resource_id(VALUE self)
 {
@@ -156,6 +119,9 @@ semian_resource_id(VALUE self)
   return LONG2FIX(res->sem_id);
 }
 
+
+// FIXME refactor
+// EXPORTED
 VALUE
 semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE permissions, VALUE default_timeout)
 {

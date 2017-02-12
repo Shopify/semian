@@ -3,26 +3,11 @@
 
 #include <semian.h>
 
-void
-semian_resource_mark(void *ptr);
-
-void
-semian_resource_free(void *ptr);
-
-size_t
-semian_resource_memsize(const void *ptr);
-
-const rb_data_type_t
-semian_resource_type;
-
 VALUE
 semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE permissions, VALUE default_timeout);
 
 VALUE
 cleanup_semian_resource_acquire(VALUE self);
-
-VALUE
-semian_resource_alloc(VALUE klass);
 
 /*
  * call-seq:
