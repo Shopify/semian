@@ -13,26 +13,10 @@
 
 #include <stdio.h>
 
-#include <semset.h>
-
-union semun {
-  int              val;    /* Value for SETVAL */
-  struct semid_ds *buf;    /* Buffer for IPC_STAT, IPC_SET */
-  unsigned short  *array;  /* Array for GETALL, SETALL */
-  struct seminfo  *__buf;  /* Buffer for IPC_INFO
-                             (Linux-specific) */
-};
+#include <semian.h>
 
 static ID id_timeout;
-static VALUE eSyscall, eTimeout, eInternal;
 static int system_max_semaphore_count;
-
-typedef struct {
-  int sem_id;
-  struct timespec timeout;
-  int error;
-  char *name;
-} semian_resource_t;
 
 static key_t
 generate_key(const char *name)
@@ -51,12 +35,6 @@ ms_to_timespec(long ms, struct timespec *ts)
 {
   ts->tv_sec = ms / 1000;
   ts->tv_nsec = (ms % 1000) * 1000000;
-}
-
-static void
-raise_semian_syscall_error(const char *syscall, int error_num)
-{
-  rb_raise(eSyscall, "%s failed, errno: %d (%s)", syscall, error_num, strerror(error_num));
 }
 
 static void
@@ -101,20 +79,15 @@ semian_resource_alloc(VALUE klass)
   return obj;
 }
 
-typedef struct {
-  int sem_id;
-  int tickets;
-} update_ticket_count_t;
-
 static VALUE
 update_ticket_count(update_ticket_count_t *tc)
 {
   short delta;
   struct timespec ts = { 0 };
-  ts.tv_sec = kInternalTimeout;
+  ts.tv_sec = INTERNAL_TIMEOUT;
 
-  if (get_max_tickets(tc->sem_id) != tc->tickets) {
-    delta = tc->tickets - get_max_tickets(tc->sem_id);
+  if (get_sem_val(tc->sem_id, SI_SEM_CONFIGURED_TICKETS) != tc->tickets) {
+    delta = tc->tickets - get_sem_val(tc->sem_id, SI_SEM_CONFIGURED_TICKETS);
 
     if (perform_semop(tc->sem_id, SI_SEM_TICKETS, delta, 0, &ts) == -1) {
       rb_raise(eInternal, "error setting ticket count, errno: %d (%s)", errno, strerror(errno));
@@ -146,12 +119,12 @@ configure_tickets(int sem_id, int tickets, int should_initialize)
   } else if (tickets > 0) {
     /* it's possible that we haven't actually initialized the
        semaphore structure yet - wait a bit in that case */
-    if (get_max_tickets(sem_id) == 0) {
+    if (get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS) == 0) {
       gettimeofday(&start_time, NULL);
-      while (get_max_tickets(sem_id) == 0) {
+      while (get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS) == 0) {
         usleep(10000); /* 10ms */
         gettimeofday(&cur_time, NULL);
-        if ((cur_time.tv_sec - start_time.tv_sec) > kInternalTimeout) {
+        if ((cur_time.tv_sec - start_time.tv_sec) > INTERNAL_TIMEOUT) {
           rb_raise(eInternal, "timeout waiting for semaphore initialization");
         }
       }
@@ -162,8 +135,8 @@ configure_tickets(int sem_id, int tickets, int should_initialize)
        count, we need to resize the count. We do this by adding the delta of
        (tickets - current_max_tickets) to the semaphore value.
     */
-    if (get_max_tickets(sem_id) != tickets) {
-      ts.tv_sec = kInternalTimeout;
+    if (get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS) != tickets) {
+      ts.tv_sec = INTERNAL_TIMEOUT;
 
       if (perform_semop(sem_id, SI_SEM_LOCK, -1, SEM_UNDO, &ts) == -1) {
         raise_semian_syscall_error("error acquiring internal semaphore lock, semtimedop()", errno);
@@ -248,17 +221,6 @@ cleanup_semian_resource_acquire(VALUE self)
     res->error = errno;
   }
   return Qnil;
-}
-
-static void *
-acquire_semaphore_without_gvl(void *p)
-{
-  semian_resource_t *res = (semian_resource_t *) p;
-  res->error = 0;
-  if (perform_semop(res->sem_id, SI_SEM_TICKETS, -1, SEM_UNDO, &res->timeout) == -1) {
-    res->error = errno;
-  }
-  return NULL;
 }
 
 /*
