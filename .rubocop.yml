@@ -35,7 +35,7 @@ Style/DoubleNegation:
   Enabled: false
 
 Metrics/LineLength:
-  Max: 135
+  Max: 150
 
 Metrics/MethodLength:
   Max: 40
