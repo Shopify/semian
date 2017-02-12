@@ -1,3 +1,6 @@
+/*
+Strictly for utility / convenience functions
+*/
 #ifndef SEMIAN_UTIL_H
 #define SEMIAN_UTIL_H
 

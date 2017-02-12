@@ -1,3 +1,6 @@
+/*
+For custom type definitions specific to semian
+*/
 #ifndef SEMIAN_TYPES_H
 #define SEMIAN_TYPES_H
 
@@ -15,8 +18,6 @@ typedef struct {
   int sem_id;
   int tickets;
 } update_ticket_count_t;
-
-
 
 typedef struct {
   int sem_id;

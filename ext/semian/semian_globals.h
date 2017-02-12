@@ -1,3 +1,11 @@
+/*
+For global variables, declarations, or definitions.
+
+Use of this file is discouraged, as it breaks encapsulation.
+
+There are, however, some justified cases for appropriate globals.
+
+*/
 #ifndef SEMIAN_GLOBALS_H
 #define SEMIAN_GLUBALS_H
 
@@ -14,6 +22,7 @@ typedef VALUE (*my_blocking_fn_t)(void*);
 
 #define INTERNAL_TIMEOUT 5 // seconds
 
+// TODO: try and scope these to the correct files
 ID id_timeout;
 VALUE eSyscall, eTimeout, eInternal;
 int system_max_semaphore_count;

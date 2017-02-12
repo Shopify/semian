@@ -1,3 +1,9 @@
+/*
+For manipulating the semian's semaphore set
+
+Semian semaphore operations and initialization,
+and functions associated directly weth semops.
+*/
 #ifndef SEMIAN_SEMSET_H
 #define SEMIAN_SEMSET_H
 
@@ -35,7 +41,6 @@ raise_semian_syscall_error(const char *syscall, int error_num);
 key_t
 generate_sem_set_key(const char *name);
 
-
 void
 set_semaphore_permissions(int sem_id, int permissions);
 
@@ -59,6 +64,5 @@ get_semaphore(int key);
 
 void *
 acquire_semaphore_without_gvl(void *p);
-
 
 #endif // SEMIAN_SEMSET_H

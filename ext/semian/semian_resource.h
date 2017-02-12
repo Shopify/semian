@@ -1,3 +1,8 @@
+/*
+For core semian resource functions exposed directly to ruby.
+
+Functions here are associated with rubyland operations.
+*/
 #ifndef SEMIAN_RESOURCE_H
 #define SEMIAN_RESOURCE_H
 

@@ -1,3 +1,6 @@
+/*
+For memory management operations of semian resources.
+*/
 #ifndef SEMIAN_RESOURCE_ALLOC_H
 #define SEMIAN_RESOURCE_ALLOC_H
 
