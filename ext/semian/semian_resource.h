@@ -67,4 +67,7 @@ semian_resource_id(VALUE self);
 VALUE
 cleanup_semian_resource_acquire(VALUE self);
 
+ID id_timeout;
+int system_max_semaphore_count;
+
 #endif //SEMIAN_RESOURCE_H

@@ -4,8 +4,6 @@ For custom type definitions specific to semian
 #ifndef SEMIAN_TYPES_H
 #define SEMIAN_TYPES_H
 
-#include <semian.h>
-
 union semun {
   int              val;    /* Value for SETVAL */
   struct semid_ds *buf;    /* Buffer for IPC_STAT, IPC_SET */

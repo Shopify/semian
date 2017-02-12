@@ -34,7 +34,7 @@ semian_resource_acquire(int argc, VALUE *argv, VALUE self)
   }
 
   /* release the GVL to acquire the semaphore */
-  WITHOUT_GVL(acquire_semaphore_without_gvl, &res, RUBY_UBF_IO, NULL);
+  acquire_semaphore_without_gvl(&res);
   if (res.error != 0) {
     if (res.error == EAGAIN) {
       rb_raise(eTimeout, "timed out waiting for resource '%s'", res.name);

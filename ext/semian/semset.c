@@ -4,6 +4,11 @@ const char *SEMINDEX_STRING[] = {
     FOREACH_SEMINDEX(GENERATE_STRING)
 };
 
+void
+raise_semian_syscall_error(const char *syscall, int error_num)
+{
+  rb_raise(eSyscall, "%s failed, errno: %d (%s)", syscall, error_num, strerror(error_num));
+}
 
 key_t
 generate_sem_set_key(const char *name)
@@ -30,13 +35,6 @@ generate_sem_set_key(const char *name)
 }
 
 void
-raise_semian_syscall_error(const char *syscall, int error_num)
-{
-  rb_raise(eSyscall, "%s failed, errno: %d (%s)", syscall, error_num, strerror(error_num));
-}
-
-
-void
 set_semaphore_permissions(int sem_id, long permissions)
 {
   union semun sem_opts;
@@ -48,52 +46,6 @@ set_semaphore_permissions(int sem_id, long permissions)
     stat_buf.sem_perm.mode &= ~0xfff;
     stat_buf.sem_perm.mode |= permissions;
     semctl(sem_id, 0, IPC_SET, sem_opts);
-  }
-}
-
-int
-get_sem_val(int sem_id, int sem_index)
-{
-  int ret = semctl(sem_id, sem_index, GETVAL);
-  if (ret == -1) {
-    rb_raise(eInternal, "error getting value of %s, errno: %d (%s)", SEMINDEX_STRING[sem_index], errno, strerror(errno));
-  }
-  return ret;
-}
-
-int
-perform_semop(int sem_id, short index, short op, short flags, struct timespec *ts)
-{
-  struct sembuf buf = { 0 };
-
-  buf.sem_num = index;
-  buf.sem_op  = op;
-  buf.sem_flg = flags;
-
-  if (ts) {
-    return semtimedop(sem_id, &buf, 1, ts);
-  } else {
-    return semop(sem_id, &buf, 1);
-  }
-}
-
-
-void
-sem_meta_lock(int sem_id)
-{
-  struct timespec ts = { 0 };
-  ts.tv_sec = INTERNAL_TIMEOUT;
-
-  if (perform_semop(sem_id, SI_SEM_LOCK, -1, SEM_UNDO, &ts) == -1) {
-    raise_semian_syscall_error("error acquiring internal semaphore lock, semtimedop()", errno);
-  }
-}
-
-void
-sem_meta_unlock(int sem_id)
-{
-  if (perform_semop(sem_id, SI_SEM_LOCK, 1, SEM_UNDO, NULL) == -1) {
-    raise_semian_syscall_error("error releasing internal semaphore lock, semop()", errno);
   }
 }
 
@@ -114,21 +66,4 @@ create_semaphore(int key, long permissions, int *created)
     semid = semget(key, SI_NUM_SEMAPHORES, flags);
   }
   return semid;
-}
-
-int
-get_semaphore(int key)
-{
-  return semget(key, SI_NUM_SEMAPHORES, 0);
-}
-
-void *
-acquire_semaphore_without_gvl(void *p)
-{
-  semian_resource_t *res = (semian_resource_t *) p;
-  res->error = 0;
-  if (perform_semop(res->sem_id, SI_SEM_TICKETS, -1, SEM_UNDO, &res->timeout) == -1) {
-    res->error = errno;
-  }
-  return NULL;
 }

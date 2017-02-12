@@ -23,13 +23,12 @@ Implements Init_semian, which is used as C/Ruby entrypoint.
 #include <ruby/io.h>
 
 //semian includes
-#include <semset.h>
 #include <semian_types.h>
-#include <semian_globals.h>
 #include <semian_resource.h>
 #include <semian_resource_alloc.h>
 #include <semian_tickets.h>
 #include <semian_util.h>
+#include <semset.h>
 
 void Init_semian();
 
