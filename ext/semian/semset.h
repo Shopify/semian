@@ -20,6 +20,7 @@ typedef VALUE (*my_blocking_fn_t)(void*);
 #define WITHOUT_GVL(fn,a,ubf,b) rb_thread_blocking_region((my_blocking_fn_t)(fn),(a),(ubf),(b))
 #endif
 
+// Time to wait for timed ops to complete
 #define INTERNAL_TIMEOUT 5 // seconds
 
 VALUE eSyscall, eTimeout, eInternal;
@@ -51,7 +52,6 @@ enum SEMINDEX_ENUM {
 
 // Generate string rep for sem indices for debugging puproses
 extern const char *SEMINDEX_STRING[];
-
 
 // Helper for syscall verbose debugging
 void

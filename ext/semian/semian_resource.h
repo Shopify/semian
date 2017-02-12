@@ -8,6 +8,9 @@ Functions here are associated with rubyland operations.
 
 #include <semian.h>
 
+ID id_timeout;
+int system_max_semaphore_count;
+
 /*
  * call-seq:
  *    Semian::Resource.new(id, tickets, permissions, default_timeout) -> resource
@@ -67,7 +70,12 @@ semian_resource_id(VALUE self);
 VALUE
 cleanup_semian_resource_acquire(VALUE self);
 
-ID id_timeout;
-int system_max_semaphore_count;
+
+static inline void
+ms_to_timespec(long ms, struct timespec *ts)
+{
+  ts->tv_sec = ms / 1000;
+  ts->tv_nsec = (ms % 1000) * 1000000;
+}
 
 #endif //SEMIAN_RESOURCE_H
