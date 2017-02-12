@@ -12,8 +12,6 @@ typedef VALUE (*my_blocking_fn_t)(void*);
 #define WITHOUT_GVL(fn,a,ubf,b) rb_thread_blocking_region((my_blocking_fn_t)(fn),(a),(ubf),(b))
 #endif
 
-
-
 #define INTERNAL_TIMEOUT 5 // seconds
 
 ID id_timeout;

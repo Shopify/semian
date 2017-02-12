@@ -33,7 +33,7 @@ void
 raise_semian_syscall_error(const char *syscall, int error_num);
 
 key_t
-generate_key(const char *name);
+generate_key(const char *name); // MOVE ME
 
 
 void
@@ -57,6 +57,8 @@ create_semaphore(int key, int permissions, int *created);
 int
 get_semaphore(int key);
 
+void *
+acquire_semaphore_without_gvl(void *p);
 
 
 #endif // SEMIAN_SEMSET_H

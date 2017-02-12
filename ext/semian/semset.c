@@ -122,4 +122,13 @@ get_semaphore(int key)
   return semget(key, SI_NUM_SEMAPHORES, 0);
 }
 
-
+void *
+acquire_semaphore_without_gvl(void *p)
+{
+  semian_resource_t *res = (semian_resource_t *) p;
+  res->error = 0;
+  if (perform_semop(res->sem_id, SI_SEM_TICKETS, -1, SEM_UNDO, &res->timeout) == -1) {
+    res->error = errno;
+  }
+  return NULL;
+}

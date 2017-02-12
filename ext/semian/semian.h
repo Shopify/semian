@@ -22,9 +22,7 @@
 #include <semian_globals.h>
 #include <semian_resource.h>
 #include <semian_tickets.h>
-
-void
-ms_to_timespec(long ms, struct timespec *ts);
+#include <semian_util.h>
 
 void Init_semian();
 

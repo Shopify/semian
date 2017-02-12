@@ -53,17 +53,6 @@ cleanup_semian_resource_acquire(VALUE self)
   return Qnil;
 }
 
-void *
-acquire_semaphore_without_gvl(void *p)
-{
-  semian_resource_t *res = (semian_resource_t *) p;
-  res->error = 0;
-  if (perform_semop(res->sem_id, SI_SEM_TICKETS, -1, SEM_UNDO, &res->timeout) == -1) {
-    res->error = errno;
-  }
-  return NULL;
-}
-
 /*
  * call-seq:
  *    resource.acquire(timeout: default_timeout) { ... }  -> result of the block
@@ -237,5 +226,3 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VAL
 
   return self;
 }
-
-

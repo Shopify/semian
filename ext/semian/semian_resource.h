@@ -16,23 +16,13 @@ const rb_data_type_t
 semian_resource_type;
 
 VALUE
-semian_resource_alloc(VALUE klass);
-
-/*
- * call-seq:
- *    Semian::Resource.new(id, tickets, permissions, default_timeout) -> resource
- *
- * Creates a new Resource. Do not create resources directly. Use Semian.register.
- */
-
-VALUE
 semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE permissions, VALUE default_timeout);
 
 VALUE
 cleanup_semian_resource_acquire(VALUE self);
 
-void *
-acquire_semaphore_without_gvl(void *p);
+VALUE
+semian_resource_alloc(VALUE klass);
 
 /*
  * call-seq:
