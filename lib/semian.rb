@@ -169,6 +169,8 @@ module Semian
 end
 
 if Semian.semaphores_enabled?
+  require 'semian/sysv_shared_memory'
+  require 'semian/sysv_integer'
   require 'semian/semian'
 else
   Semian::MAX_TICKETS = 0
