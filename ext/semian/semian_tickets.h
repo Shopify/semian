@@ -12,4 +12,4 @@ update_tickets_from_quota(int sem_id, double quota);
 void
 configure_tickets(int sem_id, int tickets, double quota, int should_initialize);
 
-#endif
+#endif // SEMIAN_TICKETS_H
