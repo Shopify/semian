@@ -1,6 +1,8 @@
 #ifndef SEMIAN_SEMSET_H
 #define SEMIAN_SEMSET_H
 
+#include <semian.h>
+
 // Here we define an enum value and string representation of each semaphore
 // This allows us to key the sem value and string rep in sync easily
 // utilizing pre-processor macros.
@@ -25,9 +27,35 @@ enum SEMINDEX_ENUM {
     FOREACH_SEMINDEX(GENERATE_ENUM)
 };
 
-static const char *SEMINDEX_STRING[] = {
-    FOREACH_SEMINDEX(GENERATE_STRING)
-};
+extern const char *SEMINDEX_STRING[];
+
+void
+raise_semian_syscall_error(const char *syscall, int error_num);
+
+key_t
+generate_key(const char *name);
+
+
+void
+set_semaphore_permissions(int sem_id, int permissions);
+
+int
+get_sem_val(int sem_id, int sem_index);
+
+int
+perform_semop(int sem_id, short index, short op, short flags, struct timespec *ts);
+
+void
+sem_meta_lock(int sem_id);
+
+void
+sem_meta_unlock(int sem_id);
+
+int
+create_semaphore(int key, int permissions, int *created);
+
+int
+get_semaphore(int key);
 
 
 

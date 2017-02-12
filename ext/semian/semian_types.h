@@ -1,8 +1,7 @@
 #ifndef SEMIAN_TYPES_H
 #define SEMIAN_TYPES_H
 
-#include <ruby.h>
-#include <sys/time.h>
+#include <semian.h>
 
 union semun {
   int              val;    /* Value for SETVAL */

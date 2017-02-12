@@ -16,8 +16,8 @@ typedef VALUE (*my_blocking_fn_t)(void*);
 
 #define INTERNAL_TIMEOUT 5 // seconds
 
-static ID id_timeout;
-static VALUE eSyscall, eTimeout, eInternal;
-static int system_max_semaphore_count;
+ID id_timeout;
+VALUE eSyscall, eTimeout, eInternal;
+int system_max_semaphore_count;
 
 #endif // SEMIAN_GLOBALS_H
