@@ -33,7 +33,7 @@ void
 raise_semian_syscall_error(const char *syscall, int error_num);
 
 key_t
-generate_key(const char *name); // MOVE ME
+generate_sem_set_key(const char *name);
 
 
 void

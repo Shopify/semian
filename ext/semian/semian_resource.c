@@ -213,7 +213,7 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VAL
   res->name = strdup(id_str);
   res->quota = c_quota;
 
-  key = generate_key(id_str);
+  key = generate_sem_set_key(id_str);
   res->sem_id = c_tickets == 0 ? get_semaphore(key) : create_semaphore(key, permissions, &created);
 
   if (res->sem_id == -1) {

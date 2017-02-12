@@ -6,7 +6,7 @@ const char *SEMINDEX_STRING[] = {
 
 
 key_t
-generate_key(const char *name)
+generate_sem_set_key(const char *name)
 {
   char semset_size_key[20];
   char *uniq_id_str;
