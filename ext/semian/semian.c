@@ -13,6 +13,8 @@
 
 #include <stdio.h>
 
+#include <semset.h>
+
 union semun {
   int              val;    /* Value for SETVAL */
   struct semid_ds *buf;    /* Buffer for IPC_STAT, IPC_SET */
@@ -21,27 +23,9 @@ union semun {
                              (Linux-specific) */
 };
 
-#if defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL) && defined(HAVE_RUBY_THREAD_H)
-// 2.0
-#include <ruby/thread.h>
-#define WITHOUT_GVL(fn,a,ubf,b) rb_thread_call_without_gvl((fn),(a),(ubf),(b))
-#elif defined(HAVE_RB_THREAD_BLOCKING_REGION)
- // 1.9
-typedef VALUE (*my_blocking_fn_t)(void*);
-#define WITHOUT_GVL(fn,a,ubf,b) rb_thread_blocking_region((my_blocking_fn_t)(fn),(a),(ubf),(b))
-#endif
-
 static ID id_timeout;
 static VALUE eSyscall, eTimeout, eInternal;
 static int system_max_semaphore_count;
-
-typedef enum
-{
-  SI_SEM_TICKETS,            // semaphore for the tickets currently issued
-  SI_SEM_CONFIGURED_TICKETS, // semaphore to track the desired number of tickets available for issue
-  SI_SEM_LOCK,               // metadata lock to act as a mutex, ensuring thread-safety for updating other semaphores
-  SI_NUM_SEMAPHORES          // always leave this as last entry for count to be accurate
-} semaphore_indices;
 
 typedef struct {
   int sem_id;
@@ -115,49 +99,6 @@ semian_resource_alloc(VALUE klass)
   semian_resource_t *res;
   VALUE obj = TypedData_Make_Struct(klass, semian_resource_t, &semian_resource_type, res);
   return obj;
-}
-
-static void
-set_semaphore_permissions(int sem_id, int permissions)
-{
-  union semun sem_opts;
-  struct semid_ds stat_buf;
-
-  sem_opts.buf = &stat_buf;
-  semctl(sem_id, 0, IPC_STAT, sem_opts);
-  if ((stat_buf.sem_perm.mode & 0xfff) != permissions) {
-    stat_buf.sem_perm.mode &= ~0xfff;
-    stat_buf.sem_perm.mode |= permissions;
-    semctl(sem_id, 0, IPC_SET, sem_opts);
-  }
-}
-
-static const int kInternalTimeout = 5; /* seconds */
-
-static int
-get_max_tickets(int sem_id)
-{
-  int ret = semctl(sem_id, SI_SEM_CONFIGURED_TICKETS, GETVAL);
-  if (ret == -1) {
-    rb_raise(eInternal, "error getting max ticket count, errno: %d (%s)", errno, strerror(errno));
-  }
-  return ret;
-}
-
-static int
-perform_semop(int sem_id, short index, short op, short flags, struct timespec *ts)
-{
-  struct sembuf buf = { 0 };
-
-  buf.sem_num = index;
-  buf.sem_op  = op;
-  buf.sem_flg = flags;
-
-  if (ts) {
-    return semtimedop(sem_id, &buf, 1, ts);
-  } else {
-    return semop(sem_id, &buf, 1);
-  }
 }
 
 typedef struct {
@@ -241,31 +182,6 @@ configure_tickets(int sem_id, int tickets, int should_initialize)
       }
     }
   }
-}
-
-static int
-create_semaphore(int key, int permissions, int *created)
-{
-  int semid = 0;
-  int flags = 0;
-
-  *created = 0;
-  flags = IPC_EXCL | IPC_CREAT | FIX2LONG(permissions);
-
-  semid = semget(key, SI_NUM_SEMAPHORES, flags);
-  if (semid >= 0) {
-    *created = 1;
-  } else if (semid == -1 && errno == EEXIST) {
-    flags &= ~IPC_EXCL;
-    semid = semget(key, SI_NUM_SEMAPHORES, flags);
-  }
-  return semid;
-}
-
-static int
-get_semaphore(int key)
-{
-  return semget(key, SI_NUM_SEMAPHORES, 0);
 }
 
 /*
