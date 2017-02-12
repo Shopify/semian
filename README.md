@@ -148,7 +148,11 @@ Rather, the tickets shall be computed as a proportion of the number of active wo
 
 In this case, we'd allow 50% of the workers on a particular host to connect to this redis resource.
 
-**Note**: You must pass **exactly** one of ticket or quota.
+**Note**:
+
+- You must pass **exactly** one of ticket or quota.
+- Tickets available will be the ceiling of the quota ratio to the number of workers
+ - So, with one worker, there will always be a minimum of 1 ticket
 
 #### Net::HTTP
 For the `Net::HTTP` specific Semian adapter, since many external libraries may create

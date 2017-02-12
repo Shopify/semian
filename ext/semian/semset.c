@@ -37,7 +37,7 @@ raise_semian_syscall_error(const char *syscall, int error_num)
 
 
 void
-set_semaphore_permissions(int sem_id, int permissions)
+set_semaphore_permissions(int sem_id, long permissions)
 {
   union semun sem_opts;
   struct semid_ds stat_buf;
@@ -98,13 +98,13 @@ sem_meta_unlock(int sem_id)
 }
 
 int
-create_semaphore(int key, int permissions, int *created)
+create_semaphore(int key, long permissions, int *created)
 {
   int semid = 0;
   int flags = 0;
 
   *created = 0;
-  flags = IPC_EXCL | IPC_CREAT | FIX2LONG(permissions);
+  flags = IPC_EXCL | IPC_CREAT | permissions;
 
   semid = semget(key, SI_NUM_SEMAPHORES, flags);
   if (semid >= 0) {

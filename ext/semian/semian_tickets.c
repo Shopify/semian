@@ -53,6 +53,7 @@ update_tickets_from_quota(int sem_id, double quota)
   return state;
 }
 
+// Break this apart, handle quota case and static case separately
 void
 configure_tickets(int sem_id, int tickets, double quota, int should_initialize)
 {
