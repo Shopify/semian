@@ -1,17 +1,5 @@
 #include <semian_resource.h>
 
-/*
- * call-seq:
- *    resource.acquire(timeout: default_timeout) { ... }  -> result of the block
- *
- * Acquires a resource. The call will block for <code>timeout</code> seconds if a ticket
- * is not available. If no ticket is available within the timeout period, Semian::TimeoutError
- * will be raised.
- *
- * If no timeout argument is provided, the default timeout passed to Semian.register will be used.
- *
- */
-// EXPORTED
 VALUE
 semian_resource_acquire(int argc, VALUE *argv, VALUE self)
 {
@@ -58,29 +46,6 @@ semian_resource_acquire(int argc, VALUE *argv, VALUE self)
   return rb_ensure(rb_yield, self, cleanup_semian_resource_acquire, self);
 }
 
-// PRIVATE
-VALUE
-cleanup_semian_resource_acquire(VALUE self)
-{
-  semian_resource_t *res = NULL;
-  TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
-  if (perform_semop(res->sem_id, SI_SEM_TICKETS, 1, SEM_UNDO, NULL) == -1) {
-    res->error = errno;
-  }
-  return Qnil;
-}
-
-/*
- * call-seq:
- *   resource.destroy() -> true
- *
- * Destroys a resource. This method will destroy the underlying SysV semaphore.
- * If there is any code in other threads or processes blocking or using the resource
- * they will likely raise.
- *
- * Use this method very carefully.
- */
-// EXPORTED
 VALUE
 semian_resource_destroy(VALUE self)
 {
@@ -94,7 +59,6 @@ semian_resource_destroy(VALUE self)
   return Qtrue;
 }
 
-// EXPORTED
 VALUE
 semian_resource_count(VALUE self)
 {
@@ -110,7 +74,6 @@ semian_resource_count(VALUE self)
   return LONG2FIX(ret);
 }
 
-// EXPORTED
 VALUE
 semian_resource_id(VALUE self)
 {
@@ -121,7 +84,6 @@ semian_resource_id(VALUE self)
 
 
 // FIXME refactor
-// EXPORTED
 VALUE
 semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE permissions, VALUE default_timeout)
 {
@@ -191,4 +153,17 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VAL
   set_semaphore_permissions(res->sem_id, FIX2LONG(permissions));
 
   return self;
+}
+
+// Private
+
+VALUE
+cleanup_semian_resource_acquire(VALUE self)
+{
+  semian_resource_t *res = NULL;
+  TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
+  if (perform_semop(res->sem_id, SI_SEM_TICKETS, 1, SEM_UNDO, NULL) == -1) {
+    res->error = errno;
+  }
+  return Qnil;
 }

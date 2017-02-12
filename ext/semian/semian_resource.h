@@ -3,11 +3,14 @@
 
 #include <semian.h>
 
+/*
+ * call-seq:
+ *    Semian::Resource.new(id, tickets, permissions, default_timeout) -> resource
+ *
+ * Creates a new Resource. Do not create resources directly. Use Semian.register.
+ */
 VALUE
 semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE permissions, VALUE default_timeout);
-
-VALUE
-cleanup_semian_resource_acquire(VALUE self);
 
 /*
  * call-seq:
@@ -53,5 +56,10 @@ semian_resource_count(VALUE self);
  */
 VALUE
 semian_resource_id(VALUE self);
+
+// Private
+
+VALUE
+cleanup_semian_resource_acquire(VALUE self);
 
 #endif //SEMIAN_RESOURCE_H
