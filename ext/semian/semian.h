@@ -21,6 +21,7 @@ Implements Init_semian, which is used as C/Ruby entrypoint.
 //semian includes
 #include "types.h"
 #include "resource.h"
+#include "sysv_semaphores.h"
 
 // FIXME: This is needed here temporarily
 // Defines for ruby threading primitives
@@ -34,34 +35,11 @@ typedef VALUE (*my_blocking_fn_t)(void*);
 #define WITHOUT_GVL(fn,a,ubf,b) rb_thread_blocking_region((my_blocking_fn_t)(fn),(a),(ubf),(b))
 #endif
 
-VALUE eSyscall, eTimeout, eInternal;
-
 void Init_semian();
 
 // FIXME: These are needed here temporarily while we move functions around
 // Will be removed once there are new header files that the should belong to.
 void
 configure_tickets(int sem_id, int tickets, int should_initialize);
-
-key_t
-generate_key(const char *name);
-
-void
-set_semaphore_permissions(int sem_id, long permissions);
-
-int
-create_semaphore(int key, long permissions, int *created);
-
-int
-get_semaphore(int key);
-
-void
-raise_semian_syscall_error(const char *syscall, int error_num);
-
-int
-perform_semop(int sem_id, short index, short op, short flags, struct timespec *ts);
-
-void *
-acquire_semaphore_without_gvl(void *p);
 
 #endif //SEMIAN_H
