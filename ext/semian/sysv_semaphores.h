@@ -7,13 +7,7 @@ and functions associated directly weth semops.
 #ifndef SEMIAN_SEMSET_H
 #define SEMIAN_SEMSET_H
 
-#include <openssl/sha.h>
-
-#include <ruby.h>
-#include <ruby/util.h>
-#include <ruby/io.h>
-
-#include "types.h"
+#include <semian.h>
 
 // Defines for ruby threading primitives
 #if defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL) && defined(HAVE_RUBY_THREAD_H)
@@ -55,29 +49,97 @@ enum SEMINDEX_ENUM {
 // Generate string rep for sem indices for debugging puproses
 extern const char *SEMINDEX_STRING[];
 
-// FIXME: These declarations will be modified in a subsequent PR
-// temporarily placed here while refactoring.
-// will be heavily modified when semian_sysv_semaphores.c is created
-
-key_t
-generate_sem_set_key(const char *name);
-
-void
-set_semaphore_permissions(int sem_id, long permissions);
-
-int
-create_semaphore(int key, long permissions, int *created);
-
-int
-get_semaphore(int key);
-
+// Helper for syscall verbose debugging
 void
 raise_semian_syscall_error(const char *syscall, int error_num);
 
+// Genurates a unique key for the semaphore from the resource id
+key_t
+generate_sem_set_key(const char *name);
+
+// Set semaphore UNIX octal permissions
+void
+set_semaphore_permissions(int sem_id, long permissions);
+
+// Create a new sysV IPC semaphore set
 int
-perform_semop(int sem_id, short index, short op, short flags, struct timespec *ts);
+create_semaphore(int key, long permissions, int *created);
 
-void *
-acquire_semaphore_without_gvl(void *p);
+// Wrapper to performs a semop call
+// The call may be timed or untimed
+static inline int
+perform_semop(int sem_id, short index, short op, short flags, struct timespec *ts)
+{
+  struct sembuf buf = { 0 };
 
+  buf.sem_num = index;
+  buf.sem_op  = op;
+  buf.sem_flg = flags;
+
+  if (ts) {
+    return semtimedop(sem_id, &buf, 1, ts);
+  } else {
+    return semop(sem_id, &buf, 1);
+  }
+}
+
+// Retrieve the current number of tickets in a semaphore by its semaphore index
+static inline int
+get_sem_val(int sem_id, int sem_index)
+{
+  int ret = semctl(sem_id, sem_index, GETVAL);
+  if (ret == -1) {
+    rb_raise(eInternal, "error getting value of %s, errno: %d (%s)", SEMINDEX_STRING[sem_index], errno, strerror(errno));
+  }
+  return ret;
+}
+
+// Obtain an exclusive lock on the semaphore set critical section
+static inline void
+sem_meta_lock(int sem_id)
+{
+  struct timespec ts = { 0 };
+  ts.tv_sec = INTERNAL_TIMEOUT;
+
+  if (perform_semop(sem_id, SI_SEM_LOCK, -1, SEM_UNDO, &ts) == -1) {
+    raise_semian_syscall_error("error acquiring internal semaphore lock, semtimedop()", errno);
+  }
+}
+
+// Release an exclusive lock on the semaphore set critical section
+static inline void
+sem_meta_unlock(int sem_id)
+{
+  if (perform_semop(sem_id, SI_SEM_LOCK, 1, SEM_UNDO, NULL) == -1) {
+    raise_semian_syscall_error("error releasing internal semaphore lock, semop()", errno);
+  }
+}
+
+// Retrieve a semaphore's ID from its key
+static inline int
+get_semaphore(int key)
+{
+  return semget(key, SI_NUM_SEMAPHORES, 0);
+}
+
+// WARNING: Never call directly
+// Decrements the ticket semaphore within the semaphore set
+static inline void *
+acquire_semaphore(void *p)
+{
+  semian_resource_t *res = (semian_resource_t *) p;
+  res->error = 0;
+  if (perform_semop(res->sem_id, SI_SEM_TICKETS, -1, SEM_UNDO, &res->timeout) == -1) {
+    res->error = errno;
+  }
+  return NULL;
+}
+
+// Acquire a ticket with the ruby Global VM lock released
+static inline void *
+acquire_semaphore_without_gvl(void *p)
+{
+  WITHOUT_GVL(acquire_semaphore, p, RUBY_UBF_IO, NULL);
+  return NULL;
+}
 #endif // SEMIAN_SEMSET_H
