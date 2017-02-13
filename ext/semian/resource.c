@@ -1,4 +1,4 @@
-#include <semian_resource.h>
+#include <resource.h>
 
 // "Private" function forward declarations
 static VALUE

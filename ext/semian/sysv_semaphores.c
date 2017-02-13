@@ -1,4 +1,4 @@
-#include <semset.h>
+#include <sysv_semaphores.h>
 
 const char *SEMINDEX_STRING[] = {
     FOREACH_SEMINDEX(GENERATE_STRING)
