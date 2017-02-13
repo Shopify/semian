@@ -8,10 +8,6 @@ Implements Init_semian, which is used as C/Ruby entrypoint.
 #define SEMIAN_H
 
 // System includes
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/sem.h>
-#include <sys/time.h>
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
@@ -23,11 +19,7 @@ Implements Init_semian, which is used as C/Ruby entrypoint.
 #include <ruby/io.h>
 
 //semian includes
-#include <semian_types.h>
-#include <semian_resource.h>
-#include <semian_resource_alloc.h>
-#include <semian_tickets.h>
-#include <semset.h>
+#include "resource.h"
 
 void Init_semian();
 

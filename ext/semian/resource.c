@@ -1,4 +1,4 @@
-#include <resource.h>
+#include "resource.h"
 
 // "Private" function forward declarations
 static VALUE
@@ -18,6 +18,10 @@ check_default_timeout_arg(VALUE default_timeout);
 
 static void
 ms_to_timespec(long ms, struct timespec *ts);
+
+static const rb_data_type_t
+semian_resource_type;
+
 
 VALUE
 semian_resource_acquire(int argc, VALUE *argv, VALUE self)
@@ -134,6 +138,13 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE permission
   return self;
 }
 
+VALUE
+semian_resource_alloc(VALUE klass)
+{
+  semian_resource_t *res;
+  VALUE obj = TypedData_Make_Struct(klass, semian_resource_t, &semian_resource_type, res);
+  return obj;
+}
 /*
 *********************************************************************************************************
 "Private"
@@ -215,3 +226,37 @@ ms_to_timespec(long ms, struct timespec *ts)
   ts->tv_sec = ms / 1000;
   ts->tv_nsec = (ms % 1000) * 1000000;
 }
+
+static inline void
+semian_resource_mark(void *ptr)
+{
+  /* noop */
+}
+
+static inline void
+semian_resource_free(void *ptr)
+{
+  semian_resource_t *res = (semian_resource_t *) ptr;
+  if (res->name) {
+    free(res->name);
+    res->name = NULL;
+  }
+  xfree(res);
+}
+
+static inline size_t
+semian_resource_memsize(const void *ptr)
+{
+  return sizeof(semian_resource_t);
+}
+
+static const rb_data_type_t
+semian_resource_type = {
+  "semian_resource",
+  {
+    semian_resource_mark,
+    semian_resource_free,
+    semian_resource_memsize
+  },
+  NULL, NULL, RUBY_TYPED_FREE_IMMEDIATELY
+};

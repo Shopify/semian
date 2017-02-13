@@ -6,7 +6,9 @@ Functions here are associated with rubyland operations.
 #ifndef SEMIAN_RESOURCE_H
 #define SEMIAN_RESOURCE_H
 
-#include <semian.h>
+#include "types.h"
+#include "sysv_semaphores.h"
+#include "tickets.h"
 
 // Ruby variables
 ID id_timeout;
@@ -65,5 +67,9 @@ semian_resource_count(VALUE self);
  */
 VALUE
 semian_resource_id(VALUE self);
+
+// Allocate a semian_resource_type struct for ruby memory management
+VALUE
+semian_resource_alloc(VALUE klass);
 
 #endif //SEMIAN_RESOURCE_H
