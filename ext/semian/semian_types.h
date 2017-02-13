@@ -4,6 +4,11 @@ For custom type definitions specific to semian
 #ifndef SEMIAN_TYPES_H
 #define SEMIAN_TYPES_H
 
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
+#include <sys/time.h>
+
 // For sysV semop syscals
 // see man semop
 union semun {
