@@ -12,11 +12,11 @@ Gem::Specification.new do |s|
     across process boundaries with SysV semaphores.
   DOC
   s.homepage = 'https://github.com/shopify/semian'
-  s.authors = ['Scott Francis', 'Simon Eskildsen', 'Dale Hamel']
+  s.authors = ['Scott Francis', 'Simon Eskildsen']
   s.email = 'scott.francis@shopify.com'
   s.license = 'MIT'
 
-  s.files = `git ls-files`.split("\n")
+  s.files = Dir['{lib,ext}/**/**/*.{rb,h,c}']
   s.extensions = ['ext/semian/extconf.rb']
   s.add_development_dependency 'rake-compiler', '~> 0.9'
   s.add_development_dependency 'rake', '< 11.0'
