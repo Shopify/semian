@@ -40,48 +40,6 @@ raise_semian_syscall_error(const char *syscall, int error_num)
 }
 
 static void
-semian_resource_mark(void *ptr)
-{
-  /* noop */
-}
-
-static void
-semian_resource_free(void *ptr)
-{
-  semian_resource_t *res = (semian_resource_t *) ptr;
-  if (res->name) {
-    free(res->name);
-    res->name = NULL;
-  }
-  xfree(res);
-}
-
-static size_t
-semian_resource_memsize(const void *ptr)
-{
-  return sizeof(semian_resource_t);
-}
-
-static const rb_data_type_t
-semian_resource_type = {
-  "semian_resource",
-  {
-    semian_resource_mark,
-    semian_resource_free,
-    semian_resource_memsize
-  },
-  NULL, NULL, RUBY_TYPED_FREE_IMMEDIATELY
-};
-
-static VALUE
-semian_resource_alloc(VALUE klass)
-{
-  semian_resource_t *res;
-  VALUE obj = TypedData_Make_Struct(klass, semian_resource_t, &semian_resource_type, res);
-  return obj;
-}
-
-static void
 set_semaphore_permissions(int sem_id, int permissions)
 {
   union semun sem_opts;

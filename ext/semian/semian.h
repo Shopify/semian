@@ -20,6 +20,7 @@ Implements Init_semian, which is used as C/Ruby entrypoint.
 
 //semian includes
 #include <semian_types.h>
+#include <semian_resource_alloc.h>
 
 void Init_semian();
 
