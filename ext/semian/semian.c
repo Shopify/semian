@@ -13,13 +13,7 @@
 
 #include <stdio.h>
 
-union semun {
-  int              val;    /* Value for SETVAL */
-  struct semid_ds *buf;    /* Buffer for IPC_STAT, IPC_SET */
-  unsigned short  *array;  /* Array for GETALL, SETALL */
-  struct seminfo  *__buf;  /* Buffer for IPC_INFO
-                             (Linux-specific) */
-};
+#include <semian.h>
 
 #if defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL) && defined(HAVE_RUBY_THREAD_H)
 // 2.0
@@ -43,13 +37,6 @@ typedef enum
   SI_NUM_SEMAPHORES          // always leave this as last entry for count to be accurate
 } semaphore_indices;
 
-typedef struct {
-  int sem_id;
-  struct timespec timeout;
-  int error;
-  char *name;
-} semian_resource_t;
-
 static key_t
 generate_key(const char *name)
 {
@@ -62,12 +49,6 @@ generate_key(const char *name)
   return digest.key;
 }
 
-static void
-ms_to_timespec(long ms, struct timespec *ts)
-{
-  ts->tv_sec = ms / 1000;
-  ts->tv_nsec = (ms % 1000) * 1000000;
-}
 
 static void
 raise_semian_syscall_error(const char *syscall, int error_num)
@@ -159,11 +140,6 @@ perform_semop(int sem_id, short index, short op, short flags, struct timespec *t
     return semop(sem_id, &buf, 1);
   }
 }
-
-typedef struct {
-  int sem_id;
-  int tickets;
-} update_ticket_count_t;
 
 static VALUE
 update_ticket_count(update_ticket_count_t *tc)
@@ -268,71 +244,6 @@ get_semaphore(int key)
   return semget(key, SI_NUM_SEMAPHORES, 0);
 }
 
-/*
- * call-seq:
- *    Semian::Resource.new(id, tickets, permissions, default_timeout) -> resource
- *
- * Creates a new Resource. Do not create resources directly. Use Semian.register.
- */
-static VALUE
-semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE permissions, VALUE default_timeout)
-{
-  key_t key;
-  int created = 0;
-  semian_resource_t *res = NULL;
-  const char *id_str = NULL;
-
-  if (TYPE(id) != T_SYMBOL && TYPE(id) != T_STRING) {
-    rb_raise(rb_eTypeError, "id must be a symbol or string");
-  }
-  if (TYPE(tickets) == T_FLOAT) {
-    rb_warn("semian ticket value %f is a float, converting to fixnum", RFLOAT_VALUE(tickets));
-    tickets = INT2FIX((int) RFLOAT_VALUE(tickets));
-  }
-  Check_Type(tickets, T_FIXNUM);
-  Check_Type(permissions, T_FIXNUM);
-  if (TYPE(default_timeout) != T_FIXNUM && TYPE(default_timeout) != T_FLOAT) {
-    rb_raise(rb_eTypeError, "expected numeric type for default_timeout");
-  }
-  if (FIX2LONG(tickets) < 0 || FIX2LONG(tickets) > system_max_semaphore_count) {
-    rb_raise(rb_eArgError, "ticket count must be a non-negative value and less than %d", system_max_semaphore_count);
-  }
-  if (NUM2DBL(default_timeout) < 0) {
-    rb_raise(rb_eArgError, "default timeout must be non-negative value");
-  }
-
-  if (TYPE(id) == T_SYMBOL) {
-    id_str = rb_id2name(rb_to_id(id));
-  } else if (TYPE(id) == T_STRING) {
-    id_str = RSTRING_PTR(id);
-  }
-  TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
-  key = generate_key(id_str);
-  ms_to_timespec(NUM2DBL(default_timeout) * 1000, &res->timeout);
-  res->name = strdup(id_str);
-
-  res->sem_id = FIX2LONG(tickets) == 0 ? get_semaphore(key) : create_semaphore(key, permissions, &created);
-  if (res->sem_id == -1) {
-    raise_semian_syscall_error("semget()", errno);
-  }
-
-  configure_tickets(res->sem_id, FIX2LONG(tickets), created);
-
-  set_semaphore_permissions(res->sem_id, FIX2LONG(permissions));
-
-  return self;
-}
-
-static VALUE
-cleanup_semian_resource_acquire(VALUE self)
-{
-  semian_resource_t *res = NULL;
-  TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
-  if (perform_semop(res->sem_id, SI_SEM_TICKETS, 1, SEM_UNDO, NULL) == -1) {
-    res->error = errno;
-  }
-  return Qnil;
-}
 
 static void *
 acquire_semaphore_without_gvl(void *p)
@@ -343,114 +254,6 @@ acquire_semaphore_without_gvl(void *p)
     res->error = errno;
   }
   return NULL;
-}
-
-/*
- * call-seq:
- *    resource.acquire(timeout: default_timeout) { ... }  -> result of the block
- *
- * Acquires a resource. The call will block for <code>timeout</code> seconds if a ticket
- * is not available. If no ticket is available within the timeout period, Semian::TimeoutError
- * will be raised.
- *
- * If no timeout argument is provided, the default timeout passed to Semian.register will be used.
- *
- */
-static VALUE
-semian_resource_acquire(int argc, VALUE *argv, VALUE self)
-{
-  semian_resource_t *self_res = NULL;
-  semian_resource_t res = { 0 };
-
-  if (!rb_block_given_p()) {
-    rb_raise(rb_eArgError, "acquire requires a block");
-  }
-
-  TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, self_res);
-  res = *self_res;
-
-  /* allow the default timeout to be overridden by a "timeout" param */
-  if (argc == 1 && TYPE(argv[0]) == T_HASH) {
-    VALUE timeout = rb_hash_aref(argv[0], ID2SYM(id_timeout));
-    if (TYPE(timeout) != T_NIL) {
-      if (TYPE(timeout) != T_FLOAT && TYPE(timeout) != T_FIXNUM) {
-        rb_raise(rb_eArgError, "timeout parameter must be numeric");
-      }
-      ms_to_timespec(NUM2DBL(timeout) * 1000, &res.timeout);
-    }
-  } else if (argc > 0) {
-    rb_raise(rb_eArgError, "invalid arguments");
-  }
-
-  /* release the GVL to acquire the semaphore */
-  WITHOUT_GVL(acquire_semaphore_without_gvl, &res, RUBY_UBF_IO, NULL);
-  if (res.error != 0) {
-    if (res.error == EAGAIN) {
-      rb_raise(eTimeout, "timed out waiting for resource '%s'", res.name);
-    } else {
-      raise_semian_syscall_error("semop()", res.error);
-    }
-  }
-
-  return rb_ensure(rb_yield, self, cleanup_semian_resource_acquire, self);
-}
-
-/*
- * call-seq:
- *   resource.destroy() -> true
- *
- * Destroys a resource. This method will destroy the underlying SysV semaphore.
- * If there is any code in other threads or processes blocking or using the resource
- * they will likely raise.
- *
- * Use this method very carefully.
- */
-static VALUE
-semian_resource_destroy(VALUE self)
-{
-  semian_resource_t *res = NULL;
-
-  TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
-  if (semctl(res->sem_id, 0, IPC_RMID) == -1) {
-    raise_semian_syscall_error("semctl()", errno);
-  }
-
-  return Qtrue;
-}
-
-/*
- * call-seq:
- *    resource.count -> count
- *
- * Returns the current ticket count for a resource.
- */
-static VALUE
-semian_resource_count(VALUE self)
-{
-  int ret;
-  semian_resource_t *res = NULL;
-
-  TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
-  ret = semctl(res->sem_id, 0, GETVAL);
-  if (ret == -1) {
-    raise_semian_syscall_error("semctl()", errno);
-  }
-
-  return LONG2FIX(ret);
-}
-
-/*
- * call-seq:
- *    resource.semid -> id
- *
- * Returns the SysV semaphore id of a resource.
- */
-static VALUE
-semian_resource_id(VALUE self)
-{
-  semian_resource_t *res = NULL;
-  TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
-  return LONG2FIX(res->sem_id);
 }
 
 void Init_semian()
