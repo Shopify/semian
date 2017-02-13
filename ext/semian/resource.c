@@ -19,7 +19,7 @@ check_default_timeout_arg(VALUE default_timeout);
 static void
 ms_to_timespec(long ms, struct timespec *ts);
 
-const rb_data_type_t
+static const rb_data_type_t
 semian_resource_type;
 
 
@@ -138,6 +138,13 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE permission
   return self;
 }
 
+VALUE
+semian_resource_alloc(VALUE klass)
+{
+  semian_resource_t *res;
+  VALUE obj = TypedData_Make_Struct(klass, semian_resource_t, &semian_resource_type, res);
+  return obj;
+}
 /*
 *********************************************************************************************************
 "Private"
@@ -243,15 +250,7 @@ semian_resource_memsize(const void *ptr)
   return sizeof(semian_resource_t);
 }
 
-VALUE
-semian_resource_alloc(VALUE klass)
-{
-  semian_resource_t *res;
-  VALUE obj = TypedData_Make_Struct(klass, semian_resource_t, &semian_resource_type, res);
-  return obj;
-}
-
-const rb_data_type_t
+static const rb_data_type_t
 semian_resource_type = {
   "semian_resource",
   {
