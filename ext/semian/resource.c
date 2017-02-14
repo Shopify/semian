@@ -121,7 +121,7 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE permission
   ms_to_timespec(NUM2DBL(default_timeout) * 1000, &res->timeout);
   res->name = strdup(id_str);
 
-  res->sem_id = FIX2LONG(tickets) == 0 ? get_semaphore(key) : create_semaphore(key, FIX2LONG(permissions), &created);
+  res->sem_id = FIX2LONG(tickets) == 0 ? get_semaphore(key) : create_semaphore(key, permissions, &created);
   if (res->sem_id == -1) {
     raise_semian_syscall_error("semget()", errno);
   }
