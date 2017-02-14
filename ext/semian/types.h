@@ -33,8 +33,7 @@ typedef struct {
   char *name;
 } semian_resource_t;
 
-
-// FIXME: REMOVE ME once semset.h is merged
+// FIXME: move this to more appropriate location once the file exists
 typedef enum
 {
   SI_SEM_TICKETS,            // semaphore for the tickets currently issued
