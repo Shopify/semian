@@ -1,5 +1,8 @@
 #include "semian.h"
 
+// Time to wait for timed ops to complete
+#define INTERNAL_TIMEOUT 5 // seconds
+
 key_t
 generate_sem_set_key(const char *name)
 {

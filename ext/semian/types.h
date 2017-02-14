@@ -33,4 +33,13 @@ typedef struct {
   char *name;
 } semian_resource_t;
 
+// FIXME: move this to more appropriate location once the file exists
+typedef enum
+{
+  SI_SEM_TICKETS,            // semaphore for the tickets currently issued
+  SI_SEM_CONFIGURED_TICKETS, // semaphore to track the desired number of tickets available for issue
+  SI_SEM_LOCK,               // metadata lock to act as a mutex, ensuring thread-safety for updating other semaphores
+  SI_NUM_SEMAPHORES          // always leave this as last entry for count to be accurate
+} semaphore_indices;
+
 #endif // SEMIAN_TYPES_H
