@@ -155,13 +155,15 @@ cleanup_semian_resource_acquire(VALUE self)
   return Qnil;
 }
 
-static long check_permissions_arg(VALUE permissions)
+static long
+check_permissions_arg(VALUE permissions)
 {
   Check_Type(permissions, T_FIXNUM);
   return FIX2LONG(permissions);
 }
 
-static int check_tickets_arg(VALUE tickets)
+static int
+check_tickets_arg(VALUE tickets)
 {
   int c_tickets;
 
@@ -183,7 +185,8 @@ static int check_tickets_arg(VALUE tickets)
   return c_tickets;
 }
 
-static const char* check_id_arg(VALUE id)
+static const char*
+check_id_arg(VALUE id)
 {
   const char *c_id_str = NULL;
 
@@ -199,7 +202,8 @@ static const char* check_id_arg(VALUE id)
   return c_id_str;
 }
 
-static double check_default_timeout_arg(VALUE default_timeout)
+static double
+check_default_timeout_arg(VALUE default_timeout)
 {
   if (TYPE(default_timeout) != T_FIXNUM && TYPE(default_timeout) != T_FLOAT) {
     rb_raise(rb_eTypeError, "expected numeric type for default_timeout");
