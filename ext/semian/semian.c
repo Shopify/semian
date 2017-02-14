@@ -22,14 +22,14 @@ raise_semian_syscall_error(const char *syscall, int error_num)
 }
 
 void
-set_semaphore_permissions(int sem_id, int permissions)
+set_semaphore_permissions(int sem_id, long permissions)
 {
   union semun sem_opts;
   struct semid_ds stat_buf;
 
   sem_opts.buf = &stat_buf;
   semctl(sem_id, 0, IPC_STAT, sem_opts);
-  if ((stat_buf.sem_perm.mode & 0xfff) != FIX2LONG(permissions)) {
+  if ((stat_buf.sem_perm.mode & 0xfff) != permissions) {
     stat_buf.sem_perm.mode &= ~0xfff;
     stat_buf.sem_perm.mode |= permissions;
     semctl(sem_id, 0, IPC_SET, sem_opts);
@@ -143,13 +143,13 @@ configure_tickets(int sem_id, int tickets, int should_initialize)
 }
 
 int
-create_semaphore(int key, int permissions, int *created)
+create_semaphore(int key, long permissions, int *created)
 {
   int semid = 0;
   int flags = 0;
 
   *created = 0;
-  flags = IPC_EXCL | IPC_CREAT | FIX2LONG(permissions);
+  flags = IPC_EXCL | IPC_CREAT | permissions;
 
   semid = semget(key, SI_NUM_SEMAPHORES, flags);
   if (semid >= 0) {

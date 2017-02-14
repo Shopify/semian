@@ -3,6 +3,18 @@
 static VALUE
 cleanup_semian_resource_acquire(VALUE self);
 
+static int
+check_tickets_arg(VALUE tickets);
+
+static long
+check_permissions_arg(VALUE permissions);
+
+static const
+char *check_id_arg(VALUE id);
+
+static double
+check_default_timeout_arg(VALUE default_timeout);
+
 static void
 ms_to_timespec(long ms, struct timespec *ts);
 
@@ -88,47 +100,38 @@ VALUE
 semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE permissions, VALUE default_timeout)
 {
   key_t key;
+  int c_permissions;
+  double c_timeout;
+  int c_tickets;
   int created = 0;
   semian_resource_t *res = NULL;
-  const char *id_str = NULL;
+  const char *c_id_str = NULL;
 
-  if (TYPE(id) != T_SYMBOL && TYPE(id) != T_STRING) {
-    rb_raise(rb_eTypeError, "id must be a symbol or string");
-  }
-  if (TYPE(tickets) == T_FLOAT) {
-    rb_warn("semian ticket value %f is a float, converting to fixnum", RFLOAT_VALUE(tickets));
-    tickets = INT2FIX((int) RFLOAT_VALUE(tickets));
-  }
-  Check_Type(tickets, T_FIXNUM);
-  Check_Type(permissions, T_FIXNUM);
-  if (TYPE(default_timeout) != T_FIXNUM && TYPE(default_timeout) != T_FLOAT) {
-    rb_raise(rb_eTypeError, "expected numeric type for default_timeout");
-  }
-  if (FIX2LONG(tickets) < 0 || FIX2LONG(tickets) > system_max_semaphore_count) {
-    rb_raise(rb_eArgError, "ticket count must be a non-negative value and less than %d", system_max_semaphore_count);
-  }
-  if (NUM2DBL(default_timeout) < 0) {
-    rb_raise(rb_eArgError, "default timeout must be non-negative value");
-  }
+  // Check and cast arguments
+  c_tickets = check_tickets_arg(tickets);
+  c_permissions = check_permissions_arg(permissions);
+  c_id_str = check_id_arg(id);
+  c_timeout = check_default_timeout_arg(default_timeout);
 
-  if (TYPE(id) == T_SYMBOL) {
-    id_str = rb_id2name(rb_to_id(id));
-  } else if (TYPE(id) == T_STRING) {
-    id_str = RSTRING_PTR(id);
-  }
+  // Build semian resource structure
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
-  key = generate_key(id_str);
-  ms_to_timespec(NUM2DBL(default_timeout) * 1000, &res->timeout);
-  res->name = strdup(id_str);
 
-  res->sem_id = FIX2LONG(tickets) == 0 ? get_semaphore(key) : create_semaphore(key, permissions, &created);
+  // Populate struct fields
+  ms_to_timespec(c_timeout * 1000, &res->timeout);
+  res->name = strdup(c_id_str);
+
+  // Get or create semaphore set
+  //  note that tickets = 0 will be used to acquire a semaphore set after it's been created elswhere
+  key = generate_key(c_id_str);
+  res->sem_id = c_tickets == 0 ? get_semaphore(key) : create_semaphore(key, c_permissions, &created);
   if (res->sem_id == -1) {
     raise_semian_syscall_error("semget()", errno);
   }
 
-  configure_tickets(res->sem_id, FIX2LONG(tickets), created);
+  set_semaphore_permissions(res->sem_id, c_permissions);
 
-  set_semaphore_permissions(res->sem_id, FIX2LONG(permissions));
+  // Configure semaphore ticket counts
+  configure_tickets(res->sem_id, c_tickets, created);
 
   return self;
 }
@@ -150,6 +153,62 @@ cleanup_semian_resource_acquire(VALUE self)
     res->error = errno;
   }
   return Qnil;
+}
+
+static long check_permissions_arg(VALUE permissions)
+{
+  Check_Type(permissions, T_FIXNUM);
+  return FIX2LONG(permissions);
+}
+
+static int check_tickets_arg(VALUE tickets)
+{
+  int c_tickets;
+
+  if (TYPE(tickets) != T_NIL) {
+    if (TYPE(tickets) == T_FLOAT) {
+      rb_warn("semian ticket value %f is a float, converting to fixnum", RFLOAT_VALUE(tickets));
+      tickets = INT2FIX((int) RFLOAT_VALUE(tickets));
+    }
+    Check_Type(tickets, T_FIXNUM);
+
+    if (FIX2LONG(tickets) < 0 || FIX2LONG(tickets) > system_max_semaphore_count) {
+      rb_raise(rb_eArgError, "ticket count must be a non-negative value and less than %d", system_max_semaphore_count);
+    }
+    c_tickets = FIX2LONG(tickets);
+  } else {
+    c_tickets = -1;
+  }
+
+  return c_tickets;
+}
+
+static const char* check_id_arg(VALUE id)
+{
+  const char *c_id_str = NULL;
+
+  if (TYPE(id) != T_SYMBOL && TYPE(id) != T_STRING) {
+    rb_raise(rb_eTypeError, "id must be a symbol or string");
+  }
+  if (TYPE(id) == T_SYMBOL) {
+    c_id_str = rb_id2name(rb_to_id(id));
+  } else if (TYPE(id) == T_STRING) {
+    c_id_str = RSTRING_PTR(id);
+  }
+
+  return c_id_str;
+}
+
+static double check_default_timeout_arg(VALUE default_timeout)
+{
+  if (TYPE(default_timeout) != T_FIXNUM && TYPE(default_timeout) != T_FLOAT) {
+    rb_raise(rb_eTypeError, "expected numeric type for default_timeout");
+  }
+
+  if (NUM2DBL(default_timeout) < 0) {
+    rb_raise(rb_eArgError, "default timeout must be non-negative value");
+  }
+  return NUM2DBL(default_timeout);
 }
 
 static void
