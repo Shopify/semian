@@ -1,6 +1,5 @@
 #include "resource.h"
 
-// "Private" function forward declarations
 static VALUE
 cleanup_semian_resource_acquire(VALUE self);
 
@@ -21,7 +20,6 @@ ms_to_timespec(long ms, struct timespec *ts);
 
 static const rb_data_type_t
 semian_resource_type;
-
 
 VALUE
 semian_resource_acquire(int argc, VALUE *argv, VALUE self)
@@ -145,13 +143,6 @@ semian_resource_alloc(VALUE klass)
   VALUE obj = TypedData_Make_Struct(klass, semian_resource_t, &semian_resource_type, res);
   return obj;
 }
-/*
-*********************************************************************************************************
-"Private"
-
-These functions are specific to semian resource interals and may not be called by other files
-*********************************************************************************************************
-*/
 
 static VALUE
 cleanup_semian_resource_acquire(VALUE self)
