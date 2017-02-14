@@ -122,7 +122,7 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE permission
 
   // Get or create semaphore set
   //  note that tickets = 0 will be used to acquire a semaphore set after it's been created elswhere
-  key = generate_sem_set_key(c_id_str);
+  key = generate_key(c_id_str);
   res->sem_id = c_tickets == 0 ? get_semaphore(key) : create_semaphore(key, c_permissions, &created);
   if (res->sem_id == -1) {
     raise_semian_syscall_error("semget()", errno);

@@ -44,7 +44,7 @@ void
 configure_tickets(int sem_id, int tickets, int should_initialize);
 
 key_t
-generate_sem_set_key(const char *name);
+generate_key(const char *name);
 
 void
 set_semaphore_permissions(int sem_id, long permissions);
