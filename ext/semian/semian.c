@@ -5,7 +5,7 @@ update_ticket_count(update_ticket_count_t *tc)
 {
   short delta;
   struct timespec ts = { 0 };
-  ts.tv_sec = INTERNAL_TIMEOUT;
+  ts.tv_sec = kInternalTimeout;
 
   if (get_max_tickets(tc->sem_id) != tc->tickets) {
     delta = tc->tickets - get_max_tickets(tc->sem_id);
@@ -15,7 +15,7 @@ update_ticket_count(update_ticket_count_t *tc)
     }
 
     if (semctl(tc->sem_id, SI_SEM_CONFIGURED_TICKETS, SETVAL, tc->tickets) == -1) {
-      rb_raise(eInternal, "error updating configured ticket count, errno: %d (%s)", errno, strerror(errno));
+      rb_raise(eInternal, "error updating max ticket count, errno: %d (%s)", errno, strerror(errno));
     }
   }
 
@@ -45,19 +45,19 @@ configure_tickets(int sem_id, int tickets, int should_initialize)
       while (get_max_tickets(sem_id) == 0) {
         usleep(10000); /* 10ms */
         gettimeofday(&cur_time, NULL);
-        if ((cur_time.tv_sec - start_time.tv_sec) > INTERNAL_TIMEOUT) {
+        if ((cur_time.tv_sec - start_time.tv_sec) > kInternalTimeout) {
           rb_raise(eInternal, "timeout waiting for semaphore initialization");
         }
       }
     }
 
     /*
-       If the current configured ticket count is not the same as the requested ticket
+       If the current max ticket count is not the same as the requested ticket
        count, we need to resize the count. We do this by adding the delta of
-       (tickets - current_configured_tickets) to the semaphore value.
+       (tickets - current_max_tickets) to the semaphore value.
     */
     if (get_max_tickets(sem_id) != tickets) {
-      ts.tv_sec = INTERNAL_TIMEOUT;
+      ts.tv_sec = kInternalTimeout;
 
       if (perform_semop(sem_id, SI_SEM_LOCK, -1, SEM_UNDO, &ts) == -1) {
         raise_semian_syscall_error("error acquiring internal semaphore lock, semtimedop()", errno);

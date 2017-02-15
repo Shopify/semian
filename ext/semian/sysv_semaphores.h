@@ -30,8 +30,7 @@ typedef VALUE (*my_blocking_fn_t)(void*);
 #endif
 
 // Time to wait for timed ops to complete
-#define INTERNAL_TIMEOUT 5 // seconds
-
+const int kInternalTimeout = 5; /* seconds */
 
 VALUE eSyscall, eTimeout, eInternal;
 
