@@ -5,7 +5,7 @@ update_ticket_count(update_ticket_count_t *tc)
 {
   short delta;
   struct timespec ts = { 0 };
-  ts.tv_sec = kInternalTimeout;
+  ts.tv_sec = INTERNAL_TIMEOUT;
 
   if (get_max_tickets(tc->sem_id) != tc->tickets) {
     delta = tc->tickets - get_max_tickets(tc->sem_id);
@@ -45,7 +45,7 @@ configure_tickets(int sem_id, int tickets, int should_initialize)
       while (get_max_tickets(sem_id) == 0) {
         usleep(10000); /* 10ms */
         gettimeofday(&cur_time, NULL);
-        if ((cur_time.tv_sec - start_time.tv_sec) > kInternalTimeout) {
+        if ((cur_time.tv_sec - start_time.tv_sec) > INTERNAL_TIMEOUT) {
           rb_raise(eInternal, "timeout waiting for semaphore initialization");
         }
       }
@@ -57,7 +57,7 @@ configure_tickets(int sem_id, int tickets, int should_initialize)
        (tickets - current_max_tickets) to the semaphore value.
     */
     if (get_max_tickets(sem_id) != tickets) {
-      ts.tv_sec = kInternalTimeout;
+      ts.tv_sec = INTERNAL_TIMEOUT;
 
       if (perform_semop(sem_id, SI_SEM_LOCK, -1, SEM_UNDO, &ts) == -1) {
         raise_semian_syscall_error("error acquiring internal semaphore lock, semtimedop()", errno);
