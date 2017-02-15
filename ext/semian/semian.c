@@ -6,23 +6,11 @@
 key_t
 generate_key(const char *name)
 {
-  char semset_size_key[20];
-  char *uniq_id_str;
-
-  // It is necessary for the cardinatily of the semaphore set to be part of the key
-  // or else sem_get will complain that we have requested an incorrect number of sems
-  // for the desired key, and have changed the number of semaphores for a given key
-  sprintf(semset_size_key, "_NUM_SEMS_%d", SI_NUM_SEMAPHORES);
-  uniq_id_str = malloc(strlen(name)+strlen(semset_size_key)+1);
-  strcpy(uniq_id_str, name);
-  strcat(uniq_id_str, semset_size_key);
-
   union {
     unsigned char str[SHA_DIGEST_LENGTH];
     key_t key;
   } digest;
-  SHA1((const unsigned char *) uniq_id_str, strlen(uniq_id_str), digest.str);
-  free(uniq_id_str);
+  SHA1((const unsigned char *) name, strlen(name), digest.str);
   /* TODO: compile-time assertion that sizeof(key_t) > SHA_DIGEST_LENGTH */
   return digest.key;
 }
