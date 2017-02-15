@@ -59,6 +59,14 @@ perform_semop(int sem_id, short index, short op, short flags, struct timespec *t
 int
 get_max_tickets(int sem_id);
 
+// Obtain an exclusive lock on the semaphore set critical section
+void
+sem_meta_lock(int sem_id);
+
+// Release an exclusive lock on the semaphore set critical section
+void
+sem_meta_unlock(int sem_id);
+
 // Retrieve a semaphore's ID from its key
 int
 get_semaphore(int key);
