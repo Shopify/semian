@@ -7,10 +7,31 @@ and functions associated directly weth semops.
 #ifndef SEMIAN_SEMSET_H
 #define SEMIAN_SEMSET_H
 
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
+
+#include <openssl/sha.h>
+#include <ruby.h>
+#include <ruby/util.h>
+#include <ruby/io.h>
+
+#include <types.h>
+
+// Defines for ruby threading primitives
+#if defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL) && defined(HAVE_RUBY_THREAD_H)
+// 2.0
+#include <ruby/thread.h>
+#define WITHOUT_GVL(fn,a,ubf,b) rb_thread_call_without_gvl((fn),(a),(ubf),(b))
+#elif defined(HAVE_RB_THREAD_BLOCKING_REGION)
+ // 1.9
+typedef VALUE (*my_blocking_fn_t)(void*);
+#define WITHOUT_GVL(fn,a,ubf,b) rb_thread_blocking_region((my_blocking_fn_t)(fn),(a),(ubf),(b))
+#endif
+
 // Time to wait for timed ops to complete
 #define INTERNAL_TIMEOUT 5 // seconds
 
-#include <semian.h>
 
 VALUE eSyscall, eTimeout, eInternal;
 
