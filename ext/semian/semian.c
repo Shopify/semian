@@ -25,7 +25,6 @@ update_ticket_count(update_ticket_count_t *tc)
 void
 configure_tickets(int sem_id, int tickets, int should_initialize)
 {
-  struct timespec ts = { 0 };
   unsigned short init_vals[SI_NUM_SEMAPHORES];
   struct timeval start_time, cur_time;
   update_ticket_count_t tc;
@@ -57,19 +56,13 @@ configure_tickets(int sem_id, int tickets, int should_initialize)
        (tickets - current_max_tickets) to the semaphore value.
     */
     if (get_max_tickets(sem_id) != tickets) {
-      ts.tv_sec = INTERNAL_TIMEOUT;
-
-      if (perform_semop(sem_id, SI_SEM_LOCK, -1, SEM_UNDO, &ts) == -1) {
-        raise_semian_syscall_error("error acquiring internal semaphore lock, semtimedop()", errno);
-      }
+      sem_meta_lock(sem_id);
 
       tc.sem_id = sem_id;
       tc.tickets = tickets;
       rb_protect((VALUE (*)(VALUE)) update_ticket_count, (VALUE) &tc, &state);
 
-      if (perform_semop(sem_id, SI_SEM_LOCK, 1, SEM_UNDO, NULL) == -1) {
-        raise_semian_syscall_error("error releasing internal semaphore lock, semop()", errno);
-      }
+      sem_meta_unlock(sem_id);
 
       if (state) {
         rb_jump_tag(state);
