@@ -91,25 +91,6 @@ get_max_tickets(int sem_id)
   return ret;
 }
 
-void
-sem_meta_lock(int sem_id)
-{
-  struct timespec ts = { 0 };
-  ts.tv_sec = INTERNAL_TIMEOUT;
-
-  if (perform_semop(sem_id, SI_SEM_LOCK, -1, SEM_UNDO, &ts) == -1) {
-    raise_semian_syscall_error("error acquiring internal semaphore lock, semtimedop()", errno);
-  }
-}
-
-void
-sem_meta_unlock(int sem_id)
-{
-  if (perform_semop(sem_id, SI_SEM_LOCK, 1, SEM_UNDO, NULL) == -1) {
-    raise_semian_syscall_error("error releasing internal semaphore lock, semop()", errno);
-  }
-}
-
 int
 get_semaphore(int key)
 {
