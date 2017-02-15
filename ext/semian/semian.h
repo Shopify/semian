@@ -47,10 +47,10 @@ key_t
 generate_key(const char *name);
 
 void
-set_semaphore_permissions(int sem_id, int permissions);
+set_semaphore_permissions(int sem_id, long permissions);
 
 int
-create_semaphore(int key, int permissions, int *created);
+create_semaphore(int key, long permissions, int *created);
 
 int
 get_semaphore(int key);
