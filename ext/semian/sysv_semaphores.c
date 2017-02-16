@@ -1,5 +1,10 @@
 #include <sysv_semaphores.h>
 
+// Generate string rep for sem indices for debugging puproses
+static const char *SEMINDEX_STRING[] = {
+    FOREACH_SEMINDEX(GENERATE_STRING)
+};
+
 void
 raise_semian_syscall_error(const char *syscall, int error_num)
 {
@@ -82,11 +87,11 @@ perform_semop(int sem_id, short index, short op, short flags, struct timespec *t
 }
 
 int
-get_max_tickets(int sem_id)
+get_sem_val(int sem_id, int sem_index)
 {
-  int ret = semctl(sem_id, SI_SEM_CONFIGURED_TICKETS, GETVAL);
+  int ret = semctl(sem_id, sem_index, GETVAL);
   if (ret == -1) {
-    rb_raise(eInternal, "error getting max ticket count, errno: %d (%s)", errno, strerror(errno));
+    rb_raise(eInternal, "error getting value of %s, errno: %d (%s)", SEMINDEX_STRING[sem_index], errno, strerror(errno));
   }
   return ret;
 }
