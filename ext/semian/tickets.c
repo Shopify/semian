@@ -44,10 +44,9 @@ initialize_tickets(int sem_id, int tickets)
 {
   unsigned short init_vals[SI_NUM_SEMAPHORES];
 
-  if (tickets > 0) {
-    init_vals[SI_SEM_TICKETS] = init_vals[SI_SEM_CONFIGURED_TICKETS] = tickets;
-  }
+  init_vals[SI_SEM_TICKETS] = init_vals[SI_SEM_CONFIGURED_TICKETS] = tickets;
   init_vals[SI_SEM_LOCK] = 1;
+
   if (semctl(sem_id, 0, SETALL, init_vals) == -1) {
     raise_semian_syscall_error("semctl()", errno);
   }
