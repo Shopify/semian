@@ -54,10 +54,6 @@ enum SEMINDEX_ENUM {
     FOREACH_SEMINDEX(GENERATE_ENUM)
 };
 
-// Generate string rep for sem indices for debugging puproses
-extern const char *SEMINDEX_STRING[];
-
-
 VALUE eSyscall, eTimeout, eInternal;
 
 // Helper for syscall verbose debugging

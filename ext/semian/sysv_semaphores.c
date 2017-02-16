@@ -1,6 +1,7 @@
 #include <sysv_semaphores.h>
 
-const char *SEMINDEX_STRING[] = {
+// Generate string rep for sem indices for debugging puproses
+static const char *SEMINDEX_STRING[] = {
     FOREACH_SEMINDEX(GENERATE_STRING)
 };
 
