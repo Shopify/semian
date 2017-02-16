@@ -7,8 +7,8 @@ update_ticket_count(update_ticket_count_t *tc)
   struct timespec ts = { 0 };
   ts.tv_sec = INTERNAL_TIMEOUT;
 
-  if (get_max_tickets(tc->sem_id) != tc->tickets) {
-    delta = tc->tickets - get_max_tickets(tc->sem_id);
+  if (get_sem_val(tc->sem_id, SI_SEM_CONFIGURED_TICKETS) != tc->tickets) {
+    delta = tc->tickets - get_sem_val(tc->sem_id, SI_SEM_CONFIGURED_TICKETS);
 
     if (perform_semop(tc->sem_id, SI_SEM_TICKETS, delta, 0, &ts) == -1) {
       rb_raise(eInternal, "error setting ticket count, errno: %d (%s)", errno, strerror(errno));
@@ -39,9 +39,9 @@ configure_tickets(int sem_id, int tickets, int should_initialize)
   } else if (tickets > 0) {
     /* it's possible that we haven't actually initialized the
        semaphore structure yet - wait a bit in that case */
-    if (get_max_tickets(sem_id) == 0) {
+    if (get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS) == 0) {
       gettimeofday(&start_time, NULL);
-      while (get_max_tickets(sem_id) == 0) {
+      while (get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS) == 0) {
         usleep(10000); /* 10ms */
         gettimeofday(&cur_time, NULL);
         if ((cur_time.tv_sec - start_time.tv_sec) > INTERNAL_TIMEOUT) {
@@ -55,7 +55,7 @@ configure_tickets(int sem_id, int tickets, int should_initialize)
        count, we need to resize the count. We do this by adding the delta of
        (tickets - current_max_tickets) to the semaphore value.
     */
-    if (get_max_tickets(sem_id) != tickets) {
+    if (get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS) != tickets) {
       sem_meta_lock(sem_id);
 
       tc.sem_id = sem_id;
