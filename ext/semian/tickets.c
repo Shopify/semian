@@ -1,5 +1,11 @@
 #include "tickets.h"
 
+static void
+initialize_tickets(int sem_id, int tickets);
+
+static void
+configure_static_tickets(int sem_id, int tickets);
+
 VALUE
 update_ticket_count(update_ticket_count_t *tc)
 {
@@ -15,58 +21,74 @@ update_ticket_count(update_ticket_count_t *tc)
     }
 
     if (semctl(tc->sem_id, SI_SEM_CONFIGURED_TICKETS, SETVAL, tc->tickets) == -1) {
-      rb_raise(eInternal, "error updating max ticket count, errno: %d (%s)", errno, strerror(errno));
+      rb_raise(eInternal, "error configuring ticket count, errno: %d (%s)", errno, strerror(errno));
     }
   }
 
   return Qnil;
 }
-
 void
 configure_tickets(int sem_id, int tickets, int should_initialize)
 {
+  if (should_initialize) {
+    initialize_tickets(sem_id, tickets);
+  }
+
+  if (tickets > 0) {
+    configure_static_tickets(sem_id, tickets);
+  }
+}
+
+static void
+initialize_tickets(int sem_id, int tickets)
+{
   unsigned short init_vals[SI_NUM_SEMAPHORES];
+
+  init_vals[SI_SEM_TICKETS] = init_vals[SI_SEM_CONFIGURED_TICKETS] = tickets;
+  init_vals[SI_SEM_LOCK] = 1;
+
+  if (semctl(sem_id, 0, SETALL, init_vals) == -1) {
+    raise_semian_syscall_error("semctl()", errno);
+  }
+}
+
+static void
+configure_static_tickets(int sem_id, int tickets)
+{
+  int state;
   struct timeval start_time, cur_time;
   update_ticket_count_t tc;
-  int state;
 
-  if (should_initialize) {
-    init_vals[SI_SEM_TICKETS] = init_vals[SI_SEM_CONFIGURED_TICKETS] = tickets;
-    init_vals[SI_SEM_LOCK] = 1;
-    if (semctl(sem_id, 0, SETALL, init_vals) == -1) {
-      raise_semian_syscall_error("semctl()", errno);
-    }
-  } else if (tickets > 0) {
-    /* it's possible that we haven't actually initialized the
-       semaphore structure yet - wait a bit in that case */
-    if (get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS) == 0) {
-      gettimeofday(&start_time, NULL);
-      while (get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS) == 0) {
-        usleep(10000); /* 10ms */
-        gettimeofday(&cur_time, NULL);
-        if ((cur_time.tv_sec - start_time.tv_sec) > INTERNAL_TIMEOUT) {
-          rb_raise(eInternal, "timeout waiting for semaphore initialization");
-        }
+  /* it's possible that we haven't actually initialized the
+     semaphore structure yet - wait a bit in that case */
+  if (get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS) == 0) {
+    gettimeofday(&start_time, NULL);
+    while (get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS) == 0) {
+      usleep(10000); /* 10ms */
+      gettimeofday(&cur_time, NULL);
+      if ((cur_time.tv_sec - start_time.tv_sec) > INTERNAL_TIMEOUT) {
+        rb_raise(eInternal, "timeout waiting for semaphore initialization");
       }
     }
+  }
 
-    /*
-       If the current max ticket count is not the same as the requested ticket
-       count, we need to resize the count. We do this by adding the delta of
-       (tickets - current_max_tickets) to the semaphore value.
-    */
-    if (get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS) != tickets) {
-      sem_meta_lock(sem_id);
+  /*
+     If the current configured ticket count is not the same as the requested ticket
+     count, we need to resize the count. We do this by adding the delta of
+     (tickets - current_configured_tickets) to the semaphore value.
+  */
+  if (get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS) != tickets) {
 
-      tc.sem_id = sem_id;
-      tc.tickets = tickets;
-      rb_protect((VALUE (*)(VALUE)) update_ticket_count, (VALUE) &tc, &state);
+    sem_meta_lock(sem_id);
 
-      sem_meta_unlock(sem_id);
+    tc.sem_id = sem_id;
+    tc.tickets = tickets;
+    rb_protect((VALUE (*)(VALUE)) update_ticket_count, (VALUE) &tc, &state);
 
-      if (state) {
-        rb_jump_tag(state);
-      }
+    sem_meta_unlock(sem_id);
+
+    if (state) {
+      rb_jump_tag(state);
     }
   }
 }
