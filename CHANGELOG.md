@@ -1,3 +1,9 @@
+# v0.6.2
+
+*  Refactor: Refactor semian ticket management into its own files (#116)
+*  Refactor: Create sem_meta_lock and sem_meta_unlock (#115)
+*  Refactor: Refactor semaphore operations (#114)
+
 # v0.6.1
 
 * Refactor: Generate a unique semaphore key by including size of semaphore set
