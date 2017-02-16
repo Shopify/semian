@@ -1,4 +1,4 @@
-#include <tickets.h>
+#include "tickets.h"
 
 VALUE
 update_ticket_count(update_ticket_count_t *tc)

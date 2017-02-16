@@ -1,4 +1,4 @@
-#include <sysv_semaphores.h>
+#include "sysv_semaphores.h"
 
 // Generate string rep for sem indices for debugging puproses
 static const char *SEMINDEX_STRING[] = {
