@@ -6,8 +6,8 @@ Functions here are associated with rubyland operations.
 #ifndef SEMIAN_RESOURCE_H
 #define SEMIAN_RESOURCE_H
 
-#include "semian.h" // FIXME remove this once configure_tickets has been refactored
 #include "types.h"
+#include "tickets.h"
 #include "sysv_semaphores.h"
 
 // Ruby variables
