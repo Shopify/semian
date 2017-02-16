@@ -16,7 +16,7 @@ and functions associated directly weth semops.
 #include <ruby/util.h>
 #include <ruby/io.h>
 
-#include <types.h>
+#include "types.h"
 
 // Defines for ruby threading primitives
 #if defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL) && defined(HAVE_RUBY_THREAD_H)

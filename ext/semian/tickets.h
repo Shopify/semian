@@ -4,7 +4,7 @@ For logic specific to manipulating semian ticket counts
 #ifndef SEMIAN_TICKETS_H
 #define SEMIAN_TICKETS_H
 
-#include <sysv_semaphores.h>
+#include "sysv_semaphores.h"
 
 // Update the ticket count for static ticket tracking
 VALUE
