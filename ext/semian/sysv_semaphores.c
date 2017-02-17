@@ -1,5 +1,8 @@
 #include "sysv_semaphores.h"
 
+static void *
+acquire_semaphore(void *p);
+
 // Generate string rep for sem indices for debugging puproses
 static const char *SEMINDEX_STRING[] = {
     FOREACH_SEMINDEX(GENERATE_STRING)
@@ -123,6 +126,13 @@ get_semaphore(int key)
 
 void *
 acquire_semaphore_without_gvl(void *p)
+{
+  WITHOUT_GVL(acquire_semaphore, p, RUBY_UBF_IO, NULL);
+  return NULL;
+}
+
+static void *
+acquire_semaphore(void *p)
 {
   semian_resource_t *res = (semian_resource_t *) p;
   res->error = 0;
