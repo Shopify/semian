@@ -1,7 +1,16 @@
 #include "sysv_semaphores.h"
 
+static key_t
+generate_key(const char *name);
+
 static void *
 acquire_semaphore(void *p);
+
+static int
+wait_for_new_semaphore_set(key_t key, long permissions);
+
+static void
+initialize_new_semaphore_values(int sem_id, long permissions);
 
 // Generate string rep for sem indices for debugging puproses
 static const char *SEMINDEX_STRING[] = {
@@ -14,28 +23,39 @@ raise_semian_syscall_error(const char *syscall, int error_num)
   rb_raise(eSyscall, "%s failed, errno: %d (%s)", syscall, error_num, strerror(error_num));
 }
 
-key_t
-generate_key(const char *name)
+int
+initialize_semaphore_set(const char* id_str, long permissions, int tickets, double quota)
 {
-  char semset_size_key[20];
-  char *uniq_id_str;
+  int sem_id;
+  key_t key;
 
-  // It is necessary for the cardinatily of the semaphore set to be part of the key
-  // or else sem_get will complain that we have requested an incorrect number of sems
-  // for the desired key, and have changed the number of semaphores for a given key
-  sprintf(semset_size_key, "_NUM_SEMS_%d", SI_NUM_SEMAPHORES);
-  uniq_id_str = malloc(strlen(name)+strlen(semset_size_key)+1);
-  strcpy(uniq_id_str, name);
-  strcat(uniq_id_str, semset_size_key);
+  key = generate_key(id_str);
+  sem_id = semget(key, SI_NUM_SEMAPHORES, IPC_CREAT | IPC_EXCL | permissions);
 
-  union {
-    unsigned char str[SHA_DIGEST_LENGTH];
-    key_t key;
-  } digest;
-  SHA1((const unsigned char *) uniq_id_str, strlen(uniq_id_str), digest.str);
-  free(uniq_id_str);
-  /* TODO: compile-time assertion that sizeof(key_t) > SHA_DIGEST_LENGTH */
-  return digest.key;
+  /*
+  This approach is based on http://man7.org/tlpi/code/online/dist/svsem/svsem_good_init.c.html
+  which avoids race conditions when initializing semaphore sets.
+  */
+  if (sem_id != -1) {
+    // Happy path - we are the first worker, initialize the semaphore set.
+    initialize_new_semaphore_values(sem_id, permissions);
+  } else {
+    // Something went wrong
+    if (errno != EEXIST) {
+      raise_semian_syscall_error("semget() failed to initialize semaphore values", errno);
+    } else {
+      // The semaphore set already exists, ensure it is initialized
+      sem_id = wait_for_new_semaphore_set(key, permissions);
+    }
+  }
+
+  set_semaphore_permissions(sem_id, permissions);
+
+  sem_meta_lock(sem_id); // Sets otime for the first time by acquiring the sem lock
+  configure_tickets(sem_id, tickets,  quota);
+  sem_meta_unlock(sem_id);
+
+  return sem_id;
 }
 
 void
@@ -52,26 +72,6 @@ set_semaphore_permissions(int sem_id, long permissions)
     semctl(sem_id, 0, IPC_SET, sem_opts);
   }
 }
-
-int
-create_semaphore(int key, long permissions, int *created)
-{
-  int semid = 0;
-  int flags = 0;
-
-  *created = 0;
-  flags = IPC_EXCL | IPC_CREAT | permissions;
-
-  semid = semget(key, SI_NUM_SEMAPHORES, flags);
-  if (semid >= 0) {
-    *created = 1;
-  } else if (semid == -1 && errno == EEXIST) {
-    flags &= ~IPC_EXCL;
-    semid = semget(key, SI_NUM_SEMAPHORES, flags);
-  }
-  return semid;
-}
-
 
 int
 perform_semop(int sem_id, short index, short op, short flags, struct timespec *ts)
@@ -94,7 +94,7 @@ get_sem_val(int sem_id, int sem_index)
 {
   int ret = semctl(sem_id, sem_index, GETVAL);
   if (ret == -1) {
-    rb_raise(eInternal, "error getting value of %s, errno: %d (%s)", SEMINDEX_STRING[sem_index], errno, strerror(errno));
+    rb_raise(eInternal, "error getting value of %s for sem %d, errno: %d (%s)", SEMINDEX_STRING[sem_index], sem_id, errno, strerror(errno));
   }
   return ret;
 }
@@ -136,8 +136,92 @@ acquire_semaphore(void *p)
 {
   semian_resource_t *res = (semian_resource_t *) p;
   res->error = 0;
+#ifdef DEBUG
+  print_sem_vals(res->sem_id);
+#endif
   if (perform_semop(res->sem_id, SI_SEM_TICKETS, -1, SEM_UNDO, &res->timeout) == -1) {
     res->error = errno;
   }
   return NULL;
+}
+
+static key_t
+generate_key(const char *name)
+{
+  char semset_size_key[20];
+  char *uniq_id_str;
+
+  // It is necessary for the cardinatily of the semaphore set to be part of the key
+  // or else sem_get will complain that we have requested an incorrect number of sems
+  // for the desired key, and have changed the number of semaphores for a given key
+  sprintf(semset_size_key, "_NUM_SEMS_%d", SI_NUM_SEMAPHORES);
+  uniq_id_str = malloc(strlen(name)+strlen(semset_size_key)+1);
+  strcpy(uniq_id_str, name);
+  strcat(uniq_id_str, semset_size_key);
+
+  union {
+    unsigned char str[SHA_DIGEST_LENGTH];
+    key_t key;
+  } digest;
+  SHA1((const unsigned char *) uniq_id_str, strlen(uniq_id_str), digest.str);
+  free(uniq_id_str);
+  /* TODO: compile-time assertion that sizeof(key_t) > SHA_DIGEST_LENGTH */
+  return digest.key;
+}
+
+
+static void
+initialize_new_semaphore_values(int sem_id, long permissions)
+{
+  unsigned short init_vals[SI_NUM_SEMAPHORES];
+
+  init_vals[SI_SEM_TICKETS] = init_vals[SI_SEM_CONFIGURED_TICKETS] = 0;
+  init_vals[SI_SEM_REGISTERED_WORKERS] = 0;
+  init_vals[SI_SEM_LOCK] = 1;
+
+  if (semctl(sem_id, 0, SETALL, init_vals) == -1) {
+    raise_semian_syscall_error("semctl()", errno);
+  }
+#ifdef DEBUG
+  print_sem_vals(sem_id);
+#endif
+}
+
+static int
+wait_for_new_semaphore_set(key_t key, long permissions)
+{
+  int i;
+  int sem_id = -1;
+  union semun sem_opts;
+  struct semid_ds sem_ds;
+
+  sem_opts.buf = &sem_ds;
+  sem_id = semget(key, 1, permissions);
+
+  if (sem_id == -1){
+      raise_semian_syscall_error("semget()", errno);
+  }
+
+  for (i = 0; i < ((INTERNAL_TIMEOUT * MICROSECONDS_IN_SECOND) / INIT_WAIT); i++) {
+
+    if (semctl(sem_id, 0, IPC_STAT, sem_opts) == -1) {
+      raise_semian_syscall_error("semget()", errno);
+    }
+
+    // If a semop has been performed by someone else, the values must be initialized
+    if (sem_ds.sem_otime != 0) {
+      break;
+    }
+
+#ifdef DEBUG
+    printf("Waiting for another process to initialize semaphore values, checked: %d times\n", i);
+#endif
+    usleep(INIT_WAIT);
+  }
+
+  if (sem_ds.sem_otime == 0) {
+    rb_raise(eTimeout, "error: timeout waiting for semaphore values to initialize after %d checks", INTERNAL_TIMEOUT);
+  }
+
+  return sem_id;
 }

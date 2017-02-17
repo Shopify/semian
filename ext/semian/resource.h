@@ -7,7 +7,6 @@ Functions here are associated with rubyland operations.
 #define SEMIAN_RESOURCE_H
 
 #include "types.h"
-#include "tickets.h"
 #include "sysv_semaphores.h"
 
 // Ruby variables
@@ -16,12 +15,12 @@ int system_max_semaphore_count;
 
 /*
  * call-seq:
- *    Semian::Resource.new(id, tickets, permissions, default_timeout) -> resource
+ *    Semian::Resource.new(id, tickets, quota, permissions, default_timeout) -> resource
  *
  * Creates a new Resource. Do not create resources directly. Use Semian.register.
  */
 VALUE
-semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE permissions, VALUE default_timeout);
+semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE permissions, VALUE default_timeout);
 
 /*
  * call-seq:
@@ -58,6 +57,15 @@ semian_resource_destroy(VALUE self);
  */
 VALUE
 semian_resource_count(VALUE self);
+
+/*
+ * call-seq:
+ *    resource.tickets -> count
+ *
+ * Returns the configured number of tickets for a resource.
+ */
+VALUE
+semian_resource_tickets(VALUE self);
 
 /*
  * call-seq:
