@@ -2,10 +2,10 @@ module Semian
   class Resource #:nodoc:
     attr_reader :tickets, :name
 
-    def initialize(name, tickets:, permissions: 0660, timeout: 0)
-      if Semian.semaphores_enabled?
+    def initialize(name, tickets:, permissions: 0660, timeout: 0, no_bulkhead: false)
+      if Semian.semaphores_enabled? && !no_bulkhead
         initialize_semaphore(name, tickets, permissions, timeout) if respond_to?(:initialize_semaphore)
-      else
+      elsif !no_bulkhead
         Semian.issue_disabled_semaphores_warning
       end
       @name = name
