@@ -119,13 +119,17 @@ class TestResource < Minitest::Test
     resource.acquire do
       fork do
         resource.acquire do
-          assert_raises Semian::TimeoutError do
+          begin
             resource.acquire {}
+          rescue Semian::TimeoutError
+            exit! 100
           end
+          exit! 0
         end
       end
 
-      Process.wait
+      timeouts = Process.waitall.count { |s| s.last.exitstatus == 100 }
+      assert_equal(1, timeouts)
     end
   end
 
