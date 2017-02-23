@@ -51,5 +51,13 @@ module Semian
 
     def mark_success
     end
+
+    def bulkhead
+      nil
+    end
+
+    def circuit_breaker
+      nil
+    end
   end
 end

@@ -1,6 +1,7 @@
 require 'test_helper'
 
 class TestResource < Minitest::Test
+  include ResourceHelper
   def setup
     Semian.destroy(:testing)
   rescue
