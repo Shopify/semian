@@ -1,75 +1,32 @@
 #include "tickets.h"
 
-static void
-initialize_tickets(int sem_id, int tickets);
+// Update the ticket count for static ticket tracking
+static VALUE
+update_ticket_count(update_ticket_count_t *tc);
 
-static void
-configure_static_tickets(int sem_id, int tickets);
+static int
+calculate_quota_tickets(int sem_id, double quota);
 
-VALUE
-update_ticket_count(update_ticket_count_t *tc)
-{
-  short delta;
-  struct timespec ts = { 0 };
-  ts.tv_sec = INTERNAL_TIMEOUT;
-
-  if (get_sem_val(tc->sem_id, SI_SEM_CONFIGURED_TICKETS) != tc->tickets) {
-    delta = tc->tickets - get_sem_val(tc->sem_id, SI_SEM_CONFIGURED_TICKETS);
-
-    if (perform_semop(tc->sem_id, SI_SEM_TICKETS, delta, 0, &ts) == -1) {
-      rb_raise(eInternal, "error setting ticket count, errno: %d (%s)", errno, strerror(errno));
-    }
-
-    if (semctl(tc->sem_id, SI_SEM_CONFIGURED_TICKETS, SETVAL, tc->tickets) == -1) {
-      rb_raise(eInternal, "error configuring ticket count, errno: %d (%s)", errno, strerror(errno));
-    }
-  }
-
-  return Qnil;
-}
+// Must be called with the semaphore meta lock already acquired
 void
-configure_tickets(int sem_id, int tickets, int should_initialize)
+configure_tickets(int sem_id, int tickets, double quota)
 {
-  if (should_initialize) {
-    initialize_tickets(sem_id, tickets);
-  }
-
-  if (tickets > 0) {
-    configure_static_tickets(sem_id, tickets);
-  }
-}
-
-static void
-initialize_tickets(int sem_id, int tickets)
-{
-  unsigned short init_vals[SI_NUM_SEMAPHORES];
-
-  init_vals[SI_SEM_TICKETS] = init_vals[SI_SEM_CONFIGURED_TICKETS] = tickets;
-  init_vals[SI_SEM_LOCK] = 1;
-
-  if (semctl(sem_id, 0, SETALL, init_vals) == -1) {
-    raise_semian_syscall_error("semctl()", errno);
-  }
-}
-
-static void
-configure_static_tickets(int sem_id, int tickets)
-{
-  int state;
-  struct timeval start_time, cur_time;
+  int state = 0;
   update_ticket_count_t tc;
 
-  /* it's possible that we haven't actually initialized the
-     semaphore structure yet - wait a bit in that case */
-  if (get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS) == 0) {
-    gettimeofday(&start_time, NULL);
-    while (get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS) == 0) {
-      usleep(10000); /* 10ms */
-      gettimeofday(&cur_time, NULL);
-      if ((cur_time.tv_sec - start_time.tv_sec) > INTERNAL_TIMEOUT) {
-        rb_raise(eInternal, "timeout waiting for semaphore initialization");
-      }
-    }
+  if (quota > 0) {
+    tickets = calculate_quota_tickets(sem_id, quota);
+  }
+
+  /*
+    A manually specified ticket count of 0 is special, meaning "don't set"
+    We need to throw an error if we set it to 0 during initialization.
+    Otherwise, we back out of here completely.
+  */
+  if (get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS) == 0 && tickets == 0) {
+    rb_raise(eSyscall, "More than 0 tickets must be specified when initializing semaphore");
+  } else if (tickets == 0) {
+    return;
   }
 
   /*
@@ -79,16 +36,56 @@ configure_static_tickets(int sem_id, int tickets)
   */
   if (get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS) != tickets) {
 
-    sem_meta_lock(sem_id);
-
     tc.sem_id = sem_id;
     tc.tickets = tickets;
     rb_protect((VALUE (*)(VALUE)) update_ticket_count, (VALUE) &tc, &state);
-
-    sem_meta_unlock(sem_id);
 
     if (state) {
       rb_jump_tag(state);
     }
   }
+}
+
+static VALUE
+update_ticket_count(update_ticket_count_t *tc)
+{
+  short delta;
+  struct timespec ts = { 0 };
+  ts.tv_sec = INTERNAL_TIMEOUT;
+
+  delta = tc->tickets - get_sem_val(tc->sem_id, SI_SEM_CONFIGURED_TICKETS);
+
+#ifdef DEBUG
+  print_sem_vals(tc->sem_id);
+#endif
+  if (perform_semop(tc->sem_id, SI_SEM_TICKETS, delta, 0, &ts) == -1) {
+    if (delta < 0 && errno == EAGAIN) {
+      rb_raise(eTimeout, "timeout while trying to update ticket count");
+    } else {
+      rb_raise(eInternal, "error setting ticket count, errno: %d (%s)", errno, strerror(errno));
+    }
+  }
+
+  if (semctl(tc->sem_id, SI_SEM_CONFIGURED_TICKETS, SETVAL, tc->tickets) == -1) {
+    rb_raise(eInternal, "error configuring ticket count, errno: %d (%s)", errno, strerror(errno));
+  }
+
+  return Qnil;
+}
+
+static int
+calculate_quota_tickets (int sem_id, double quota)
+{
+  int tickets = 0;
+
+  /*
+    Ensure that a worker for this process is registered.
+    Note that from ruby we ensure that at most one worker may be registered per process.
+  */
+  if (perform_semop(sem_id, SI_SEM_REGISTERED_WORKERS, 1, SEM_UNDO, NULL) == -1) {
+    rb_raise(eInternal, "error incrementing registered workers, errno: %d (%s)", errno, strerror(errno));
+  }
+
+  tickets = (int) ceil(get_sem_val(sem_id, SI_SEM_REGISTERED_WORKERS) * quota);
+  return tickets;
 }

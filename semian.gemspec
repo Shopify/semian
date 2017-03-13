@@ -12,7 +12,7 @@ Gem::Specification.new do |s|
     across process boundaries with SysV semaphores.
   DOC
   s.homepage = 'https://github.com/shopify/semian'
-  s.authors = ['Scott Francis', 'Simon Eskildsen']
+  s.authors = ['Scott Francis', 'Simon Eskildsen', 'Dale Hamel']
   s.email = 'scott.francis@shopify.com'
   s.license = 'MIT'
 

@@ -127,6 +127,67 @@ client = Redis.new(semian: {
 })
 ```
 
+#### Warning: Thread unsafe
+
+Semian is currently known to be thread-unsafe, and is intended to be used by *separate processes*.
+
+Internally, semian uses `SEM_UNDO` for several sysv semaphore operations:
+
+* Acquire
+* Worker registration
+* Semaphore metadata state lock
+
+The intention behind `SEM_UNDO` is that a semaphore operation is automatically undone when the process exits. This
+is true even if the process exits abnormally - crashes, receives a `SIG_KILL`, etc, because it is handled by
+the operating system and not the process itself.
+
+If, however, a thread performs a semop, the `SEM_UNDO` is on its parent process. This means that the operation
+*will not* be undone when the thread exits. This can result in the following unfavorable behavior when using
+threads:
+
+* Threads acquire a resource, but are killed and the resource ticket is never released. For a process, the
+ticket would be released by `SEM_UNDO`, but since it's a thread there is the potential for ticket starvation.
+This can result in deadlock on the resource.
+* Threads that register workers on a resource but are killed and never unregistered. For a process, the worker
+count would be automatically decremented by `SEM_UNDO`, but for threads the worker count will continue to increment,
+only being undone when the parent process dies. This can cause the number of tickets to dramatically exceed the quota.
+* If a thread acquires the semaphore metadata lock and dies before releasing it, semian will deadlock on anything
+attempting to acquire the metadata lock until the thread's parent process exits. This can prevent the ticket count
+from being updated.
+
+Moreover, a strategy that utilizes `SEM_UNDO` is not compatible with a strategy that attempts to the semaphores tickets manually.
+In order to support threads, operations that currently use `SEM_UNDO` would need to use no semaphore flag, and the calling process
+will be responsible for ensuring that threads are appropriately cleaned up. It is still possible to implement this, but
+it would likely require an in-memory semaphore managed by the parent process of the threads. PRs welcome for this functionality.
+
+#### Quotas
+
+You may now set quotas per worker:
+
+```ruby
+client = Redis.new(semian: {
+  name: "inventory",
+  quota: 0.5,
+  success_threshold: 2,
+  error_threshold: 4,
+  error_timeout: 20
+})
+
+```
+
+Per the above example, you no longer need to care about the number of tickets.
+
+Rather, the tickets shall be computed as a proportion of the number of active workers.
+
+In this case, we'd allow 50% of the workers on a particular host to connect to this redis resource.
+
+**Note**:
+
+- You must pass **exactly** one of ticket or quota.
+- Tickets available will be the ceiling of the quota ratio to the number of workers
+ - So, with one worker, there will always be a minimum of 1 ticket
+- Workers in different processes will automatically unregister when the process exits.
+
 #### Net::HTTP
 For the `Net::HTTP` specific Semian adapter, since many external libraries may create
 HTTP connections on the user's behalf, the parameters are instead provided

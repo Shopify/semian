@@ -6,3 +6,6 @@
 /html/
 Gemfile.lock
 vendor/
+*.swp
+*.swo
+nohup.out

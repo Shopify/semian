@@ -25,7 +25,7 @@ have_func 'rb_thread_call_without_gvl'
 
 $CFLAGS = "-D_GNU_SOURCE -Werror -Wall "
 if ENV.key?('DEBUG')
-  $CFLAGS << "-O0 -g"
+  $CFLAGS << "-O0 -g -DDEBUG"
 else
   $CFLAGS << "-O3"
 end
