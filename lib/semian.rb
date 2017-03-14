@@ -140,7 +140,9 @@ module Semian
   # +exceptions+: An array of exception classes that should be accounted as resource errors.
   #
   # Returns the registered resource.
-  def register(name, tickets: nil, quota: nil, permissions: 0660, timeout: 0, error_threshold:, error_timeout:, success_threshold:, exceptions: [])
+  def register(name, tickets: nil, quota: nil, permissions: 0660, timeout: 0,
+    quota_grace_timeout: 10, error_threshold:, error_timeout:, success_threshold:, exceptions: [])
+
     circuit_breaker = CircuitBreaker.new(
       name,
       success_threshold: success_threshold,
@@ -149,7 +151,8 @@ module Semian
       exceptions: Array(exceptions) + [::Semian::BaseError],
       implementation: ::Semian::Simple,
     )
-    resource = Resource.instance(name, tickets: tickets, quota: quota, permissions: permissions, timeout: timeout)
+    resource = Resource.instance(name, tickets: tickets, quota: quota, permissions: permissions,
+                                       timeout: timeout, quota_grace_timeout: quota_grace_timeout)
     resources[name] = ProtectedResource.new(resource, circuit_breaker)
   end
 

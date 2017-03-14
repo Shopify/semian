@@ -30,6 +30,7 @@ typedef struct {
   int sem_id;
   struct timespec timeout;
   double quota;
+  int quota_grace_timeout;
   int error;
   char *name;
 } semian_resource_t;

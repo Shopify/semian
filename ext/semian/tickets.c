@@ -66,6 +66,7 @@ update_ticket_count(update_ticket_count_t *tc)
     }
   }
 
+  // This will update the ctime
   if (semctl(tc->sem_id, SI_SEM_CONFIGURED_TICKETS, SETVAL, tc->tickets) == -1) {
     rb_raise(eInternal, "error configuring ticket count, errno: %d (%s)", errno, strerror(errno));
   }
