@@ -30,7 +30,8 @@ typedef struct {
   int sem_id;
   struct timespec timeout;
   double quota;
-  int quota_grace_timeout;
+  double quota_grace_period; // Time to wait for workers to boot using the quota strategy
+  double quota_grace_timeout; // Semop timeout to use during grace period
   int error;
   char *name;
 } semian_resource_t;

@@ -42,7 +42,7 @@ void Init_semian()
   eInternal = rb_const_get(cSemian, rb_intern("InternalError"));
 
   rb_define_alloc_func(cResource, semian_resource_alloc);
-  rb_define_method(cResource, "initialize_semaphore", semian_resource_initialize, 6);
+  rb_define_method(cResource, "initialize_semaphore", semian_resource_initialize, 7);
   rb_define_method(cResource, "acquire", semian_resource_acquire, -1);
   rb_define_method(cResource, "count", semian_resource_count, 0);
   rb_define_method(cResource, "semid", semian_resource_id, 0);

@@ -25,6 +25,9 @@ check_default_timeout_arg(VALUE default_timeout);
 static double
 check_quota_grace_timeout_arg(VALUE quota_grace_timeout);
 
+static double
+check_quota_grace_period_arg(VALUE quota_grace_timeout);
+
 static void
 ms_to_timespec(long ms, struct timespec *ts);
 
@@ -69,9 +72,8 @@ semian_resource_acquire(int argc, VALUE *argv, VALUE self)
   // we may have spurious timeouts due to a small number of registered workers.
   if(res.quota > 0) {
     semaphore_stat(res.sem_id, &sem_ds);
-    if (difftime(time(0), sem_ds.sem_ctime) < QUOTA_BOOT_GRACE_PERIOD) {
-      res.timeout.tv_sec = res.quota_grace_timeout;
-      res.timeout.tv_nsec = 0;
+    if (difftime(time(0), sem_ds.sem_ctime) < res.quota_grace_period) {
+      ms_to_timespec(res.quota_grace_timeout * 1000, &res.timeout);
     }
   }
 
@@ -155,11 +157,12 @@ semian_resource_id(VALUE self)
 }
 
 VALUE
-semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE permissions, VALUE default_timeout, VALUE quota_grace_timeout)
+semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE permissions, VALUE default_timeout, VALUE quota_grace_timeout, VALUE quota_grace_period)
 {
   long c_permissions;
   double c_timeout;
   double c_quota_grace_timeout;
+  double c_quota_grace_period;
   double c_quota;
   int c_tickets;
   semian_resource_t *res = NULL;
@@ -173,6 +176,7 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VAL
   c_id_str = check_id_arg(id);
   c_timeout = check_default_timeout_arg(default_timeout);
   c_quota_grace_timeout = check_quota_grace_timeout_arg(quota_grace_timeout);
+  c_quota_grace_period = check_quota_grace_period_arg(quota_grace_period);
 
   // Build semian resource structure
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
@@ -182,6 +186,7 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VAL
   res->name = strdup(c_id_str);
   res->quota = c_quota;
   res->quota_grace_timeout = c_quota_grace_timeout;
+  res->quota_grace_period = c_quota_grace_period;
   res->sem_id = initialize_semaphore_set(c_id_str, c_permissions, c_tickets, c_quota);
 
   return self;
@@ -301,9 +306,22 @@ check_quota_grace_timeout_arg(VALUE quota_grace_timeout)
   }
 
   if (NUM2DBL(quota_grace_timeout) < 0) {
-    rb_raise(rb_eArgError, "default timeout must be non-negative value");
+    rb_raise(rb_eArgError, "quota grace timeout must be non-negative value");
   }
   return NUM2DBL(quota_grace_timeout);
+}
+
+static double
+check_quota_grace_period_arg(VALUE quota_grace_period)
+{
+  if (TYPE(quota_grace_period) != T_FIXNUM && TYPE(quota_grace_period) != T_FLOAT) {
+    rb_raise(rb_eTypeError, "expected numeric type for quota_grace_period");
+  }
+
+  if (NUM2DBL(quota_grace_period) < 0) {
+    rb_raise(rb_eArgError, "quota grace period must be non-negative value");
+  }
+  return NUM2DBL(quota_grace_period);
 }
 
 static void
