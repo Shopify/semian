@@ -131,6 +131,12 @@ module Semian
   #
   # +timeout+: Default timeout in seconds.
   #
+  # +quota_grace_timeout+: Time in seconds to wait for acquire if during the quota_grace_period
+  #
+  # +quota_grace_period+: Time in seconds to consider the 'grace period', to give quota workers time to boot.
+  # If less than quota_grace_period has elapsed, all acquires will use quota_grace_timeout. This is to help
+  # prevent spurious fails during deploys and initialization.
+  #
   # +error_threshold+: The number of errors that will trigger the circuit opening.
   #
   # +error_timeout+: The duration in seconds since the last error after which the error count is reset to 0.
@@ -145,8 +151,8 @@ module Semian
     quota: nil,
     permissions: 0660,
     timeout: 0,
-    quota_grace_period: 120,
     quota_grace_timeout: 10,
+    quota_grace_period: 120,
     error_threshold:,
     error_timeout:,
     success_threshold:,
