@@ -5,17 +5,17 @@ static VALUE
 update_ticket_count(update_ticket_count_t *tc);
 
 static int
-calculate_quota_tickets(int sem_id, double quota);
+calculate_quota_tickets(int sem_id, double quota, int min_tickets);
 
 // Must be called with the semaphore meta lock already acquired
 void
-configure_tickets(int sem_id, int tickets, double quota)
+configure_tickets(int sem_id, int tickets, double quota, int min_tickets)
 {
   int state = 0;
   update_ticket_count_t tc;
 
   if (quota > 0) {
-    tickets = calculate_quota_tickets(sem_id, quota);
+    tickets = calculate_quota_tickets(sem_id, quota, min_tickets);
   }
 
   /*
@@ -74,7 +74,7 @@ update_ticket_count(update_ticket_count_t *tc)
 }
 
 static int
-calculate_quota_tickets (int sem_id, double quota)
+calculate_quota_tickets (int sem_id, double quota, int min_tickets)
 {
   int tickets = 0;
 
@@ -86,6 +86,6 @@ calculate_quota_tickets (int sem_id, double quota)
     rb_raise(eInternal, "error incrementing registered workers, errno: %d (%s)", errno, strerror(errno));
   }
 
-  tickets = (int) ceil(get_sem_val(sem_id, SI_SEM_REGISTERED_WORKERS) * quota);
+  tickets = (int) max(min_tickets, ceil(get_sem_val(sem_id, SI_SEM_REGISTERED_WORKERS) * quota));
   return tickets;
 }
