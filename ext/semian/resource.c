@@ -36,6 +36,8 @@ semian_resource_acquire(int argc, VALUE *argv, VALUE self)
 {
   semian_resource_t *self_res = NULL;
   semian_resource_t res = { 0 };
+  time_t tv_sec;
+  long tv_nsec;
   struct semid_ds sem_ds;
 
   if (!rb_block_given_p()) {
@@ -58,6 +60,10 @@ semian_resource_acquire(int argc, VALUE *argv, VALUE self)
     rb_raise(rb_eArgError, "invalid arguments");
   }
 
+  // Backup the timeout values in case we need to revert them
+  tv_sec = res.timeout.tv_sec;
+  tv_nsec = res.timeout.tv_nsec;
+
   // If we recently booted, and are using the quota strategy
   // we need to give the workers some time to register or else
   // we may have spurious timeouts due to a small number of registered workers.
@@ -78,6 +84,10 @@ semian_resource_acquire(int argc, VALUE *argv, VALUE self)
       raise_semian_syscall_error("semop()", res.error);
     }
   }
+
+  // Restore the timeout values, in case they were mutated
+  res.timeout.tv_sec = tv_sec;
+  res.timeout.tv_nsec = tv_nsec;
 
   return rb_ensure(rb_yield, self, cleanup_semian_resource_acquire, self);
 }
