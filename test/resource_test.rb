@@ -197,6 +197,19 @@ class TestResource < Minitest::Test
     assert_equal((workers * new_quota).ceil, resource.tickets)
   end
 
+  def test_quota_min_tickets
+    quota = 0.1
+    workers = 5
+    min_tickets = 5
+
+    fork_workers(count: workers - 1, quota: quota, min_tickets: min_tickets, wait_for_timeout: true)
+
+    signal_workers('TERM')
+    resource = create_resource :testing, quota: quota, min_tickets: min_tickets
+
+    assert_equal(min_tickets, resource.tickets)
+  end
+
   def test_quota_sets_tickets_from_workers
     quota = 0.5
     workers = 50
@@ -439,14 +452,16 @@ class TestResource < Minitest::Test
   # Active workers are accumulated in the instance variable @workers,
   # and workers must be cleaned up between tests by the teardown script
   # An exit value of 100 is to keep track of timeouts, 0 for success.
-  def fork_workers(count:, resource: :testing, quota: nil, tickets: nil, timeout: 0.1, wait_for_timeout: false)
+  def fork_workers(count:, resource: :testing, quota: nil, tickets: nil,
+    min_tickets: 0, timeout: 0.1, wait_for_timeout: false)
+
     fail 'Must provide at least one of tickets or quota' unless tickets || quota
 
     @workers ||= []
     count.times do
       @workers << fork do
         begin
-          resource = Semian::Resource.new(resource.to_sym, quota: quota, tickets: tickets, timeout: timeout)
+          resource = Semian::Resource.new(resource.to_sym, quota: quota, tickets: tickets, min_tickets: min_tickets, timeout: timeout)
           resource.acquire do
             # Hold the resource until signalled
             # This helps to avoid race conditions in testing.

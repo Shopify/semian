@@ -127,6 +127,12 @@ module Semian
   # is calculated as (workers * quota).ceil
   # Mutually exclusive with the 'ticket' argument.
   #
+  # +min_tickets+: When using the quota strategy, never allocated fewer tickets than this value.
+  # This is particularly useful during deploys, where the number of tickets will be constrained
+  # due to the number of workers going offline. To prevent spurious timeouts, you may set a minimum
+  # ticket count. The resulting ticket count will be max(min_ticket_count, calculated_quota_tickets).
+  # This option is ignored unless you are using the quota strategy.
+  #
   # +permissions+: Octal permissions of the resource.
   #
   # +timeout+: Default timeout in seconds.
@@ -140,7 +146,9 @@ module Semian
   # +exceptions+: An array of exception classes that should be accounted as resource errors.
   #
   # Returns the registered resource.
-  def register(name, tickets: nil, quota: nil, permissions: 0660, timeout: 0, error_threshold:, error_timeout:, success_threshold:, exceptions: [])
+  def register(name, tickets: nil, quota: nil, min_tickets: 0, permissions: 0660, timeout: 0,
+    error_threshold:, error_timeout:, success_threshold:, exceptions: [])
+
     circuit_breaker = CircuitBreaker.new(
       name,
       success_threshold: success_threshold,
@@ -149,7 +157,7 @@ module Semian
       exceptions: Array(exceptions) + [::Semian::BaseError],
       implementation: ::Semian::Simple,
     )
-    resource = Resource.instance(name, tickets: tickets, quota: quota, permissions: permissions, timeout: timeout)
+    resource = Resource.instance(name, tickets: tickets, quota: quota, min_tickets: min_tickets, permissions: permissions, timeout: timeout)
     resources[name] = ProtectedResource.new(resource, circuit_breaker)
   end
 

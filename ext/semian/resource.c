@@ -12,6 +12,9 @@ check_quota_arg(VALUE quota);
 static int
 check_tickets_arg(VALUE tickets);
 
+static int
+check_min_tickets_arg(VALUE tickets);
+
 static long
 check_permissions_arg(VALUE permissions);
 
@@ -129,18 +132,20 @@ semian_resource_id(VALUE self)
 }
 
 VALUE
-semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE permissions, VALUE default_timeout)
+semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE min_tickets, VALUE permissions, VALUE default_timeout)
 {
   long c_permissions;
   double c_timeout;
   double c_quota;
   int c_tickets;
+  int c_min_tickets;
   semian_resource_t *res = NULL;
   const char *c_id_str = NULL;
 
   // Check and cast arguments
   check_tickets_xor_quota_arg(tickets, quota);
   c_quota = check_quota_arg(quota);
+  c_min_tickets = check_min_tickets_arg(min_tickets);
   c_tickets = check_tickets_arg(tickets);
   c_permissions = check_permissions_arg(permissions);
   c_id_str = check_id_arg(id);
@@ -152,8 +157,7 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VAL
   // Populate struct fields
   ms_to_timespec(c_timeout * 1000, &res->timeout);
   res->name = strdup(c_id_str);
-  res->quota = c_quota;
-  res->sem_id = initialize_semaphore_set(c_id_str, c_permissions, c_tickets, c_quota);
+  res->sem_id = initialize_semaphore_set(c_id_str, c_permissions, c_tickets, c_quota, c_min_tickets);
 
   return self;
 }
@@ -232,6 +236,25 @@ check_tickets_arg(VALUE tickets)
   }
 
   return c_tickets;
+}
+
+static int
+check_min_tickets_arg(VALUE min_tickets)
+{
+  int c_min_tickets;
+
+  if (TYPE(min_tickets) == T_FLOAT) {
+    rb_warn("semian minimum ticket value %f is a float, converting to fixnum", RFLOAT_VALUE(min_tickets));
+    min_tickets = INT2FIX((int) RFLOAT_VALUE(min_tickets));
+  }
+  Check_Type(min_tickets, T_FIXNUM);
+
+  if (FIX2LONG(min_tickets) < 0 || FIX2LONG(min_tickets) > system_max_semaphore_count) {
+    rb_raise(rb_eArgError, "minimum ticket count must be a non-negative value and less than %d", system_max_semaphore_count);
+  }
+  c_min_tickets = FIX2LONG(min_tickets);
+
+  return c_min_tickets;
 }
 
 static const char*

@@ -24,7 +24,7 @@ raise_semian_syscall_error(const char *syscall, int error_num)
 }
 
 int
-initialize_semaphore_set(const char* id_str, long permissions, int tickets, double quota)
+initialize_semaphore_set(const char* id_str, long permissions, int tickets, double quota, int min_tickets)
 {
   int sem_id;
   key_t key;
@@ -52,7 +52,7 @@ initialize_semaphore_set(const char* id_str, long permissions, int tickets, doub
   set_semaphore_permissions(sem_id, permissions);
 
   sem_meta_lock(sem_id); // Sets otime for the first time by acquiring the sem lock
-  configure_tickets(sem_id, tickets,  quota);
+  configure_tickets(sem_id, tickets, quota, min_tickets);
   sem_meta_unlock(sem_id);
 
   return sem_id;

@@ -187,6 +187,7 @@ In this case, we'd allow 50% of the workers on a particular host to connect to t
 - Tickets available will be the ceiling of the quota ratio to the number of workers
  - So, with one worker, there will always be a minimum of 1 ticket
 - Workers in different processes will automatically unregister when the process exits.
+- You will likely also want to specify a `min_tickets` argument, to prevent spurious timeouts during the initial rollout, or deploys.
 
 #### Net::HTTP
 For the `Net::HTTP` specific Semian adapter, since many external libraries may create
