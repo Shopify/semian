@@ -9,9 +9,21 @@ module Semian
       end
     end
 
-    def initialize(name, tickets: nil, quota: nil, permissions: 0660, timeout: 0)
+    def initialize(name,
+                   tickets: nil,
+                   quota: nil,
+                   permissions: 0660,
+                   timeout: 0,
+                   quota_grace_timeout: 0,
+                   quota_grace_period: 0)
       if Semian.semaphores_enabled?
-        initialize_semaphore(name, tickets, quota, permissions, timeout) if respond_to?(:initialize_semaphore)
+        initialize_semaphore(name,
+                             tickets,
+                             quota,
+                             permissions,
+                             timeout,
+                             quota_grace_timeout,
+                             quota_grace_period) if respond_to?(:initialize_semaphore)
       else
         Semian.issue_disabled_semaphores_warning
       end

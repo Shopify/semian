@@ -1,4 +1,5 @@
 #include "resource.h"
+#include <time.h>
 
 static VALUE
 cleanup_semian_resource_acquire(VALUE self);
@@ -21,6 +22,12 @@ char *check_id_arg(VALUE id);
 static double
 check_default_timeout_arg(VALUE default_timeout);
 
+static double
+check_quota_grace_timeout_arg(VALUE quota_grace_timeout);
+
+static double
+check_quota_grace_period_arg(VALUE quota_grace_timeout);
+
 static void
 ms_to_timespec(long ms, struct timespec *ts);
 
@@ -32,6 +39,9 @@ semian_resource_acquire(int argc, VALUE *argv, VALUE self)
 {
   semian_resource_t *self_res = NULL;
   semian_resource_t res = { 0 };
+  time_t tv_sec;
+  long tv_nsec;
+  struct semid_ds sem_ds;
 
   if (!rb_block_given_p()) {
     rb_raise(rb_eArgError, "acquire requires a block");
@@ -53,6 +63,20 @@ semian_resource_acquire(int argc, VALUE *argv, VALUE self)
     rb_raise(rb_eArgError, "invalid arguments");
   }
 
+  // Backup the timeout values in case we need to revert them
+  tv_sec = res.timeout.tv_sec;
+  tv_nsec = res.timeout.tv_nsec;
+
+  // If we recently booted, and are using the quota strategy
+  // we need to give the workers some time to register or else
+  // we may have spurious timeouts due to a small number of registered workers.
+  if(res.quota > 0) {
+    semaphore_stat(res.sem_id, &sem_ds);
+    if (difftime(time(0), sem_ds.sem_ctime) < res.quota_grace_period) {
+      ms_to_timespec(res.quota_grace_timeout * 1000, &res.timeout);
+    }
+  }
+
   /* release the GVL to acquire the semaphore */
   acquire_semaphore_without_gvl(&res);
   if (res.error != 0) {
@@ -62,6 +86,10 @@ semian_resource_acquire(int argc, VALUE *argv, VALUE self)
       raise_semian_syscall_error("semop()", res.error);
     }
   }
+
+  // Restore the timeout values, in case they were mutated
+  res.timeout.tv_sec = tv_sec;
+  res.timeout.tv_nsec = tv_nsec;
 
   return rb_ensure(rb_yield, self, cleanup_semian_resource_acquire, self);
 }
@@ -129,10 +157,12 @@ semian_resource_id(VALUE self)
 }
 
 VALUE
-semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE permissions, VALUE default_timeout)
+semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE permissions, VALUE default_timeout, VALUE quota_grace_timeout, VALUE quota_grace_period)
 {
   long c_permissions;
   double c_timeout;
+  double c_quota_grace_timeout;
+  double c_quota_grace_period;
   double c_quota;
   int c_tickets;
   semian_resource_t *res = NULL;
@@ -145,6 +175,8 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VAL
   c_permissions = check_permissions_arg(permissions);
   c_id_str = check_id_arg(id);
   c_timeout = check_default_timeout_arg(default_timeout);
+  c_quota_grace_timeout = check_quota_grace_timeout_arg(quota_grace_timeout);
+  c_quota_grace_period = check_quota_grace_period_arg(quota_grace_period);
 
   // Build semian resource structure
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
@@ -153,6 +185,8 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VAL
   ms_to_timespec(c_timeout * 1000, &res->timeout);
   res->name = strdup(c_id_str);
   res->quota = c_quota;
+  res->quota_grace_timeout = c_quota_grace_timeout;
+  res->quota_grace_period = c_quota_grace_period;
   res->sem_id = initialize_semaphore_set(c_id_str, c_permissions, c_tickets, c_quota);
 
   return self;
@@ -262,6 +296,32 @@ check_default_timeout_arg(VALUE default_timeout)
     rb_raise(rb_eArgError, "default timeout must be non-negative value");
   }
   return NUM2DBL(default_timeout);
+}
+
+static double
+check_quota_grace_timeout_arg(VALUE quota_grace_timeout)
+{
+  if (TYPE(quota_grace_timeout) != T_FIXNUM && TYPE(quota_grace_timeout) != T_FLOAT) {
+    rb_raise(rb_eTypeError, "expected numeric type for quota_grace_timeout");
+  }
+
+  if (NUM2DBL(quota_grace_timeout) < 0) {
+    rb_raise(rb_eArgError, "quota grace timeout must be non-negative value");
+  }
+  return NUM2DBL(quota_grace_timeout);
+}
+
+static double
+check_quota_grace_period_arg(VALUE quota_grace_period)
+{
+  if (TYPE(quota_grace_period) != T_FIXNUM && TYPE(quota_grace_period) != T_FLOAT) {
+    rb_raise(rb_eTypeError, "expected numeric type for quota_grace_period");
+  }
+
+  if (NUM2DBL(quota_grace_period) < 0) {
+    rb_raise(rb_eArgError, "quota grace period must be non-negative value");
+  }
+  return NUM2DBL(quota_grace_period);
 }
 
 static void

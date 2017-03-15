@@ -106,6 +106,10 @@ get_semaphore(int key);
 void *
 acquire_semaphore_without_gvl(void *p);
 
+// Get stats about the semaphore via IPC_STAT
+void
+semaphore_stat(int sem_id, struct semid_ds *sem_ds);
+
 #ifdef DEBUG
 static inline void
 print_sem_vals(int sem_id)
