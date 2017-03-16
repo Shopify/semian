@@ -142,46 +142,6 @@ class TestResource < Minitest::Test
     end
   end
 
-  def test_quota_grace_period
-    quota = 0.5
-    workers = 20
-    acquired = false
-
-    # We want these to block for longer than the default timeout, but less than our grace period
-    fork_workers(count: workers - 1, quota: quota, timeout: 0.5, wait_for_timeout: true) do
-      sleep 7
-    end
-
-    # Once signalled, all tickets should still be held for the above sleep period
-    signal_workers('TERM')
-
-    # our resource should still be able to acquire, since it's grace timeout is longer than above
-    resource = create_resource :testing, quota: quota, timeout: 0.1, quota_grace_timeout: 8, quota_grace_period: 120
-    resource.acquire { acquired = true }
-
-    assert_equal(true, acquired)
-  end
-
-  def test_quota_grace_period_timeout
-    quota = 0.5
-    workers = 20
-
-    # We want these to block for longer than the default timeout, but less than our grace period
-    fork_workers(count: workers - 1, quota: quota, timeout: 0.5, wait_for_timeout: true) do
-      sleep 7
-    end
-
-    # Once signalled, all tickets should still be held for the above sleep period
-    signal_workers('TERM')
-
-    # our resource fail to acquire, since the grace period isn't long enough
-    resource = create_resource :testing, quota: quota, timeout: 0.1, quota_grace_timeout: 1, quota_grace_period: 120
-
-    assert_raises Semian::TimeoutError do
-      resource.acquire {}
-    end
-  end
-
   def test_quota_acquire
     quota = 0.5
     workers = 9
@@ -479,27 +439,14 @@ class TestResource < Minitest::Test
   # Active workers are accumulated in the instance variable @workers,
   # and workers must be cleaned up between tests by the teardown script
   # An exit value of 100 is to keep track of timeouts, 0 for success.
-  def fork_workers(count:,
-                   resource: :testing,
-                   quota: nil,
-                   tickets: nil,
-                   timeout: 0.1,
-                   wait_for_timeout: false,
-                   quota_grace_timeout: 0,
-                   quota_grace_period: 0)
-
+  def fork_workers(count:, resource: :testing, quota: nil, tickets: nil, timeout: 0.1, wait_for_timeout: false)
     fail 'Must provide at least one of tickets or quota' unless tickets || quota
 
     @workers ||= []
     count.times do
       @workers << fork do
         begin
-          resource = Semian::Resource.new(resource.to_sym,
-                                          quota: quota,
-                                          tickets: tickets,
-                                          timeout: timeout,
-                                          quota_grace_timeout: quota_grace_timeout,
-                                          quota_grace_period: quota_grace_period)
+          resource = Semian::Resource.new(resource.to_sym, quota: quota, tickets: tickets, timeout: timeout)
           resource.acquire do
             # Hold the resource until signalled
             # This helps to avoid race conditions in testing.
