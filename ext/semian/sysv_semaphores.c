@@ -51,6 +51,14 @@ initialize_semaphore_set(const char* id_str, long permissions, int tickets, doub
 
   set_semaphore_permissions(sem_id, permissions);
 
+  /*
+    Ensure that a worker for this process is registered.
+    Note that from ruby we ensure that at most one worker may be registered per process.
+  */
+  if (perform_semop(sem_id, SI_SEM_REGISTERED_WORKERS, 1, SEM_UNDO, NULL) == -1) {
+    rb_raise(eInternal, "error incrementing registered workers, errno: %d (%s)", errno, strerror(errno));
+  }
+
   sem_meta_lock(sem_id); // Sets otime for the first time by acquiring the sem lock
   configure_tickets(sem_id, tickets,  quota);
   sem_meta_unlock(sem_id);
