@@ -187,25 +187,15 @@ initialize_new_semaphore_values(int sem_id, long permissions)
 #endif
 }
 
-void
-semaphore_stat(int sem_id, struct semid_ds *sem_ds)
-{
-  union semun sem_opts;
-
-  sem_opts.buf = sem_ds;
-
-  if (semctl(sem_id, 0, IPC_STAT, sem_opts) == -1) {
-    raise_semian_syscall_error("semget()", errno);
-  }
-}
-
 static int
 wait_for_new_semaphore_set(key_t key, long permissions)
 {
   int i;
   int sem_id = -1;
+  union semun sem_opts;
   struct semid_ds sem_ds;
 
+  sem_opts.buf = &sem_ds;
   sem_id = semget(key, 1, permissions);
 
   if (sem_id == -1){
@@ -214,7 +204,9 @@ wait_for_new_semaphore_set(key_t key, long permissions)
 
   for (i = 0; i < ((INTERNAL_TIMEOUT * MICROSECONDS_IN_SECOND) / INIT_WAIT); i++) {
 
-    semaphore_stat(sem_id, &sem_ds);
+    if (semctl(sem_id, 0, IPC_STAT, sem_opts) == -1) {
+      raise_semian_syscall_error("semget()", errno);
+    }
 
     // If a semop has been performed by someone else, the values must be initialized
     if (sem_ds.sem_otime != 0) {
