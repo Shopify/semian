@@ -250,11 +250,11 @@ class TestResource < Minitest::Test
   end
 
   def test_switch_static_tickets_to_quota
-    workers = 50
+    workers = 20
     quota = 0.5
 
     # Fork a large number of workers using static ticket strategy
-    fork_workers(count: workers - 1, tickets: 5, timeout: 0.1, wait_for_timeout: true) do
+    fork_workers(count: workers - 1, tickets: 5, timeout: 0.5, wait_for_timeout: true) do
       sleep 1
     end
 
