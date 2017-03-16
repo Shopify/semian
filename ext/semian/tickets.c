@@ -77,15 +77,6 @@ static int
 calculate_quota_tickets (int sem_id, double quota)
 {
   int tickets = 0;
-
-  /*
-    Ensure that a worker for this process is registered.
-    Note that from ruby we ensure that at most one worker may be registered per process.
-  */
-  if (perform_semop(sem_id, SI_SEM_REGISTERED_WORKERS, 1, SEM_UNDO, NULL) == -1) {
-    rb_raise(eInternal, "error incrementing registered workers, errno: %d (%s)", errno, strerror(errno));
-  }
-
   tickets = (int) ceil(get_sem_val(sem_id, SI_SEM_REGISTERED_WORKERS) * quota);
   return tickets;
 }
