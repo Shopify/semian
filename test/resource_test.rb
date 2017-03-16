@@ -249,6 +249,32 @@ class TestResource < Minitest::Test
     assert_equal 1, resource.tickets
   end
 
+  def test_switch_static_tickets_to_quota
+    workers = 20
+    quota = 0.5
+
+    # Fork a large number of workers using static ticket strategy
+    fork_workers(count: workers - 1, tickets: 5, timeout: 0.5, wait_for_timeout: true) do
+      sleep 1
+    end
+
+    # Signal static workers to shut down
+    signal_workers('TERM')
+
+    # Create a quota based worker, and ensure it accounts for the static
+    # workers that haven't shut down yet
+    resource = create_resource :testing, quota: quota, timeout: 0.1
+    assert_equal((quota * workers).ceil, resource.tickets)
+
+    # Let the static workers shut down
+    sleep 2
+
+    # Create a new resource, and ensure the static workers are no longer
+    # accounted for
+    resource = create_resource :testing, quota: quota, timeout: 0.1
+    assert_equal((quota * 2).ceil, resource.tickets)
+  end
+
   def test_acquire_releases_on_kill
     resource = create_resource :testing, tickets: 1, timeout: 0.1
     acquired = false
