@@ -170,6 +170,13 @@ module Semian
     end
   end
 
+  def unregister(name)
+    if resource = resources.delete(name)
+      # Hack to keep interface between protected / unprotected resource the same
+      resource.bulkhead.unregister_worker
+    end
+  end
+
   # Retrieves a hash of all registered resources.
   def resources
     @resources ||= {}
