@@ -1,7 +1,7 @@
 require 'test_helper'
 
 class TestCircuitBreaker < Minitest::Test
-  SomeError = Class.new(StandardError)
+  include CircuitBreakerHelper
 
   def setup
     begin
@@ -96,38 +96,5 @@ class TestCircuitBreaker < Minitest::Test
 
     assert_predicate @resource, :request_allowed?
     assert_predicate @resource, :open?
-  end
-
-  private
-
-  def open_circuit!(resource = @resource)
-    2.times { trigger_error!(resource) }
-  end
-
-  def half_open_cicuit!(resource = @resource)
-    Timecop.travel(Time.now - 10) do
-      open_circuit!(resource)
-    end
-  end
-
-  def trigger_error!(resource = @resource)
-    resource.acquire { raise SomeError }
-  rescue SomeError
-  end
-
-  def assert_circuit_closed(resource = @resource)
-    block_called = false
-    resource.acquire { block_called = true }
-    assert block_called, 'Expected the circuit to be closed, but it was open'
-  end
-
-  def assert_circuit_opened(resource = @resource)
-    open = false
-    begin
-      resource.acquire {}
-    rescue Semian::OpenCircuitError
-      open = true
-    end
-    assert open, 'Expected the circuit to be open, but it was closed'
   end
 end

@@ -8,6 +8,8 @@ require 'tempfile'
 require 'fileutils'
 
 require 'helpers/background_helper'
+require 'helpers/circuit_breaker_helper'
+require 'helpers/resource_helper'
 
 Semian.logger = Logger.new(nil)
 Toxiproxy.populate([

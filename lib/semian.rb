@@ -116,7 +116,11 @@ module Semian
 
   # Registers a resource.
   #
-  # +name+: Name of the resource - this can be either a string or symbol.
+  # +name+: Name of the resource - this can be either a string or symbol. (required)
+  #
+  # +circuit_breaker+: The boolean if you want a circuit breaker acquired for your resource. Default true.
+  #
+  # +bulkhead+: The boolean if you want a bulkhead to be acquired for your resource. Default true.
   #
   # +tickets+: Number of tickets. If this value is 0, the ticket count will not be set,
   # but the resource must have been previously registered otherwise an error will be raised.
@@ -126,31 +130,29 @@ module Semian
   # Must be greater than 0, less than or equal to 1. There will always be at least 1 ticket, as it
   # is calculated as (workers * quota).ceil
   # Mutually exclusive with the 'ticket' argument.
+  # but the resource must have been previously registered otherwise an error will be raised. (bulkhead)
   #
-  # +permissions+: Octal permissions of the resource.
+  # +permissions+: Octal permissions of the resource. Default 0660. (bulkhead)
   #
-  # +timeout+: Default timeout in seconds.
+  # +timeout+: Default timeout in seconds. Default 0. (bulkhead)
   #
-  # +error_threshold+: The number of errors that will trigger the circuit opening.
+  # +error_threshold+: The number of errors that will trigger the circuit opening. (circuit breaker required)
   #
   # +error_timeout+: The duration in seconds since the last error after which the error count is reset to 0.
+  # (circuit breaker required)
   #
   # +success_threshold+: The number of consecutive success after which an half-open circuit will be fully closed.
+  # (circuit breaker required)
   #
-  # +exceptions+: An array of exception classes that should be accounted as resource errors.
+  # +exceptions+: An array of exception classes that should be accounted as resource errors. Default [].
+  # (circuit breaker)
   #
   # Returns the registered resource.
-  def register(name, tickets: nil, quota: nil, permissions: 0660, timeout: 0, error_threshold:, error_timeout:, success_threshold:, exceptions: [])
-    circuit_breaker = CircuitBreaker.new(
-      name,
-      success_threshold: success_threshold,
-      error_threshold: error_threshold,
-      error_timeout: error_timeout,
-      exceptions: Array(exceptions) + [::Semian::BaseError],
-      implementation: ::Semian::Simple,
-    )
-    resource = Resource.instance(name, tickets: tickets, quota: quota, permissions: permissions, timeout: timeout)
-    resources[name] = ProtectedResource.new(resource, circuit_breaker)
+  def register(name, **options)
+    circuit_breaker = create_circuit_breaker(name, **options)
+    bulkhead = create_bulkhead(name, **options)
+
+    resources[name] = ProtectedResource.new(bulkhead, circuit_breaker)
   end
 
   def retrieve_or_register(name, **args)
@@ -171,6 +173,37 @@ module Semian
   # Retrieves a hash of all registered resources.
   def resources
     @resources ||= {}
+  end
+
+  private
+
+  def create_circuit_breaker(name, **options)
+    circuit_breaker = options.fetch(:circuit_breaker, true)
+    return unless circuit_breaker
+    raise ArgumentError unless required_keys?([:success_threshold, :error_threshold, :error_timeout], options)
+
+    exceptions = options[:exceptions] || []
+    CircuitBreaker.new(
+      name,
+      success_threshold: options[:success_threshold],
+      error_threshold: options[:error_threshold],
+      error_timeout: options[:error_timeout],
+      exceptions: Array(exceptions) + [::Semian::BaseError],
+      implementation: ::Semian::Simple,
+    )
+  end
+
+  def create_bulkhead(name, **options)
+    bulkhead = options.fetch(:bulkhead, true)
+    return unless bulkhead
+
+    permissions = options[:permissions] || 0660
+    timeout = options[:timeout] || 0
+    Resource.new(name, tickets: options[:tickets], quota: options[:quota], permissions: permissions, timeout: timeout)
+  end
+
+  def required_keys?(required = [], **options)
+    required.all? { |key| options.key? key }
   end
 end
 

@@ -57,4 +57,12 @@ class UnprotectedResourceTest < Minitest::Test
   def test_mark_failed
     @resource.mark_failed(:error)
   end
+
+  def test_bulkhead
+    assert_nil @resource.bulkhead
+  end
+
+  def test_circuit_breaker
+    assert_nil @resource.circuit_breaker
+  end
 end

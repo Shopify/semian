@@ -14,6 +14,26 @@ class TestSemian < Minitest::Test
     assert acquired
   end
 
+  def test_register_with_circuit_breaker_missing_options
+    assert_raises ArgumentError do
+      Semian.register(
+        :testing,
+        error_threshold: 2,
+        error_timeout: 5,
+        bulkhead: false,
+      )
+    end
+  end
+
+  def test_register_with_bulkhead_missing_options
+    assert_raises ArgumentError do
+      Semian.register(
+        :testing,
+        circuit_breaker: false,
+      )
+    end
+  end
+
   def test_unsuported_constants
     assert defined?(Semian::BaseError)
     assert defined?(Semian::SyscallError)
