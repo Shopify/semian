@@ -170,6 +170,18 @@ module Semian
     end
   end
 
+  # Unregister will not destroy the semian resource, but it will
+  # remove it from the hash of registered resources, and decrease
+  # the number of registered workers.
+  # Semian.destroy removes the underlying resource, but
+  # Semian.unregister will remove all references, while preserving
+  # the underlying semian resource (and sysV semaphore)
+  def unregister(name)
+    if resource = resources.delete(name)
+      resource.bulkhead.unregister_worker
+    end
+  end
+
   # Retrieves a hash of all registered resources.
   def resources
     @resources ||= {}

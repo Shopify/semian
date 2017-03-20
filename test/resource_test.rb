@@ -47,6 +47,18 @@ class TestResource < Minitest::Test
     create_resource :testing, quota: 0.5
   end
 
+  def test_unregister
+    assert_nil(Semian.resources[:testing])
+    resource = Semian.register(:testing, tickets: 2, error_threshold: 0, error_timeout: 0, success_threshold: 0)
+    assert_equal(Semian.resources[:testing], resource)
+
+    assert_equal '1', count_registered_workers(resource.semid)
+    Semian.unregister(:testing)
+    assert_equal '0', count_registered_workers(resource.semid)
+
+    assert_nil(Semian.resources[:testing])
+  end
+
   def test_exactly_one_register_with_quota
     r = Semian::Resource.instance(:testing, quota: 0.5)
 
@@ -500,6 +512,14 @@ class TestResource < Minitest::Test
 
   def count_worker_timeouts
     Process.waitall.count { |s| s.last.exitstatus == 100 }
+  end
+
+  def count_registered_workers(semid)
+    `ipcs -si #{semid}`.lines.each do |line|
+      if /^3/.match(line) # 3 is the index of the registered workers
+        return line.split[1]
+      end
+    end
   end
 
   # Signals all workers

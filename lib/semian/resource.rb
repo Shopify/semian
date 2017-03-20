@@ -21,6 +21,9 @@ module Semian
     def destroy
     end
 
+    def unregister_worker
+    end
+
     def acquire(*)
       yield self
     end

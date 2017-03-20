@@ -91,6 +91,20 @@ semian_resource_destroy(VALUE self)
 }
 
 VALUE
+semian_resource_unregister_worker(VALUE self)
+{
+  semian_resource_t *res = NULL;
+
+  TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
+
+  if (perform_semop(res->sem_id, SI_SEM_REGISTERED_WORKERS, -1, SEM_UNDO, NULL) == -1) {
+    rb_raise(eInternal, "error decreasing registered workers, errno: %d (%s)", errno, strerror(errno));
+  }
+
+  return Qtrue;
+}
+
+VALUE
 semian_resource_count(VALUE self)
 {
   int ret;

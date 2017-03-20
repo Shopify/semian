@@ -76,6 +76,17 @@ semian_resource_tickets(VALUE self);
 VALUE
 semian_resource_id(VALUE self);
 
+/*
+ * call-seq:
+ *   resource.unregister_worker() -> true
+ *
+ * Unregisters a worker, which will affect quota calculations.
+ *
+ * Be careful to call this only once per process.
+*/
+VALUE
+semian_resource_unregister_worker(VALUE self);
+
 // Allocate a semian_resource_type struct for ruby memory management
 VALUE
 semian_resource_alloc(VALUE klass);
