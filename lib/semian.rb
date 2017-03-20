@@ -156,7 +156,15 @@ module Semian
   end
 
   def retrieve_or_register(name, **args)
-    self[name] || register(name, **args)
+    if self[name]
+      $stderr.puts "[Semian] Retrieved resource semian_resource_name=#{name} semian_retrieve_type=retrieve semian_pid=#{Process.pid} semian_ppid=#{Process.ppid}"
+      $stderr.puts Kernel.caller.join("\n")
+      self[name]
+    else
+      $stderr.puts "[Semian] Registered resource semian_resource_name=#{name} semian_retrieve_type=register semian_pid=#{Process.pid} semian_ppid=#{Process.ppid}"
+      $stderr.puts Kernel.caller.join("\n")
+      register(name, **args)
+    end
   end
 
   # Retrieves a resource by name.
