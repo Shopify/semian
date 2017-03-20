@@ -15,17 +15,19 @@ class Redis
   ResourceBusyError = Class.new(SemianError)
   CircuitOpenError = Class.new(SemianError)
 
-  attr_reader :semian_resource
-
   alias_method :_original_initialize, :initialize
 
   def initialize(*args, &block)
     _original_initialize(*args, &block)
 
-    # This alias is necessary because during a `pipelined` block
-    # the client is replaced by an instance of `Redis::Pipeline` and there is
-    # no way to access the original client.
-    @semian_resource = client.semian_resource
+    # This reference is necessary because during a `pipelined` block the client
+    # is replaced by an instance of `Redis::Pipeline` and there is no way to
+    # access the original client which references the Semian resource.
+    @original_client = client
+  end
+
+  def semian_resource
+    @original_client.semian_resource
   end
 
   def semian_identifier
