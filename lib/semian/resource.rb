@@ -36,6 +36,10 @@ module Semian
       0
     end
 
+    def registered_workers
+      0
+    end
+
     def semid
       0
     end

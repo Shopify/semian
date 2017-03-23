@@ -69,6 +69,15 @@ semian_resource_tickets(VALUE self);
 
 /*
  * call-seq:
+ *    resource.registered_workers -> count
+ *
+ * Returns the number of workers (processes) registered to use the resource
+ */
+VALUE
+semian_resource_workers(VALUE self);
+
+/*
+ * call-seq:
  *    resource.semid -> id
  *
  * Returns the SysV semaphore id of a resource.
