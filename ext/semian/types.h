@@ -4,6 +4,7 @@ For custom type definitions specific to semian
 #ifndef SEMIAN_TYPES_H
 #define SEMIAN_TYPES_H
 
+#include <stdint.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/sem.h>
@@ -31,6 +32,8 @@ typedef struct {
   struct timespec timeout;
   double quota;
   int error;
+  uint64_t key;
+  char *strkey;
   char *name;
 } semian_resource_t;
 

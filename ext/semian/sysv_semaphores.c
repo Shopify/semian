@@ -23,47 +23,45 @@ raise_semian_syscall_error(const char *syscall, int error_num)
   rb_raise(eSyscall, "%s failed, errno: %d (%s)", syscall, error_num, strerror(error_num));
 }
 
-int
-initialize_semaphore_set(const char* id_str, long permissions, int tickets, double quota)
+void
+initialize_semaphore_set(semian_resource_t* res, const char* id_str, long permissions, int tickets, double quota)
 {
-  int sem_id;
-  key_t key;
 
-  key = generate_key(id_str);
-  sem_id = semget(key, SI_NUM_SEMAPHORES, IPC_CREAT | IPC_EXCL | permissions);
+  res->key = generate_key(id_str);
+  res->strkey = (char*)  malloc((2 /*for 0x*/+ sizeof(uint64_t) /*actual key*/+ 1 /*null*/) * sizeof(char));
+  sprintf(res->strkey, "0x%08x", (unsigned int) res->key);
+  res->sem_id = semget(res->key, SI_NUM_SEMAPHORES, IPC_CREAT | IPC_EXCL | permissions);
 
   /*
   This approach is based on http://man7.org/tlpi/code/online/dist/svsem/svsem_good_init.c.html
   which avoids race conditions when initializing semaphore sets.
   */
-  if (sem_id != -1) {
+  if (res->sem_id != -1) {
     // Happy path - we are the first worker, initialize the semaphore set.
-    initialize_new_semaphore_values(sem_id, permissions);
+    initialize_new_semaphore_values(res->sem_id, permissions);
   } else {
     // Something went wrong
     if (errno != EEXIST) {
       raise_semian_syscall_error("semget() failed to initialize semaphore values", errno);
     } else {
       // The semaphore set already exists, ensure it is initialized
-      sem_id = wait_for_new_semaphore_set(key, permissions);
+      res->sem_id = wait_for_new_semaphore_set(res->key, permissions);
     }
   }
 
-  set_semaphore_permissions(sem_id, permissions);
+  set_semaphore_permissions(res->sem_id, permissions);
 
   /*
     Ensure that a worker for this process is registered.
     Note that from ruby we ensure that at most one worker may be registered per process.
   */
-  if (perform_semop(sem_id, SI_SEM_REGISTERED_WORKERS, 1, SEM_UNDO, NULL) == -1) {
+  if (perform_semop(res->sem_id, SI_SEM_REGISTERED_WORKERS, 1, SEM_UNDO, NULL) == -1) {
     rb_raise(eInternal, "error incrementing registered workers, errno: %d (%s)", errno, strerror(errno));
   }
 
-  sem_meta_lock(sem_id); // Sets otime for the first time by acquiring the sem lock
-  configure_tickets(sem_id, tickets,  quota);
-  sem_meta_unlock(sem_id);
-
-  return sem_id;
+  sem_meta_lock(res->sem_id); // Sets otime for the first time by acquiring the sem lock
+  configure_tickets(res->sem_id, tickets,  quota);
+  sem_meta_unlock(res->sem_id);
 }
 
 void
@@ -173,6 +171,7 @@ generate_key(const char *name)
   } digest;
   SHA1((const unsigned char *) uniq_id_str, strlen(uniq_id_str), digest.str);
   free(uniq_id_str);
+
   /* TODO: compile-time assertion that sizeof(key_t) > SHA_DIGEST_LENGTH */
   return digest.key;
 }
