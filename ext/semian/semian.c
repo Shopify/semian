@@ -47,6 +47,7 @@ void Init_semian()
   rb_define_method(cResource, "count", semian_resource_count, 0);
   rb_define_method(cResource, "semid", semian_resource_id, 0);
   rb_define_method(cResource, "tickets", semian_resource_tickets, 0);
+  rb_define_method(cResource, "registered_workers", semian_resource_workers, 0);
   rb_define_method(cResource, "destroy", semian_resource_destroy, 0);
   rb_define_method(cResource, "unregister_worker", semian_resource_unregister_worker, 0);
 

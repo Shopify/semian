@@ -135,6 +135,21 @@ semian_resource_tickets(VALUE self)
 }
 
 VALUE
+semian_resource_workers(VALUE self)
+{
+  int ret;
+  semian_resource_t *res = NULL;
+
+  TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
+  ret = semctl(res->sem_id, SI_SEM_REGISTERED_WORKERS, GETVAL);
+  if (ret == -1) {
+    raise_semian_syscall_error("semctl()", errno);
+  }
+
+  return LONG2FIX(ret);
+}
+
+VALUE
 semian_resource_id(VALUE self)
 {
   semian_resource_t *res = NULL;
