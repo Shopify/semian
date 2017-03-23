@@ -52,9 +52,9 @@ class TestResource < Minitest::Test
     resource = Semian.register(:testing, tickets: 2, error_threshold: 0, error_timeout: 0, success_threshold: 0)
     assert_equal(Semian.resources[:testing], resource)
 
-    assert_equal '1', count_registered_workers(resource.semid)
+    assert_equal '1', resource.bulkhead.registered_workers
     Semian.unregister(:testing)
-    assert_equal '0', count_registered_workers(resource.semid)
+    assert_equal '0', resource.bulkhead.registered_workers
 
     assert_nil(Semian.resources[:testing])
   end
@@ -524,14 +524,6 @@ class TestResource < Minitest::Test
 
   def count_worker_timeouts
     Process.waitall.count { |s| s.last.exitstatus == 100 }
-  end
-
-  def count_registered_workers(semid)
-    `ipcs -si #{semid}`.lines.each do |line|
-      if /^3/.match(line) # 3 is the index of the registered workers
-        return line.split[1]
-      end
-    end
   end
 
   # Signals all workers
