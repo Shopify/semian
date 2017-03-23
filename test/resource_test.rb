@@ -318,6 +318,18 @@ class TestResource < Minitest::Test
     FileUtils.rm_f(path) if path
   end
 
+  def test_get_resource_key
+    resource = create_resource :testing, tickets: 2
+    assert_equal('0x874714f2', resource.key)
+  end
+
+  def test_get_worker_count
+    workers = rand(5..20)
+    fork_workers(count: workers - 1, tickets: 1, timeout: 0.1, wait_for_timeout: true)
+    resource = create_resource :testing, tickets: 1
+    assert_equal(workers, resource.registered_workers)
+  end
+
   def test_count
     resource = create_resource :testing, tickets: 2
     acquired = false

@@ -36,8 +36,16 @@ module Semian
       0
     end
 
+    def registered_workers
+      0
+    end
+
     def semid
       0
+    end
+
+    def key
+      '0x00000000'
     end
   end
 end
