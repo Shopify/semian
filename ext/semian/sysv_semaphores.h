@@ -70,8 +70,8 @@ void
 raise_semian_syscall_error(const char *syscall, int error_num);
 
 // Initialize the sysv semaphore structure
-int
-initialize_semaphore_set(const char* id_str, long permissions, int tickets, double quota);
+void
+initialize_semaphore_set(semian_resource_t* res, const char* id_str, long permissions, int tickets, double quota);
 
 // Set semaphore UNIX octal permissions
 void
