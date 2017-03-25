@@ -52,9 +52,9 @@ class TestResource < Minitest::Test
     resource = Semian.register(:testing, tickets: 2, error_threshold: 0, error_timeout: 0, success_threshold: 0)
     assert_equal(Semian.resources[:testing], resource)
 
-    assert_equal 1, resource.bulkhead.registered_workers
+    assert_equal 1, resource.registered_workers
     Semian.unregister(:testing)
-    assert_equal 0, resource.bulkhead.registered_workers
+    assert_equal 0, resource.registered_workers
 
     assert_nil(Semian.resources[:testing])
   end
