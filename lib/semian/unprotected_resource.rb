@@ -8,6 +8,10 @@ module Semian
       @name = name
     end
 
+    def registered_workers
+      0
+    end
+
     def tickets
       -1
     end
