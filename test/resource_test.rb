@@ -60,10 +60,10 @@ class TestResource < Minitest::Test
   end
 
   def test_exactly_one_register_with_quota
-    r = Semian::Resource.instance(:testing, quota: 0.5)
+    r = Semian::Resource.instance(:testing, quota: 0.5, quota_min_tickets: 1)
 
     10.times do
-      Semian::Resource.instance(:testing, quota: 0.5)
+      Semian::Resource.instance(:testing, quota: 0.5, quota_min_tickets: 1)
     end
 
     assert_equal 1, r.tickets
@@ -239,7 +239,7 @@ class TestResource < Minitest::Test
     quota = 0.5
     workers = 50
 
-    resource = create_resource :testing, quota: quota, timeout: 0.1
+    resource = create_resource :testing, quota: quota, quota_min_tickets: 1, timeout: 0.1
 
     # Spawn some workers to get a basis for the quota
     fork_workers(count: workers - 1, quota: quota, wait_for_timeout: true)
@@ -252,14 +252,26 @@ class TestResource < Minitest::Test
     # Number of tickets should be unchanged until resource is created
     assert_equal((workers * quota).ceil, resource.tickets)
 
-    resource = create_resource :testing, quota: quota, timeout: 0.1
+    resource = create_resource :testing, quota: quota, quota_min_tickets: 1, timeout: 0.1
     assert_equal 1, resource.tickets
   end
 
   def test_quota_minimum_one_ticket
-    resource = create_resource :testing, quota: 0.1, timeout: 0.1
+    resource = create_resource :testing, quota: 0.1, quota_min_tickets: 1, timeout: 0.1
 
     assert_equal 1, resource.tickets
+  end
+
+  def test_quota_minimum_tickets
+    resource = create_resource :testing, quota: 0.1, quota_min_tickets: 5, timeout: 0.1
+
+    assert_equal 5, resource.tickets
+  end
+
+  def test_default_minimum_tickets
+    resource = create_resource :testing, quota: 0.1, timeout: 0.1
+
+    assert_equal 2, resource.tickets
   end
 
   def test_switch_static_tickets_to_quota
@@ -276,7 +288,7 @@ class TestResource < Minitest::Test
 
     # Create a quota based worker, and ensure it accounts for the static
     # workers that haven't shut down yet
-    resource = create_resource :testing, quota: quota, timeout: 0.1
+    resource = create_resource :testing, quota: quota, quota_min_tickets: 1, timeout: 0.1
     assert_equal((quota * workers).ceil, resource.tickets)
 
     # Let the static workers shut down
@@ -284,7 +296,7 @@ class TestResource < Minitest::Test
 
     # Create a new resource, and ensure the static workers are no longer
     # accounted for
-    resource = create_resource :testing, quota: quota, timeout: 0.1
+    resource = create_resource :testing, quota: quota, quota_min_tickets: 1, timeout: 0.1
     assert_equal((quota * 2).ceil, resource.tickets)
   end
 
@@ -490,14 +502,19 @@ class TestResource < Minitest::Test
   # Active workers are accumulated in the instance variable @workers,
   # and workers must be cleaned up between tests by the teardown script
   # An exit value of 100 is to keep track of timeouts, 0 for success.
-  def fork_workers(count:, resource: :testing, quota: nil, tickets: nil, timeout: 0.1, wait_for_timeout: false)
+  def fork_workers(count:, resource: :testing, quota: nil, quota_min_tickets: 1, tickets: nil, timeout: 0.1, wait_for_timeout: false)
     fail 'Must provide at least one of tickets or quota' unless tickets || quota
 
     @workers ||= []
     count.times do
       @workers << fork do
         begin
-          resource = Semian::Resource.new(resource.to_sym, quota: quota, tickets: tickets, timeout: timeout)
+          resource = Semian::Resource.new(resource.to_sym,
+                                          quota: quota,
+                                          quota_min_tickets: quota_min_tickets,
+                                          tickets: tickets,
+                                          timeout: timeout,
+                                         )
           resource.acquire do
             # Hold the resource until signalled
             # This helps to avoid race conditions in testing.

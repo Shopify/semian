@@ -12,6 +12,9 @@ check_quota_arg(VALUE quota);
 static int
 check_tickets_arg(VALUE tickets);
 
+static unsigned int
+check_quota_min_tickets_arg(VALUE tickets);
+
 static long
 check_permissions_arg(VALUE permissions);
 
@@ -166,12 +169,13 @@ semian_resource_key(VALUE self)
 }
 
 VALUE
-semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE permissions, VALUE default_timeout)
+semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE quota_min_tickets, VALUE permissions, VALUE default_timeout)
 {
   long c_permissions;
   double c_timeout;
   double c_quota;
   int c_tickets;
+  unsigned int c_quota_min_tickets;
   semian_resource_t *res = NULL;
   const char *c_id_str = NULL;
 
@@ -179,6 +183,7 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VAL
   check_tickets_xor_quota_arg(tickets, quota);
   c_quota = check_quota_arg(quota);
   c_tickets = check_tickets_arg(tickets);
+  c_quota_min_tickets = check_quota_min_tickets_arg(quota_min_tickets);
   c_permissions = check_permissions_arg(permissions);
   c_id_str = check_id_arg(id);
   c_timeout = check_default_timeout_arg(default_timeout);
@@ -190,6 +195,8 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VAL
   ms_to_timespec(c_timeout * 1000, &res->timeout);
   res->name = strdup(c_id_str);
   res->quota = c_quota;
+  res->tickets = c_tickets;
+  res->quota_min_tickets = c_quota_min_tickets;
 
   // Initialize the semaphore set
   initialize_semaphore_set(res, c_id_str, c_permissions, c_tickets, c_quota);
@@ -271,6 +278,29 @@ check_tickets_arg(VALUE tickets)
   }
 
   return c_tickets;
+}
+
+static unsigned int
+check_quota_min_tickets_arg(VALUE quota_min_tickets)
+{
+  int c_quota_min_tickets;
+
+  if (TYPE(quota_min_tickets) != T_NIL) {
+    if (TYPE(quota_min_tickets) == T_FLOAT) {
+      rb_warn("semian quota minimum ticket value %f is a float, converting to fixnum", RFLOAT_VALUE(quota_min_tickets));
+      quota_min_tickets = INT2FIX((int) RFLOAT_VALUE(quota_min_tickets));
+    }
+    Check_Type(quota_min_tickets, T_FIXNUM);
+
+    if (FIX2LONG(quota_min_tickets) < 1) {
+      rb_raise(rb_eArgError, "quota minimum ticket count must be greater than or equal to 1");
+    }
+    c_quota_min_tickets = FIX2LONG(quota_min_tickets);
+  } else {
+    c_quota_min_tickets = 1;
+  }
+
+  return c_quota_min_tickets;
 }
 
 static const char*

@@ -60,7 +60,7 @@ initialize_semaphore_set(semian_resource_t* res, const char* id_str, long permis
   }
 
   sem_meta_lock(res->sem_id); // Sets otime for the first time by acquiring the sem lock
-  configure_tickets(res->sem_id, tickets,  quota);
+  configure_tickets(res);
   sem_meta_unlock(res->sem_id);
 }
 

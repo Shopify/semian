@@ -31,6 +31,8 @@ typedef struct {
   int sem_id;
   struct timespec timeout;
   double quota;
+  unsigned int quota_min_tickets;
+  int tickets;
   int error;
   uint64_t key;
   char *strkey;
