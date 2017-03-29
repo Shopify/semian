@@ -43,5 +43,9 @@ module Semian
     def semid
       0
     end
+
+    def key
+      '0x00000000'
+    end
   end
 end

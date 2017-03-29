@@ -81,9 +81,22 @@ semian_resource_workers(VALUE self);
  *    resource.semid -> id
  *
  * Returns the SysV semaphore id of a resource.
+ * Note: This value varies from system to system, and between
+ * instances of semian.
  */
 VALUE
 semian_resource_id(VALUE self);
+
+/*
+ * call-seq:
+ *    resource.key -> id
+ *
+ * Returns the hex string representation of SysV semaphore key of a resource.
+ * Note: This is a unique identifier that is portable across system
+ * and instances of semian.
+ */
+VALUE
+semian_resource_key(VALUE self);
 
 /*
  * call-seq:

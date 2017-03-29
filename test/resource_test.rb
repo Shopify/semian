@@ -325,6 +325,11 @@ class TestResource < Minitest::Test
     assert_equal(workers, resource.registered_workers)
   end
 
+  def test_get_resource_key
+    resource = create_resource :testing, tickets: 2
+    assert_equal('0x874714f2', resource.key)
+  end
+
   def test_count
     resource = create_resource :testing, tickets: 2
     acquired = false

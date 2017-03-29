@@ -158,6 +158,14 @@ semian_resource_id(VALUE self)
 }
 
 VALUE
+semian_resource_key(VALUE self)
+{
+  semian_resource_t *res = NULL;
+  TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
+  return rb_str_new_cstr(res->strkey);
+}
+
+VALUE
 semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE permissions, VALUE default_timeout)
 {
   long c_permissions;
@@ -182,7 +190,9 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VAL
   ms_to_timespec(c_timeout * 1000, &res->timeout);
   res->name = strdup(c_id_str);
   res->quota = c_quota;
-  res->sem_id = initialize_semaphore_set(c_id_str, c_permissions, c_tickets, c_quota);
+
+  // Initialize the semaphore set
+  initialize_semaphore_set(res, c_id_str, c_permissions, c_tickets, c_quota);
 
   return self;
 }
