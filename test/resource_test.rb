@@ -47,6 +47,20 @@ class TestResource < Minitest::Test
     create_resource :testing, quota: 0.5
   end
 
+  def test_unregister_past_0
+    workers = 10
+    resource = Semian.register(:testing, tickets: workers * 2, error_threshold: 0, error_timeout: 0, success_threshold: 0)
+
+    fork_workers(count: workers, tickets: 0, timeout: 0.5, wait_for_timeout: true) do
+      Semian.unregister(:testing)
+    end
+
+    signal_workers('TERM')
+    Process.waitall
+
+    assert_equal 0, resource.registered_workers
+  end
+
   def test_exactly_one_register_with_quota
     r = Semian::Resource.instance(:testing, quota: 0.5)
 
