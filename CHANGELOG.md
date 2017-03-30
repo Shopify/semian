@@ -132,6 +132,29 @@ is half open.
 
 # v0.7.0
 
+This change introduced a series of changes to support a new "dynamic quota" ticket
+allocation strategy. This code primarily affects bulkheads (protected resources).
+
+Rather than statically setting a ticket count, workers (in their own process) now register
+themselves. By specifying 'quota' instead of 'tickets', the bulkhead threshold will now be
+computed dynamically as a ratio of the number of registered workers, eliminating the need to
+continuously readjust ticket counts, and supporting environments with non-uniform worker
+distribution between machines.
+
+* Feature: Support quota based allocation strategy (#120)
+* Feature: Add ability to manually unregister workers (#130)
+* Feature: Add ability to clear resources from adapters and unregister all resources (#134)
+* Feature: Allow sysV IPC key to be accessed in ruby (#136)
+* Feature: Expose registered worker count to ruby (#137)
+* Refactor: Allow registered worker count to be accessed through bulkhead (#138)
+* Bug fix: Register all workers (#128)
+* Bug fix: Lazy instantiate redis clien on first I/O (#132)
+* Bug fix: New mysql error (#131)
+* Bug fix: Prevent race conditions when unregistering (#141)
+* Refactor/Feature: Break coupling between resource and circuit breaker (#123)
+* Refactor: Use generic max_sem_val (#117)
+* Refactor: Fix header syntax (#118)
+* Refactor: Always acquire semaphore without_gvl (#121)
 * Thread-safety for circuit breakers by default (#150)
 * Fix bug where calling name on a protected resource without a semaphore would fail (#151)
 
