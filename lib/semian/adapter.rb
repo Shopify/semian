@@ -16,10 +16,15 @@ module Semian
       else
         options = semian_options.dup
         options.delete(:name)
+        options[:consumer] = self
         options[:exceptions] ||= []
         options[:exceptions] += resource_exceptions
         ::Semian.retrieve_or_register(semian_identifier, **options)
       end
+    end
+
+    def clear_semian_resource
+      @semian_resource = nil
     end
 
     private

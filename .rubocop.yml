@@ -111,3 +111,7 @@ Style/IfUnlessModifier:
 
 Style/CaseIndentation:
   IndentWhenRelativeTo: end
+
+Lint/UselessAssignment:
+  Exclude:
+    - 'test/adapter_test.rb'

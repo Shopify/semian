@@ -1,5 +1,6 @@
 require 'forwardable'
 require 'logger'
+require 'weakref'
 
 require 'semian/version'
 require 'semian/instrumentable'
@@ -156,6 +157,14 @@ module Semian
   end
 
   def retrieve_or_register(name, **args)
+    # If consumer who retrieved / registered by a Semian::Adapter, keep track
+    # of who the consumer was so that we can clear the resource reference if needed.
+    if consumer = args.delete(:consumer)
+      if consumer.class.include?(Semian::Adapter)
+        consumers[name] ||= []
+        consumers[name] << WeakRef.new(consumer)
+      end
+    end
     self[name] || register(name, **args)
   end
 
@@ -175,16 +184,45 @@ module Semian
   # the number of registered workers.
   # Semian.destroy removes the underlying resource, but
   # Semian.unregister will remove all references, while preserving
-  # the underlying semian resource (and sysV semaphore)
+  # the underlying semian resource (and sysV semaphore).
+  # Also clears any semian_resources
+  # in use by any semian adapters if the weak reference is still alive.
   def unregister(name)
     if resource = resources.delete(name)
-      resource.bulkhead.unregister_worker
+      resource.bulkhead.unregister_worker if resource.bulkhead
+      consumers_for_resource = consumers.delete(name) || []
+      consumers_for_resource.each do |consumer|
+        begin
+          if consumer.weakref_alive?
+            consumer.clear_semian_resource
+          end
+        rescue WeakRef::RefError
+          next
+        end
+      end
+    end
+  end
+
+  # Unregisters all resources
+  def unregister_all_resources
+    resources.keys.each do |resource|
+      unregister(resource)
     end
   end
 
   # Retrieves a hash of all registered resources.
   def resources
     @resources ||= {}
+  end
+
+  # Retrieves a hash of all registered resource consumers.
+  def consumers
+    @consumers ||= {}
+  end
+
+  def reset!
+    @consumers = {}
+    @resources = {}
   end
 
   private
