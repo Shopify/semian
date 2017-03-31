@@ -55,6 +55,7 @@ class TestResource < Minitest::Test
       Semian.unregister(:testing)
     end
 
+    Semian.unregister(:testing)
     signal_workers('TERM')
     Process.waitall
 

@@ -97,13 +97,15 @@ semian_resource_unregister_worker(VALUE self)
 
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
 
-  if (perform_semop(res->sem_id, SI_SEM_REGISTERED_WORKERS, -1, IPC_NOWAIT, NULL) == -1) {
+  sem_meta_lock(res->sem_id);
+  if (perform_semop(res->sem_id, SI_SEM_REGISTERED_WORKERS, -1, IPC_NOWAIT | SEM_UNDO, NULL) == -1) {
     // Allow EAGAIN with IPC_NOWAIT, as this signals that all workers were unregistered
     // Otherwise, we might block forever or throw an unintended timeout
     if (errno != EAGAIN) {
       rb_raise(eInternal, "error decreasing registered workers, errno: %d (%s)", errno, strerror(errno));
     }
   }
+  sem_meta_unlock(res->sem_id);
 
   return Qtrue;
 }
