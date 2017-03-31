@@ -62,6 +62,21 @@ class TestResource < Minitest::Test
     assert_equal 0, resource.registered_workers
   end
 
+  def test_reset_registered_workers
+    workers = 10
+    resource = Semian.register(:testing, tickets: 1, error_threshold: 0, error_timeout: 0, success_threshold: 0)
+
+    fork_workers(count: workers - 1, tickets: 0, timeout: 0.5, wait_for_timeout: true)
+
+    assert_equal workers, resource.registered_workers
+    resource.bulkhead.reset_registered_workers!
+    assert_equal 0, resource.registered_workers
+
+    signal_workers('TERM')
+    Process.waitall
+    assert_equal 0, resource.registered_workers
+  end
+
   def test_exactly_one_register_with_quota
     r = Semian::Resource.instance(:testing, quota: 0.5)
 

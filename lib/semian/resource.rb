@@ -18,6 +18,9 @@ module Semian
       @name = name
     end
 
+    def reset_registered_workers!
+    end
+
     def destroy
     end
 

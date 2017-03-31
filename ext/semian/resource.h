@@ -51,6 +51,18 @@ semian_resource_destroy(VALUE self);
 
 /*
  * call-seq:
+ *   resource.reset_registered_workers!() -> true
+ *
+ * Unregisters all registered workers for a resource, forcefully setting the worker count back to 0.
+ * This will purge the SEM_UNDO table.
+ *
+ * Use this method very carefully.
+ */
+VALUE
+semian_resource_reset_workers(VALUE self);
+
+/*
+ * call-seq:
  *    resource.count -> count
  *
  * Returns the current ticket count for a resource.
