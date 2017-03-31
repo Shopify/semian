@@ -91,6 +91,24 @@ semian_resource_destroy(VALUE self)
 }
 
 VALUE
+semian_resource_reset_workers(VALUE self)
+{
+
+  semian_resource_t *res = NULL;
+
+  TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
+
+  sem_meta_lock(res->sem_id);
+  // This SETVAL will purge the SEM_UNDO table
+  if (semctl(res->sem_id, SI_SEM_REGISTERED_WORKERS, SETVAL, 0) == -1) {
+    raise_semian_syscall_error("semctl()", errno);
+  }
+  sem_meta_unlock(res->sem_id);
+
+  return Qtrue;
+}
+
+VALUE
 semian_resource_unregister_worker(VALUE self)
 {
   semian_resource_t *res = NULL;
