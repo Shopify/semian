@@ -16,6 +16,33 @@ class TestProtectedResource < Minitest::Test
     super
   end
 
+  def test_get_name_without_bulkhead
+    Semian.register(
+      :testing,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+      bulkhead: false,
+    )
+
+    refute_nil Semian.resources[:testing].name
+  end
+
+  def test_get_name_without_bulkhead_or_circuit_breaker
+    Semian.register(
+      :testing,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+      bulkhead: false,
+      circuit_breaker: false,
+    )
+
+    assert_nil Semian.resources[:testing].name
+  end
+
   def test_acquire_without_bulkhead
     Semian.register(
       :testing,
