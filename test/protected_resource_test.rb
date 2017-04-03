@@ -43,6 +43,58 @@ class TestProtectedResource < Minitest::Test
     assert_nil Semian.resources[:testing].name
   end
 
+  def test_get_semid_without_bulkhead
+    Semian.register(
+      :testing,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+      bulkhead: false,
+    )
+
+    assert_equal(0, Semian.resources[:testing].semid)
+  end
+
+  def test_get_tickets_without_bulkhead
+    Semian.register(
+      :testing,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+      bulkhead: false,
+    )
+
+    assert_equal(0, Semian.resources[:testing].tickets)
+  end
+
+  def test_get_count_without_bulkhead
+    Semian.register(
+      :testing,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+      bulkhead: false,
+    )
+
+    assert_equal(0, Semian.resources[:testing].count)
+  end
+
+  def test_get_registered_workers_without_bulkhead
+    Semian.register(
+      :testing,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+      bulkhead: false,
+    )
+
+    assert_equal(0, Semian.resources[:testing].registered_workers)
+  end
+
   def test_acquire_without_bulkhead
     Semian.register(
       :testing,

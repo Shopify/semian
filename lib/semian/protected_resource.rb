@@ -2,7 +2,6 @@ module Semian
   class ProtectedResource
     extend Forwardable
 
-    def_delegators :@bulkhead, :destroy, :count, :semid, :tickets, :registered_workers
     def_delegators :@circuit_breaker, :reset, :mark_failed, :mark_success, :request_allowed?,
                    :open?, :closed?, :half_open?
 
@@ -25,6 +24,22 @@ module Semian
           yield self
         end
       end
+    end
+
+    def tickets
+      @bulkhead ? @bulkhead.tickets : 0
+    end
+
+    def count
+      @bulkhead ? @bulkhead.count : 0
+    end
+
+    def registered_workers
+      @bulkhead ? @bulkhead.registered_workers : 0
+    end
+
+    def semid
+      @bulkhead ? @bulkhead.semid : 0
     end
 
     private
