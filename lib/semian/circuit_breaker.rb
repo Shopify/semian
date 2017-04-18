@@ -2,6 +2,8 @@ module Semian
   class CircuitBreaker #:nodoc:
     extend Forwardable
 
+    attr_reader :name
+
     def_delegators :@state, :closed?, :open?, :half_open?
 
     def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, implementation:)
