@@ -258,21 +258,17 @@ class TestMysql2 < Minitest::Test
   def test_pings_are_circuit_broken
     client = connect_to_mysql!
 
-    def client.raw_ping
-      @real_pings ||= 0
-      @real_pings += 1
-      super
-    end
+    assert_predicate client.semian_resource, :closed?
 
     @proxy.downstream(:latency, latency: 1200).apply do
       ERROR_THRESHOLD.times do
-        client.ping
+        assert_equal false, client.ping
       end
 
       assert_equal false, client.ping
     end
 
-    assert_equal ERROR_THRESHOLD, client.instance_variable_get(:@real_pings)
+    assert_predicate client.semian_resource, :open?
   end
 
   private

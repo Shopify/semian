@@ -41,18 +41,6 @@ module Semian
       /\A\s*RELEASE\s+SAVEPOINT/i,
     )
 
-    # The naked methods are exposed as `raw_query` and `raw_connect` for instrumentation purpose
-    def self.included(base)
-      base.send(:alias_method, :raw_query, :query)
-      base.send(:remove_method, :query)
-
-      base.send(:alias_method, :raw_connect, :connect)
-      base.send(:remove_method, :connect)
-
-      base.send(:alias_method, :raw_ping, :ping)
-      base.send(:remove_method, :ping)
-    end
-
     def semian_identifier
       @semian_identifier ||= begin
         unless name = semian_options && semian_options[:name]
@@ -64,28 +52,27 @@ module Semian
       end
     end
 
-    def ping
-      result = nil
+    def ping(*)
       acquire_semian_resource(adapter: :mysql, scope: :ping) do
-        result = raw_ping
+        result = super
         raise PingFailure.new(result.to_s) unless result
+        result
       end
-      result
     rescue ResourceBusyError, CircuitOpenError, PingFailure
       false
     end
 
-    def query(*args)
-      if query_whitelisted?(*args)
-        raw_query(*args)
+    def query(sql, *)
+      if query_whitelisted?(sql)
+        super
       else
-        acquire_semian_resource(adapter: :mysql, scope: :query) { raw_query(*args) }
+        acquire_semian_resource(adapter: :mysql, scope: :query) { super }
       end
     end
 
     private
 
-    def query_whitelisted?(sql, *)
+    def query_whitelisted?(sql)
       QUERY_WHITELIST =~ sql
     rescue ArgumentError
       # The above regexp match can fail if the input SQL string contains binary
@@ -95,8 +82,8 @@ module Semian
       raise
     end
 
-    def connect(*args)
-      acquire_semian_resource(adapter: :mysql, scope: :connection) { raw_connect(*args) }
+    def connect(*)
+      acquire_semian_resource(adapter: :mysql, scope: :connection) { super }
     end
 
     def acquire_semian_resource(*)
@@ -116,4 +103,4 @@ module Semian
   end
 end
 
-::Mysql2::Client.include(Semian::Mysql2)
+::Mysql2::Client.prepend(Semian::Mysql2)
