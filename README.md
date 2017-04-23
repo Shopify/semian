@@ -185,8 +185,8 @@ In this case, we'd allow 50% of the workers on a particular host to connect to t
 
 - You must pass **exactly** one of ticket or quota.
 - Tickets available will be the ceiling of the quota ratio to the number of workers
- - So, with one worker, there will always be a minimum of 1 ticket
 - Workers in different processes will automatically unregister when the process exits.
+- The `quota_min_tickets` value specifies the minimum tickets to allocate using this strategy, defaulting to 2.
 
 #### Net::HTTP
 For the `Net::HTTP` specific Semian adapter, since many external libraries may create

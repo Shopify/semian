@@ -133,6 +133,9 @@ module Semian
   # Mutually exclusive with the 'ticket' argument.
   # but the resource must have been previously registered otherwise an error will be raised. (bulkhead)
   #
+  # +quota_min_tickets+: The minimum number of tickets to use when tickets are calculated by quota.
+  # this is primarily to prevent over-sensitive bulkheads when there is a very small number of workers.
+  #
   # +permissions+: Octal permissions of the resource. Default 0660. (bulkhead)
   #
   # +timeout+: Default timeout in seconds. Default 0. (bulkhead)

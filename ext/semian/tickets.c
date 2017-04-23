@@ -5,17 +5,18 @@ static VALUE
 update_ticket_count(update_ticket_count_t *tc);
 
 static int
-calculate_quota_tickets(int sem_id, double quota);
+calculate_quota_tickets (int sem_id, double quota, unsigned int quota_min_tickets);
 
 // Must be called with the semaphore meta lock already acquired
 void
-configure_tickets(int sem_id, int tickets, double quota)
+configure_tickets(semian_resource_t *res)
 {
   int state = 0;
+  int tickets = res->tickets;
   update_ticket_count_t tc;
 
-  if (quota > 0) {
-    tickets = calculate_quota_tickets(sem_id, quota);
+  if (res->quota > 0) {
+    tickets = calculate_quota_tickets(res->sem_id, res->quota, res->quota_min_tickets);
   }
 
   /*
@@ -23,7 +24,7 @@ configure_tickets(int sem_id, int tickets, double quota)
     We need to throw an error if we set it to 0 during initialization.
     Otherwise, we back out of here completely.
   */
-  if (get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS) == 0 && tickets == 0) {
+  if (get_sem_val(res->sem_id, SI_SEM_CONFIGURED_TICKETS) == 0 && tickets == 0) {
     rb_raise(eSyscall, "More than 0 tickets must be specified when initializing semaphore");
   } else if (tickets == 0) {
     return;
@@ -34,9 +35,9 @@ configure_tickets(int sem_id, int tickets, double quota)
      count, we need to resize the count. We do this by adding the delta of
      (tickets - current_configured_tickets) to the semaphore value.
   */
-  if (get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS) != tickets) {
+  if (get_sem_val(res->sem_id, SI_SEM_CONFIGURED_TICKETS) != tickets) {
 
-    tc.sem_id = sem_id;
+    tc.sem_id = res->sem_id;
     tc.tickets = tickets;
     rb_protect((VALUE (*)(VALUE)) update_ticket_count, (VALUE) &tc, &state);
 
@@ -74,9 +75,10 @@ update_ticket_count(update_ticket_count_t *tc)
 }
 
 static int
-calculate_quota_tickets (int sem_id, double quota)
+calculate_quota_tickets (int sem_id, double quota, unsigned int quota_min_tickets)
 {
   int tickets = 0;
   tickets = (int) ceil(get_sem_val(sem_id, SI_SEM_REGISTERED_WORKERS) * quota);
+  tickets = tickets < quota_min_tickets ? quota_min_tickets : tickets;
   return tickets;
 }
