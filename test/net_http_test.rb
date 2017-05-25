@@ -353,6 +353,29 @@ class TestNetHTTP < Minitest::Test
     end
   end
 
+  def test_capacity_option_calculates_the_error_timeout_based_upon_read_timeout
+    options_with_capacity = DEFAULT_SEMIAN_OPTIONS.dup.merge!({ capacity: 0.75 })
+    options_with_capacity.delete(:error_timeout)
+    semian_configuration_proc = proc do |host, port|
+      options_with_capacity.merge(name: "#{host}_#{port}")
+    end
+    with_semian_configuration(semian_configuration_proc) do
+      http = Net::HTTP.new(HOSTNAME, TOXIC_PORT)
+      assert_equal 180, http.raw_semian_options[:error_timeout]
+    end
+  end
+
+  def test_capacity_option_defaults_to_error_timeout_when_both_are_provided
+    options_with_capacity = DEFAULT_SEMIAN_OPTIONS.dup.merge!({ capacity: 0.75 })
+    semian_configuration_proc = proc do |host, port|
+      options_with_capacity.merge(name: "#{host}_#{port}")
+    end
+    with_semian_configuration(semian_configuration_proc) do
+      http = Net::HTTP.new(HOSTNAME, TOXIC_PORT)
+      assert_equal 10, http.raw_semian_options[:error_timeout]
+    end
+  end
+
   private
 
   def with_semian_configuration(options = DEFAULT_SEMIAN_CONFIGURATION)
