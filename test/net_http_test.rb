@@ -19,6 +19,7 @@ class TestNetHTTP < Minitest::Test
     success_threshold: 1,
     error_threshold: 3,
     error_timeout: 10,
+    fatal_server_errors: false,
   }.freeze
   DEFAULT_SEMIAN_CONFIGURATION = proc do |host, port|
     next nil if host == "127.0.0.1" && port == 8474 # disable if toxiproxy
@@ -308,6 +309,46 @@ class TestNetHTTP < Minitest::Test
             http.get("/200")
           end
         end
+      end
+    end
+  end
+
+  def test_5xxs_trip_circuit_when_fatal_server_flag_enabled
+    semian_config = {
+      tickets: 3,
+      success_threshold: 1,
+      error_threshold: 3,
+      error_timeout: 10,
+      fatal_server_errors: true,
+    }
+    modified_semian_config = proc do |host, port|
+      next nil if host == "127.0.0.1" && port == 8474 # disable if toxiproxy
+      semian_config.merge(name: "#{host}_#{port}")
+    end
+
+    with_semian_configuration(modified_semian_config) do
+      with_server do
+        http = Net::HTTP.new(HOSTNAME, TOXIC_PORT)
+        http.raw_semian_options[:error_threshold].times do
+          assert_raises ::Net::HTTPFatalError do
+            http.get("/500")
+          end
+        end
+        assert_raises Net::CircuitOpenError do
+          http.get("/500")
+        end
+      end
+    end
+  end
+
+  def test_5xxs_dont_raise_exceptions_unless_fatal_server_flag_enabled
+    with_semian_configuration do
+      with_server do
+        http = Net::HTTP.new(HOSTNAME, TOXIC_PORT)
+        http.raw_semian_options[:error_threshold].times do
+          http.get("/500")
+        end
+        http.get("/500")
       end
     end
   end
