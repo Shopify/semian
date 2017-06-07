@@ -33,6 +33,10 @@ class Redis
   def semian_identifier
     semian_resource.name
   end
+
+  def resource_exceptions
+    semian_resource.resource_exceptions
+  end
 end
 
 module Semian
@@ -67,14 +71,14 @@ module Semian
       acquire_semian_resource(adapter: :redis, scope: :connection) { raw_connect }
     end
 
-    private
-
     def resource_exceptions
       [
         ::Redis::BaseConnectionError,
         ::Errno::EINVAL, # Hiredis bug: https://github.com/redis/hiredis-rb/issues/21
       ]
     end
+
+    private
 
     def raw_semian_options
       return options[:semian] if options.key?(:semian)

@@ -82,6 +82,10 @@ module Semian
       end
     end
 
+    def resource_exceptions
+      [::Mysql2::Error]
+    end
+
     private
 
     def query_whitelisted?(sql, *)
@@ -100,7 +104,7 @@ module Semian
 
     def acquire_semian_resource(*)
       super
-    rescue ::Mysql2::Error => error
+    rescue *resource_exceptions => error
       if error.message =~ CONNECTION_ERROR || error.is_a?(PingFailure)
         semian_resource.mark_failed(error)
         error.semian_identifier = semian_identifier

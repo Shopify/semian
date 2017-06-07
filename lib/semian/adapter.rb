@@ -6,6 +6,10 @@ module Semian
       raise NotImplementedError.new("Semian adapters must implement a `semian_identifier` method")
     end
 
+    def resource_exceptions
+      raise NotImplementedError.new("Semian adapters must implement a method to return the base errors")
+    end
+
     def semian_resource
       @semian_resource ||= case semian_options
       when false
@@ -51,10 +55,6 @@ module Semian
 
     def raw_semian_options
       raise NotImplementedError.new("Semian adapters must implement a `raw_semian_options` method")
-    end
-
-    def resource_exceptions
-      []
     end
 
     def resource_already_acquired?
