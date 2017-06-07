@@ -19,8 +19,8 @@ class TestMysql2 < Minitest::Test
 
   def test_semian_identifier
     assert_equal :mysql_foo, FakeMysql.new(semian: {name: 'foo'}).semian_identifier
-    assert_equal :'mysql_localhost:3306', FakeMysql.new.semian_identifier
-    assert_equal :'mysql_127.0.0.1:3306', FakeMysql.new(host: '127.0.0.1').semian_identifier
+    assert_equal "mysql_#{network_host}:3306", FakeMysql.new.semian_identifier
+    assert_equal "mysql_#{network_host}:3306".to_sym, FakeMysql.new(host: '127.0.0.1').semian_identifier
     assert_equal :'mysql_example.com:42', FakeMysql.new(host: 'example.com', port: 42).semian_identifier
   end
 
@@ -251,7 +251,7 @@ class TestMysql2 < Minitest::Test
   end
 
   def test_unconfigured
-    client = Mysql2::Client.new(host: '127.0.0.1', port: '13306')
+    client = Mysql2::Client.new(host: network_host, port: '13306')
     assert_equal 2, client.query('SELECT 1 + 1 as sum;').to_a.first['sum']
   end
 
@@ -281,7 +281,7 @@ class TestMysql2 < Minitest::Test
     Mysql2::Client.new(
       connect_timeout: 1,
       read_timeout: 1,
-      host: '127.0.0.1',
+      host: network_host,
       port: '13306',
       semian: SEMIAN_OPTIONS.merge(semian_options),
     )
