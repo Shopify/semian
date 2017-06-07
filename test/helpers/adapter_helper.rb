@@ -9,6 +9,10 @@ module Semian
     def raw_semian_options
       @client_options
     end
+
+    def resource_exceptions
+      []
+    end
   end
 
   class AdapterTestClient
