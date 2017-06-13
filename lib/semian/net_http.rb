@@ -87,6 +87,16 @@ module Semian
       raw_semian_options.nil?
     end
 
+    def acquire_semian_resource(*)
+      result = super
+
+      if result.is_a?(::Net::HTTPServerError) && raw_semian_options.fetch(:open_circuit_server_errors)
+        semian_resource.mark_failed(result)
+      else
+        return result
+      end
+    end
+
     def connect
       return raw_connect if disabled?
       acquire_semian_resource(adapter: :http, scope: :connection) { raw_connect }
