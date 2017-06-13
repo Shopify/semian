@@ -36,7 +36,6 @@ module Semian
       ::Timeout::Error, # includes ::Net::ReadTimeout and ::Net::OpenTimeout
       ::SocketError,
       ::Net::HTTPBadResponse,
-      ::Net::HTTPFatalError,
       ::Net::HTTPHeaderSyntaxError,
       ::Net::ProtocolError,
       ::EOFError,
@@ -88,10 +87,6 @@ module Semian
       raw_semian_options.nil?
     end
 
-    def fatal_server_errors?
-      raw_semian_options.fetch(:fatal_server_errors)
-    end
-
     def connect
       return raw_connect if disabled?
       acquire_semian_resource(adapter: :http, scope: :connection) { raw_connect }
@@ -99,13 +94,7 @@ module Semian
 
     def request(req, body = nil, &block)
       return raw_request(req, body, &block) if disabled?
-      acquire_semian_resource(adapter: :http, scope: :query) do
-        result = raw_request(req, body, &block)
-
-        result.error! if result.is_a?(::Net::HTTPServerError) && fatal_server_errors?
-
-        result
-      end
+      acquire_semian_resource(adapter: :http, scope: :query) { raw_request(req, body, &block) }
     end
   end
 end

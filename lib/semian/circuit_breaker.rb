@@ -4,12 +4,13 @@ module Semian
 
     def_delegators :@state, :closed?, :open?, :half_open?
 
-    def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, implementation:)
+    def initialize(name, open_circuit_server_errors: false, exceptions:, success_threshold:, error_threshold:, error_timeout:, implementation:)
       @name = name.to_sym
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
       @error_timeout = error_timeout
       @exceptions = exceptions
+      @open_circuit_server_errors = open_circuit_server_errors
 
       @errors = implementation::SlidingWindow.new(max_size: @error_count_threshold)
       @successes = implementation::Integer.new
@@ -24,6 +25,7 @@ module Semian
       result = nil
       begin
         result = yield
+        mark_failed(result) if result.is_a?(::Net::HTTPServerError) && @open_circuit_server_errors
       rescue *@exceptions => error
         mark_failed(error)
         raise error

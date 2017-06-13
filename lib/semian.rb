@@ -235,6 +235,7 @@ module Semian
     exceptions = options[:exceptions] || []
     CircuitBreaker.new(
       name,
+      open_circuit_server_errors: options[:open_circuit_server_errors],
       success_threshold: options[:success_threshold],
       error_threshold: options[:error_threshold],
       error_timeout: options[:error_timeout],

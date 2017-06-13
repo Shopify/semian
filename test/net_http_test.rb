@@ -19,7 +19,7 @@ class TestNetHTTP < Minitest::Test
     success_threshold: 1,
     error_threshold: 3,
     error_timeout: 10,
-    fatal_server_errors: false,
+    open_circuit_server_errors: false,
   }.freeze
   DEFAULT_SEMIAN_CONFIGURATION = proc do |host, port|
     next nil if host == "127.0.0.1" && port == 8474 # disable if toxiproxy
@@ -319,7 +319,7 @@ class TestNetHTTP < Minitest::Test
       success_threshold: 1,
       error_threshold: 3,
       error_timeout: 10,
-      fatal_server_errors: true,
+      open_circuit_server_errors: true,
     }
     modified_semian_config = proc do |host, port|
       next nil if host == "127.0.0.1" && port == 8474 # disable if toxiproxy
@@ -330,9 +330,7 @@ class TestNetHTTP < Minitest::Test
       with_server do
         http = Net::HTTP.new(HOSTNAME, TOXIC_PORT)
         http.raw_semian_options[:error_threshold].times do
-          assert_raises ::Net::HTTPFatalError do
-            http.get("/500")
-          end
+          http.get("/500")
         end
         assert_raises Net::CircuitOpenError do
           http.get("/500")
