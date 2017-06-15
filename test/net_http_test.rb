@@ -313,6 +313,37 @@ class TestNetHTTP < Minitest::Test
     end
   end
 
+  def test_read_timeout_trips_circuit
+    semian_config = {
+      tickets: 3,
+      success_threshold: 1,
+      error_threshold: 3,
+      error_timeout: 10,
+      open_circuit_server_errors: true,
+    }
+    modified_semian_config = proc do |host, port|
+      next nil if host == "127.0.0.1" && port == 8474 # disable if toxiproxy
+      semian_config.merge(name: "#{host}_#{port}")
+    end
+
+    Toxiproxy['semian_test_net_http'].downstream(:latency, latency: 150).apply do
+      with_semian_configuration(modified_semian_config) do
+        with_server do
+          http = Net::HTTP.new(HOSTNAME, TOXIC_PORT)
+          http.read_timeout = 0.1
+          http.raw_semian_options[:error_threshold].times do
+            assert_raises Net::ReadTimeout do
+              http.get("/200")
+            end
+          end
+          assert_raises Net::CircuitOpenError do
+            http.get("/200")
+          end
+        end
+      end
+    end
+  end
+
   def test_5xxs_trip_circuit_when_fatal_server_flag_enabled
     semian_config = {
       tickets: 3,
@@ -328,7 +359,7 @@ class TestNetHTTP < Minitest::Test
 
     with_semian_configuration(modified_semian_config) do
       with_server do
-        http = Net::HTTP.new(HOSTNAME, TOXIC_PORT)
+        http = Net::HTTP.new(HOSTNAME, PORT)
         http.raw_semian_options[:error_threshold].times do
           http.get("/500")
         end

@@ -45,8 +45,8 @@ module Semian
 
     # The naked methods are exposed as `raw_query` and `raw_connect` for instrumentation purpose
     def self.included(base)
-      base.send(:alias_method, :raw_request, :request)
-      base.send(:remove_method, :request)
+      base.send(:alias_method, :raw_transport_request, :transport_request)
+      base.send(:remove_method, :transport_request)
 
       base.send(:alias_method, :raw_connect, :connect)
       base.send(:remove_method, :connect)
@@ -87,24 +87,25 @@ module Semian
       raw_semian_options.nil?
     end
 
-    def acquire_semian_resource(*)
-      result = super
-
-      if result.is_a?(::Net::HTTPServerError) && raw_semian_options.fetch(:open_circuit_server_errors)
-        semian_resource.mark_failed(result)
-      else
-        return result
-      end
-    end
-
     def connect
       return raw_connect if disabled?
       acquire_semian_resource(adapter: :http, scope: :connection) { raw_connect }
     end
 
-    def request(req, body = nil, &block)
-      return raw_request(req, body, &block) if disabled?
-      acquire_semian_resource(adapter: :http, scope: :query) { raw_request(req, body, &block) }
+    def transport_request(req, &block)
+      return raw_transport_request(req, &block) if disabled?
+      acquire_semian_resource(adapter: :http, scope: :query) do
+        res = raw_transport_request(req, &block)
+        handle_error_responses(res)
+        res
+      end
+    end
+
+    private
+
+    def handle_error_responses(res)
+      return unless raw_semian_options.fetch(:open_circuit_server_errors)
+      semian_resource.mark_failed(res) if res.is_a?(::Net::HTTPServerError)
     end
   end
 end
