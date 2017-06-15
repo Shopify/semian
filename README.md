@@ -127,9 +127,16 @@ client = Redis.new(semian: {
 })
 ```
 
-#### Warning: Thread unsafe
+#### Thread Safety
 
-Semian is currently known to be thread-unsafe, and is intended to be used by *separate processes*.
+Semian's circuit breaker implementation is thread-safe by default as of
+`v0.7.0`. If you'd like to disable it for performance reasons, pass
+`thread_safety_disabled: true` to the resource options.
+
+Bulkheads should be disabled (pass `tickets: false`) in a threaded environment
+(e.g. Puma or Sidekiq), but can safely be enabled in non-threaded environments
+(e.g. Resque and Unicorn). As described in this document, circuit breakers alone
+should be adequate in most environments with reasonably low timeouts.
 
 Internally, semian uses `SEM_UNDO` for several sysv semaphore operations:
 

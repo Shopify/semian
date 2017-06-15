@@ -1,10 +1,8 @@
 require 'test_helper'
 
 class TestSimpleInteger < Minitest::Test
-  CLASS = ::Semian::Simple::Integer
-
   def setup
-    @integer = CLASS.new
+    @integer = ::Semian::ThreadSafe::Integer.new
   end
 
   def teardown

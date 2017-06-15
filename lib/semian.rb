@@ -1,6 +1,7 @@
 require 'forwardable'
 require 'logger'
 require 'weakref'
+require 'thread'
 
 require 'semian/version'
 require 'semian/instrumentable'
@@ -78,7 +79,6 @@ require 'semian/simple_state'
 #    end
 #
 # This is the same as the previous example, but overrides the timeout from the default value of 500 milliseconds to 1 second.
-#
 module Semian
   extend self
   extend Instrumentable
@@ -235,6 +235,7 @@ module Semian
     circuit_breaker = options.fetch(:circuit_breaker, true)
     return unless circuit_breaker
     raise ArgumentError unless required_keys?([:success_threshold, :error_threshold, :error_timeout], options)
+    implementation = options[:thread_safety_disabled] ? ::Semian::Simple : ::Semian::ThreadSafe
 
     exceptions = options[:exceptions] || []
     CircuitBreaker.new(
@@ -243,7 +244,7 @@ module Semian
       error_threshold: options[:error_threshold],
       error_timeout: options[:error_timeout],
       exceptions: Array(exceptions) + [::Semian::BaseError],
-      implementation: ::Semian::Simple,
+      implementation: implementation,
     )
   end
 

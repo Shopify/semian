@@ -43,7 +43,7 @@ module Semian
     end
 
     def mark_failed(_error)
-      push_time(@errors, duration: @error_timeout)
+      push_time(@errors)
       if closed?
         open if error_threshold_reached?
       elsif half_open?
@@ -97,14 +97,14 @@ module Semian
     end
 
     def error_timeout_expired?
-      time_ms = @errors.last
-      time_ms && (Time.at(time_ms / 1000) + @error_timeout < Time.now)
+      last_error_time = @errors.last
+      return false unless last_error_time
+      Time.at(last_error_time) + @error_timeout < Time.now
     end
 
-    def push_time(window, duration:, time: Time.now)
-      # The sliding window stores the integer amount of milliseconds since epoch as a timestamp
-      window.shift while window.first && window.first / 1000 + duration < time.to_i
-      window << (time.to_f * 1000).to_i
+    def push_time(window, time: Time.now)
+      window.reject! { |err_time| err_time + @error_timeout < time.to_i }
+      window << time.to_i
     end
 
     def log_state_transition(new_state)

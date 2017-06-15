@@ -1,10 +1,8 @@
 require 'test_helper'
 
 class TestSimpleEnum < Minitest::Test
-  CLASS = ::Semian::Simple::State
-
   def setup
-    @state = CLASS.new
+    @state = ::Semian::ThreadSafe::State.new
   end
 
   def teardown

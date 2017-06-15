@@ -115,3 +115,6 @@ Style/CaseIndentation:
 Lint/UselessAssignment:
   Exclude:
     - 'test/adapter_test.rb'
+
+Style/ModuleLength:
+  Enabled: false
