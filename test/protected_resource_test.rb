@@ -82,4 +82,34 @@ class TestProtectedResource < Minitest::Test
 
     assert acquired
   end
+
+  def test_register_without_any_resource_fails
+    assert_raises ArgumentError do
+      Semian.register(
+        :testing,
+        circuit_breaker: false,
+      )
+    end
+  end
+
+  def test_responds_to_name_when_bulkhead_or_circuit_breaker_disabled
+    Semian.register(
+      :no_bulkhead,
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+      bulkhead: false,
+      circuit_breaker: true,
+    )
+
+    Semian.register(
+      :no_circuit_breaker,
+      tickets: 2,
+      bulkhead: true,
+      circuit_breaker: false,
+    )
+
+    assert_equal :no_bulkhead, Semian[:no_bulkhead].name
+    assert_equal :no_circuit_breaker, Semian[:no_circuit_breaker].name
+  end
 end

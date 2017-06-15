@@ -4,6 +4,8 @@ module Semian
 
     def_delegators :@state, :closed?, :open?, :half_open?
 
+    attr_reader :name
+
     def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, implementation:)
       @name = name.to_sym
       @success_count_threshold = success_threshold

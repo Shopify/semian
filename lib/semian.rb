@@ -153,7 +153,11 @@ module Semian
     circuit_breaker = create_circuit_breaker(name, **options)
     bulkhead = create_bulkhead(name, **options)
 
-    resources[name] = ProtectedResource.new(bulkhead, circuit_breaker)
+    if circuit_breaker.nil? && bulkhead.nil?
+      raise ArgumentError, 'Both bulkhead and circuitbreaker cannot be disabled.'
+    end
+
+    resources[name] = ProtectedResource.new(name, bulkhead, circuit_breaker)
   end
 
   def retrieve_or_register(name, **args)
