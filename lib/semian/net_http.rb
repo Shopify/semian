@@ -104,7 +104,7 @@ module Semian
     private
 
     def handle_error_responses(res)
-      return unless raw_semian_options.fetch(:open_circuit_server_errors)
+      return unless raw_semian_options.fetch(:open_circuit_server_errors, false)
       semian_resource.mark_failed(res) if res.is_a?(::Net::HTTPServerError)
     end
   end
