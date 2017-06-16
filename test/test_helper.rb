@@ -16,10 +16,6 @@ require 'config/config'
 
 Semian.logger = Logger.new(nil)
 
-TOXIPROXY_HOST = 'toxiproxy'
-TOXIPROXY_PORT = 8474
-TOXIPROXY_URL = "http://#{TOXIPROXY_HOST}:#{TOXIPROXY_PORT}"
-
 Toxiproxy.host = URI::HTTP.build(
   host: Config.host_for('toxiproxy'),
   port: Config.port_for('toxiproxy')
