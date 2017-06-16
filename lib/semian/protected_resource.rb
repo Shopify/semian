@@ -2,13 +2,14 @@ module Semian
   class ProtectedResource
     extend Forwardable
 
-    def_delegators :@bulkhead, :destroy, :count, :semid, :tickets, :registered_workers, :name
+    def_delegators :@bulkhead, :destroy, :count, :semid, :tickets, :registered_workers
     def_delegators :@circuit_breaker, :reset, :mark_failed, :mark_success, :request_allowed?,
                    :open?, :closed?, :half_open?
 
-    attr_reader :bulkhead, :circuit_breaker
+    attr_reader :bulkhead, :circuit_breaker, :name
 
-    def initialize(bulkhead, circuit_breaker)
+    def initialize(name, bulkhead, circuit_breaker)
+      @name = name
       @bulkhead = bulkhead
       @circuit_breaker = circuit_breaker
     end
