@@ -20,7 +20,7 @@ class TestRedis < Minitest::Test
 
   def test_semian_identifier
     assert_equal :redis_foo, new_redis(semian: {name: 'foo'}).client.semian_identifier
-    assert_equal :'redis_127.0.0.1:16379/1', new_redis(semian: {name: nil}).client.semian_identifier
+    assert_equal :'redis_toxiproxy:16379/1', new_redis(semian: {name: nil}).client.semian_identifier
     assert_equal :'redis_example.com:42/1', new_redis(host: 'example.com', port: 42, semian: {name: nil}).client.semian_identifier
   end
 
@@ -220,8 +220,8 @@ class TestRedis < Minitest::Test
   def new_redis(options = {})
     semian_options = SEMIAN_OPTIONS.merge(options.delete(:semian) || {})
     Redis.new({
-      host: '127.0.0.1',
-      port: 16_379,
+      host: TOXIPROXY_HOST,
+      port: REDIS_TOXIC_PORT,
       reconnect_attempts: 0,
       db: 1,
       timeout: 0.5,
