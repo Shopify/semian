@@ -25,7 +25,7 @@ class TestMysql2 < Minitest::Test
   end
 
   def test_semian_can_be_disabled
-    resource = Mysql2::Client.new(semian: false).semian_resource
+    resource = Mysql2::Client.new(host: TOXIPROXY_HOST, port: MYSQL_TOXIC_PORT, semian: false).semian_resource
     assert_instance_of Semian::UnprotectedResource, resource
   end
 
@@ -251,7 +251,7 @@ class TestMysql2 < Minitest::Test
   end
 
   def test_unconfigured
-    client = Mysql2::Client.new(host: '127.0.0.1', port: '13306')
+    client = Mysql2::Client.new(host: TOXIPROXY_HOST, port: MYSQL_TOXIC_PORT)
     assert_equal 2, client.query('SELECT 1 + 1 as sum;').to_a.first['sum']
   end
 
@@ -281,8 +281,8 @@ class TestMysql2 < Minitest::Test
     Mysql2::Client.new(
       connect_timeout: 1,
       read_timeout: 1,
-      host: '127.0.0.1',
-      port: '13306',
+      host: TOXIPROXY_HOST,
+      port: MYSQL_TOXIC_PORT,
       semian: SEMIAN_OPTIONS.merge(semian_options),
     )
   end
