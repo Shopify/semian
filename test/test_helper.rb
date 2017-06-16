@@ -11,7 +11,8 @@ require 'helpers/background_helper'
 require 'helpers/circuit_breaker_helper'
 require 'helpers/resource_helper'
 require 'helpers/adapter_helper'
-require 'byebug'
+
+require 'config/config'
 
 Semian.logger = Logger.new(nil)
 
@@ -31,23 +32,26 @@ NET_HTTP_HOST = 'library'
 NET_HTTP_PORT = 31050
 NET_HTTP_TOXIC_PORT = 31051
 
-Toxiproxy.host = TOXIPROXY_URL
+Toxiproxy.host = URI::HTTP.build(
+  host: Config.host_for('toxiproxy'),
+  port: Config.port_for('toxiproxy')
+)
 
 Toxiproxy.populate([
   {
     name: 'semian_test_mysql',
-    upstream: "#{MYSQL_HOST}:#{MYSQL_PORT}",
-    listen: "#{TOXIPROXY_HOST}:#{MYSQL_TOXIC_PORT}",
+    upstream: "#{Config.host_for('mysql')}:#{Config.port_for('mysql')}",
+    listen: "#{Config.host_for('toxiproxy')}:#{Config.toxic_port_for('mysql')}",
   },
   {
     name: 'semian_test_redis',
-    upstream: "#{REDIS_HOST}:#{REDIS_PORT}",
-    listen: "#{TOXIPROXY_HOST}:#{REDIS_TOXIC_PORT}",
+    upstream: "#{Config.host_for('redis')}:#{Config.port_for('redis')}",
+    listen: "#{Config.host_for('toxiproxy')}:#{Config.toxic_port_for('redis')}",
   },
   {
     name: 'semian_test_net_http',
-    upstream: "#{NET_HTTP_HOST}:#{NET_HTTP_PORT}",
-    listen: "#{TOXIPROXY_HOST}:#{NET_HTTP_TOXIC_PORT}",
+    upstream: "#{Config.host_for('library')}:#{Config.port_for('library')}",
+    listen: "#{Config.host_for('toxiproxy')}:#{Config.toxic_port_for('library')}",
   },
 ])
 
