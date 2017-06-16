@@ -1,9 +1,11 @@
+require 'thread'
+
 module Semian
   module Simple
     class SlidingWindow #:nodoc:
       extend Forwardable
 
-      def_delegators :@window, :size, :pop, :shift, :first, :last
+      def_delegators :@window, :size, :last
       attr_reader :max_size
 
       # A sliding window is a structure that stores the most @max_size recent timestamps
@@ -15,28 +17,51 @@ module Semian
         @window = []
       end
 
-      def resize_to(size)
-        raise ArgumentError.new('size must be larger than 0') if size < 1
-        @max_size = size
-        @window.shift while @window.size > @max_size
-        self
+      def reject!(&block)
+        @window.reject!(&block)
       end
 
       def push(value)
-        @window.shift while @window.size >= @max_size
+        resize_to(@max_size - 1) # make room
         @window << value
         self
       end
-
       alias_method :<<, :push
 
       def clear
         @window.clear
         self
       end
+      alias_method :destroy, :clear
 
-      def destroy
-        clear
+      private
+
+      def resize_to(size)
+        @window = @window.last(size) if @window.size >= size
+      end
+    end
+  end
+
+  module ThreadSafe
+    class SlidingWindow < Simple::SlidingWindow
+      def initialize(*)
+        super
+        @lock = Mutex.new
+      end
+
+      # #size, #last, and #clear are not wrapped in a mutex. For the first two,
+      # the worst-case is a thread-switch at a timing where they'd receive an
+      # out-of-date value--which could happen with a mutex as well.
+      #
+      # As for clear, it's an all or nothing operation. Doesn't matter if we
+      # have the lock or not.
+
+      def reject!(*)
+        @lock.synchronize { super }
+      end
+
+      def push(*)
+        @lock.synchronize { super }
       end
     end
   end

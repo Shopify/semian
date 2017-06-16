@@ -40,4 +40,11 @@ module Semian
       end
     end
   end
+
+  module ThreadSafe
+    class State < Simple::State
+      # These operations are already safe for a threaded environment since it's
+      # a simple assignment.
+    end
+  end
 end
