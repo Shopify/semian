@@ -220,8 +220,8 @@ class TestRedis < Minitest::Test
   def new_redis(options = {})
     semian_options = SEMIAN_OPTIONS.merge(options.delete(:semian) || {})
     Redis.new({
-      host: TOXIPROXY_HOST,
-      port: REDIS_TOXIC_PORT,
+      host: Config.host_for('toxiproxy'),
+      port: Config.toxic_port_for('redis'),
       reconnect_attempts: 0,
       db: 1,
       timeout: 0.5,
