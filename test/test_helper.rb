@@ -20,10 +20,6 @@ TOXIPROXY_HOST = 'toxiproxy'
 TOXIPROXY_PORT = 8474
 TOXIPROXY_URL = "http://#{TOXIPROXY_HOST}:#{TOXIPROXY_PORT}"
 
-NET_HTTP_HOST = 'library'
-NET_HTTP_PORT = 31050
-NET_HTTP_TOXIC_PORT = 31051
-
 Toxiproxy.host = URI::HTTP.build(
   host: Config.host_for('toxiproxy'),
   port: Config.port_for('toxiproxy')
