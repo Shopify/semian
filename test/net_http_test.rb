@@ -312,6 +312,43 @@ class TestNetHTTP < Minitest::Test
     end
   end
 
+  def test_5xxs_trip_circuit_when_fatal_server_flag_enabled
+    options = proc do |host, port|
+      {
+        tickets: 2,
+        success_threshold: 1,
+        error_threshold: 3,
+        error_timeout: 10,
+        open_circuit_server_errors: true,
+        name: "#{host}_#{port}",
+      }
+    end
+
+    with_semian_configuration(options) do
+      with_server do
+        http = Net::HTTP.new(HOSTNAME, PORT)
+        http.raw_semian_options[:error_threshold].times do
+          http.get("/500")
+        end
+        assert_raises Net::CircuitOpenError do
+          http.get("/500")
+        end
+      end
+    end
+  end
+
+  def test_5xxs_dont_raise_exceptions_unless_fatal_server_flag_enabled
+    with_semian_configuration do
+      with_server do
+        http = Net::HTTP.new(HOSTNAME, PORT)
+        http.raw_semian_options[:error_threshold].times do
+          http.get("/500")
+        end
+        http.get("/500")
+      end
+    end
+  end
+
   def test_multiple_different_endpoints_and_ports_are_tracked_differently
     with_semian_configuration do
       addresses = ["#{HOSTNAME}:#{PORT}", "#{HOSTNAME}:#{PORT + 100}"]
