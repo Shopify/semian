@@ -375,12 +375,12 @@ class TestNetHTTP < Minitest::Test
 
   def test_persistent_state_after_server_restart
     with_semian_configuration do
-      with_server(ports: [server_port + 100]) do |hostname, port|
+      with_server(ports: [server_port + 100]) do |_, port|
         with_toxic(hostname: server_host, upstream_port: port, toxic_port: port + 1) do |name|
           open_circuit!(hostname: toxiproxy_host, toxic_port: port + 1, toxic_name: name)
         end
       end
-      with_server(ports: [server_port + 100], reset_semian_state: false) do |hostname, port|
+      with_server(ports: [server_port + 100], reset_semian_state: false) do |_, port|
         with_toxic(hostname: server_host, upstream_port: port, toxic_port: port + 1) do |_|
           assert_raises Net::CircuitOpenError do
             Net::HTTP.get(URI("http://#{toxiproxy_host}:#{port + 1}/200"))

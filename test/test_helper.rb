@@ -21,7 +21,7 @@ class ToxiproxyConfig
 
   Toxiproxy.host = URI::HTTP.build(
     host: toxiproxy_host,
-    port: toxiproxy_port
+    port: toxiproxy_port,
   )
 
   Toxiproxy.populate([

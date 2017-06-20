@@ -27,7 +27,7 @@ class SemianTestConfig
       private
 
       def define_helper_method(service, attribute)
-        self.__send__(:define_method, "#{service}_#{attribute}") do
+        __send__(:define_method, "#{service}_#{attribute}") do
           SemianTestConfig[service].fetch(attribute)
         end
       end
