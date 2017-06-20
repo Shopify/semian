@@ -22,7 +22,7 @@ class TestRedis < Minitest::Test
 
   def test_semian_identifier
     assert_equal :redis_foo, new_redis(semian: {name: 'foo'}).client.semian_identifier
-    assert_equal :'redis_toxiproxy:16379/1', new_redis(semian: {name: nil}).client.semian_identifier
+    assert_equal :"redis_#{toxiproxy_host}:16379/1", new_redis(semian: {name: nil}).client.semian_identifier
     assert_equal :'redis_example.com:42/1', new_redis(host: 'example.com', port: 42, semian: {name: nil}).client.semian_identifier
   end
 
