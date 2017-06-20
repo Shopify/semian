@@ -12,12 +12,12 @@ require 'helpers/circuit_breaker_helper'
 require 'helpers/resource_helper'
 require 'helpers/adapter_helper'
 
-require 'config/config'
+require 'config/semian_test_config'
 
 Semian.logger = Logger.new(nil)
 
 class ToxiproxyConfig
-  include Config::Helpers
+  include SemianTestConfig::Helpers
 
   Toxiproxy.host = URI::HTTP.build(
     host: toxiproxy_host,

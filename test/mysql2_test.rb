@@ -1,7 +1,7 @@
 require 'test_helper'
 
 class TestMysql2 < Minitest::Test
-  include Config::Helpers
+  include SemianTestConfig::Helpers
 
   ERROR_TIMEOUT = 5
   ERROR_THRESHOLD = 1

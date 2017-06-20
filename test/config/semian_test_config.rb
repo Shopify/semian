@@ -1,6 +1,6 @@
 require 'yaml'
 
-class Config
+class SemianTestConfig
   CONFIG_FILE = File.expand_path('../hosts.yml', __FILE__)
 
   class << self
@@ -20,7 +20,7 @@ class Config
       end
 
       def define_helper_methods(service)
-        keys = Config[service].keys
+        keys = SemianTestConfig[service].keys
         keys.each { |attr| define_helper_method(service, attr) }
       end
 
@@ -28,11 +28,11 @@ class Config
 
       def define_helper_method(service, attribute)
         self.__send__(:define_method, "#{service}_#{attribute}") do
-          Config[service].fetch(attribute)
+          SemianTestConfig[service].fetch(attribute)
         end
       end
     end
 
-    Config.all.keys.each { |service| define_helper_methods(service) }
+    SemianTestConfig.all.keys.each { |service| define_helper_methods(service) }
   end
 end

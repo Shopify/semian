@@ -3,7 +3,7 @@ require 'semian/net_http'
 require 'thin'
 
 class TestNetHTTP < Minitest::Test
-  include Config::Helpers
+  include SemianTestConfig::Helpers
 
   class RackServer
     def self.call(env)
