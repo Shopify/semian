@@ -327,7 +327,7 @@ class TestNetHTTP < Minitest::Test
 
     with_semian_configuration(options) do
       with_server do
-        http = Net::HTTP.new(HOSTNAME, PORT)
+        http = Net::HTTP.new(server_host, server_port)
         http.raw_semian_options[:error_threshold].times do
           http.get("/500")
         end
@@ -341,7 +341,7 @@ class TestNetHTTP < Minitest::Test
   def test_5xxs_dont_raise_exceptions_unless_fatal_server_flag_enabled
     with_semian_configuration do
       with_server do
-        http = Net::HTTP.new(HOSTNAME, PORT)
+        http = Net::HTTP.new(server_host, server_port)
         http.raw_semian_options[:error_threshold].times do
           http.get("/500")
         end
