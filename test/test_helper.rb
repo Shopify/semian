@@ -16,28 +16,32 @@ require 'config/config'
 
 Semian.logger = Logger.new(nil)
 
-Toxiproxy.host = URI::HTTP.build(
-  host: Config['toxiproxy']['host'],
-  port: Config['toxiproxy']['port']
-)
+class ToxiproxyConfig
+  include Config::Helpers
 
-Toxiproxy.populate([
-  {
-    name: 'semian_test_mysql',
-    upstream: "#{Config['mysql']['host']}:#{Config['mysql']['port']}",
-    listen: "#{Config['toxiproxy']['host']}:#{Config['mysql']['toxic_port']}",
-  },
-  {
-    name: 'semian_test_redis',
-    upstream: "#{Config['redis']['host']}:#{Config['redis']['port']}",
-    listen: "#{Config['toxiproxy']['host']}:#{Config['redis']['toxic_port']}",
-  },
-  {
-    name: 'semian_test_net_http',
-    upstream: "#{Config['server']['host']}:#{Config['server']['port']}",
-    listen: "#{Config['toxiproxy']['host']}:#{Config['server']['toxic_port']}",
-  },
-])
+  Toxiproxy.host = URI::HTTP.build(
+    host: toxiproxy_host,
+    port: toxiproxy_port
+  )
+
+  Toxiproxy.populate([
+    {
+      name: 'semian_test_mysql',
+      upstream: "#{mysql_host}:#{mysql_port}",
+      listen: "#{toxiproxy_host}:#{mysql_toxic_port}",
+    },
+    {
+      name: 'semian_test_redis',
+      upstream: "#{redis_host}:#{redis_port}",
+      listen: "#{toxiproxy_host}:#{redis_toxic_port}",
+    },
+    {
+      name: 'semian_test_net_http',
+      upstream: "#{server_host}:#{server_port}",
+      listen: "#{toxiproxy_host}:#{server_toxic_port}",
+    },
+  ])
+end
 
 class Minitest::Test
   include BackgroundHelper

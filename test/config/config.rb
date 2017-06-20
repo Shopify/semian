@@ -14,11 +14,11 @@ class Config
   end
 
   module Helpers
-    def self.included(clazz)
-      clazz.extend(Helpers)
-    end
-
     class << self
+      def included(clazz)
+        clazz.extend(Helpers)
+      end
+
       def define_helper_methods(service)
         keys = Config[service].keys
         keys.each { |attr| define_helper_method(service, attr) }
