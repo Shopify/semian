@@ -12,22 +12,29 @@ require 'helpers/circuit_breaker_helper'
 require 'helpers/resource_helper'
 require 'helpers/adapter_helper'
 
+require 'mkmf'
+def network_host
+  return "192.168.64.96" if File.exists?("/opt/dev/dev.sh")
+  "127.0.0.1"
+end
+
 Semian.logger = Logger.new(nil)
+Toxiproxy.host = "http://#{network_host}:8474"
 Toxiproxy.populate([
   {
     name: 'semian_test_mysql',
-    upstream: 'localhost:3306',
-    listen: 'localhost:13306',
+    upstream: "#{network_host}:3306",
+    listen: "#{network_host}:13306",
   },
   {
     name: 'semian_test_redis',
-    upstream: 'localhost:6379',
-    listen: 'localhost:16379',
+    upstream: "#{network_host}:6379",
+    listen: "#{network_host}:16379",
   },
   {
     name: 'semian_test_net_http',
-    upstream: 'localhost:31050',
-    listen: 'localhost:31051',
+    upstream: "#{network_host}:31050",
+    listen: "#{network_host}:31051",
   },
 ])
 

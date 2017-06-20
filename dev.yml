@@ -1,0 +1,18 @@
+---
+name: semian
+up:
+  - ruby: 2.3.3
+  - bundler
+  - railgun
+commands:
+  test: bundle exec rake test
+railgun:
+  image: dev:railgun-common-services-0.2.x
+  services:
+    redis:         6379
+    mysql:         3306
+    toxiproxy:     8474
+  ip_address: 192.168.64.96
+  memory: 2G
+  cores: 2
+  disk: 2G

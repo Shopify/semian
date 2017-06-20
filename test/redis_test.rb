@@ -20,7 +20,7 @@ class TestRedis < Minitest::Test
 
   def test_semian_identifier
     assert_equal :redis_foo, new_redis(semian: {name: 'foo'}).client.semian_identifier
-    assert_equal :'redis_127.0.0.1:16379/1', new_redis(semian: {name: nil}).client.semian_identifier
+    assert_equal "redis_#{network_host}:16379/1".to_sym, new_redis(semian: {name: nil}).client.semian_identifier
     assert_equal :'redis_example.com:42/1', new_redis(host: 'example.com', port: 42, semian: {name: nil}).client.semian_identifier
   end
 
@@ -220,7 +220,7 @@ class TestRedis < Minitest::Test
   def new_redis(options = {})
     semian_options = SEMIAN_OPTIONS.merge(options.delete(:semian) || {})
     Redis.new({
-      host: '127.0.0.1',
+      host: network_host,
       port: 16_379,
       reconnect_attempts: 0,
       db: 1,
