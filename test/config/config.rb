@@ -4,23 +4,35 @@ class Config
   CONFIG_FILE = File.expand_path('../hosts.yml', __FILE__)
 
   class << self
-    def host_for(service)
-      config_for(service).fetch('host') 
+    def [](service)
+      all.fetch(service)
     end
 
-    def port_for(service)
-      config_for(service).fetch('port') 
+    def all
+      @entries ||= YAML.load_file(CONFIG_FILE)
+    end
+  end
+
+  module Helpers
+    def self.included(clazz)
+      clazz.extend(Helpers)
     end
 
-    def toxic_port_for(service)
-      config_for(service).fetch('toxic_port') 
+    class << self
+      def define_helper_methods(service)
+        keys = Config[service].keys
+        keys.each { |attr| define_helper_method(service, attr) }
+      end
+
+      private
+
+      def define_helper_method(service, attribute)
+        self.__send__(:define_method, "#{service}_#{attribute}") do
+          Config[service].fetch(attribute)
+        end
+      end
     end
 
-    private
-
-    def config_for(service)
-      @yaml ||= YAML.load_file(CONFIG_FILE)
-      @yaml.fetch(service) 
-    end
+    Config.all.keys.each { |service| define_helper_methods(service) }
   end
 end

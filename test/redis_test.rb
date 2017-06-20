@@ -1,6 +1,8 @@
 require 'test_helper'
 
 class TestRedis < Minitest::Test
+  include Config::Helpers
+
   ERROR_TIMEOUT = 5
   ERROR_THRESHOLD = 1
   SEMIAN_OPTIONS = {
@@ -220,8 +222,8 @@ class TestRedis < Minitest::Test
   def new_redis(options = {})
     semian_options = SEMIAN_OPTIONS.merge(options.delete(:semian) || {})
     Redis.new({
-      host: Config.host_for('toxiproxy'),
-      port: Config.toxic_port_for('redis'),
+      host: toxiproxy_host,
+      port: redis_toxic_port,
       reconnect_attempts: 0,
       db: 1,
       timeout: 0.5,

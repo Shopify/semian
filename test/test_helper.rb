@@ -17,25 +17,25 @@ require 'config/config'
 Semian.logger = Logger.new(nil)
 
 Toxiproxy.host = URI::HTTP.build(
-  host: Config.host_for('toxiproxy'),
-  port: Config.port_for('toxiproxy')
+  host: Config['toxiproxy']['host'],
+  port: Config['toxiproxy']['port']
 )
 
 Toxiproxy.populate([
   {
     name: 'semian_test_mysql',
-    upstream: "#{Config.host_for('mysql')}:#{Config.port_for('mysql')}",
-    listen: "#{Config.host_for('toxiproxy')}:#{Config.toxic_port_for('mysql')}",
+    upstream: "#{Config['mysql']['host']}:#{Config['mysql']['port']}",
+    listen: "#{Config['toxiproxy']['host']}:#{Config['mysql']['toxic_port']}",
   },
   {
     name: 'semian_test_redis',
-    upstream: "#{Config.host_for('redis')}:#{Config.port_for('redis')}",
-    listen: "#{Config.host_for('toxiproxy')}:#{Config.toxic_port_for('redis')}",
+    upstream: "#{Config['redis']['host']}:#{Config['redis']['port']}",
+    listen: "#{Config['toxiproxy']['host']}:#{Config['redis']['toxic_port']}",
   },
   {
     name: 'semian_test_net_http',
-    upstream: "#{Config.host_for('library')}:#{Config.port_for('library')}",
-    listen: "#{Config.host_for('toxiproxy')}:#{Config.toxic_port_for('library')}",
+    upstream: "#{Config['server']['host']}:#{Config['server']['port']}",
+    listen: "#{Config['toxiproxy']['host']}:#{Config['server']['toxic_port']}",
   },
 ])
 
