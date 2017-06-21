@@ -1,8 +1,6 @@
 require 'test_helper'
 
 class TestMysql2 < Minitest::Test
-  include SemianTestConfig::Helpers
-
   ERROR_TIMEOUT = 5
   ERROR_THRESHOLD = 1
   SEMIAN_OPTIONS = {
@@ -28,8 +26,8 @@ class TestMysql2 < Minitest::Test
 
   def test_semian_can_be_disabled
     resource = Mysql2::Client.new(
-      host: toxiproxy_host,
-      port: mysql_toxic_port,
+      host: SemianConfig['toxiproxy_host'],
+      port: SemianConfig['mysql_toxic_port'],
       semian: false).semian_resource
 
     assert_instance_of Semian::UnprotectedResource, resource
@@ -258,8 +256,8 @@ class TestMysql2 < Minitest::Test
 
   def test_unconfigured
     client = Mysql2::Client.new(
-      host: toxiproxy_host,
-      port: mysql_toxic_port,
+      host: SemianConfig['toxiproxy_host'],
+      port: SemianConfig['mysql_toxic_port'],
     )
 
     assert_equal 2, client.query('SELECT 1 + 1 as sum;').to_a.first['sum']
@@ -291,8 +289,8 @@ class TestMysql2 < Minitest::Test
     Mysql2::Client.new(
       connect_timeout: 1,
       read_timeout: 1,
-      host: toxiproxy_host,
-      port: mysql_toxic_port,
+      host: SemianConfig['toxiproxy_host'],
+      port: SemianConfig['mysql_toxic_port'],
       semian: SEMIAN_OPTIONS.merge(semian_options),
     )
   end
