@@ -26,7 +26,7 @@ class TestMysql2 < Minitest::Test
 
   def test_semian_can_be_disabled
     resource = Mysql2::Client.new(
-      host: SemianConfig['toxiproxy_host'],
+      host: SemianConfig['toxiproxy_upstream_host'],
       port: SemianConfig['mysql_toxic_port'],
       semian: false).semian_resource
 
@@ -256,7 +256,7 @@ class TestMysql2 < Minitest::Test
 
   def test_unconfigured
     client = Mysql2::Client.new(
-      host: SemianConfig['toxiproxy_host'],
+      host: SemianConfig['toxiproxy_upstream_host'],
       port: SemianConfig['mysql_toxic_port'],
     )
 
@@ -289,7 +289,7 @@ class TestMysql2 < Minitest::Test
     Mysql2::Client.new(
       connect_timeout: 1,
       read_timeout: 1,
-      host: SemianConfig['toxiproxy_host'],
+      host: SemianConfig['toxiproxy_upstream_host'],
       port: SemianConfig['mysql_toxic_port'],
       semian: SEMIAN_OPTIONS.merge(semian_options),
     )
