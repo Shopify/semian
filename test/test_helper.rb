@@ -34,8 +34,8 @@ Toxiproxy.populate([
   },
   {
     name: 'semian_test_net_http',
-    upstream: "#{SemianConfig['server_host']}:#{SemianConfig['server_port']}",
-    listen: "#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['server_toxiproxy_port']}",
+    upstream: "#{SemianConfig['http_host']}:#{SemianConfig['http_port']}",
+    listen: "#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['http_toxiproxy_port']}",
   },
 ])
 
