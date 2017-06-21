@@ -25,17 +25,17 @@ Toxiproxy.populate([
   {
     name: 'semian_test_mysql',
     upstream: "#{SemianConfig['mysql_host']}:#{SemianConfig['mysql_port']}",
-    listen: "#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['mysql_toxic_port']}",
+    listen: "#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['mysql_toxiproxy_port']}",
   },
   {
     name: 'semian_test_redis',
     upstream: "#{SemianConfig['redis_host']}:#{SemianConfig['redis_port']}",
-    listen: "#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['redis_toxic_port']}",
+    listen: "#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['redis_toxiproxy_port']}",
   },
   {
     name: 'semian_test_net_http',
     upstream: "#{SemianConfig['server_host']}:#{SemianConfig['server_port']}",
-    listen: "#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['server_toxic_port']}",
+    listen: "#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['server_toxiproxy_port']}",
   },
 ])
 
