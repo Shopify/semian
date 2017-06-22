@@ -1,3 +1,13 @@
+# v0.7.1
+
+*  Feature: Add the behaviour to enable open circuiting on 5xxs conditionally  (#149)
+*  Refactor: Configurable hosts for Semian's development dependencies (#152)
+
+# v0.7.0
+
+* Thread-safety for circuit breakers by default (#150)
+* Fix bug where calling name on a protected resource without a semaphore would fail (#151)
+
 # v0.6.2
 
 *  Refactor: Refactor semian ticket management into its own files (#116)

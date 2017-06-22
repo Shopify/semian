@@ -259,6 +259,18 @@ Semian::NetHTTP.exceptions += [::OpenSSL::SSL::SSLError]
 Semian::NetHTTP.reset_exceptions
 # assert_equal(Semian::NetHTTP.exceptions, Semian::NetHTTP::DEFAULT_ERRORS)
 ```
+##### Mark Unsuccessful Responses as Failures
+Unsuccessful responses (e.g. 5xx responses) do not raise exceptions, and as such are not marked as failures by default. The `open_circuit_server_errors` Semian configuration parameter may be set to enable this behaviour, to mark unsuccessful responses as failures as seen below:
+
+```ruby
+SEMIAN_PARAMETERS = { tickets: 1,
+                      success_threshold: 1,
+                      error_threshold: 3,
+                      error_timeout: 10,
+                      open_circuit_server_errors: true}
+```
+
+
 
 # Understanding Semian
 
