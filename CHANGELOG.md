@@ -1,3 +1,7 @@
+# Unreleased
+
+* Feature: Include time spend waiting for bulkhead in notification (#154)
+
 # v0.7.1
 
 *  Feature: Add the behaviour to enable open circuiting on 5xxs conditionally  (#149)
