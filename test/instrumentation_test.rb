@@ -38,6 +38,18 @@ class TestInstrumentation < Minitest::Test
     end
   end
 
+  def test_success_instrumentation_wait_time
+    hit = false
+    subscription = Semian.subscribe do |*_, wait_time:|
+      hit = true
+      assert(wait_time.is_a?(Integer))
+    end
+    Semian[:testing].acquire {}
+    assert(hit)
+  ensure
+    Semian.unsubscribe(subscription)
+  end
+
   def test_success_instrumentation_when_unknown_exceptions_occur
     assert_notify(:success) do
       assert_raises RuntimeError do

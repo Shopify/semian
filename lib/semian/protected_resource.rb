@@ -46,14 +46,20 @@ module Semian
       if @bulkhead.nil?
         yield self
       else
+        acquisition_start = current_milliseconds
         @bulkhead.acquire(timeout: timeout) do
-          Semian.notify(:success, self, scope, adapter)
+          wait_time = current_milliseconds - acquisition_start
+          Semian.notify(:success, self, scope, adapter, wait_time: wait_time)
           yield self
         end
       end
     rescue ::Semian::TimeoutError
       Semian.notify(:busy, self, scope, adapter)
       raise
+    end
+
+    def current_milliseconds
+      (Process.clock_gettime(Process::CLOCK_MONOTONIC) * 1000).to_i
     end
   end
 end
