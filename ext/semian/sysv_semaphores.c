@@ -211,7 +211,7 @@ wait_for_new_semaphore_set(key_t key, long permissions)
   for (i = 0; i < ((INTERNAL_TIMEOUT * MICROSECONDS_IN_SECOND) / INIT_WAIT); i++) {
 
     if (semctl(sem_id, 0, IPC_STAT, sem_opts) == -1) {
-      raise_semian_syscall_error("semget()", errno);
+      raise_semian_syscall_error("semctl()", errno);
     }
 
     // If a semop has been performed by someone else, the values must be initialized
