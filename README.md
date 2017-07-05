@@ -133,7 +133,7 @@ Semian's circuit breaker implementation is thread-safe by default as of
 `v0.7.0`. If you'd like to disable it for performance reasons, pass
 `thread_safety_disabled: true` to the resource options.
 
-Bulkheads should be disabled (pass `tickets: false`) in a threaded environment
+Bulkheads should be disabled (pass `bulkhead: false`) in a threaded environment
 (e.g. Puma or Sidekiq), but can safely be enabled in non-threaded environments
 (e.g. Resque and Unicorn). As described in this document, circuit breakers alone
 should be adequate in most environments with reasonably low timeouts.
