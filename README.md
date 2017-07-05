@@ -645,7 +645,7 @@ coordinate access to a resource. The semaphore is only shared within the
 this leaves the bulkheading pattern effectively useless. We recommend sharing
 the IPC namespace between all containers on your host for the best ticket
 economy. If you are using Docker, this can be done with the [--ipc
-flag](https://docs.docker.com/reference/run/#ipc-settings).
+flag](https://docs.docker.com/engine/reference/run/#ipc-settings-ipc).
 
 **Why isn't resource access shared across the entire cluster?** This implies a
 coordination data store. Semian would have to be resilient to failures of this
