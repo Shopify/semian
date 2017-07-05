@@ -1,5 +1,6 @@
 # Unreleased
 
+* Feature: Use prepend when monkey-patching Net::HTTP. (#157)
 * Feature: Include time spend waiting for bulkhead in notification (#154)
 
 # v0.7.1
