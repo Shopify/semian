@@ -43,15 +43,6 @@ module Semian
       ::SystemCallError, # includes ::Errno::EINVAL, ::Errno::ECONNRESET, ::Errno::ECONNREFUSED, ::Errno::ETIMEDOUT, and more
     ].freeze # Net::HTTP can throw many different errors, this tries to capture most of them
 
-    # The naked methods are exposed as `raw_query` and `raw_connect` for instrumentation purpose
-    def self.included(base)
-      base.send(:alias_method, :raw_transport_request, :transport_request)
-      base.send(:remove_method, :transport_request)
-
-      base.send(:alias_method, :raw_connect, :connect)
-      base.send(:remove_method, :connect)
-    end
-
     class << self
       attr_accessor :exceptions
       attr_reader :semian_configuration
@@ -88,26 +79,26 @@ module Semian
     end
 
     def connect
-      return raw_connect if disabled?
-      acquire_semian_resource(adapter: :http, scope: :connection) { raw_connect }
+      return super if disabled?
+      acquire_semian_resource(adapter: :http, scope: :connection) { super }
     end
 
-    def transport_request(req, &block)
-      return raw_transport_request(req, &block) if disabled?
+    def transport_request(*)
+      return super if disabled?
       acquire_semian_resource(adapter: :http, scope: :query) do
-        res = raw_transport_request(req, &block)
-        handle_error_responses(res)
-        res
+        handle_error_responses(super)
       end
     end
 
     private
 
-    def handle_error_responses(res)
-      return unless raw_semian_options.fetch(:open_circuit_server_errors, false)
-      semian_resource.mark_failed(res) if res.is_a?(::Net::HTTPServerError)
+    def handle_error_responses(result)
+      if raw_semian_options.fetch(:open_circuit_server_errors, false)
+        semian_resource.mark_failed(result) if result.is_a?(::Net::HTTPServerError)
+      end
+      result
     end
   end
 end
 
-Net::HTTP.include(Semian::NetHTTP)
+Net::HTTP.prepend(Semian::NetHTTP)
