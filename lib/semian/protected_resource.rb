@@ -59,7 +59,7 @@ module Semian
     end
 
     def current_milliseconds
-      (Process.clock_gettime(Process::CLOCK_MONOTONIC) * 1000).to_i
+      Process.clock_gettime(Process::CLOCK_MONOTONIC, :millisecond)
     end
   end
 end
