@@ -10,6 +10,7 @@ Functions here are associated with rubyland operations.
 #include "sysv_semaphores.h"
 
 // Ruby variables
+ID id_wait_time;
 ID id_timeout;
 int system_max_semaphore_count;
 

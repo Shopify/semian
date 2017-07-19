@@ -53,6 +53,7 @@ void Init_semian()
   rb_define_method(cResource, "reset_registered_workers!", semian_resource_reset_workers, 0);
   rb_define_method(cResource, "unregister_worker", semian_resource_unregister_worker, 0);
 
+  id_wait_time = rb_intern("wait_time");
   id_timeout = rb_intern("timeout");
 
   if (semctl(0, 0, SEM_INFO, &info_buf) == -1) {

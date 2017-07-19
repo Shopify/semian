@@ -1,4 +1,5 @@
 #include "sysv_semaphores.h"
+#include <time.h>
 
 static key_t
 generate_key(const char *name);
@@ -11,6 +12,9 @@ wait_for_new_semaphore_set(key_t key, long permissions);
 
 static void
 initialize_new_semaphore_values(int sem_id, long permissions);
+
+static long
+diff_timespec_ms(struct timespec *end, struct timespec *begin);
 
 // Generate string rep for sem indices for debugging puproses
 static const char *SEMINDEX_STRING[] = {
@@ -142,11 +146,20 @@ acquire_semaphore(void *p)
 {
   semian_resource_t *res = (semian_resource_t *) p;
   res->error = 0;
+  res->wait_time = -1;
 #ifdef DEBUG
   print_sem_vals(res->sem_id);
 #endif
+
+  struct timespec begin, end;
+  int benchmark_result = clock_gettime(CLOCK_MONOTONIC, &begin);
   if (perform_semop(res->sem_id, SI_SEM_TICKETS, -1, SEM_UNDO, &res->timeout) == -1) {
     res->error = errno;
+  }
+  if (benchmark_result == 0) {
+    if (clock_gettime(CLOCK_MONOTONIC, &end) == 0) {
+      res->wait_time = diff_timespec_ms(&end, &begin);
+    }
   }
   return NULL;
 }
@@ -230,4 +243,12 @@ wait_for_new_semaphore_set(key_t key, long permissions)
   }
 
   return sem_id;
+}
+
+static long
+diff_timespec_ms(struct timespec *end, struct timespec *begin)
+{
+  long end_ms = (end->tv_sec * 1e3) + (end->tv_nsec / 1e6);
+  long begin_ms = (begin->tv_sec * 1e3) + (begin->tv_nsec / 1e6);
+  return end_ms - begin_ms;
 }

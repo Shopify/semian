@@ -63,7 +63,12 @@ semian_resource_acquire(int argc, VALUE *argv, VALUE self)
     }
   }
 
-  return rb_ensure(rb_yield, self, cleanup_semian_resource_acquire, self);
+  VALUE wait_time = Qnil;
+  if (res.wait_time >= 0) {
+    wait_time = LONG2NUM(res.wait_time);
+  }
+
+  return rb_ensure(rb_yield, wait_time, cleanup_semian_resource_acquire, self);
 }
 
 VALUE
@@ -219,6 +224,7 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VAL
   ms_to_timespec(c_timeout * 1000, &res->timeout);
   res->name = strdup(c_id_str);
   res->quota = c_quota;
+  res->wait_time = -1;
 
   // Initialize the semaphore set
   initialize_semaphore_set(res, c_id_str, c_permissions, c_tickets, c_quota);
