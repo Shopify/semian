@@ -113,7 +113,7 @@ module Semian
       str = "[#{self.class.name}] State transition from #{@state.value} to #{new_state}."
       str << " success_count=#{@successes.value} error_count=#{@errors.size}"
       str << " success_count_threshold=#{@success_count_threshold} error_count_threshold=#{@error_count_threshold}"
-      str << " error_timeout=#{@error_timeout} error_last_at=\"#{@error_last_at}\""
+      str << " error_timeout=#{@error_timeout} error_last_at=\"#{@errors.last}\""
       Semian.logger.info(str)
     end
   end
