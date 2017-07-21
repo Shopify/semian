@@ -35,6 +35,7 @@ typedef struct {
   uint64_t key;
   char *strkey;
   char *name;
+  long wait_time;
 } semian_resource_t;
 
 #endif // SEMIAN_TYPES_H
