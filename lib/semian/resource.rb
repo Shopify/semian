@@ -28,7 +28,8 @@ module Semian
     end
 
     def acquire(*)
-      yield self
+      wait_time = 0
+      yield wait_time
     end
 
     def count
