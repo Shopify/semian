@@ -20,11 +20,11 @@ union semun {
                              (Linux-specific) */
 };
 
-// To update the ticket count
 typedef struct {
   int sem_id;
   int tickets;
-} update_ticket_count_t;
+  double quota;
+} configure_tickets_args_t;
 
 // Internal semaphore structure
 typedef struct {

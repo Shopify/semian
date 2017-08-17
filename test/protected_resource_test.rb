@@ -112,4 +112,43 @@ class TestProtectedResource < Minitest::Test
     assert_equal :no_bulkhead, Semian[:no_bulkhead].name
     assert_equal :no_circuit_breaker, Semian[:no_circuit_breaker].name
   end
+
+  def test_gracefully_fails_when_unable_to_decrement_ticket_count
+    reader, writer = IO.pipe
+    my_exception = Class.new(StandardError)
+    name = :"contended_resource_#{SecureRandom.hex}"
+    options = {
+      bulkhead: true,
+      circuit_breaker: false,
+    }
+
+    workers = [1, 2].map do
+      Process.fork do
+        Semian.register(name, tickets: 2, **options).acquire do
+          Signal.trap("INT") do
+            raise(my_exception)
+          end
+          begin
+            writer.write("\n")
+            sleep
+          rescue my_exception
+          end
+        end
+      end
+    end
+
+    reader.read(2)
+
+    assert_raises(Semian::TimeoutError) do
+      Semian.register(name, tickets: 1, **options)
+    end
+
+    Process.kill("INT", workers.shift)
+
+    Semian.register(name, tickets: 1, **options)
+  ensure
+    workers.each do |pid|
+      Process.kill("INT", pid)
+    end if workers
+  end
 end
