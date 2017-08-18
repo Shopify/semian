@@ -63,9 +63,23 @@ initialize_semaphore_set(semian_resource_t* res, const char* id_str, long permis
     rb_raise(eInternal, "error incrementing registered workers, errno: %d (%s)", errno, strerror(errno));
   }
 
+  int state = 0;
   sem_meta_lock(res->sem_id); // Sets otime for the first time by acquiring the sem lock
-  configure_tickets(res->sem_id, tickets,  quota);
+
+  configure_tickets_args_t configure_tickets_args = (configure_tickets_args_t){
+    .sem_id = res->sem_id,
+    .tickets = tickets,
+    .quota = quota,
+  };
+  rb_protect(
+    configure_tickets,
+    (VALUE)&configure_tickets_args,
+    &state);
+
   sem_meta_unlock(res->sem_id);
+  if (state) {
+    rb_jump_tag(state);
+  }
 }
 
 void

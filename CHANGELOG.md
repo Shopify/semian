@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix: Protect internal semaphore when adjusting resource count (#164)
 * Feature: Use prepend when monkey-patching Net::HTTP. (#157)
 * Feature: Include time spend waiting for bulkhead in notification (#154)
 

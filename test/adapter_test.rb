@@ -73,7 +73,7 @@ class TestSemianAdapter < Minitest::Test
     weak_ref = Semian.consumers[identifier].first
     assert_equal(true, weak_ref.weakref_alive?)
 
-    GC.start
+    GC.start(full_mark: true, immediate_sweep: true)
 
     assert_nil weak_ref.weakref_alive?
 
