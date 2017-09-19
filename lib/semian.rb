@@ -249,7 +249,7 @@ module Semian
   end
 
   def create_bulkhead(name, **options)
-    bulkhead = options.fetch(:bulkhead, true)
+    bulkhead = options.fetch(:bulkhead, false)
     return unless bulkhead
 
     permissions = options[:permissions] || 0660
