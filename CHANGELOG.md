@@ -1,4 +1,4 @@
-# Unreleased
+# v0.7.2
 
 * Fix: Protect internal semaphore when adjusting resource count (#164)
 * Feature: Use prepend when monkey-patching Net::HTTP. (#157)
