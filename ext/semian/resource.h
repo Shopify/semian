@@ -14,6 +14,13 @@ ID id_wait_time;
 ID id_timeout;
 int system_max_semaphore_count;
 
+struct semctl_args {
+  int semid;
+  int semnum;
+  int semcmd;
+  int args_count;
+};
+
 /*
  * call-seq:
  *    Semian::Resource.new(id, tickets, quota, permissions, default_timeout) -> resource

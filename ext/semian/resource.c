@@ -24,6 +24,12 @@ check_default_timeout_arg(VALUE default_timeout);
 static void
 ms_to_timespec(long ms, struct timespec *ts);
 
+static void *
+semctl_without_gvl0(void *args);
+
+static int
+semctl_without_gvl(int semid, int semnum, int cmd, ...);
+
 static const rb_data_type_t
 semian_resource_type;
 
@@ -88,7 +94,7 @@ semian_resource_destroy(VALUE self)
     }
   }
 
-  if (semctl(res->sem_id, SI_NUM_SEMAPHORES, IPC_RMID) == -1) {
+  if (semctl_without_gvl(res->sem_id, SI_NUM_SEMAPHORES, IPC_RMID) == -1) {
     raise_semian_syscall_error("semctl()", errno);
   }
 
@@ -105,7 +111,7 @@ semian_resource_reset_workers(VALUE self)
 
   sem_meta_lock(res->sem_id);
   // This SETVAL will purge the SEM_UNDO table
-  ret = semctl(res->sem_id, SI_SEM_REGISTERED_WORKERS, SETVAL, 0);
+  ret = semctl_without_gvl(res->sem_id, SI_SEM_REGISTERED_WORKERS, SETVAL, 0);
   sem_meta_unlock(res->sem_id);
 
   if (ret == -1) {
@@ -145,7 +151,7 @@ semian_resource_count(VALUE self)
   semian_resource_t *res = NULL;
 
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
-  ret = semctl(res->sem_id, SI_SEM_TICKETS, GETVAL);
+  ret = semctl_without_gvl(res->sem_id, SI_SEM_TICKETS, GETVAL);
   if (ret == -1) {
     raise_semian_syscall_error("semctl()", errno);
   }
@@ -160,7 +166,7 @@ semian_resource_tickets(VALUE self)
   semian_resource_t *res = NULL;
 
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
-  ret = semctl(res->sem_id, SI_SEM_CONFIGURED_TICKETS, GETVAL);
+  ret = semctl_without_gvl(res->sem_id, SI_SEM_CONFIGURED_TICKETS, GETVAL);
   if (ret == -1) {
     raise_semian_syscall_error("semctl()", errno);
   }
@@ -175,7 +181,7 @@ semian_resource_workers(VALUE self)
   semian_resource_t *res = NULL;
 
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
-  ret = semctl(res->sem_id, SI_SEM_REGISTERED_WORKERS, GETVAL);
+  ret = semctl_without_gvl(res->sem_id, SI_SEM_REGISTERED_WORKERS, GETVAL);
   if (ret == -1) {
     raise_semian_syscall_error("semctl()", errno);
   }
@@ -378,3 +384,28 @@ semian_resource_type = {
   },
   NULL, NULL, RUBY_TYPED_FREE_IMMEDIATELY
 };
+
+static int
+semctl_without_gvl(int semid, int semnum, int cmd, ...)
+{
+  va_list ar;
+  struct semctl_args args;
+
+  args.semid = semid;
+  args.semnum = semnum;
+  args.semcmd = cmd;
+  args.args_count = 3;
+  va_start(ar, cmd);
+  if (va_arg(ar, int) == 0) args.args_count = 4;
+  va_end(ar);
+
+  return (int)(intptr_t)WITHOUT_GVL(semctl_without_gvl0, (void *)&args, RUBY_UBF_IO, NULL);
+}
+
+static void *
+semctl_without_gvl0(void *args)
+{
+  struct semctl_args *sargs = (struct semctl_args *)args;
+  if (sargs->args_count == 3) return (void *)(intptr_t)semctl(sargs->semid, sargs->semnum, sargs->semcmd);
+  return (void *)(intptr_t)semctl(sargs->semid, sargs->semnum, sargs->semcmd, 0);
+}
