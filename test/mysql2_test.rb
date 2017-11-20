@@ -56,6 +56,31 @@ class TestMysql2 < Minitest::Test
     end
   end
 
+  def test_read_timeout_error_open_the_circuit
+    client = connect_to_mysql!
+
+    (ERROR_THRESHOLD).times do
+      assert_raises Mysql2::Error do
+        # Should raise an exception like -
+        # Mysql2::Error Exception: [mysql_testing] Timeout waiting for a response from the last query. (waited 2 seconds)
+        client.query('SELECT sleep(5)')
+      end
+    end
+
+    assert_raises Mysql2::CircuitOpenError do
+      client.query('SELECT sleep(5)')
+    end
+
+    # After Mysql2::CircuitOpenError check regular queries are working fine.
+    query_string = "1 + 1"
+    result = nil
+    Timecop.travel(ERROR_TIMEOUT + 1) do
+      result = client.query("SELECT #{query_string};")
+    end
+
+    assert_equal 2, result.first[query_string]
+  end
+
   def test_connect_instrumentation
     notified = false
     subscriber = Semian.subscribe do |event, resource, scope, adapter|
