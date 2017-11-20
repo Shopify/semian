@@ -29,7 +29,7 @@ module Semian
     )
 
     TIMEOUT_ERROR = Regexp.union(
-      /Timeout waiting for a response/i
+      /Timeout waiting for a response/i,
     )
 
     ResourceBusyError = ::Mysql2::ResourceBusyError
