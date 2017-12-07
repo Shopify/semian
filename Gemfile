@@ -6,5 +6,5 @@ group :debug do
 end
 
 group :development, :test do
-  gem 'rubocop', '~> 0.34.2'
+  gem 'rubocop'
 end
