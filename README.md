@@ -688,7 +688,7 @@ non-IO.
 [nethttp-default-errors]: lib/semian/net_http.rb#L35-L45
 [semian-instrumentable]: lib/semian/instrumentable.rb
 [statsd-instrument]: http://github.com/shopify/statsd-instrument
-[resiliency-blog-post]: http://www.shopify.com/technology/16906928-building-and-testing-resilient-ruby-on-rails-applications
+[resiliency-blog-post]: https://engineering.shopify.com/blogs/engineering/building-and-testing-resilient-ruby-on-rails-applications
 [toxiproxy]: https://github.com/Shopify/toxiproxy
 [sysv]: http://man7.org/linux/man-pages/man7/svipc.7.html
 [cbp]: https://en.wikipedia.org/wiki/Circuit_breaker_design_pattern
