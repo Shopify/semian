@@ -18,7 +18,7 @@ resource access through heuristic patterns inspired by [Hystrix][hystrix] and
 * [**Circuit breaker**](#circuit-breaker). A pattern for limiting the
   amount of requests to a dependency that is having issues.
 * [**Bulkheading**](#bulkheading). Controlling the concurrent access to
-  a single resource, access is coordinates server-wide with [SysV
+  a single resource, access is coordinated server-wide with [SysV
   semaphores][sysv].
 
 Resource drivers are monkey-patched to be aware of Semian, these are called
