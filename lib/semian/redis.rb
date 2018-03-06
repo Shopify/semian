@@ -35,7 +35,7 @@ class Redis
   end
 
   # Compatibility with old versions of the Redis gem
-  unless respond_to?(:_client)
+  unless instance_methods.include?(:_client)
     def _client
       @client
     end
