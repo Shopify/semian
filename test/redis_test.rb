@@ -19,19 +19,19 @@ class TestRedis < Minitest::Test
   end
 
   def test_semian_identifier
-    assert_equal :redis_foo, new_redis(semian: {name: 'foo'}).client.semian_identifier
-    assert_equal :"redis_#{SemianConfig['toxiproxy_upstream_host']}:16379/1", new_redis(semian: {name: nil}).client.semian_identifier
-    assert_equal :'redis_example.com:42/1', new_redis(host: 'example.com', port: 42, semian: {name: nil}).client.semian_identifier
+    assert_equal :redis_foo, new_redis(semian: {name: 'foo'})._client.semian_identifier
+    assert_equal :"redis_#{SemianConfig['toxiproxy_upstream_host']}:16379/1", new_redis(semian: {name: nil})._client.semian_identifier
+    assert_equal :'redis_example.com:42/1', new_redis(host: 'example.com', port: 42, semian: {name: nil})._client.semian_identifier
   end
 
   def test_client_alias
     redis = connect_to_redis!
-    assert_equal redis.client.semian_resource, redis.semian_resource
-    assert_equal redis.client.semian_identifier, redis.semian_identifier
+    assert_equal redis._client.semian_resource, redis.semian_resource
+    assert_equal redis._client.semian_identifier, redis.semian_identifier
   end
 
   def test_semian_can_be_disabled
-    resource = Redis.new(semian: false).client.semian_resource
+    resource = Redis.new(semian: false)._client.semian_resource
     assert_instance_of Semian::UnprotectedResource, resource
   end
 
@@ -99,7 +99,8 @@ class TestRedis < Minitest::Test
   def test_redis_connection_errors_are_tagged_with_the_resource_identifier
     @proxy.downstream(:latency, latency: 600).apply do
       error = assert_raises ::Redis::TimeoutError do
-        connect_to_redis!
+        redis = connect_to_redis!
+        redis.get('foo')
       end
       assert_equal :redis_testing, error.semian_identifier
     end
@@ -231,7 +232,7 @@ class TestRedis < Minitest::Test
 
   def connect_to_redis!(semian_options = {})
     redis = new_redis(semian: semian_options)
-    redis.client.connect
+    redis._client.connect
     redis
   end
 end

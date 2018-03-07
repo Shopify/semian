@@ -23,7 +23,7 @@ class Redis
     # This reference is necessary because during a `pipelined` block the client
     # is replaced by an instance of `Redis::Pipeline` and there is no way to
     # access the original client which references the Semian resource.
-    @original_client = client
+    @original_client = _client
   end
 
   def semian_resource
@@ -32,6 +32,13 @@ class Redis
 
   def semian_identifier
     semian_resource.name
+  end
+
+  # Compatibility with old versions of the Redis gem
+  unless instance_methods.include?(:_client)
+    def _client
+      @client
+    end
   end
 end
 
