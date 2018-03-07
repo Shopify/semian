@@ -1,3 +1,7 @@
+# v0.7.5
+
+* Fix: Repaired compatibility with dependent Redis library
+
 # v0.7.4
 
 * Fix: Protect internal semaphore when adjusting resource count (#164)
