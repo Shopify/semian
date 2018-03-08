@@ -678,6 +678,40 @@ trivial but it works well.
 to going to the network. Don't worry about it unless you're instrumenting
 non-IO.
 
+# Developing Semian
+
+Semian requires a Linux environment.  We provide a [Vagrantfile](Vagrantfile)
+that installs MySQL, Redis and Ruby in an Ubuntu 16.04 virtual machine.  Use
+the steps below to work on Semian from a Mac OS environment.
+
+```bash
+# install Vagrant and VirtualBox
+$ brew cask install vagrant virtualbox
+
+# clone Semian
+$ git clone https://github.com/Shopify/semian.git
+$ cd semian
+
+# build the virtual machine (can take a while for ruby to compile)
+$ vagrant up
+
+# shell in to the virtual machine
+$ vagrant ssh
+
+# start the toxiproxy-server inside the virtual machine
+$ toxiproxy-server > /dev/null &
+# TODO: provide a systemd unit for toxiproxy
+
+# run the tests inside the virtual machine
+$ cd /vagrant && bundle exec rake
+```
+
+Be careful not to run `bundle install` from Mac OS.  The folder is shared with
+the virtual machine and this can overwrite Linux libraries with incompatible Mac
+OS versions.  If you run in to problems with the machine, you can run `vagrant
+up --provision` to execute the provision script again; or you can run `vagrant
+destroy -f && vagrant up` to rebuild it from scratch.
+
 [hystrix]: https://github.com/Netflix/Hystrix
 [release-it]: https://pragprog.com/book/mnee/release-it
 [shopify]: http://www.shopify.com/

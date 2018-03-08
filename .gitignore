@@ -9,3 +9,4 @@ vendor/
 *.swp
 *.swo
 nohup.out
+.vagrant
