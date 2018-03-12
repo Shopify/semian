@@ -49,4 +49,12 @@ class TestSemian < Minitest::Test
   ensure
     ENV.delete('SEMIAN_SEMAPHORES_DISABLED')
   end
+
+  def test_disabled_via_semian_wide_env_var
+    ENV['SEMIAN_DISABLED'] = '1'
+
+    refute Semian.semaphores_enabled?
+  ensure
+    ENV.delete('SEMIAN_DISABLED')
+  end
 end

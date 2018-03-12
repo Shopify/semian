@@ -97,4 +97,20 @@ class TestCircuitBreaker < Minitest::Test
     assert_predicate @resource, :request_allowed?
     assert_predicate @resource, :open?
   end
+
+  def test_env_var_disables_circuit_breaker
+    ENV['SEMIAN_CIRCUIT_BREAKER_DISABLED'] = '1'
+    open_circuit!
+    assert_circuit_closed
+  ensure
+    ENV.delete('SEMIAN_CIRCUIT_BREAKER_DISABLED')
+  end
+
+  def test_semian_wide_env_var_disables_circuit_breaker
+    ENV['SEMIAN_DISABLED'] = '1'
+    open_circuit!
+    assert_circuit_closed
+  ensure
+    ENV.delete('SEMIAN_DISABLED')
+  end
 end

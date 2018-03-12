@@ -19,6 +19,8 @@ module Semian
     end
 
     def acquire
+      return yield if disabled?
+
       half_open if open? && error_timeout_expired?
 
       raise OpenCircuitError unless request_allowed?
@@ -115,6 +117,10 @@ module Semian
       str << " success_count_threshold=#{@success_count_threshold} error_count_threshold=#{@error_count_threshold}"
       str << " error_timeout=#{@error_timeout} error_last_at=\"#{@errors.last}\""
       Semian.logger.info(str)
+    end
+
+    def disabled?
+      ENV['SEMIAN_CIRCUIT_BREAKER_DISABLED'] || ENV['SEMIAN_DISABLED']
     end
   end
 end
