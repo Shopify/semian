@@ -234,7 +234,7 @@ module Semian
   def create_circuit_breaker(name, **options)
     circuit_breaker = options.fetch(:circuit_breaker, true)
     return unless circuit_breaker
-    raise ArgumentError unless required_keys?([:success_threshold, :error_threshold, :error_timeout], options)
+    require_keys!([:success_threshold, :error_threshold, :error_timeout], options)
     implementation = options[:thread_safety_disabled] ? ::Semian::Simple : ::Semian::ThreadSafe
 
     exceptions = options[:exceptions] || []
@@ -257,8 +257,11 @@ module Semian
     Resource.new(name, tickets: options[:tickets], quota: options[:quota], permissions: permissions, timeout: timeout)
   end
 
-  def required_keys?(required = [], **options)
-    required.all? { |key| options.key? key }
+  def require_keys!(required = [], **options)
+    diff = required - options.keys
+    unless diff.empty?
+      raise ArgumentError, "Missing required arguments for Semian: #{diff}"
+    end
   end
 end
 
