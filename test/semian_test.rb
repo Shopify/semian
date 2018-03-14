@@ -15,7 +15,7 @@ class TestSemian < Minitest::Test
   end
 
   def test_register_with_circuit_breaker_missing_options
-    assert_raises ArgumentError, "CI stub" do
+    assert_raises ArgumentError do
       Semian.register(
         :testing,
         error_threshold: 2,
