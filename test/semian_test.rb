@@ -23,7 +23,8 @@ class TestSemian < Minitest::Test
         bulkhead: false,
       )
     end
-    assert_equal exception.message,
+    assert_equal \
+      exception.message,
       "Missing required arguments for Semian: [:success_threshold]"
   end
 
