@@ -1,3 +1,8 @@
+# Unreleased
+
+* Feature: More informative error messages when initializing Semian with missing
+  arguments
+
 # v0.7.5
 
 * Fix: Repaired compatibility with dependent Redis library
