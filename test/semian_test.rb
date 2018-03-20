@@ -15,7 +15,7 @@ class TestSemian < Minitest::Test
   end
 
   def test_register_with_circuit_breaker_missing_options
-    assert_raises ArgumentError do
+    exception = assert_raises ArgumentError do
       Semian.register(
         :testing,
         error_threshold: 2,
@@ -23,15 +23,18 @@ class TestSemian < Minitest::Test
         bulkhead: false,
       )
     end
+    assert_equal exception.message,
+      "Missing required arguments for Semian: [:success_threshold]"
   end
 
   def test_register_with_bulkhead_missing_options
-    assert_raises ArgumentError do
+    exception = assert_raises ArgumentError do
       Semian.register(
         :testing,
         circuit_breaker: false,
       )
     end
+    assert_equal exception.message, "Must pass exactly one of ticket or quota"
   end
 
   def test_unsuported_constants
