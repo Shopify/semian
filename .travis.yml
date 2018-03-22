@@ -10,5 +10,9 @@ rvm:
   - '2.4'
   - '2.5'
 
+gemfile:
+  - gemfiles/mysql2-0-4-10.gemfile
+  - gemfiles/mysql2-0-5-0.gemfile
+
 services:
   - redis-server
