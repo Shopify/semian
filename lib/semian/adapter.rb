@@ -35,9 +35,9 @@ module Semian
         mark_resource_as_acquired(&block)
       end
     rescue ::Semian::OpenCircuitError => error
-      raise self.class::CircuitOpenError.new(semian_identifier, error)
+      raise self.class::CircuitOpenError.new(semian_identifier, error.message)
     rescue ::Semian::BaseError => error
-      raise self.class::ResourceBusyError.new(semian_identifier, error)
+      raise self.class::ResourceBusyError.new(semian_identifier, error.message)
     rescue *resource_exceptions => error
       error.semian_identifier = semian_identifier if error.respond_to?(:semian_identifier=)
       raise
