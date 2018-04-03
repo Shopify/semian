@@ -125,6 +125,12 @@ class TestRedis < Minitest::Test
     end
   end
 
+  def test_connect_resolve_error
+    assert_raises Redis::ResolveError do
+      connect_to_redis!(host: 'thisdoesnotresolve')
+    end
+  end
+
   def test_circuit_breaker_on_connect
     @proxy.downstream(:latency, latency: 500).apply do
       background { connect_to_redis! }
@@ -221,7 +227,7 @@ class TestRedis < Minitest::Test
   def new_redis(options = {})
     semian_options = SEMIAN_OPTIONS.merge(options.delete(:semian) || {})
     Redis.new({
-      host: SemianConfig['toxiproxy_upstream_host'],
+      host: options[:host] || SemianConfig['toxiproxy_upstream_host'],
       port: SemianConfig['redis_toxiproxy_port'],
       reconnect_attempts: 0,
       db: 1,
@@ -231,7 +237,8 @@ class TestRedis < Minitest::Test
   end
 
   def connect_to_redis!(semian_options = {})
-    redis = new_redis(semian: semian_options)
+    host = semian_options.delete(:host)
+    redis = new_redis(host: host, semian: semian_options)
     redis._client.connect
     redis
   end
