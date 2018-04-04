@@ -125,9 +125,19 @@ class TestRedis < Minitest::Test
     end
   end
 
-  def test_connect_resolve_error
-    assert_raises Redis::ResolveError do
+  def test_dns_resolution_failures_open_circuit
+    ERROR_THRESHOLD.times do
+      assert_raises Redis::ResolveError do
+        connect_to_redis!(host: 'thisdoesnotresolve')
+      end
+    end
+
+    assert_raises Redis::CircuitOpenError do
       connect_to_redis!(host: 'thisdoesnotresolve')
+    end
+
+    Timecop.travel(ERROR_TIMEOUT + 1) do
+      connect_to_redis!
     end
   end
 
