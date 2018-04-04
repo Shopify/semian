@@ -4,6 +4,7 @@ require 'redis'
 class Redis
   Redis::BaseConnectionError.include(::Semian::AdapterError)
   ::Errno::EINVAL.include(::Semian::AdapterError)
+  ::SocketError.include(::Semian::AdapterError)
 
   class SemianError < Redis::BaseConnectionError
     def initialize(semian_identifier, *args)
@@ -80,6 +81,7 @@ module Semian
       [
         ::Redis::BaseConnectionError,
         ::Errno::EINVAL, # Hiredis bug: https://github.com/redis/hiredis-rb/issues/21
+        ::SocketError,
       ]
     end
 
