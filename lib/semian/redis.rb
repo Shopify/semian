@@ -14,6 +14,7 @@ class Redis
 
   ResourceBusyError = Class.new(SemianError)
   CircuitOpenError = Class.new(SemianError)
+  ResolveError = Class.new(SemianError)
 
   alias_method :_original_initialize, :initialize
 
@@ -48,6 +49,7 @@ module Semian
 
     ResourceBusyError = ::Redis::ResourceBusyError
     CircuitOpenError = ::Redis::CircuitOpenError
+    ResolveError = ::Redis::ResolveError
 
     # The naked methods are exposed as `raw_query` and `raw_connect` for instrumentation purpose
     def self.included(base)
@@ -71,7 +73,14 @@ module Semian
     end
 
     def connect
-      acquire_semian_resource(adapter: :redis, scope: :connection) { raw_connect }
+      acquire_semian_resource(adapter: :redis, scope: :connection) do
+        begin
+          raw_connect
+        rescue SocketError, RuntimeError => e
+          raise ResolveError.new(semian_identifier) if e.message =~ /(can't resolve)|(name or service not known)/i
+          raise
+        end
+      end
     end
 
     private
