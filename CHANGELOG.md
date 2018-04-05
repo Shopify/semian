@@ -1,7 +1,8 @@
-# Unreleased
+# v0.7.8
 
 * Feature: More informative error messages when initializing Semian with missing
-  arguments
+  arguments (#182)
+* Fix: Redis adapter is now resilient to DNS resolution failures (#184)
 
 # v0.7.5
 
