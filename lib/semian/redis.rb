@@ -12,6 +12,9 @@ class Redis
     end
   end
 
+  class OutOfMemoryError < Redis::CommandError
+  end
+
   ResourceBusyError = Class.new(SemianError)
   CircuitOpenError = Class.new(SemianError)
   ResolveError = Class.new(SemianError)
@@ -69,7 +72,11 @@ module Semian
     end
 
     def io(&block)
-      acquire_semian_resource(adapter: :redis, scope: :query) { raw_io(&block) }
+      acquire_semian_resource(adapter: :redis, scope: :query) do
+        reply = raw_io(&block)
+        raise_if_out_of_memory(reply)
+        reply
+      end
     end
 
     def connect
@@ -89,12 +96,19 @@ module Semian
       [
         ::Redis::BaseConnectionError,
         ::Errno::EINVAL, # Hiredis bug: https://github.com/redis/hiredis-rb/issues/21
+        ::Redis::OutOfMemoryError,
       ]
     end
 
     def raw_semian_options
       return options[:semian] if options.key?(:semian)
       return options['semian'.freeze] if options.key?('semian'.freeze)
+    end
+
+    def raise_if_out_of_memory(reply)
+      return unless reply.is_a?(::Redis::CommandError)
+      return unless reply.message == "OOM command not allowed when used memory > 'maxmemory'."
+      raise ::Redis::OutOfMemoryError.new(reply.message)
     end
   end
 end
