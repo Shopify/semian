@@ -427,7 +427,7 @@ There are three configuration parameters for circuit breakers in Semian:
 
 * **error_threshold**. The amount of errors to encounter for the worker before
   opening the circuit, that is to start rejecting requests instantly.
-* **error_timeout**. The amount of time until trying to query the resource
+* **error_timeout**. The amount of time in seconds until trying to query the resource
   again.
 * **success_threshold**. The amount of successes on the circuit until closing it
   again, that is to start accepting all requests to the circuit.
@@ -484,7 +484,7 @@ something below half the number of workers on the server for endpoints that are
 queried frequently has worked well for us.
 
 * **tickets**. Number of workers that can concurrently access a resource.
-* **timeout**. Time to wait to acquire a ticket if there are no tickets left.
+* **timeout**. Time to wait in seconds to acquire a ticket if there are no tickets left.
   We recommend this to be `0` unless you have very few workers running (i.e.
   less than ~5).
 
