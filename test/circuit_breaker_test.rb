@@ -113,4 +113,72 @@ class TestCircuitBreaker < Minitest::Test
   ensure
     ENV.delete('SEMIAN_DISABLED')
   end
+
+  class RawResource
+    def timeout
+      @timeout || 2
+    end
+
+    def with_resource_timeout(timeout)
+      prev_timeout = @timeout
+      @timeout = timeout
+      yield
+    ensure
+      @timeout = prev_timeout
+    end
+  end
+
+  def test_changes_resource_timeout_when_configured
+    Semian.register(:resource_timeout, tickets: 1, exceptions: [SomeError],
+                                       error_threshold: 2, error_timeout: 5, success_threshold: 1,
+                                       half_open_resource_timeout: 0.123)
+    resource = Semian[:resource_timeout]
+
+    half_open_cicuit!(resource)
+
+    raw_resource = RawResource.new
+
+    triggered = false
+    resource.acquire(resource: raw_resource) do
+      triggered = true
+      assert_equal 0.123, raw_resource.timeout
+    end
+
+    assert triggered
+    assert_equal 2, raw_resource.timeout
+  end
+
+  def test_doesnt_change_resource_timeout_when_closed
+    Semian.register(:resource_timeout, tickets: 1, exceptions: [SomeError],
+                                       error_threshold: 2, error_timeout: 5, success_threshold: 1,
+                                       half_open_resource_timeout: 0.123)
+    resource = Semian[:resource_timeout]
+
+    raw_resource = RawResource.new
+
+    triggered = false
+    resource.acquire(resource: raw_resource) do
+      triggered = true
+      assert_equal 2, raw_resource.timeout
+    end
+
+    assert triggered
+    assert_equal 2, raw_resource.timeout
+  end
+
+  def test_doesnt_blow_up_when_configured_half_open_timeout_but_adapter_doesnt_support
+    Semian.register(:resource_timeout, tickets: 1, exceptions: [SomeError],
+                                       error_threshold: 2, error_timeout: 5, success_threshold: 1,
+                                       half_open_resource_timeout: 0.123)
+    resource = Semian[:resource_timeout]
+
+    raw_resource = Object.new
+
+    triggered = false
+    resource.acquire(resource: raw_resource) do
+      triggered = true
+    end
+
+    assert triggered
+  end
 end

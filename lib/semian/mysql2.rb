@@ -83,6 +83,22 @@ module Semian
       end
     end
 
+    # TODO: write_timeout and connect_timeout can't be configured currently
+    # dynamically, await https://github.com/brianmario/mysql2/pull/955
+    def with_resource_timeout(temp_timeout)
+      prev_read_timeout = @read_timeout
+
+      begin
+        # C-ext reads this directly, writer method will configure
+        # properly on the client but based on my read--this is good enough
+        # until we get https://github.com/brianmario/mysql2/pull/955 in
+        @read_timeout = temp_timeout
+        yield
+      ensure
+        @read_timeout = prev_read_timeout
+      end
+    end
+
     private
 
     def query_whitelisted?(sql, *)
