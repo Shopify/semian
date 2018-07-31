@@ -31,7 +31,7 @@ module Semian
 
     def acquire_semian_resource(scope:, adapter:, &block)
       return yield if resource_already_acquired?
-      semian_resource.acquire(scope: scope, adapter: adapter) do
+      semian_resource.acquire(scope: scope, adapter: adapter, resource: self) do
         mark_resource_as_acquired(&block)
       end
     rescue ::Semian::OpenCircuitError => error

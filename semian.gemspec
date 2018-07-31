@@ -22,6 +22,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'rake', '< 11.0'
   s.add_development_dependency 'timecop'
   s.add_development_dependency 'minitest'
+  s.add_development_dependency 'byebug'
   s.add_development_dependency 'mysql2'
   s.add_development_dependency 'redis'
   s.add_development_dependency 'thin', '~> 1.6.4'

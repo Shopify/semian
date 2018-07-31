@@ -34,7 +34,7 @@ class TestMysql2 < Minitest::Test
   end
 
   def test_connection_errors_open_the_circuit
-    @proxy.downstream(:latency, latency: 1200).apply do
+    @proxy.downstream(:latency, latency: 2200).apply do
       ERROR_THRESHOLD.times do
         assert_raises ::Mysql2::Error do
           connect_to_mysql!
@@ -233,7 +233,7 @@ class TestMysql2 < Minitest::Test
     client = connect_to_mysql!
     client2 = connect_to_mysql!
 
-    @proxy.downstream(:latency, latency: 1000).apply do
+    @proxy.downstream(:latency, latency: 2200).apply do
       background { client2.query('SELECT 1 + 1;') }
 
       ERROR_THRESHOLD.times do
@@ -272,7 +272,7 @@ class TestMysql2 < Minitest::Test
       super
     end
 
-    @proxy.downstream(:latency, latency: 1200).apply do
+    @proxy.downstream(:latency, latency: 2200).apply do
       ERROR_THRESHOLD.times do
         client.ping
       end
@@ -283,12 +283,52 @@ class TestMysql2 < Minitest::Test
     assert_equal ERROR_THRESHOLD, client.instance_variable_get(:@real_pings)
   end
 
+  def test_changes_timeout_when_half_open_and_configured
+    client = connect_to_mysql!(half_open_resource_timeout: 1)
+
+    @proxy.downstream(:latency, latency: 3000).apply do
+      (ERROR_THRESHOLD * 2).times do
+        assert_raises Mysql2::Error do
+          client.query('SELECT 1 + 1;')
+        end
+      end
+    end
+
+    assert_raises Mysql2::CircuitOpenError do
+      client.query('SELECT 1 + 1;')
+    end
+
+    Timecop.travel(ERROR_TIMEOUT + 1) do
+      @proxy.downstream(:latency, latency: 1500).apply do
+        assert_raises Mysql2::Error do
+          client.query('SELECT 1 + 1;')
+        end
+      end
+    end
+
+    Timecop.travel(ERROR_TIMEOUT * 2 + 1) do
+      client.query('SELECT 1 + 1;')
+      client.query('SELECT 1 + 1;')
+
+      # Timeout has reset to the normal 2 seconds now that Circuit is closed
+      @proxy.downstream(:latency, latency: 1500).apply do
+        client.query('SELECT 1 + 1;')
+      end
+    end
+
+    assert_equal 2, client.query_options[:connect_timeout]
+    assert_equal 2, client.query_options[:read_timeout]
+    assert_equal 2, client.query_options[:write_timeout]
+  end
+
   private
 
   def connect_to_mysql!(semian_options = {})
     Mysql2::Client.new(
-      connect_timeout: 1,
-      read_timeout: 1,
+      connect_timeout: 2,
+      read_timeout: 2,
+      write_timeout: 2,
+      reconnect: true,
       host: SemianConfig['toxiproxy_upstream_host'],
       port: SemianConfig['mysql_toxiproxy_port'],
       semian: SEMIAN_OPTIONS.merge(semian_options),

@@ -19,8 +19,8 @@ module Semian
       @circuit_breaker.destroy unless @circuit_breaker.nil?
     end
 
-    def acquire(timeout: nil, scope: nil, adapter: nil)
-      acquire_circuit_breaker(scope, adapter) do
+    def acquire(timeout: nil, scope: nil, adapter: nil, resource: nil)
+      acquire_circuit_breaker(scope, adapter, resource) do
         acquire_bulkhead(timeout, scope, adapter) do
           yield self
         end
@@ -29,11 +29,11 @@ module Semian
 
     private
 
-    def acquire_circuit_breaker(scope, adapter)
+    def acquire_circuit_breaker(scope, adapter, resource)
       if @circuit_breaker.nil?
         yield self
       else
-        @circuit_breaker.acquire do
+        @circuit_breaker.acquire(resource) do
           yield self
         end
       end

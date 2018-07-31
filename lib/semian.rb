@@ -244,6 +244,7 @@ module Semian
       error_threshold: options[:error_threshold],
       error_timeout: options[:error_timeout],
       exceptions: Array(exceptions) + [::Semian::BaseError],
+      half_open_resource_timeout: options[:half_open_resource_timeout],
       implementation: implementation,
     )
   end
