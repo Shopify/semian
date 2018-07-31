@@ -1,3 +1,7 @@
+# v0.8.0
+
+* Feature: Introduce `half_open_resource_timeout` which changes the resource timeout when the circuit is in a half-open state (#188)
+
 # v0.7.8
 
 * Feature: More informative error messages when initializing Semian with missing
