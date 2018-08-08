@@ -27,7 +27,7 @@ module Semian
         @value = :closed
       end
 
-      def half_open
+      def half_open!
         @value = :half_open
       end
 

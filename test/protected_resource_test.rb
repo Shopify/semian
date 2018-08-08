@@ -1,4 +1,5 @@
 require 'test_helper'
+require 'securerandom'
 
 class TestProtectedResource < Minitest::Test
   include CircuitBreakerHelper

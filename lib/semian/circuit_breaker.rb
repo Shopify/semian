@@ -2,7 +2,7 @@ module Semian
   class CircuitBreaker #:nodoc:
     extend Forwardable
 
-    def_delegators :@state, :closed?, :open?, :half_open?
+    def_delegators :@state, :closed?, :open?, :half_open!
 
     attr_reader :name, :half_open_resource_timeout
 
@@ -21,8 +21,7 @@ module Semian
 
     def acquire(resource = nil, &block)
       return yield if disabled?
-
-      half_open if open? && error_timeout_expired?
+      half_open! if half_open?
 
       raise OpenCircuitError unless request_allowed?
 
@@ -38,11 +37,12 @@ module Semian
       result
     end
 
+    def half_open?
+      (open? && error_timeout_expired?) || @state.half_open?
+    end
+
     def request_allowed?
-      closed? ||
-        half_open? ||
-        # The circuit breaker is officially open, but it will transition to half-open on the next attempt.
-        (open? && error_timeout_expired?)
+      closed? || half_open?
     end
 
     def mark_failed(_error)
