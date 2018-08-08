@@ -1,3 +1,8 @@
+# v0.8.1
+
+* Fix: Expose `half_open?` when the circuit state has not transitioned but will. This allows consumers further up the stack to know if the circuit
+is half open.
+
 # v0.8.0
 
 * Feature: Introduce `half_open_resource_timeout` which changes the resource timeout when the circuit is in a half-open state (#188)

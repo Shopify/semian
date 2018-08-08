@@ -27,7 +27,7 @@ class TestSimpleEnum < Minitest::Test
     end
 
     def test_half_open
-      @state.half_open
+      @state.half_open!
       assert @state.half_open?
       assert_equal @state.value, :half_open
     end
