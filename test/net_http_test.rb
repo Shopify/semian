@@ -446,7 +446,7 @@ class TestNetHTTP < Minitest::Test
       uri = URI("http://#{hostname}:#{toxic_port}/200")
       http.raw_semian_options[:error_threshold].times do
         # Cause error error_threshold times so circuit opens
-        Toxiproxy[toxic_name].downstream(:latency, latency: 150).apply do
+        Toxiproxy[toxic_name].downstream(:latency, latency: 500).apply do
           request = Net::HTTP::Get.new(uri)
           assert_raises Net::ReadTimeout do
             http.request(request)
