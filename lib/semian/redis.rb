@@ -13,6 +13,7 @@ class Redis
   end
 
   class OutOfMemoryError < Redis::CommandError
+    include ::Semian::AdapterError
   end
 
   ResourceBusyError = Class.new(SemianError)

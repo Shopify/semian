@@ -73,9 +73,11 @@ class TestRedis < Minitest::Test
 
     with_maxmemory(1) do
       ERROR_THRESHOLD.times do
-        assert_raises ::Redis::OutOfMemoryError do
+        exception = assert_raises ::Redis::OutOfMemoryError do
           client.set('foo', 'bar')
         end
+
+        assert_equal :redis_testing, exception.semian_identifier
       end
 
       assert_raises ::Redis::CircuitOpenError do
