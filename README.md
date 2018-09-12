@@ -721,6 +721,7 @@ destroy -f && vagrant up` to rebuild it from scratch.
 [semian-adapter]: lib/semian/adapter.rb
 [nethttp-semian-adapter]: lib/semian/net_http.rb
 [nethttp-default-errors]: lib/semian/net_http.rb#L35-L45
+[memcached-adapter]: lib/semian/memcached.rb
 [semian-instrumentable]: lib/semian/instrumentable.rb
 [statsd-instrument]: http://github.com/shopify/statsd-instrument
 [resiliency-blog-post]: https://engineering.shopify.com/blogs/engineering/building-and-testing-resilient-ruby-on-rails-applications
