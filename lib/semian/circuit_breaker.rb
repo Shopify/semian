@@ -75,6 +75,10 @@ module Semian
       @state.destroy
     end
 
+    def in_use?
+      @errors.size > 0
+    end
+
     private
 
     def transition_to_close
