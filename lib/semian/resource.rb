@@ -5,7 +5,7 @@ module Semian
     class << Semian::Resource
       # Ensure that there can only be one resource of a given type
       def instance(*args)
-        Semian.resources[args.first] ||= new(*args)
+        Semian.resources[args.first] ||= ProtectedResource.new(args.first, new(*args), nil)
       end
     end
 
