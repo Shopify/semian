@@ -28,6 +28,36 @@ class TestSemian < Minitest::Test
       "Missing required arguments for Semian: [:success_threshold]"
   end
 
+  def test_register_with_thread_safety_enabled
+    resource = Semian.register(
+      :testing,
+      success_threshold: 1,
+      error_threshold: 2,
+      error_timeout: 5,
+      circuit_breaker: true,
+      bulkhead: false,
+      thread_safety_disabled: false,
+    )
+
+    assert resource, Semian[:testing]
+    assert resource.circuit_breaker.state.instance_of?(Semian::ThreadSafe::State)
+  end
+
+  def test_register_with_thread_safety_disabled
+    resource = Semian.register(
+      :testing,
+      success_threshold: 1,
+      error_threshold: 2,
+      error_timeout: 5,
+      circuit_breaker: true,
+      bulkhead: false,
+      thread_safety_disabled: true,
+    )
+
+    assert resource, Semian[:testing]
+    assert resource.circuit_breaker.state.instance_of?(Semian::Simple::State)
+  end
+
   def test_register_with_bulkhead_missing_options
     exception = assert_raises ArgumentError do
       Semian.register(
