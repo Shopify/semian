@@ -54,7 +54,7 @@ class TestSemianAdapter < Minitest::Test
       assert_equal(resource, client.semian_resource)
       Semian.unregister_all_resources
 
-      assert_empty(Semian.resources)
+      assert Semian.resources.empty?
       assert_empty(Semian.consumers)
 
       # The first call to client.semian_resource after unregistering all resources,

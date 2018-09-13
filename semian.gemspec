@@ -29,4 +29,6 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'toxiproxy', '~> 1.0.0'
   s.add_development_dependency 'grpc'
   s.add_development_dependency 'mocha'
+  s.add_development_dependency 'memory_profiler'
+  s.add_development_dependency 'benchmark-ips'
 end
