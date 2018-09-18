@@ -496,6 +496,7 @@ class TestNetHTTP < Minitest::Test
         @proxy = Toxiproxy[:semian_test_net_http]
         yield(hostname, port.to_i)
       ensure
+        server&.stop
         server_thread.kill
         poll_until_gone(hostname: hostname, port: port)
       end
