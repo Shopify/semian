@@ -16,3 +16,4 @@ gemfile:
 
 services:
   - redis-server
+  - memcached
