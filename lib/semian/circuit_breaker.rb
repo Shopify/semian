@@ -2,9 +2,9 @@ module Semian
   class CircuitBreaker #:nodoc:
     extend Forwardable
 
-    def_delegators :@state, :closed?, :open?, :half_open!
+    def_delegators :@state, :closed?, :open?, :half_open?
 
-    attr_reader :name, :half_open_resource_timeout
+    attr_reader :name, :half_open_resource_timeout, :error_timeout, :state
 
     def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, implementation:, half_open_resource_timeout: nil)
       @name = name.to_sym
@@ -21,7 +21,7 @@ module Semian
 
     def acquire(resource = nil, &block)
       return yield if disabled?
-      half_open! if half_open?
+      transition_to_half_open if transition_to_half_open?
 
       raise OpenCircuitError unless request_allowed?
 
@@ -37,33 +37,33 @@ module Semian
       result
     end
 
-    def half_open?
-      (open? && error_timeout_expired?) || @state.half_open?
+    def transition_to_half_open?
+      open? && error_timeout_expired? && !half_open?
     end
 
     def request_allowed?
-      closed? || half_open?
+      closed? || half_open? || transition_to_half_open?
     end
 
     def mark_failed(_error)
       push_time(@errors)
       if closed?
-        open if error_threshold_reached?
+        transition_to_open if error_threshold_reached?
       elsif half_open?
-        open
+        transition_to_open
       end
     end
 
     def mark_success
       return unless half_open?
       @successes.increment
-      close if success_threshold_reached?
+      transition_to_close if success_threshold_reached?
     end
 
     def reset
       @errors.clear
       @successes.reset
-      close
+      transition_to_close
     end
 
     def destroy
@@ -74,20 +74,20 @@ module Semian
 
     private
 
-    def close
+    def transition_to_close
       log_state_transition(:closed)
       @state.close
       @errors.clear
     end
 
-    def open
+    def transition_to_open
       log_state_transition(:open)
       @state.open
     end
 
-    def half_open
+    def transition_to_half_open
       log_state_transition(:half_open)
-      @state.half_open
+      @state.half_open!
       @successes.reset
     end
 

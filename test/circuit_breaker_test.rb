@@ -98,6 +98,36 @@ class TestCircuitBreaker < Minitest::Test
     assert_predicate @resource, :open?
   end
 
+  def test_open_close_open_cycle
+    resource = Semian.register(:open_close, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5, success_threshold: 2)
+
+    half_open_future_travel = -> { Time.now + resource.circuit_breaker.error_timeout + 1 }
+
+    open_circuit!(resource)
+    assert_circuit_opened(resource)
+
+    Timecop.travel(half_open_future_travel.call) do
+      assert_circuit_closed(resource)
+
+      assert resource.half_open?
+      assert_circuit_closed(resource)
+
+      assert resource.closed?
+
+      open_circuit!(resource)
+      assert_circuit_opened(resource)
+
+      Timecop.travel(half_open_future_travel.call) do
+        assert_circuit_closed(resource)
+
+        assert resource.half_open?
+        assert_circuit_closed(resource)
+
+        assert resource.closed?
+      end
+    end
+  end
+
   def test_env_var_disables_circuit_breaker
     ENV['SEMIAN_CIRCUIT_BREAKER_DISABLED'] = '1'
     open_circuit!
