@@ -4,7 +4,8 @@ class TestCircuitBreaker < Minitest::Test
   include CircuitBreakerHelper
 
   def setup
-    Semian.logger = Logger.new(nil)
+    @strio = StringIO.new
+    Semian.logger = Logger.new @strio
     begin
       Semian.destroy(:testing)
     rescue
@@ -21,15 +22,11 @@ class TestCircuitBreaker < Minitest::Test
   end
 
   def test_acquire_raises_circuit_open_error_when_the_circuit_is_open
-    Semian.logger = Logger.new($stderr)
-    out, err = capture_subprocess_io do
-      open_circuit!
-    end
-
+    open_circuit!
     assert_raises Semian::OpenCircuitError do
       @resource.acquire { 1 + 1 }
     end
-    assert_match(/State transition from closed to open/, err)
+    assert_match(/State transition from closed to open/, @strio.string)
   end
 
   def test_after_error_threshold_the_circuit_is_open
@@ -43,14 +40,10 @@ class TestCircuitBreaker < Minitest::Test
   end
 
   def test_until_success_threshold_is_reached_a_single_error_will_reopen_the_circuit
-    Semian.logger = Logger.new($stderr)
-    out, err = capture_subprocess_io do
-      half_open_cicuit!
-      trigger_error!
-    end
-
+    half_open_cicuit!
+    trigger_error!
     assert_circuit_opened
-    assert_match(/State transition from open to half_open/, err)
+    assert_match(/State transition from open to half_open/, @strio.string)
   end
 
   def test_once_success_threshold_is_reached_only_error_threshold_will_open_the_circuit_again
@@ -63,13 +56,9 @@ class TestCircuitBreaker < Minitest::Test
   end
 
   def test_reset_allow_to_close_the_circuit_and_forget_errors
-    Semian.logger = Logger.new($stderr)
-    out, err = capture_subprocess_io do
-      open_circuit!
-      @resource.reset
-    end
-
-    assert_match(/State transition from open to closed/, err)
+    open_circuit!
+    @resource.reset
+    assert_match(/State transition from open to closed/, @strio.string)
     assert_circuit_closed
   end
 
