@@ -19,11 +19,11 @@ module Semian
         value == :half_open
       end
 
-      def open
+      def open!
         @value = :open
       end
 
-      def close
+      def close!
         @value = :closed
       end
 
@@ -32,7 +32,7 @@ module Semian
       end
 
       def reset
-        close
+        close!
       end
 
       def destroy
