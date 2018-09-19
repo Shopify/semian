@@ -36,7 +36,7 @@ Toxiproxy.populate([
   {
     name: 'semian_test_memcached',
     upstream: "#{SemianConfig['memcached_host']}:#{SemianConfig['memcached_port']}",
-    listen: "#{SemianConfig["toxiproxy_upstream_host"]}:#{SemianConfig["memcached_toxiproxy_port"]}",
+    listen: "#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['memcached_toxiproxy_port']}",
   },
   {
     name: 'semian_test_net_http',

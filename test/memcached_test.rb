@@ -23,8 +23,8 @@ class MemcachedTest < Minitest::Test
   end
 
   def test_semian_identifier
-    assert_equal(:memcached_foo, new_memcached(semian: { name: :foo }).semian_identifier)
-    assert_equal(:memcached, new_memcached(semian: { name: nil }).semian_identifier)
+    assert_equal(:memcached_foo, new_memcached(semian: {name: :foo}).semian_identifier)
+    assert_equal(:memcached, new_memcached(semian: {name: nil}).semian_identifier)
   end
 
   def test_query_instrumentation
