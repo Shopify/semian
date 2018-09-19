@@ -4,6 +4,8 @@ class TestCircuitBreaker < Minitest::Test
   include CircuitBreakerHelper
 
   def setup
+    @strio = StringIO.new
+    Semian.logger = Logger.new @strio
     begin
       Semian.destroy(:testing)
     rescue
@@ -24,6 +26,7 @@ class TestCircuitBreaker < Minitest::Test
     assert_raises Semian::OpenCircuitError do
       @resource.acquire { 1 + 1 }
     end
+    assert_match(/State transition from closed to open/, @strio.string)
   end
 
   def test_after_error_threshold_the_circuit_is_open
@@ -40,6 +43,7 @@ class TestCircuitBreaker < Minitest::Test
     half_open_cicuit!
     trigger_error!
     assert_circuit_opened
+    assert_match(/State transition from open to half_open/, @strio.string)
   end
 
   def test_once_success_threshold_is_reached_only_error_threshold_will_open_the_circuit_again
@@ -54,6 +58,7 @@ class TestCircuitBreaker < Minitest::Test
   def test_reset_allow_to_close_the_circuit_and_forget_errors
     open_circuit!
     @resource.reset
+    assert_match(/State transition from open to closed/, @strio.string)
     assert_circuit_closed
   end
 
@@ -101,12 +106,10 @@ class TestCircuitBreaker < Minitest::Test
   def test_open_close_open_cycle
     resource = Semian.register(:open_close, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5, success_threshold: 2)
 
-    half_open_future_travel = -> { Time.now + resource.circuit_breaker.error_timeout + 1 }
-
     open_circuit!(resource)
     assert_circuit_opened(resource)
 
-    Timecop.travel(half_open_future_travel.call) do
+    Timecop.travel(resource.circuit_breaker.error_timeout + 1) do
       assert_circuit_closed(resource)
 
       assert resource.half_open?
@@ -117,7 +120,7 @@ class TestCircuitBreaker < Minitest::Test
       open_circuit!(resource)
       assert_circuit_opened(resource)
 
-      Timecop.travel(half_open_future_travel.call) do
+      Timecop.travel(resource.circuit_breaker.error_timeout + 1) do
         assert_circuit_closed(resource)
 
         assert resource.half_open?

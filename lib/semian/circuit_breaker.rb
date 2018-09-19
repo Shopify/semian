@@ -76,13 +76,13 @@ module Semian
 
     def transition_to_close
       log_state_transition(:closed)
-      @state.close
+      @state.close!
       @errors.clear
     end
 
     def transition_to_open
       log_state_transition(:open)
-      @state.open
+      @state.open!
     end
 
     def transition_to_half_open

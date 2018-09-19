@@ -15,13 +15,13 @@ class TestSimpleEnum < Minitest::Test
     end
 
     def test_open
-      @state.open
+      @state.open!
       assert @state.open?
       assert_equal @state.value, :open
     end
 
     def test_close
-      @state.close
+      @state.close!
       assert @state.closed?
       assert_equal @state.value, :closed
     end
