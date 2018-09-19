@@ -15,18 +15,16 @@ module Semian
     ResourceBusyError = Class.new(SemianError)
 
     def semian_identifier
-      name = semian_options && semian_options[:name]
-      ["memcached", name].compact.join("_").to_sym
+      @semian_identifier ||= begin
+        name = semian_options && semian_options[:name]
+        ["memcached", name].compact.join("_").to_sym
+      end
     end
 
     def raw_semian_options
-      # disable semian when host ejection is enabled.
-      return false if !!@options[:auto_eject_hosts]
       @options[:semian].merge(circuit_breaker: false)
     end
 
-    # patch all the methods that actually interacts with memcached, not their higher level abstractions such
-    # as #get or #cas.
     %i(
       set
       add
@@ -37,11 +35,9 @@ module Semian
       prepend
       delete
       exist
-      single_get
-      single_cas
-      multi_get
-      multi_cas
     ).each do |meth|
+      raise "Memcached##{meth} is not defined." unless ::Memcached.method_defined?(meth)
+
       define_method(meth) do |*args|
         acquire_semian_resource(adapter: :memcached, scope: :query) do
           super(*args)
@@ -49,13 +45,22 @@ module Semian
       end
     end
 
-    # Preserve single_get and single_cas private visibility
-    private(
-      :single_get,
-      :single_cas,
-      :multi_get,
-      :multi_cas,
-    )
+    private
+
+    %i(
+      single_get
+      single_cas
+      multi_get
+      multi_cas
+    ).each do |meth|
+      raise "Memcached##{meth} is not defined." unless ::Memcached.private_method_defined?(meth)
+
+      define_method(meth) do |*args|
+        acquire_semian_resource(adapter: :memcached, scope: :query) do
+          super(*args)
+        end
+      end
+    end
   end
 end
 

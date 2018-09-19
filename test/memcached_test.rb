@@ -57,27 +57,22 @@ class MemcachedTest < Minitest::Test
     end
   end
 
-  # def test_resource_timeout_on_query
-  #   memcached_1 = new_memcached
-  #   memcached_2 = new_memcached
+  def test_resource_timeout_on_query
+    memcached_1 = new_memcached
+    memcached_2 = new_memcached
 
-  #   Toxiproxy[:semian_test_memcached].downstream(:latency, latency: 600).apply do
-  #     background { memcached_1.set("foo", "bar") }
+    Toxiproxy[:semian_test_memcached].downstream(:latency, latency: 500).apply do
+      background { memcached_1.set("foo", "bar") }
 
-  #     assert_raises(Memcached::ResourceBusyError) do
-  #       memcached_2.set("foo", "bar")
-  #     end
-  #   end
-  # end
+      assert_raises(Memcached::ResourceBusyError) do
+        memcached_2.set("foo", "bar")
+      end
+    end
+  end
 
   def test_circuit_breaker_is_disabled
     client = new_memcached
     assert_nil client.semian_resource.circuit_breaker
-  end
-
-  def test_semian_is_disabled_when_ejecting_hosts
-    client = new_memcached(auto_eject_hosts: true)
-    assert_instance_of Semian::UnprotectedResource, client.semian_resource
   end
 
   private
