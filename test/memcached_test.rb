@@ -59,13 +59,22 @@ class MemcachedTest < Minitest::Test
 
   def test_resource_timeout_on_query
     memcached_1 = new_memcached
-    memcached_2 = new_memcached
+    memcached_1.set("foo", "bar")
+    memcached_1.set("bar", "bar")
 
     Toxiproxy[:semian_test_memcached].downstream(:latency, latency: 500).apply do
-      background { memcached_1.set("foo", "bar") }
+      # needs to be in seperate processes since the memcached gem will
+      # acquire the GVL and not release it until the #get returns
+      pid = Process.fork do
+        memcached_2 = new_memcached
+        memcached_2.get("foo")
+      end
+      Process.detach(pid)
+
+      sleep(0.1)
 
       assert_raises(Memcached::ResourceBusyError) do
-        memcached_2.set("foo", "bar")
+        memcached_1.get("bar")
       end
     end
   end
@@ -84,13 +93,15 @@ class MemcachedTest < Minitest::Test
     timeout: 0,
   }
   MEMCACHED_OPTIONS = {
+    servers: TOXIPROXY_MEMCACHED,
     auto_eject_hosts: false,
     timeout: 0.5,
     semian: SEMIAN_OPTIONS,
   }
 
   def new_memcached(**options)
-    servers = Array(options.fetch(:servers, TOXIPROXY_MEMCACHED))
-    Memcached.new(servers, MEMCACHED_OPTIONS.merge(options))
+    options = MEMCACHED_OPTIONS.merge(options)
+    servers = Array(options.delete(:servers))
+    Memcached.new(servers, options)
   end
 end
