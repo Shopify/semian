@@ -42,6 +42,42 @@ class TestNetHTTP < Minitest::Test
     end
   end
 
+  def test_changes_timeout_when_half_open_and_configured
+    http = Net::HTTP.new(SemianConfig['toxiproxy_upstream_host'], SemianConfig['http_toxiproxy_port'])
+    expected_read_timeout = http.read_timeout
+    expected_open_timeout = http.open_timeout
+    options = proc do |host, port|
+      {
+        tickets: 3,
+        success_threshold: 2,
+        error_threshold: 2,
+        error_timeout: 10,
+        open_circuit_server_errors: true,
+        name: "#{host}_#{port}",
+        half_open_resource_timeout: 1,
+      }
+    end
+
+    with_semian_configuration(options) do
+      with_server do
+        Toxiproxy['semian_test_net_http'].downstream(:latency, latency: 2000).apply do
+          http.get('/200')
+        end
+
+        half_open_cicuit!
+
+        Toxiproxy['semian_test_net_http'].downstream(:latency, latency: 2000).apply do
+          assert_raises Net::ReadTimeout do
+            http.get('/200')
+          end
+        end
+      end
+    end
+
+    assert_equal expected_read_timeout, http.read_timeout
+    assert_equal expected_open_timeout, http.open_timeout
+  end
+
   def test_trigger_open
     with_semian_configuration do
       with_server do
@@ -395,6 +431,12 @@ class TestNetHTTP < Minitest::Test
   end
 
   private
+
+  def half_open_cicuit!(backwards_time_travel = 10)
+    Timecop.travel(Time.now - backwards_time_travel) do
+      open_circuit!
+    end
+  end
 
   def with_semian_configuration(options = DEFAULT_SEMIAN_CONFIGURATION)
     orig_semian_options = Semian::NetHTTP.semian_configuration

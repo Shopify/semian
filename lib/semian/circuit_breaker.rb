@@ -125,15 +125,14 @@ module Semian
     end
 
     def maybe_with_half_open_resource_timeout(resource, &block)
-      result = nil
-
-      if half_open? && @half_open_resource_timeout && resource.respond_to?(:with_resource_timeout)
-        resource.with_resource_timeout(@half_open_resource_timeout) do
-          result = block.call
+      result =
+        if half_open? && @half_open_resource_timeout && resource.respond_to?(:with_resource_timeout)
+          resource.with_resource_timeout(@half_open_resource_timeout) do
+            block.call
+          end
+        else
+          block.call
         end
-      else
-        result = block.call
-      end
 
       result
     end
