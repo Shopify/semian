@@ -89,7 +89,6 @@ module Semian
   TimeoutError = Class.new(BaseError)
   InternalError = Class.new(BaseError)
   OpenCircuitError = Class.new(BaseError)
-  MINIMUM_TIME_IN_LRU = 300
 
   def issue_disabled_semaphores_warning
     return if defined?(@warning_issued)
@@ -218,7 +217,7 @@ module Semian
 
   # Retrieves a hash of all registered resources.
   def resources
-    @resources ||= LRUHash.new(minimum_time_in_lru: MINIMUM_TIME_IN_LRU)
+    @resources ||= LRUHash.new
   end
 
   # Retrieves a hash of all registered resource consumers.
@@ -228,7 +227,7 @@ module Semian
 
   def reset!
     @consumers = {}
-    @resources = LRUHash.new(minimum_time_in_lru: MINIMUM_TIME_IN_LRU)
+    @resources = LRUHash.new
   end
 
   def thread_safe?
@@ -236,7 +235,7 @@ module Semian
     @thread_safe = true
   end
 
-  def define_thread_safe(thread_safe)
+  def thread_safe=(thread_safe)
     @thread_safe = thread_safe
   end
 
@@ -260,9 +259,9 @@ module Semian
   end
 
   def implementation(**options)
-    unless options[:thread_safety_disabled].nil?
-      logger.info("NOTE: thread_safety_disabled per resource will be replaced by a global setting")
-    end
+    # thread_safety_disabled will be replaced by a global setting
+    # Semian is thread safe by default. It is possible
+    # to modify the value by using Semian.thread_safe=
 
     thread_safe = options[:thread_safety_disabled].nil? ? Semian.thread_safe? : !options[:thread_safety_disabled]
     thread_safe ? ::Semian::ThreadSafe : ::Semian::Simple
