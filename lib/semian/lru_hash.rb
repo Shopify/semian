@@ -1,11 +1,22 @@
 class LRUHash
+  # This LRU (Least Recently Used) hash will allow
+  # the cleaning of resources as time goes.
+  # The  goal is to remove the least recently used resources
+  # everytime we set a new resource. A default window of
+  # 5 minutes will allow empty item to stay in the hash
+  # for a maximum of 5 minutes
   extend Forwardable
   def_delegators :@table, :size, :count, :empty?
   attr_reader :table, :minimum_time_in_lru
+  MINIMUM_TIME_IN_LRU = 300
 
   class NoopMutex
     def synchronize(*)
       yield
+    end
+
+    def locked?
+      false
     end
   end
 
@@ -15,8 +26,8 @@ class LRUHash
     end
   end
 
-  def initialize(minimum_time_in_lru:)
-    @minimum_time_in_lru = minimum_time_in_lru
+  def initialize
+    @minimum_time_in_lru = MINIMUM_TIME_IN_LRU
     @table = {}
     @lock =
       if Semian.thread_safe?
@@ -62,9 +73,13 @@ class LRUHash
   private
 
   def clear_unused_resources
+    # Clears resources that have not been used
+    # in the last 5 minutes.
+    return if @lock.locked?
     @lock.synchronize do
-      unused_resources.take(2).each do |resource|
+      @table.each do |_, resource|
         break if resource.updated_at + minimum_time_in_lru > Time.now
+        next if resource.in_use?
 
         resource = @table.delete(resource.name)
         if resource
@@ -72,9 +87,5 @@ class LRUHash
         end
       end
     end
-  end
-
-  def unused_resources
-    @table.map { |_, resource| resource unless resource.in_use? }.compact
   end
 end

@@ -28,5 +28,5 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'thin', '~> 1.7.2'
   s.add_development_dependency 'toxiproxy', '~> 1.0.0'
   s.add_development_dependency 'memory_profiler'
-  s.add_development_dependency 'benchmark-ips'
+  s.add_development_dependency 'benchmark-memory'
 end

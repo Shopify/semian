@@ -2,8 +2,7 @@ require 'test_helper'
 
 class TestLRUHash < Minitest::Test
   def setup
-    Semian.send(:define_thread_safe, true)
-    @lru_hash = LRUHash.new(minimum_time_in_lru: 300)
+    @lru_hash = LRUHash.new
   end
 
   def test_set_get_item
@@ -13,16 +12,14 @@ class TestLRUHash < Minitest::Test
   end
 
   def test_set_get_item_with_thread_safe_disabled
-    Semian.send(:define_thread_safe, false)
-    @lru_hash = LRUHash.new(minimum_time_in_lru: 300)
-
+    Semian.thread_safe = false
+    @lru_hash = LRUHash.new
     circuit_breaker = create_circuit_breaker('a')
     @lru_hash.set('key', circuit_breaker)
     assert_equal circuit_breaker, @lru_hash.get('key')
   end
 
   def test_set_get_item_with_thread_safe_enabled
-    Semian.send(:define_thread_safe, true)
     circuit_breaker = create_circuit_breaker('a')
     @lru_hash.set('key', circuit_breaker)
     assert_equal circuit_breaker, @lru_hash.get('key')
@@ -68,17 +65,6 @@ class TestLRUHash < Minitest::Test
     @lru_hash.set('c', create_circuit_breaker('c'))
 
     assert_equal 3, @lru_hash.table.count
-  end
-
-  def test_set_cleans_a_maximum_of_two_resources
-    @lru_hash.set('a', create_circuit_breaker('a', false))
-    @lru_hash.set('b', create_circuit_breaker('b', false))
-    @lru_hash.set('c', create_circuit_breaker('c', false))
-
-    Timecop.travel(600) do
-      @lru_hash.set('d', create_circuit_breaker('d'))
-      assert_equal 2, @lru_hash.table.count
-    end
   end
 
   def test_set_does_not_clean_bulkhead
