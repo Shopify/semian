@@ -2,6 +2,7 @@ require 'test_helper'
 
 class TestLRUHash < Minitest::Test
   def setup
+    Semian.thread_safe = true
     @lru_hash = LRUHash.new
   end
 
@@ -52,9 +53,10 @@ class TestLRUHash < Minitest::Test
   def test_set_cleans_resources_if_minimum_time_is_reached
     @lru_hash.set('a', create_circuit_breaker('a'))
     @lru_hash.set('b', create_circuit_breaker('b', false))
+    @lru_hash.set('c', create_circuit_breaker('c', false))
 
     Timecop.travel(600) do
-      @lru_hash.set('c', create_circuit_breaker('c'))
+      @lru_hash.set('d', create_circuit_breaker('d'))
       assert_equal 2, @lru_hash.table.count
     end
   end
@@ -94,6 +96,23 @@ class TestLRUHash < Minitest::Test
     @lru_hash.set('a', create_circuit_breaker('a'))
     @lru_hash.clear
     assert @lru_hash.empty?
+  end
+
+  def test_clean_instrumentation
+    notified = false
+    subscriber = Semian.subscribe do |event, resource, scope, adapter|
+      notified = true
+      assert_equal :lru_hash_cleaned, event
+      assert_equal @lru_hash, resource
+      assert_equal :cleaning, scope
+      assert_equal :lru_hash, adapter
+    end
+
+    @lru_hash.set('a', create_circuit_breaker('a'))
+
+    assert notified, 'No notifications has been emitted'
+  ensure
+    Semian.unsubscribe(subscriber)
   end
 
   private

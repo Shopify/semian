@@ -262,6 +262,13 @@ module Semian
     # thread_safety_disabled will be replaced by a global setting
     # Semian is thread safe by default. It is possible
     # to modify the value by using Semian.thread_safe=
+    unless options[:thread_safety_disabled].nil?
+      logger.info(
+        "NOTE: thread_safety_disabled will be replaced by a global setting" \
+        "Semian is thread safe by default. It is possible" \
+        "to modify the value by using Semian.thread_safe=",
+      )
+    end
 
     thread_safe = options[:thread_safety_disabled].nil? ? Semian.thread_safe? : !options[:thread_safety_disabled]
     thread_safe ? ::Semian::ThreadSafe : ::Semian::Simple
