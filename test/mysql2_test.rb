@@ -59,6 +59,7 @@ class TestMysql2 < Minitest::Test
   def test_connect_instrumentation
     notified = false
     subscriber = Semian.subscribe do |event, resource, scope, adapter|
+      next if event == :lru_hash_cleaned
       notified = true
       assert_equal :success, event
       assert_equal Semian[:mysql_testing], resource
