@@ -4,7 +4,7 @@ module Semian
 
     def_delegators :@state, :closed?, :open?, :half_open?
 
-    attr_reader :name, :half_open_resource_timeout, :error_timeout, :state
+    attr_reader :name, :half_open_resource_timeout, :error_timeout, :state, :last_error_message
 
     def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, implementation:, half_open_resource_timeout: nil)
       @name = name.to_sym
@@ -45,7 +45,8 @@ module Semian
       closed? || half_open? || transition_to_half_open?
     end
 
-    def mark_failed(_error)
+    def mark_failed(error)
+      push_error_message(error)
       push_time(@errors)
       if closed?
         transition_to_open if error_threshold_reached?
@@ -103,6 +104,10 @@ module Semian
       last_error_time = @errors.last
       return false unless last_error_time
       Time.at(last_error_time) + @error_timeout < Time.now
+    end
+
+    def push_error_message(error)
+      @last_error_message = error.to_s
     end
 
     def push_time(window, time: Time.now)
