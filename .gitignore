@@ -10,3 +10,4 @@ vendor/
 *.swo
 nohup.out
 .vagrant
+.byebug_history
