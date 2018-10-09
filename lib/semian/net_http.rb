@@ -90,6 +90,19 @@ module Semian
       end
     end
 
+    def with_resource_timeout(timeout)
+      prev_read_timeout = read_timeout
+      prev_open_timeout = open_timeout
+      begin
+        self.read_timeout = timeout
+        self.open_timeout = timeout
+        yield
+      ensure
+        self.read_timeout = prev_read_timeout
+        self.open_timeout = prev_open_timeout
+      end
+    end
+
     private
 
     def handle_error_responses(result)
