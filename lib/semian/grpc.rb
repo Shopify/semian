@@ -2,9 +2,9 @@ require 'semian/adapter'
 require 'grpc'
 
 module GRPC
-  ProtocolError.include(::Semian::AdapterError)
+  GRPC::BadStatus.include(::Semian::AdapterError)
 
-  class SemianError < ::GRPC::ProtocolError
+  class SemianError < GRPC::BadStatus
     def initialize(semian_identifier, *args)
       super(*args)
       @semian_identifier = semian_identifier
@@ -22,26 +22,22 @@ module Semian
     ResourceBusyError = ::GRPC::ResourceBusyError
     CircuitOpenError = ::GRPC::CircuitOpenError
 
-    class SemianConfigurationChangedError < RuntimeError
-      def initialize(msg = "Cannot re-initialize semian_configuration")
-        super
-      end
+    def initialize(*args)
+      @host = args.first
+      super(*args)
     end
 
     def semian_identifier
-      "GRPC_#{raw_semian_options[:name]}"
+      @semian_identifier ||= begin
+        :"grpc_#{@host}"
+      end
     end
 
     DEFAULT_ERRORS = [
-      ::Timeout::Error, # includes ::Net::ReadTimeout and ::Net::OpenTimeout
-      ::SocketError,
-      ::Net::HTTPBadResponse,
-      ::Net::HTTPHeaderSyntaxError,
-      ::Net::ProtocolError,
-      ::EOFError,
-      ::IOError,
-      ::SystemCallError, # includes ::Errno::EINVAL, ::Errno::ECONNRESET, ::Errno::ECONNREFUSED, ::Errno::ETIMEDOUT, and more
-    ].freeze # Net::HTTP can throw many different errors, this tries to capture most of them
+      ::GRPC::Unavailable,
+      ::GRPC::Core::CallError,
+      ::GRPC::BadStatus,
+    ].freeze
 
     class << self
       attr_accessor :exceptions
@@ -63,42 +59,33 @@ module Semian
 
     Semian::GRPC.reset_exceptions
 
-    def raw_semian_options
-      @raw_semian_options ||= begin
-        @raw_semian_options = Semian::GRPC.retrieve_semian_configuration(address, port)
-        @raw_semian_options = @raw_semian_options.dup unless @raw_semian_options.nil?
-      end
-    end
-
     def resource_exceptions
       Semian::GRPC.exceptions
     end
 
-    def disabled?
-      raw_semian_options.nil?
+    def request_response(*args)
+      acquire_semian_resource(adapter: :grpc, scope: :connection) { super(*args) }
     end
 
-    def establish_connection!
-      return super if disabled?
-      acquire_semian_resource(adapter: :http, scope: :connection) { super }
-    end
-
-    def transport_request(*)
-      return super if disabled?
-      acquire_semian_resource(adapter: :http, scope: :query) do
-        handle_error_responses(super)
-      end
+    def raw_semian_options
+      # TODO
+      {
+        :tickets=>3,
+        :success_threshold=>1,
+        :error_threshold=>3,
+        :error_timeout=>10,
+        :name=> @host
+      }
     end
 
     private
 
-    def handle_error_responses(result)
-      if raw_semian_options.fetch(:open_circuit_server_errors, false)
-        semian_resource.mark_failed(result) if result.is_a?(::Net::HTTPServerError)
-      end
-      result
+    def acquire_semian_resource(*)
+      super
+    # rescue
+    # TODO
     end
   end
 end
 
-GRPC::Core::Channel.prepend(Semian::GRPC)
+::GRPC::ClientStub.prepend(Semian::GRPC)
