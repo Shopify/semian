@@ -51,7 +51,7 @@ class TestNetHTTP < Minitest::Test
         exception = assert_raises Net::CircuitOpenError do
           Net::HTTP.get(uri)
         end
-        assert_match(/caused by Net::ReadTimeout/, exception.message)
+        assert_equal "Net::ReadTimeout", exception.cause.to_s
       end
     end
   end

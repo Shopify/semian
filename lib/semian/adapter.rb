@@ -35,8 +35,12 @@ module Semian
         mark_resource_as_acquired(&block)
       end
     rescue ::Semian::OpenCircuitError => error
-      last_error_message = semian_resource.circuit_breaker.last_error_message
-      raise self.class::CircuitOpenError.new(semian_identifier, "#{error.message} caused by #{last_error_message}")
+      begin
+        raise semian_resource.circuit_breaker.last_error
+      rescue
+        last_error_message = semian_resource.circuit_breaker.last_error.message
+        raise self.class::CircuitOpenError.new(semian_identifier, "#{error.message} caused by #{last_error_message}")
+      end
     rescue ::Semian::BaseError => error
       raise self.class::ResourceBusyError.new(semian_identifier, error.message)
     rescue *resource_exceptions => error
