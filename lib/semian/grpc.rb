@@ -5,7 +5,6 @@ module GRPC
   GRPC::BadStatus.include(::Semian::AdapterError)
 
   class SemianError < GRPC::BadStatus
-    # TODO
     def initialize(semian_identifier, *args)
       super(*args)
       @semian_identifier = semian_identifier
@@ -29,9 +28,7 @@ module Semian
     end
 
     def semian_identifier
-      @semian_identifier ||= begin
-        :"grpc_#{@host}"
-      end
+      @semian_identifier ||= :"grpc_#{@host}"
     end
 
     DEFAULT_ERRORS = [
@@ -42,16 +39,6 @@ module Semian
 
     class << self
       attr_accessor :exceptions
-      attr_reader :semian_configuration
-
-      def semian_configuration=(configuration)
-        raise Semian::GRPC::SemianConfigurationChangedError unless @semian_configuration.nil?
-        @semian_configuration = configuration
-      end
-
-      def retrieve_semian_configuration(host, port)
-        @semian_configuration.call(host, port) if @semian_configuration.respond_to?(:call)
-      end
 
       def reset_exceptions
         self.exceptions = Semian::GRPC::DEFAULT_ERRORS.dup
@@ -68,23 +55,22 @@ module Semian
       acquire_semian_resource(adapter: :grpc, scope: :connection) { super(*args) }
     end
 
-    def raw_semian_options
-      # TODO
-      {
-        :tickets=>3,
-        :success_threshold=>1,
-        :error_threshold=>3,
-        :error_timeout=>10,
-        :name=> @host
-      }
+    def raw_semian_options=(semian_options)
+      @tickets = semian_options[:tickets]
+      @success_threshold = semian_options[:success_threshold]
+      @error_threshold = semian_options[:error_threshold]
+      @error_timeout = semian_options[:error_timeout]
+      @name = semian_options[:name]
     end
 
-    private
-
-    def acquire_semian_resource(*)
-      super
-    # rescue
-    # TODO
+    def raw_semian_options
+      {
+        tickets: @tickets,
+        success_threshold: @success_threshold,
+        error_threshold: @error_threshold,
+        error_timeout: @error_timeout,
+        name: @name
+      }
     end
   end
 end
