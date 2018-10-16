@@ -5,6 +5,7 @@ module GRPC
   GRPC::BadStatus.include(::Semian::AdapterError)
 
   class SemianError < GRPC::BadStatus
+    # TODO
     def initialize(semian_identifier, *args)
       super(*args)
       @semian_identifier = semian_identifier
