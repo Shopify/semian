@@ -84,9 +84,10 @@ class TestNetHTTP < Minitest::Test
         open_circuit!
 
         uri = URI("http://#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['http_toxiproxy_port']}/200")
-        assert_raises Net::CircuitOpenError do
+        exception = assert_raises Net::CircuitOpenError do
           Net::HTTP.get(uri)
         end
+        assert_equal "Net::ReadTimeout", exception.cause.to_s
       end
     end
   end
