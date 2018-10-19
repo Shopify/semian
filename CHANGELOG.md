@@ -1,3 +1,8 @@
+# v0.8.4
+* Feature: Introduce `half_open_resource_timeout` which changes the resource timeout when the circuit is in a half-open state for the Net::HTTP adapter. (#198)
+* Feature: Add the cause of the last error when a circuit opens (#197)
+* Fix: Reset successes when transitioning to the half open state (#192)
+
 # v0.8.1
 
 * Fix: Expose `half_open?` when the circuit state has not transitioned but will. This allows consumers further up the stack to know if the circuit
