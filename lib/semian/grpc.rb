@@ -24,6 +24,8 @@ module Semian
 
     def initialize(*args)
       @host = args.first
+      set_raw_semian_options(args.last)
+      args.pop
       super(*args)
     end
 
@@ -55,7 +57,7 @@ module Semian
       acquire_semian_resource(adapter: :grpc, scope: :connection) { super(*args) }
     end
 
-    def raw_semian_options=(semian_options)
+    def set_raw_semian_options(semian_options)
       @tickets = semian_options[:tickets]
       @success_threshold = semian_options[:success_threshold]
       @error_threshold = semian_options[:error_threshold]

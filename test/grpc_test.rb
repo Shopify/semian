@@ -17,8 +17,7 @@ class TestGRPC < Minitest::Test
 
   def setup
     thr = Thread.new { GRPCServer.start }
-    @stub = RouteGuide::Stub.new('localhost:50051', :this_channel_is_insecure)
-    @stub.raw_semian_options = SEMIAN_OPTIONS
+    @stub = RouteGuide::Stub.new('localhost:50051', :this_channel_is_insecure, SEMIAN_OPTIONS)
   end
 
   def test_semian_identifier
@@ -30,7 +29,6 @@ class TestGRPC < Minitest::Test
   end
 
   def test_circuit_open
-    @stub.raw_semian_options = SEMIAN_OPTIONS
     ERROR_THRESHOLD.times do
       assert_raises ::GRPC::BadStatus do
         run_get_feature_expect_error(@stub)
