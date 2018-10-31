@@ -50,8 +50,26 @@ class TestLRUHash < Minitest::Test
     assert_equal @lru_hash.table.values.first, @lru_hash.get('b')
   end
 
+  def test_set_cleans_resources_if_last_error_has_expired
+    @lru_hash.set('b', create_circuit_breaker('b', true, false, 1000))
+
+    Timecop.travel(2000) do
+      @lru_hash.set('d', create_circuit_breaker('d'))
+      assert_equal 1, @lru_hash.table.count
+    end
+  end
+
+  def test_set_does_not_clean_resources_if_last_error_has_not_expired
+    @lru_hash.set('b', create_circuit_breaker('b', true, false, 1000))
+
+    Timecop.travel(600) do
+      @lru_hash.set('d', create_circuit_breaker('d'))
+      assert_equal 2, @lru_hash.table.count
+    end
+  end
+
   def test_set_cleans_resources_if_minimum_time_is_reached
-    @lru_hash.set('a', create_circuit_breaker('a'))
+    @lru_hash.set('a', create_circuit_breaker('a', true, false, 1000))
     @lru_hash.set('b', create_circuit_breaker('b', false))
     @lru_hash.set('c', create_circuit_breaker('c', false))
 
@@ -67,16 +85,6 @@ class TestLRUHash < Minitest::Test
     @lru_hash.set('c', create_circuit_breaker('c'))
 
     assert_equal 3, @lru_hash.table.count
-  end
-
-  def test_set_does_not_clean_bulkhead
-    @lru_hash.set('a', create_circuit_breaker('a'))
-    @lru_hash.set('b', create_circuit_breaker('b', false, true))
-
-    Timecop.travel(600) do
-      @lru_hash.set('c', create_circuit_breaker('c'))
-      assert_equal 3, @lru_hash.table.count
-    end
   end
 
   def test_keys
@@ -117,13 +125,13 @@ class TestLRUHash < Minitest::Test
 
   private
 
-  def create_circuit_breaker(name, exceptions = true, bulkhead = false)
+  def create_circuit_breaker(name, exceptions = true, bulkhead = false, error_timeout = 0)
     implementation = Semian.thread_safe? ? ::Semian::Simple : ::Semian::ThreadSafe
     circuit_breaker = Semian::CircuitBreaker.new(
       name,
       success_threshold: 0,
       error_threshold: 1,
-      error_timeout: 0,
+      error_timeout:  error_timeout,
       exceptions: [::Semian::BaseError],
       half_open_resource_timeout: nil,
       implementation: implementation,
