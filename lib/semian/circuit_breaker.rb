@@ -79,6 +79,7 @@ module Semian
     end
 
     def in_use?
+      return false if error_timeout_expired?
       @errors.size > 0
     end
 
