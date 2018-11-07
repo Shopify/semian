@@ -177,6 +177,25 @@ class TestRedis < Minitest::Test
     end
   end
 
+  def test_dns_resolution_failures_open_circuit_with_high_redis
+    require "hiredis"
+    require "redis/connection/hiredis"
+
+    ERROR_THRESHOLD.times do
+      assert_raises Redis::ResolveError do
+        connect_to_redis!(host: 'thisdoesnotresolve')
+      end
+    end
+
+    assert_raises Redis::CircuitOpenError do
+      connect_to_redis!(host: 'thisdoesnotresolve')
+    end
+
+    Timecop.travel(ERROR_TIMEOUT + 1) do
+      connect_to_redis!
+    end
+  end
+
   def test_circuit_breaker_on_connect
     @proxy.downstream(:latency, latency: 500).apply do
       background { connect_to_redis! }
