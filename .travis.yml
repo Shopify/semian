@@ -13,6 +13,7 @@ rvm:
 gemfile:
   - gemfiles/mysql2-0-4-10.gemfile
   - gemfiles/mysql2-0-5-0.gemfile
+  - gemfiles/hiredis-0-6.gemfile
 
 services:
   - redis-server

@@ -1,5 +1,12 @@
 require 'test_helper'
 
+begin
+  require "hiredis"
+  require "redis/connection/hiredis"
+rescue LoadError
+  # noop
+end
+
 class TestRedis < Minitest::Test
   ERROR_TIMEOUT = 5
   ERROR_THRESHOLD = 1

@@ -1,0 +1,9 @@
+source 'https://rubygems.org'
+
+gemspec path: '..'
+
+gem 'hiredis', '~> 0.6'
+
+group :development, :test do
+  gem 'rubocop', '~> 0.34.2'
+end
