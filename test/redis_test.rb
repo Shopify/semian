@@ -3,8 +3,9 @@ require 'test_helper'
 begin
   require "hiredis"
   require "redis/connection/hiredis"
+  puts "running tests with hiredis driver"
 rescue LoadError
-  # noop
+  puts "running test with default redis driver"
 end
 
 class TestRedis < Minitest::Test
