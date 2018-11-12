@@ -1,5 +1,13 @@
 require 'test_helper'
 
+begin
+  require "hiredis"
+  require "redis/connection/hiredis"
+  puts "running tests with hiredis driver"
+rescue LoadError
+  puts "running test with default redis driver"
+end
+
 class TestRedis < Minitest::Test
   ERROR_TIMEOUT = 5
   ERROR_THRESHOLD = 1
