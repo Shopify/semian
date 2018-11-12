@@ -1,3 +1,6 @@
+# v0.8.5
+* Fix: Redis adapter using hiredis is resilient to DNS resolution failures (#205)
+
 # v0.8.4
 * Feature: Introduce `half_open_resource_timeout` which changes the resource timeout when the circuit is in a half-open state for the Net::HTTP adapter. (#198)
 * Feature: Add the cause of the last error when a circuit opens (#197)
