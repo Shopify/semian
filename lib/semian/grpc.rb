@@ -18,6 +18,7 @@ end
 module Semian
   module GRPC
     class Interceptor < ::GRPC::ClientInterceptor
+      attr_reader :raw_semian_options
       include Semian::Adapter
 
       ResourceBusyError = ::GRPC::ResourceBusyError
@@ -25,7 +26,7 @@ module Semian
 
       def initialize(host, semian_options)
         @host = host
-        set_raw_semian_options(semian_options)
+        @raw_semian_options = semian_options
       end
 
       def semian_identifier
@@ -85,24 +86,6 @@ module Semian
         " and metadata: #{metadata}")
         acquire_semian_resource(adapter: :grpc, scope: :bidi_stream) {
           yield
-        }
-      end
-
-      def set_raw_semian_options(semian_options)
-        @tickets = semian_options[:tickets]
-        @success_threshold = semian_options[:success_threshold]
-        @error_threshold = semian_options[:error_threshold]
-        @error_timeout = semian_options[:error_timeout]
-        @name = semian_options[:name]
-      end
-
-      def raw_semian_options
-        {
-          tickets: @tickets,
-          success_threshold: @success_threshold,
-          error_threshold: @error_threshold,
-          error_timeout: @error_timeout,
-          name: @name
         }
       end
     end
