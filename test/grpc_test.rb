@@ -2,6 +2,9 @@ require 'test_helper'
 require 'grpc'
 require 'grpc_server'
 require 'route_guide_services_pb'
+require 'minitest'
+require 'mocha/minitest'
+require 'echo_service'
 include Routeguide
 
 class TestGRPC < Minitest::Test
@@ -16,31 +19,84 @@ class TestGRPC < Minitest::Test
   }
 
   def setup
-    thr = Thread.new { GRPCServer.start }
-    @stub = RouteGuide::Stub.new('localhost:50051', :this_channel_is_insecure, SEMIAN_OPTIONS)
+    build_rpc_server
+    @interceptor = Semian::GRPC::Interceptor.new(@host, SEMIAN_OPTIONS)
   end
 
   def test_semian_identifier
-    error = assert_raises ::GRPC::BadStatus do
-      run_get_feature_expect_error(@stub)
-    end
+    stub = build_insecure_stub(EchoStub, opts: { interceptors: [@interceptor] })
+    assert_equal :"grpc_#{@host}", @interceptor.semian_identifier
 
-    assert_equal :"grpc_localhost:50051", error.semian_identifier
+    GRPC::ActiveCall.any_instance.stubs(:request_response).raises(::GRPC::Unavailable)
+    error = assert_raises ::GRPC::Unavailable do
+      stub.an_rpc(EchoMsg.new)
+    end
+    assert_equal :"grpc_#{@host}", error.semian_identifier
   end
 
-  def test_circuit_open
+  def test_rpc_server
+    service = EchoService
+    run_services_on_server(@server, services: [service]) do
+      stub = build_insecure_stub(EchoStub, opts: { interceptors: [@interceptor] })
+      GRPC::ActiveCall.any_instance.expects(:request_response)
+      stub.an_rpc(EchoMsg.new)
+    end
+  end
+
+  def test_errors
+    service = EchoService
+    GRPC::ActiveCall.any_instance.stubs(:request_response).raises(::GRPC::Unavailable)
+    stub = build_insecure_stub(EchoStub, opts: { interceptors: [@interceptor] })
     ERROR_THRESHOLD.times do
-      assert_raises ::GRPC::BadStatus do
-        run_get_feature_expect_error(@stub)
+      assert_raises ::GRPC::Unavailable do
+        stub.an_rpc(EchoMsg.new)
       end
     end
-
-    assert_raises GRPC::CircuitOpenError do
-      run_get_feature_expect_error(@stub)
+    error = assert_raises GRPC::CircuitOpenError do
+      stub.an_rpc(EchoMsg.new)
     end
   end
 
-  def run_get_feature_expect_error(stub)
-    resp = stub.get_feature(Point.new)
+  def build_insecure_stub(klass, host: nil, opts: nil)
+    host ||= @host
+    opts ||= @client_opts
+    klass.new(host, :this_channel_is_insecure, **opts)
+  end
+
+  def build_rpc_server(server_opts: {}, client_opts: {})
+    @server = new_rpc_server_for_testing({ poll_period: 1 }.merge(server_opts))
+    @port = @server.add_http2_port('0.0.0.0:0', :this_port_is_insecure)
+    @host = "0.0.0.0:#{@port}"
+    @client_opts = client_opts
+    @server
+  end
+
+  def new_rpc_server_for_testing(server_opts = {})
+    server_opts[:server_args] ||= {}
+    update_server_args_hash(server_opts[:server_args])
+    GRPC::RpcServer.new(**server_opts)
+  end
+
+  def update_server_args_hash(server_args)
+    so_reuseport_arg = 'grpc.so_reuseport'
+    unless server_args[so_reuseport_arg].nil?
+      fail 'Unexpected. grpc.so_reuseport already set.'
+    end
+    # Run tests without so_reuseport to eliminate the chance of
+    # cross-talk.
+    server_args[so_reuseport_arg] = 0
+  end
+
+  def run_services_on_server(server, services: [])
+    services.each do |s|
+      server.handle(s)
+    end
+    t = Thread.new { server.run }
+    server.wait_till_running
+
+    yield
+
+    server.stop
+    t.join
   end
 end
