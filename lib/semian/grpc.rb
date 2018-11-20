@@ -17,64 +17,94 @@ end
 
 module Semian
   module GRPC
-    include Semian::Adapter
+    class Interceptor < ::GRPC::ClientInterceptor
+      include Semian::Adapter
 
-    ResourceBusyError = ::GRPC::ResourceBusyError
-    CircuitOpenError = ::GRPC::CircuitOpenError
+      ResourceBusyError = ::GRPC::ResourceBusyError
+      CircuitOpenError = ::GRPC::CircuitOpenError
 
-    def initialize(*args)
-      @host = args.first
-      set_raw_semian_options(args.last)
-      args.pop
-      super(*args)
-    end
-
-    def semian_identifier
-      @semian_identifier ||= :"grpc_#{@host}"
-    end
-
-    DEFAULT_ERRORS = [
-      ::GRPC::Unavailable,
-      ::GRPC::Core::CallError,
-      ::GRPC::BadStatus,
-    ].freeze
-
-    class << self
-      attr_accessor :exceptions
-
-      def reset_exceptions
-        self.exceptions = Semian::GRPC::DEFAULT_ERRORS.dup
+      def initialize(host, semian_options)
+        @host = host
+        set_raw_semian_options(semian_options)
       end
-    end
 
-    Semian::GRPC.reset_exceptions
+      def semian_identifier
+        @semian_identifier ||= :"grpc_#{@host}"
+      end
 
-    def resource_exceptions
-      Semian::GRPC.exceptions
-    end
+      DEFAULT_ERRORS = [
+        ::GRPC::Unavailable,
+        ::GRPC::Core::CallError,
+        ::GRPC::BadStatus,
+      ].freeze
 
-    def request_response(*args)
-      acquire_semian_resource(adapter: :grpc, scope: :connection) { super(*args) }
-    end
+      class << self
+        attr_accessor :exceptions
 
-    def set_raw_semian_options(semian_options)
-      @tickets = semian_options[:tickets]
-      @success_threshold = semian_options[:success_threshold]
-      @error_threshold = semian_options[:error_threshold]
-      @error_timeout = semian_options[:error_timeout]
-      @name = semian_options[:name]
-    end
+        def reset_exceptions
+          self.exceptions = Semian::GRPC::Interceptor::DEFAULT_ERRORS.dup
+        end
+      end
 
-    def raw_semian_options
-      {
-        tickets: @tickets,
-        success_threshold: @success_threshold,
-        error_threshold: @error_threshold,
-        error_timeout: @error_timeout,
-        name: @name
-      }
+      Semian::GRPC::Interceptor.reset_exceptions
+
+      def resource_exceptions
+        Semian::GRPC::Interceptor.exceptions
+      end
+
+      def request_response(request:, call:, method:, metadata: {})
+        puts("Intercepted request/response call at method #{method}" \
+        " with request #{request} for call #{call}" \
+        " and metadata: #{metadata}")
+        acquire_semian_resource(adapter: :grpc, scope: :request_response) {
+          yield
+        }
+      end
+
+      def client_streamer(request:, call:, method:, metadata: {})
+        puts("Received client streamer call at method #{method}" \
+        " with requests #{requests} for call #{call}" \
+        " and metadata: #{metadata}")
+        acquire_semian_resource(adapter: :grpc, scope: :client_stream) {
+          yield
+        }
+      end
+
+      def server_streamer(request:, call:, method:, metadata: {})
+        puts("Received server streamer call at method #{method}" \
+        " with request #{request} for call #{call}" \
+        " and metadata: #{metadata}")
+        acquire_semian_resource(adapter: :grpc, scope: :server_stream) {
+          yield
+        }
+      end
+
+      def bidi_streamer(request:, call:, method:, metadata: {})
+        puts("Received bidi streamer call at method #{method}" \
+        "with requests #{requests} for call #{call}" \
+        " and metadata: #{metadata}")
+        acquire_semian_resource(adapter: :grpc, scope: :bidi_stream) {
+          yield
+        }
+      end
+
+      def set_raw_semian_options(semian_options)
+        @tickets = semian_options[:tickets]
+        @success_threshold = semian_options[:success_threshold]
+        @error_threshold = semian_options[:error_threshold]
+        @error_timeout = semian_options[:error_timeout]
+        @name = semian_options[:name]
+      end
+
+      def raw_semian_options
+        {
+          tickets: @tickets,
+          success_threshold: @success_threshold,
+          error_threshold: @error_threshold,
+          error_timeout: @error_timeout,
+          name: @name
+        }
+      end
     end
   end
 end
-
-::GRPC::ClientStub.prepend(Semian::GRPC)
