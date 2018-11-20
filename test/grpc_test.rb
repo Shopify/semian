@@ -21,15 +21,17 @@ class TestGRPC < Minitest::Test
   def setup
     build_rpc_server
     @interceptor = Semian::GRPC::Interceptor.new(@host, SEMIAN_OPTIONS)
+    @stub = build_insecure_stub(EchoStub, opts: { interceptors: [@interceptor] })
   end
 
   def test_semian_identifier
-    stub = build_insecure_stub(EchoStub, opts: { interceptors: [@interceptor] })
     assert_equal :"grpc_#{@host}", @interceptor.semian_identifier
+  end
 
+  def test_errors_are_tagged_with_the_resource_identifier
     GRPC::ActiveCall.any_instance.stubs(:request_response).raises(::GRPC::Unavailable)
     error = assert_raises ::GRPC::Unavailable do
-      stub.an_rpc(EchoMsg.new)
+      @stub.an_rpc(EchoMsg.new)
     end
     assert_equal :"grpc_#{@host}", error.semian_identifier
   end
@@ -37,25 +39,26 @@ class TestGRPC < Minitest::Test
   def test_rpc_server
     service = EchoService
     run_services_on_server(@server, services: [service]) do
-      stub = build_insecure_stub(EchoStub, opts: { interceptors: [@interceptor] })
+
       GRPC::ActiveCall.any_instance.expects(:request_response)
-      stub.an_rpc(EchoMsg.new)
+      @stub.an_rpc(EchoMsg.new)
     end
   end
 
   def test_errors
     service = EchoService
     GRPC::ActiveCall.any_instance.stubs(:request_response).raises(::GRPC::Unavailable)
-    stub = build_insecure_stub(EchoStub, opts: { interceptors: [@interceptor] })
     ERROR_THRESHOLD.times do
       assert_raises ::GRPC::Unavailable do
-        stub.an_rpc(EchoMsg.new)
+        @stub.an_rpc(EchoMsg.new)
       end
     end
     error = assert_raises GRPC::CircuitOpenError do
-      stub.an_rpc(EchoMsg.new)
+      @stub.an_rpc(EchoMsg.new)
     end
   end
+
+  private
 
   def build_insecure_stub(klass, host: nil, opts: nil)
     host ||= @host

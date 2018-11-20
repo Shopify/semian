@@ -54,36 +54,24 @@ module Semian
       end
 
       def request_response(request:, call:, method:, metadata: {})
-        puts("Intercepted request/response call at method #{method}" \
-        " with request #{request} for call #{call}" \
-        " and metadata: #{metadata}")
         acquire_semian_resource(adapter: :grpc, scope: :request_response) {
           yield
         }
       end
 
       def client_streamer(request:, call:, method:, metadata: {})
-        puts("Received client streamer call at method #{method}" \
-        " with requests #{requests} for call #{call}" \
-        " and metadata: #{metadata}")
         acquire_semian_resource(adapter: :grpc, scope: :client_stream) {
           yield
         }
       end
 
       def server_streamer(request:, call:, method:, metadata: {})
-        puts("Received server streamer call at method #{method}" \
-        " with request #{request} for call #{call}" \
-        " and metadata: #{metadata}")
         acquire_semian_resource(adapter: :grpc, scope: :server_stream) {
           yield
         }
       end
 
       def bidi_streamer(request:, call:, method:, metadata: {})
-        puts("Received bidi streamer call at method #{method}" \
-        "with requests #{requests} for call #{call}" \
-        " and metadata: #{metadata}")
         acquire_semian_resource(adapter: :grpc, scope: :bidi_stream) {
           yield
         }
