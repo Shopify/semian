@@ -1,11 +1,8 @@
 require 'test_helper'
 require 'grpc'
-require 'grpc_server'
-require 'route_guide_services_pb'
 require 'minitest'
 require 'mocha/minitest'
 require 'echo_service'
-include Routeguide
 
 class TestGRPC < Minitest::Test
   ERROR_THRESHOLD = 3
