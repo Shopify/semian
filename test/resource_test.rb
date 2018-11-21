@@ -30,9 +30,12 @@ class TestResource < Minitest::Test
   end
 
   def test_initialize_with_float
-    resource = create_resource :testing, tickets: 1.0
-    assert resource
-    assert_equal 1, resource.tickets
+    expected_warning = /semian ticket value 1\.000000 is a float, converting to fixnum/
+    with_fake_std_error(warn_message: expected_warning) do
+      resource = create_resource :testing, tickets: 1.0
+      assert resource
+      assert_equal 1, resource.tickets
+    end
   end
 
   def test_max_tickets
@@ -555,5 +558,32 @@ class TestResource < Minitest::Test
       end
     end
     @workers = [] if delete
+  end
+
+  class FakeStdErr
+    attr_accessor :messages
+
+    def initialize
+      @messages = []
+    end
+
+    def write(msg)
+      @messages << msg
+    end
+
+    def flush
+    end
+  end
+
+  def with_fake_std_error(warn_message: nil)
+    original_stderr = $stderr
+    fake_std_err = FakeStdErr.new
+    $stderr = fake_std_err
+    yield
+    if warn_message
+      assert_match warn_message, fake_std_err.messages[0]
+    end
+  ensure
+    $std_err = original_stderr # rubocop:disable GlobalVars
   end
 end
