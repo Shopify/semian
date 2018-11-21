@@ -40,6 +40,9 @@ Metrics/LineLength:
 Metrics/MethodLength:
   Max: 40
 
+Metrics/ModuleLength:
+  Enabled: false
+
 Metrics/ClassLength:
   Max: 500
   Exclude:
@@ -117,6 +120,3 @@ Style/CaseIndentation:
 Lint/UselessAssignment:
   Exclude:
     - 'test/adapter_test.rb'
-
-Style/ModuleLength:
-  Enabled: false
