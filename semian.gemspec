@@ -25,6 +25,6 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'byebug'
   s.add_development_dependency 'mysql2'
   s.add_development_dependency 'redis'
-  s.add_development_dependency 'thin', '~> 1.6.4'
+  s.add_development_dependency 'thin', '~> 1.7.2'
   s.add_development_dependency 'toxiproxy', '~> 1.0.0'
 end
