@@ -18,7 +18,7 @@ class TestGRPC < Minitest::Test
   def setup
     build_rpc_server
     @interceptor = Semian::GRPC::Interceptor.new(@host, SEMIAN_OPTIONS)
-    @stub = build_insecure_stub(EchoStub, opts: { interceptors: [@interceptor] })
+    @stub = build_insecure_stub(EchoStub, opts: {interceptors: [@interceptor]})
   end
 
   def test_semian_identifier
@@ -36,21 +36,19 @@ class TestGRPC < Minitest::Test
   def test_rpc_server
     service = EchoService
     run_services_on_server(@server, services: [service]) do
-
       GRPC::ActiveCall.any_instance.expects(:request_response)
       @stub.an_rpc(EchoMsg.new)
     end
   end
 
-  def test_errors
-    service = EchoService
+  def test_open_circuit_error
     GRPC::ActiveCall.any_instance.stubs(:request_response).raises(::GRPC::Unavailable)
     ERROR_THRESHOLD.times do
       assert_raises ::GRPC::Unavailable do
         @stub.an_rpc(EchoMsg.new)
       end
     end
-    error = assert_raises GRPC::CircuitOpenError do
+    assert_raises GRPC::CircuitOpenError do
       @stub.an_rpc(EchoMsg.new)
     end
   end
@@ -64,7 +62,7 @@ class TestGRPC < Minitest::Test
   end
 
   def build_rpc_server(server_opts: {}, client_opts: {})
-    @server = new_rpc_server_for_testing({ poll_period: 1 }.merge(server_opts))
+    @server = new_rpc_server_for_testing({poll_period: 1}.merge(server_opts))
     @port = @server.add_http2_port('0.0.0.0:0', :this_port_is_insecure)
     @host = "0.0.0.0:#{@port}"
     @client_opts = client_opts
@@ -72,19 +70,7 @@ class TestGRPC < Minitest::Test
   end
 
   def new_rpc_server_for_testing(server_opts = {})
-    server_opts[:server_args] ||= {}
-    update_server_args_hash(server_opts[:server_args])
     GRPC::RpcServer.new(**server_opts)
-  end
-
-  def update_server_args_hash(server_args)
-    so_reuseport_arg = 'grpc.so_reuseport'
-    unless server_args[so_reuseport_arg].nil?
-      fail 'Unexpected. grpc.so_reuseport already set.'
-    end
-    # Run tests without so_reuseport to eliminate the chance of
-    # cross-talk.
-    server_args[so_reuseport_arg] = 0
   end
 
   def run_services_on_server(server, services: [])

@@ -18,5 +18,4 @@ class EchoService
   rpc :a_bidi_rpc, stream(EchoMsg), stream(EchoMsg)
 end
 
-
 EchoStub = EchoService.rpc_stub_class

@@ -22,7 +22,6 @@ require 'echo_pb'
 module Echo
   module EchoServer
     class Service
-
       include GRPC::GenericService
 
       self.marshal_class_method = :encode

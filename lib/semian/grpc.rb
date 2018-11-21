@@ -33,48 +33,29 @@ module Semian
         @semian_identifier ||= :"grpc_#{@host}"
       end
 
-      DEFAULT_ERRORS = [
-        ::GRPC::Unavailable,
-        ::GRPC::Core::CallError,
-        ::GRPC::BadStatus,
-      ].freeze
-
-      class << self
-        attr_accessor :exceptions
-
-        def reset_exceptions
-          self.exceptions = Semian::GRPC::Interceptor::DEFAULT_ERRORS.dup
-        end
-      end
-
-      Semian::GRPC::Interceptor.reset_exceptions
-
       def resource_exceptions
-        Semian::GRPC::Interceptor.exceptions
+        [
+          ::GRPC::Unavailable,
+          ::GRPC::Core::CallError,
+          ::GRPC::BadStatus,
+          ::GRPC::DeadlineExceeded,
+        ]
       end
 
-      def request_response(request:, call:, method:, metadata: {})
-        acquire_semian_resource(adapter: :grpc, scope: :request_response) {
-          yield
-        }
+      def request_response(*)
+        acquire_semian_resource(adapter: :grpc, scope: :request_response) { yield }
       end
 
-      def client_streamer(request:, call:, method:, metadata: {})
-        acquire_semian_resource(adapter: :grpc, scope: :client_stream) {
-          yield
-        }
+      def client_streamer(*)
+        acquire_semian_resource(adapter: :grpc, scope: :client_stream) { yield }
       end
 
-      def server_streamer(request:, call:, method:, metadata: {})
-        acquire_semian_resource(adapter: :grpc, scope: :server_stream) {
-          yield
-        }
+      def server_streamer(*)
+        acquire_semian_resource(adapter: :grpc, scope: :server_stream) { yield }
       end
 
-      def bidi_streamer(request:, call:, method:, metadata: {})
-        acquire_semian_resource(adapter: :grpc, scope: :bidi_stream) {
-          yield
-        }
+      def bidi_streamer(*)
+        acquire_semian_resource(adapter: :grpc, scope: :bidi_stream) { yield }
       end
     end
   end
