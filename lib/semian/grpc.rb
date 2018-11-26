@@ -47,15 +47,15 @@ module Semian
       end
 
       def client_streamer(*)
-        acquire_semian_resource(adapter: :grpc, scope: :client_stream) { yield }
+        acquire_semian_resource(adapter: :grpc, scope: :client_streamer) { yield }
       end
 
       def server_streamer(*)
-        acquire_semian_resource(adapter: :grpc, scope: :server_stream) { yield }
+        acquire_semian_resource(adapter: :grpc, scope: :server_streamer) { yield }
       end
 
       def bidi_streamer(*)
-        acquire_semian_resource(adapter: :grpc, scope: :bidi_stream) { yield }
+        acquire_semian_resource(adapter: :grpc, scope: :bidi_streamer) { yield }
       end
     end
   end

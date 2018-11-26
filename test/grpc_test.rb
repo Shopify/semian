@@ -5,20 +5,24 @@ require 'mocha/minitest'
 require 'echo_service'
 
 class TestGRPC < Minitest::Test
-  ERROR_THRESHOLD = 3
+  ERROR_THRESHOLD = 1
   SEMIAN_OPTIONS = {
     name: :testing,
     tickets: 1,
     timeout: 0,
     error_threshold: ERROR_THRESHOLD,
-    success_threshold: 2,
-    error_timeout: 2,
+    success_threshold: 1,
+    error_timeout: 10,
   }
 
   def setup
     build_rpc_server
     @interceptor = Semian::GRPC::Interceptor.new(@host, SEMIAN_OPTIONS)
     @stub = build_insecure_stub(EchoStub, opts: {interceptors: [@interceptor]})
+  end
+
+  def teardown
+    @server.stop if @server.running_state == :running
   end
 
   def test_semian_identifier
@@ -40,7 +44,7 @@ class TestGRPC < Minitest::Test
     end
   end
 
-  def test_open_circuit_error
+  def test_unavailable_server_opens_the_circuit
     GRPC::ActiveCall.any_instance.stubs(:request_response).raises(::GRPC::Unavailable)
     ERROR_THRESHOLD.times do
       assert_raises ::GRPC::Unavailable do
@@ -52,30 +56,86 @@ class TestGRPC < Minitest::Test
     end
   end
 
-  def test_wip_timeout
-    hostname ||= "0.0.0.0"
+  def test_timeout_opens_the_circuit
     build_rpc_server
-    toxic_port ||= @port + 1
-
-    @interceptor = Semian::GRPC::Interceptor.new(@host, SEMIAN_OPTIONS)
-    Toxiproxy.populate([
-      {
-        name: 'semian_test_grpc',
-        upstream: "#{hostname}:#{@port}",
-        listen: "#{hostname}:#{@port + 1}",
-      },
-    ])
-
-    @stub = build_insecure_stub(EchoStub, host: "0.0.0.0:#{@port + 1}", opts: {interceptors: [@interceptor]})
+    stub = build_insecure_stub(EchoStub, host: "#{@hostname}:#{@port + 1}", opts: {interceptors: [@interceptor], timeout: 0.1})
 
     run_services_on_server(@server, services: [EchoService]) do
-      Toxiproxy["semian_test_grpc"].downstream(:latency, latency: 5000).apply do
-        @stub.an_rpc(EchoMsg.new)
+      Toxiproxy['semian_test_grpc'].downstream(:latency, latency: 5000).apply do
+        ERROR_THRESHOLD.times do
+          assert_raises GRPC::DeadlineExceeded do
+            stub.an_rpc(EchoMsg.new)
+          end
+        end
+      end
+
+      Toxiproxy['semian_test_grpc'].downstream(:latency, latency: 5000).apply do
+        assert_raises GRPC::CircuitOpenError do
+          stub.an_rpc(EchoMsg.new)
+        end
       end
     end
   end
 
+  def test_instrumentation
+    notified = false
+    subscriber = Semian.subscribe do |event, resource, scope, adapter|
+      notified = true
+      assert_equal :success, event
+      assert_equal Semian[:"grpc_#{@hostname}:#{@port}"], resource
+      assert_equal :request_response, scope
+      assert_equal :grpc, adapter
+    end
+
+    run_services_on_server(@server, services: [EchoService]) do
+      GRPC::ActiveCall.any_instance.expects(:request_response)
+      @stub.an_rpc(EchoMsg.new)
+    end
+
+    assert notified, 'No notifications has been emitted'
+  ensure
+    Semian.unsubscribe(subscriber)
+  end
+
+  def test_circuit_breaker_on_client_streamer
+    stub = build_insecure_stub(EchoStub, host: "0.0.0.1:0", opts: {interceptors: [@interceptor]})
+    requests = [EchoMsg.new, EchoMsg.new]
+    open_circuit!(stub, :a_client_streaming_rpc, requests)
+
+    assert_raises GRPC::CircuitOpenError do
+      stub.a_client_streaming_rpc(requests)
+    end
+  end
+
+  def test_circuit_breaker_on_server_streamer
+    stub = build_insecure_stub(EchoStub, host: "0.0.0.1:0", opts: {interceptors: [@interceptor]})
+    request = EchoMsg.new
+    open_circuit!(stub, :a_server_streaming_rpc, request)
+
+    assert_raises GRPC::CircuitOpenError do
+      stub.a_server_streaming_rpc(request)
+    end
+  end
+
+  def test_circuit_breaker_on_bidi_streamer
+    stub = build_insecure_stub(EchoStub, host: "0.0.0.1:0", opts: {interceptors: [@interceptor]})
+    requests = [EchoMsg.new, EchoMsg.new]
+    open_circuit!(stub, :a_bidi_rpc, requests)
+
+    assert_raises GRPC::CircuitOpenError do
+      stub.a_bidi_rpc(requests)
+    end
+  end
+
   private
+
+  def open_circuit!(stub, method, args)
+    ERROR_THRESHOLD.times do
+      assert_raises GRPC::Unavailable do
+        stub.send(method, args)
+      end
+    end
+  end
 
   def build_insecure_stub(klass, host: nil, opts: nil)
     host ||= @host
@@ -84,11 +144,23 @@ class TestGRPC < Minitest::Test
   end
 
   def build_rpc_server(server_opts: {}, client_opts: {})
+    @hostname = '0.0.0.0'
     @server = new_rpc_server_for_testing({poll_period: 1}.merge(server_opts))
-    @port = @server.add_http2_port('0.0.0.0:0', :this_port_is_insecure)
-    @host = "0.0.0.0:#{@port}"
+    @port = @server.add_http2_port("#{@hostname}:0", :this_port_is_insecure)
+    @host = "#{@hostname}:#{@port}"
     @client_opts = client_opts
+    populate_toxiproxy
     @server
+  end
+
+  def populate_toxiproxy
+    Toxiproxy.populate([
+      {
+        name: 'semian_test_grpc',
+        upstream: "#{@hostname}:#{@port}",
+        listen: "#{@hostname}:#{@port + 1}",
+      },
+    ])
   end
 
   def new_rpc_server_for_testing(server_opts = {})
