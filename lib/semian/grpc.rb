@@ -17,46 +17,48 @@ end
 
 module Semian
   module GRPC
-    class Interceptor < ::GRPC::ClientInterceptor
-      attr_reader :raw_semian_options
-      include Semian::Adapter
+    attr_reader :raw_semian_options
+    include Semian::Adapter
 
-      ResourceBusyError = ::GRPC::ResourceBusyError
-      CircuitOpenError = ::GRPC::CircuitOpenError
+    ResourceBusyError = ::GRPC::ResourceBusyError
+    CircuitOpenError = ::GRPC::CircuitOpenError
 
-      def initialize(host, semian_options)
-        @host = host
-        @raw_semian_options = semian_options
-      end
+    def initialize(host, creds, **opts)
+      @host = host
+      @raw_semian_options = opts[:semian_options]
+      opts.delete(:semian_options)
+      super(host, creds, opts)
+    end
 
-      def semian_identifier
-        @semian_identifier ||= :"grpc_#{@host}"
-      end
+    def semian_identifier
+      @semian_identifier ||= :"grpc_#{@host}"
+    end
 
-      def resource_exceptions
-        [
-          ::GRPC::Unavailable,
-          ::GRPC::Core::CallError,
-          ::GRPC::BadStatus,
-          ::GRPC::DeadlineExceeded,
-        ]
-      end
+    def resource_exceptions
+      [
+        ::GRPC::Unavailable,
+        ::GRPC::Core::CallError,
+        ::GRPC::BadStatus,
+        ::GRPC::DeadlineExceeded,
+      ]
+    end
 
-      def request_response(*)
-        acquire_semian_resource(adapter: :grpc, scope: :request_response) { yield }
-      end
+    def request_response(*args)
+      acquire_semian_resource(adapter: :grpc, scope: :request_response) { super(*args) }
+    end
 
-      def client_streamer(*)
-        acquire_semian_resource(adapter: :grpc, scope: :client_streamer) { yield }
-      end
+    def client_streamer(*args)
+      acquire_semian_resource(adapter: :grpc, scope: :client_streamer) { super(*args) }
+    end
 
-      def server_streamer(*)
-        acquire_semian_resource(adapter: :grpc, scope: :server_streamer) { yield }
-      end
+    def server_streamer(*args)
+      acquire_semian_resource(adapter: :grpc, scope: :server_streamer) { super(*args) }
+    end
 
-      def bidi_streamer(*)
-        acquire_semian_resource(adapter: :grpc, scope: :bidi_streamer) { yield }
-      end
+    def bidi_streamer(*args)
+      acquire_semian_resource(adapter: :grpc, scope: :bidi_streamer) { super(*args) }
     end
   end
 end
+
+::GRPC::ClientStub.prepend(Semian::GRPC)
