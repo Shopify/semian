@@ -7,7 +7,7 @@ class LRUHash
   # for a maximum of 5 minutes
   extend Forwardable
   def_delegators :@table, :size, :count, :empty?, :values
-  attr_reader :table, :minimum_time_in_lru
+  attr_reader :table
   MINIMUM_TIME_IN_LRU = 300
 
   class NoopMutex
@@ -35,7 +35,6 @@ class LRUHash
   end
 
   def initialize
-    @minimum_time_in_lru = MINIMUM_TIME_IN_LRU
     @table = {}
     @lock =
       if Semian.thread_safe?
@@ -81,12 +80,12 @@ class LRUHash
   private
 
   def clear_unused_resources
+    return unless @lock.try_lock
     # Clears resources that have not been used in the last 5 minutes.
     Semian.notify(:lru_hash_cleaned, self, :cleaning, :lru_hash)
-    return unless @lock.try_lock
     begin
       @table.each do |_, resource|
-        break if resource.updated_at + minimum_time_in_lru > Time.now
+        break if resource.updated_at + MINIMUM_TIME_IN_LRU > Time.now
         next if resource.in_use?
 
         resource = @table.delete(resource.name)
