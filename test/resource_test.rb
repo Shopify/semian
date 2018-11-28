@@ -69,11 +69,6 @@ class TestResource < Minitest::Test
     assert_equal 0, resource.registered_workers
   end
 
-  def test_in_use_returns_false
-    resource = create_resource(:testing, tickets: 1)
-    refute resource.in_use?
-  end
-
   def test_reset_registered_workers
     workers = 10
     resource = Semian.register(:testing, tickets: 1, error_threshold: 0, error_timeout: 0, success_threshold: 0)
