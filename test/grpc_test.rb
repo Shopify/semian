@@ -44,15 +44,6 @@ class TestGRPC < Minitest::Test
     end
   end
 
-  def test_details
-    GRPC::ActiveCall.any_instance.stubs(:request_response).raises(::GRPC::Unavailable.new('details'))
-    error = assert_raises ::GRPC::Unavailable do
-      @stub.an_rpc(EchoMsg.new)
-    end
-
-    assert_equal 'details', error.details
-  end
-
   def test_unavailable_server_opens_the_circuit
     GRPC::ActiveCall.any_instance.stubs(:request_response).raises(::GRPC::Unavailable)
     ERROR_THRESHOLD.times do

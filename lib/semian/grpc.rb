@@ -5,8 +5,11 @@ module GRPC
   GRPC::BadStatus.include(::Semian::AdapterError)
 
   class SemianError < GRPC::BadStatus
+    attr_reader :details
+
     def initialize(semian_identifier, *args)
       super(*args)
+      @details = args.first
       @semian_identifier = semian_identifier
     end
   end
@@ -36,10 +39,16 @@ module Semian
 
     def resource_exceptions
       [
-        ::GRPC::Unavailable,
-        ::GRPC::Core::CallError,
-        ::GRPC::BadStatus,
         ::GRPC::DeadlineExceeded,
+        ::GRPC::InvalidArgument,
+        ::GRPC::Cancelled,
+        ::GRPC::Unknown,
+        ::GRPC::NotFound,
+        ::GRPC::PermissionDenied,
+        ::GRPC::ResourceExhausted,
+        ::GRPC::Aborted,
+        ::GRPC::Unavailable,
+        ::GRPC::BadStatus
       ]
     end
 
