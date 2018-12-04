@@ -29,7 +29,9 @@ module Semian
       begin
         result = maybe_with_half_open_resource_timeout(resource, &block)
       rescue *@exceptions => error
-        mark_failed(error)
+        if !error.respond_to?(:marks_semian_circuits?) || error.marks_semian_circuits?
+          mark_failed(error)
+        end
         raise error
       else
         mark_success
