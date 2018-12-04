@@ -34,6 +34,7 @@ module Semian
         yield self
       else
         @circuit_breaker.acquire(resource) do
+          Semian.notify(:success, self, scope, adapter) if @bulkhead.nil?
           yield self
         end
       end
