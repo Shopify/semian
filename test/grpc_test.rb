@@ -26,7 +26,7 @@ class TestGRPC < Minitest::Test
   end
 
   def test_semian_identifier
-    assert_equal :"grpc_#{@host}", @stub.semian_identifier
+    assert_equal :testing, @stub.semian_identifier
   end
 
   def test_errors_are_tagged_with_the_resource_identifier
@@ -34,7 +34,7 @@ class TestGRPC < Minitest::Test
     error = assert_raises ::GRPC::Unavailable do
       @stub.an_rpc(EchoMsg.new)
     end
-    assert_equal :"grpc_#{@host}", error.semian_identifier
+    assert_equal :testing, error.semian_identifier
   end
 
   def test_rpc_server
@@ -81,7 +81,7 @@ class TestGRPC < Minitest::Test
     subscriber = Semian.subscribe do |event, resource, scope, adapter|
       notified = true
       assert_equal :success, event
-      assert_equal Semian[:"grpc_#{@hostname}:#{@port}"], resource
+      assert_equal Semian[:testing], resource
       assert_equal :request_response, scope
       assert_equal :grpc, adapter
     end
@@ -123,6 +123,21 @@ class TestGRPC < Minitest::Test
 
     assert_raises GRPC::CircuitOpenError do
       stub.a_bidi_rpc(requests)
+    end
+  end
+
+  def test_bulkheads_tickets_are_working
+    run_services_on_server(@server, services: [EchoService]) do
+      stub1 = build_insecure_stub(EchoStub, opts: {semian_options: SEMIAN_OPTIONS})
+      stub1.semian_resource.acquire do
+        SEMIAN_OPTIONS[:name] = :testing2
+        stub2 = build_insecure_stub(EchoStub, opts: {semian_options: SEMIAN_OPTIONS})
+        stub2.semian_resource.acquire do
+          assert_raises GRPC::ResourceBusyError do
+            stub2.an_rpc(EchoMsg.new)
+          end
+        end
+      end
     end
   end
 

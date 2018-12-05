@@ -27,14 +27,13 @@ module Semian
     CircuitOpenError = ::GRPC::CircuitOpenError
 
     def initialize(host, creds, **opts)
-      @host = host
       @raw_semian_options = opts[:semian_options]
       opts.delete(:semian_options)
       super(host, creds, opts)
     end
 
     def semian_identifier
-      @semian_identifier ||= :"grpc_#{@host}"
+      @semian_identifier ||= @raw_semian_options[:name]
     end
 
     def resource_exceptions
@@ -48,7 +47,7 @@ module Semian
         ::GRPC::ResourceExhausted,
         ::GRPC::Aborted,
         ::GRPC::Unavailable,
-        ::GRPC::BadStatus
+        ::GRPC::BadStatus,
       ]
     end
 
