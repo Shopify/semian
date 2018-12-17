@@ -13,9 +13,9 @@ module CircuitBreakerHelper
     end
   end
 
-  def trigger_error!(resource = @resource)
-    resource.acquire { raise SomeError }
-  rescue SomeError
+  def trigger_error!(resource = @resource, error = SomeError)
+    resource.acquire { raise error }
+  rescue error
   end
 
   def assert_circuit_closed(resource = @resource)

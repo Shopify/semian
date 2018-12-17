@@ -214,4 +214,26 @@ class TestCircuitBreaker < Minitest::Test
 
     assert triggered
   end
+
+  class SomeErrorThatMarksCircuits < SomeError
+    def marks_semian_circuits?
+      true
+    end
+  end
+
+  class SomeSubErrorThatDoesNotMarkCircuits < SomeErrorThatMarksCircuits
+    def marks_semian_circuits?
+      false
+    end
+  end
+
+  def test_opens_circuit_when_error_has_marks_semian_circuits_equal_to_true
+    2.times { trigger_error!(@resource, SomeErrorThatMarksCircuits) }
+    assert_circuit_opened
+  end
+
+  def test_does_not_open_circuit_when_error_has_marks_semian_circuits_equal_to_false
+    2.times { trigger_error!(@resource, SomeSubErrorThatDoesNotMarkCircuits) }
+    assert_circuit_closed
+  end
 end
