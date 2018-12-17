@@ -1,3 +1,6 @@
+# v0.8.6
+* Feature: If an error instance responds to `#marks_semian_circuits?` don't mark the circuit if it returns false (#210)
+
 # v0.8.5
 * Fix: Redis adapter using hiredis is resilient to DNS resolution failures (#205)
 
