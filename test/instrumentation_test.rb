@@ -38,6 +38,13 @@ class TestInstrumentation < Minitest::Test
     end
   end
 
+  def test_success_instrumentation_without_bulkhead
+    Semian.register(:no_bulkhead, bulkhead: false, error_threshold: 1, error_timeout: 5, success_threshold: 1)
+    assert_notify(:success) do
+      Semian[:no_bulkhead].acquire {}
+    end
+  end
+
   def test_success_instrumentation_wait_time
     hit = false
     subscription = Semian.subscribe do |*_, wait_time|
