@@ -22,7 +22,7 @@ module Semian
     def acquire(timeout: nil, scope: nil, adapter: nil, resource: nil)
       acquire_circuit_breaker(scope, adapter, resource) do
         acquire_bulkhead(timeout, scope, adapter) do |_, wait_time|
-          Semian.notify(:success, self, scope, adapter, wait_time || 0)
+          Semian.notify(:success, self, scope, adapter, wait_time)
           yield self
         end
       end
@@ -45,7 +45,7 @@ module Semian
 
     def acquire_bulkhead(timeout, scope, adapter)
       if @bulkhead.nil?
-        yield self
+        yield self, 0
       else
         @bulkhead.acquire(timeout: timeout) do |wait_time|
           yield self, wait_time
