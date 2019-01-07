@@ -130,8 +130,15 @@ class TestGRPC < Minitest::Test
     run_services_on_server(@server, services: [EchoService]) do
       stub1 = build_insecure_stub(EchoStub, opts: {semian_options: SEMIAN_OPTIONS})
       stub1.semian_resource.acquire do
-        SEMIAN_OPTIONS[:name] = :testing2
-        stub2 = build_insecure_stub(EchoStub, opts: {semian_options: SEMIAN_OPTIONS})
+        testing2_semian_options = {
+          name: :testing2,
+          tickets: 1,
+          timeout: 0,
+          error_threshold: ERROR_THRESHOLD,
+          success_threshold: 1,
+          error_timeout: 10,
+        }
+        stub2 = build_insecure_stub(EchoStub, opts: {semian_options: testing2_semian_options})
         stub2.semian_resource.acquire do
           assert_raises GRPC::ResourceBusyError do
             stub2.an_rpc(EchoMsg.new)

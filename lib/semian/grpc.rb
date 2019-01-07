@@ -9,7 +9,7 @@ module GRPC
 
     def initialize(semian_identifier, *args)
       super(*args)
-      @details = args.first
+      @details = message
       @semian_identifier = semian_identifier
     end
   end
