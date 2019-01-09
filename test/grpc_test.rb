@@ -7,7 +7,6 @@ require 'echo_service'
 class TestGRPC < Minitest::Test
   ERROR_THRESHOLD = 1
   SEMIAN_OPTIONS = {
-    name: :testing,
     tickets: 1,
     timeout: 0,
     error_threshold: ERROR_THRESHOLD,
@@ -15,9 +14,16 @@ class TestGRPC < Minitest::Test
     error_timeout: 10,
   }
 
+  DEFAULT_SEMIAN_CONFIGURATION = proc do |host|
+    next nil if @port && host == "#{@hostname}:#{@port - 1}" # disable if toxiproxy
+    SEMIAN_OPTIONS.merge(name: host)
+  end
+
   def setup
+    Semian::GRPC.reset_semian_configuration
     build_rpc_server
-    @stub = build_insecure_stub(EchoStub, opts: {semian_options: SEMIAN_OPTIONS})
+    Semian::GRPC.semian_configuration = DEFAULT_SEMIAN_CONFIGURATION
+    @stub = build_insecure_stub(EchoStub)
   end
 
   def teardown
@@ -26,7 +32,7 @@ class TestGRPC < Minitest::Test
   end
 
   def test_semian_identifier
-    assert_equal :testing, @stub.semian_identifier
+    assert_equal @host, @stub.semian_identifier
   end
 
   def test_errors_are_tagged_with_the_resource_identifier
@@ -34,7 +40,7 @@ class TestGRPC < Minitest::Test
     error = assert_raises ::GRPC::Unavailable do
       @stub.an_rpc(EchoMsg.new)
     end
-    assert_equal :testing, error.semian_identifier
+    assert_equal @host, error.semian_identifier
   end
 
   def test_rpc_server
@@ -57,7 +63,21 @@ class TestGRPC < Minitest::Test
   end
 
   def test_timeout_opens_the_circuit
-    stub = build_insecure_stub(EchoStub, host: "#{@hostname}:#{@port + 1}", opts: {timeout: 0.1, semian_options: SEMIAN_OPTIONS})
+    skip
+    options = proc do |host, port|
+      {
+        tickets: 1,
+        success_threshold: 1,
+        error_threshold: 3,
+        error_timeout: 10,
+        name: host,
+      }
+    end
+    Semian::GRPC.reset_semian_configuration
+    Semian::GRPC.semian_configuration = options
+    build_rpc_server
+
+    stub = build_insecure_stub(EchoStub, host: "#{@hostname}:#{@port + 1}")
 
     run_services_on_server(@server, services: [EchoService]) do
       Toxiproxy['semian_test_grpc'].downstream(:latency, latency: 1000).apply do
@@ -81,7 +101,7 @@ class TestGRPC < Minitest::Test
     subscriber = Semian.subscribe do |event, resource, scope, adapter|
       notified = true
       assert_equal :success, event
-      assert_equal Semian[:testing], resource
+      assert_equal Semian[@host], resource
       assert_equal :request_response, scope
       assert_equal :grpc, adapter
     end
@@ -97,7 +117,7 @@ class TestGRPC < Minitest::Test
   end
 
   def test_circuit_breaker_on_client_streamer
-    stub = build_insecure_stub(EchoStub, host: "0.0.0.1:0", opts: {semian_options: SEMIAN_OPTIONS})
+    stub = build_insecure_stub(EchoStub, host: "0.0.0.1:0")
     requests = [EchoMsg.new, EchoMsg.new]
     open_circuit!(stub, :a_client_streaming_rpc, requests)
 
@@ -107,7 +127,7 @@ class TestGRPC < Minitest::Test
   end
 
   def test_circuit_breaker_on_server_streamer
-    stub = build_insecure_stub(EchoStub, host: "0.0.0.1:0", opts: {semian_options: SEMIAN_OPTIONS})
+    stub = build_insecure_stub(EchoStub, host: "0.0.0.1:0")
     request = EchoMsg.new
     open_circuit!(stub, :a_server_streaming_rpc, request)
 
@@ -117,7 +137,7 @@ class TestGRPC < Minitest::Test
   end
 
   def test_circuit_breaker_on_bidi_streamer
-    stub = build_insecure_stub(EchoStub, host: "0.0.0.1:0", opts: {semian_options: SEMIAN_OPTIONS})
+    stub = build_insecure_stub(EchoStub, host: "0.0.0.1:0")
     requests = [EchoMsg.new, EchoMsg.new]
     open_circuit!(stub, :a_bidi_rpc, requests)
 
@@ -127,18 +147,23 @@ class TestGRPC < Minitest::Test
   end
 
   def test_bulkheads_tickets_are_working
+    options = proc do |host, port|
+      {
+        tickets: 1,
+        success_threshold: 1,
+        error_threshold: 3,
+        error_timeout: 10,
+        name: "#{host}_#{port}",
+      }
+    end
+    Semian::GRPC.reset_semian_configuration
+    Semian::GRPC.semian_configuration = options
+    build_rpc_server
+
     run_services_on_server(@server, services: [EchoService]) do
-      stub1 = build_insecure_stub(EchoStub, opts: {semian_options: SEMIAN_OPTIONS})
+      stub1 = build_insecure_stub(EchoStub)
       stub1.semian_resource.acquire do
-        testing2_semian_options = {
-          name: :testing2,
-          tickets: 1,
-          timeout: 0,
-          error_threshold: ERROR_THRESHOLD,
-          success_threshold: 1,
-          error_timeout: 10,
-        }
-        stub2 = build_insecure_stub(EchoStub, opts: {semian_options: testing2_semian_options})
+        stub2 = build_insecure_stub(EchoStub, host: "0.0.0.1")
         stub2.semian_resource.acquire do
           assert_raises GRPC::ResourceBusyError do
             stub2.an_rpc(EchoMsg.new)
