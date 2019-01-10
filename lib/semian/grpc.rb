@@ -39,7 +39,12 @@ module Semian
 
     def raw_semian_options
       @raw_semian_options ||= begin
-        @raw_semian_options = Semian::GRPC.retrieve_semian_configuration(@host)
+        host = if @host.empty?
+          @ch.target
+        else
+          @host
+        end
+        @raw_semian_options = Semian::GRPC.retrieve_semian_configuration(host)
         @raw_semian_options = @raw_semian_options.dup unless @raw_semian_options.nil?
       end
     end
