@@ -73,11 +73,7 @@ module Semian
       end
 
       def retrieve_semian_configuration(host)
-        if @semian_configuration.respond_to?(:call)
-          @semian_configuration.call(host)
-        else
-          @semian_configuration
-        end
+        @semian_configuration.call(host) if @semian_configuration.respond_to?(:call)
       end
 
       def reset_semian_configuration

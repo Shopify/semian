@@ -64,7 +64,7 @@ class TestGRPC < Minitest::Test
 
   def test_timeout_opens_the_circuit
     skip
-    options = proc do |host, port|
+    options = proc do |host|
       {
         tickets: 1,
         success_threshold: 1,
@@ -146,14 +146,14 @@ class TestGRPC < Minitest::Test
     end
   end
 
-  def test_bulkheads_tickets_are_working
-    options = proc do |host, port|
+  def test_wip_bulkheads_tickets_are_working
+    options = proc do |host|
       {
         tickets: 1,
         success_threshold: 1,
         error_threshold: 3,
         error_timeout: 10,
-        name: "#{host}_#{port}",
+        name: "#{host}",
       }
     end
     Semian::GRPC.reset_semian_configuration
