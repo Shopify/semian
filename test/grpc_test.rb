@@ -20,7 +20,7 @@ class TestGRPC < Minitest::Test
   end
 
   def setup
-    Semian::GRPC.reset_semian_configuration
+    Semian::GRPC.instance_variable_set(:@semian_configuration, nil)
     build_rpc_server
     Semian::GRPC.semian_configuration = DEFAULT_SEMIAN_CONFIGURATION
     @stub = build_insecure_stub(EchoStub)
@@ -73,7 +73,7 @@ class TestGRPC < Minitest::Test
         name: host,
       }
     end
-    Semian::GRPC.reset_semian_configuration
+    Semian::GRPC.instance_variable_set(:@semian_configuration, nil)
     Semian::GRPC.semian_configuration = options
     build_rpc_server
 
@@ -156,7 +156,7 @@ class TestGRPC < Minitest::Test
         name: "#{host}",
       }
     end
-    Semian::GRPC.reset_semian_configuration
+    Semian::GRPC.instance_variable_set(:@semian_configuration, nil)
     Semian::GRPC.semian_configuration = options
     build_rpc_server
 

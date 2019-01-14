@@ -25,12 +25,6 @@ module Semian
     ResourceBusyError = ::GRPC::ResourceBusyError
     CircuitOpenError = ::GRPC::CircuitOpenError
 
-    # def initialize(host, creds, **opts)
-    #   @raw_semian_options = opts[:semian_options]
-    #   opts.delete(:semian_options)
-    #   super(host, creds, opts)
-    # end
-
     class SemianConfigurationChangedError < RuntimeError
       def initialize(msg = "Cannot re-initialize semian_configuration")
         super
@@ -79,10 +73,6 @@ module Semian
 
       def retrieve_semian_configuration(host)
         @semian_configuration.call(host) if @semian_configuration.respond_to?(:call)
-      end
-
-      def reset_semian_configuration
-        @semian_configuration = nil
       end
     end
 
