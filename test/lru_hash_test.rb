@@ -107,6 +107,8 @@ class TestLRUHash < Minitest::Test
   end
 
   def test_clean_instrumentation
+    @lru_hash.set('b', create_circuit_breaker('b', true, false, 1000))
+
     notified = false
     subscriber = Semian.subscribe do |event, resource, scope, adapter|
       notified = true
@@ -116,7 +118,9 @@ class TestLRUHash < Minitest::Test
       assert_equal :lru_hash, adapter
     end
 
-    @lru_hash.set('a', create_circuit_breaker('a'))
+    Timecop.travel(2000) do
+      @lru_hash.set('d', create_circuit_breaker('d'))
+    end
 
     assert notified, 'No notifications has been emitted'
   ensure
