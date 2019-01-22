@@ -82,7 +82,6 @@ class LRUHash
   def clear_unused_resources
     return unless @lock.try_lock
     # Clears resources that have not been used in the last 5 minutes.
-    Semian.notify(:lru_hash_cleaned, self, :cleaning, :lru_hash)
     begin
       @table.each do |_, resource|
         break if resource.updated_at + MINIMUM_TIME_IN_LRU > Time.now
@@ -90,6 +89,7 @@ class LRUHash
 
         resource = @table.delete(resource.name)
         if resource
+          Semian.notify(:lru_hash_cleaned, self, :cleaning, :lru_hash)
           resource.destroy
         end
       end
