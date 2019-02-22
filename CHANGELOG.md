@@ -1,3 +1,6 @@
+# v0.8.8
+* Feature: Introduce the GRPC adapter (#200)
+
 # v0.8.7
 * Fix: Instrument success for `acquire_circuit_breaker` (#209)
 
