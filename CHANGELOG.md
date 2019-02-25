@@ -1,3 +1,9 @@
+# v0.8.8
+* Feature: Introduce the GRPC adapter (#200)
+
+# v0.8.7
+* Fix: Instrument success for `acquire_circuit_breaker` (#209)
+
 # v0.8.6
 * Feature: If an error instance responds to `#marks_semian_circuits?` don't mark the circuit if it returns false (#210)
 
