@@ -47,6 +47,34 @@ class TestMysql2 < Minitest::Test
     end
   end
 
+  def test_circuit_open_error_does_not_repeat
+    @proxy.downstream(:latency, latency: 2200).apply do
+      ERROR_THRESHOLD.times do
+        assert_raises ::Mysql2::Error do
+          connect_to_mysql!
+        end
+      end
+
+      expected_exception = assert_raises ::Mysql2::CircuitOpenError do
+        connect_to_mysql!
+      end
+
+      assert_raises ::Mysql2::CircuitOpenError do
+        connect_to_mysql!
+      end
+
+      assert_raises ::Mysql2::CircuitOpenError do
+        connect_to_mysql!
+      end
+
+      exception = assert_raises ::Mysql2::CircuitOpenError do
+        connect_to_mysql!
+      end
+
+      assert_equal expected_exception.cause.to_s, exception.cause.to_s
+    end
+  end
+
   def test_query_errors_does_not_open_the_circuit
     client = connect_to_mysql!
     (ERROR_THRESHOLD * 2).times do

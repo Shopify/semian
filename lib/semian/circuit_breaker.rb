@@ -109,7 +109,7 @@ module Semian
     end
 
     def push_error(error)
-      @last_error = error
+      @last_error ||= error
     end
 
     def push_time(window, time: Time.now)
