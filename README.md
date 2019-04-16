@@ -213,7 +213,7 @@ SEMIAN_PARAMETERS = { tickets: 1,
                       error_timeout: 10 }
 Semian::NetHTTP.semian_configuration = proc do |host, port|
   # Let's make it only active for github.com
-  if host == "github.com" && port == "80"
+  if host == "github.com" && port == 80
     SEMIAN_PARAMETERS.merge(name: "github.com_80")
   else
     nil
