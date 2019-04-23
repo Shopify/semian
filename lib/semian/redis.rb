@@ -94,6 +94,7 @@ module Semian
     private
 
     RESOLVE_ERROR_PATTERN = /(can't resolve)|(name or service not known)|(nodename nor servname provided, or not known)/i
+    private_constant :RESOLVE_ERROR_PATTERN
 
     def resource_exceptions
       [
