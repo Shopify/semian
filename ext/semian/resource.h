@@ -126,8 +126,4 @@ semian_resource_unregister_worker(VALUE self);
 VALUE
 semian_resource_alloc(VALUE klass);
 
-// Returns true if the resource is in use
-VALUE
-semian_resource_in_use(VALUE self);
-
 #endif //SEMIAN_RESOURCE_H

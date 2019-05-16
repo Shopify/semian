@@ -51,9 +51,5 @@ module Semian
     def key
       '0x00000000'
     end
-
-    def in_use?
-      false
-    end
   end
 end

@@ -240,12 +240,6 @@ semian_resource_alloc(VALUE klass)
   return obj;
 }
 
-VALUE
-semian_resource_in_use(VALUE self)
-{
-  return Qtrue;
-}
-
 static VALUE
 cleanup_semian_resource_acquire(VALUE self)
 {

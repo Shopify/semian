@@ -8,7 +8,7 @@ class LRUHash
   extend Forwardable
   def_delegators :@table, :size, :count, :empty?, :values
   attr_reader :table
-  MINIMUM_TIME_IN_LRU = 300
+  MAX_LRU_SIZE = 1000
 
   class NoopMutex
     def synchronize(*)
@@ -48,9 +48,8 @@ class LRUHash
     @lock.synchronize do
       @table.delete(key)
       @table[key] = resource
-      resource.updated_at = Time.now
+      evict_oldest if @table.size >= MAX_LRU_SIZE
     end
-    clear_unused_resources
   end
 
   def get(key)
@@ -79,22 +78,11 @@ class LRUHash
 
   private
 
-  def clear_unused_resources
-    return unless @lock.try_lock
-    # Clears resources that have not been used in the last 5 minutes.
-    begin
-      @table.each do |_, resource|
-        break if resource.updated_at + MINIMUM_TIME_IN_LRU > Time.now
-        next if resource.in_use?
-
-        resource = @table.delete(resource.name)
-        if resource
-          Semian.notify(:lru_hash_cleaned, self, :cleaning, :lru_hash)
-          resource.destroy
-        end
-      end
-    ensure
-      @lock.unlock
+  def evict_oldest
+    resource = @table.shift
+    if resource
+      Semian.notify(:lru_hash_cleaned, self, :cleaning, :lru_hash)
+      resource.destroy
     end
   end
 end

@@ -52,7 +52,6 @@ void Init_semian()
   rb_define_method(cResource, "destroy", semian_resource_destroy, 0);
   rb_define_method(cResource, "reset_registered_workers!", semian_resource_reset_workers, 0);
   rb_define_method(cResource, "unregister_worker", semian_resource_unregister_worker, 0);
-  rb_define_method(cResource, "in_use?", semian_resource_in_use, 0);
 
   id_wait_time = rb_intern("wait_time");
   id_timeout = rb_intern("timeout");

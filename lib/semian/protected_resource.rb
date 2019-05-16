@@ -7,13 +7,11 @@ module Semian
                    :open?, :closed?, :half_open?
 
     attr_reader :bulkhead, :circuit_breaker, :name
-    attr_accessor :updated_at
 
     def initialize(name, bulkhead, circuit_breaker)
       @name = name
       @bulkhead = bulkhead
       @circuit_breaker = circuit_breaker
-      @updated_at = Time.now
     end
 
     def destroy
@@ -28,10 +26,6 @@ module Semian
           yield self
         end
       end
-    end
-
-    def in_use?
-      circuit_breaker&.in_use? || bulkhead&.in_use?
     end
 
     private
