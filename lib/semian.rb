@@ -227,7 +227,7 @@ module Semian
 
   def reset!
     @consumers = {}
-    @resources = LRUHash.new
+    @resources = StagedHash.new
   end
 
   def thread_safe?
@@ -255,6 +255,7 @@ module Semian
       exceptions: Array(exceptions) + [::Semian::BaseError],
       half_open_resource_timeout: options[:half_open_resource_timeout],
       implementation: implementation(**options),
+      reporter: @resources,
     )
   end
 

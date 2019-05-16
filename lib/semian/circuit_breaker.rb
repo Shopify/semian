@@ -6,7 +6,7 @@ module Semian
 
     attr_reader :name, :half_open_resource_timeout, :error_timeout, :state, :last_error
 
-    def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, implementation:, half_open_resource_timeout: nil)
+    def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, implementation:, half_open_resource_timeout: nil, reporter: nil)
       @name = name.to_sym
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
@@ -17,6 +17,18 @@ module Semian
       @errors = implementation::SlidingWindow.new(max_size: @error_count_threshold)
       @successes = implementation::Integer.new
       @state = implementation::State.new
+
+      @reporter = reporter
+    end
+
+    def send_in_use
+      return if @reporter.nil?
+      @reporter.mark_in_use(@name)
+    end
+
+    def send_unused
+      return if @reporter.nil?
+      @reporter.mark_unused(@name)
     end
 
     def acquire(resource = nil, &block)
@@ -81,11 +93,13 @@ module Semian
       log_state_transition(:closed)
       @state.close!
       @errors.clear
+      mark_in_use
     end
 
     def transition_to_open
       log_state_transition(:open)
       @state.open!
+      mark_unused
     end
 
     def transition_to_half_open
