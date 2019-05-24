@@ -107,15 +107,21 @@ class TestLRUHash < Minitest::Test
   end
 
   def test_clean_instrumentation
+    @lru_hash.set('a', create_circuit_breaker('a', true, false, 1000))
     @lru_hash.set('b', create_circuit_breaker('b', true, false, 1000))
+    @lru_hash.set('c', create_circuit_breaker('c', true, false, 1000))
 
     notified = false
-    subscriber = Semian.subscribe do |event, resource, scope, adapter|
+    subscriber = Semian.subscribe do |event, resource, scope, adapter, payload|
       notified = true
-      assert_equal :lru_hash_cleaned, event
+      assert_equal :lru_hash_gc, event
       assert_equal @lru_hash, resource
-      assert_equal :cleaning, scope
-      assert_equal :lru_hash, adapter
+      assert_nil scope
+      assert_nil adapter
+      assert_equal 4, payload[:size]
+      assert_equal 4, payload[:examined]
+      assert_equal 3, payload[:cleared]
+      refute_nil payload[:elapsed]
     end
 
     Timecop.travel(2000) do
