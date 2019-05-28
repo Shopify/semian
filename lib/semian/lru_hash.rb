@@ -53,11 +53,17 @@ class LRUHash
     clear_unused_resources
   end
 
+  # This method uses the property that "Hashes enumerate their values in the
+  # order that the corresponding keys were inserted." Deleting a key and
+  # re-inserting it effectively moves it to the front of the cache.
+  # Update the `updated_at` field so we can use it later do decide if the
+  # resource is "in use".
   def get(key)
     @lock.synchronize do
       found = @table.delete(key)
       if found
         @table[key] = found
+        found.updated_at = Time.now
       end
       found
     end
@@ -83,16 +89,36 @@ class LRUHash
     return unless @lock.try_lock
     # Clears resources that have not been used in the last 5 minutes.
     begin
+      timer_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+      payload = {
+          size: @table.size,
+          examined: 0,
+          cleared: 0,
+          elapsed: nil,
+      }
+
+      stop_time = Time.now - MINIMUM_TIME_IN_LRU # Don't process resources updated after this time
       @table.each do |_, resource|
-        break if resource.updated_at + MINIMUM_TIME_IN_LRU > Time.now
+        payload[:examined] += 1
+
+        # The update times of the resources in the LRU are monotonically increasing,
+        # time, so we can stop looking once we find the first resource with an
+        # update time after the stop_time.
+        break if resource.updated_at > stop_time
+
+        # TODO(michaelkipper): Should this be a flag?
         next if resource.in_use?
 
         resource = @table.delete(resource.name)
         if resource
-          Semian.notify(:lru_hash_cleaned, self, :cleaning, :lru_hash)
+          payload[:cleared] += 1
           resource.destroy
         end
       end
+
+      payload[:elapsed] = Process.clock_gettime(Process::CLOCK_MONOTONIC) - timer_start
+      Semian.notify(:lru_hash_gc, self, nil, nil, payload)
     ensure
       @lock.unlock
     end

@@ -9,6 +9,12 @@ module Semian
       subscribers.delete(name)
     end
 
+    # Args:
+    #   event (string)
+    #   resource (Object)
+    #   scope (string)
+    #   adapter (string)
+    #   payload (optional)
     def notify(*args)
       subscribers.values.each { |subscriber| subscriber.call(*args) }
     end

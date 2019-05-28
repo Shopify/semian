@@ -107,15 +107,21 @@ class TestLRUHash < Minitest::Test
   end
 
   def test_clean_instrumentation
+    @lru_hash.set('a', create_circuit_breaker('a', true, false, 1000))
     @lru_hash.set('b', create_circuit_breaker('b', true, false, 1000))
+    @lru_hash.set('c', create_circuit_breaker('c', true, false, 1000))
 
     notified = false
-    subscriber = Semian.subscribe do |event, resource, scope, adapter|
+    subscriber = Semian.subscribe do |event, resource, scope, adapter, payload|
       notified = true
-      assert_equal :lru_hash_cleaned, event
+      assert_equal :lru_hash_gc, event
       assert_equal @lru_hash, resource
-      assert_equal :cleaning, scope
-      assert_equal :lru_hash, adapter
+      assert_nil scope
+      assert_nil adapter
+      assert_equal 4, payload[:size]
+      assert_equal 4, payload[:examined]
+      assert_equal 3, payload[:cleared]
+      refute_nil payload[:elapsed]
     end
 
     Timecop.travel(2000) do
@@ -123,6 +129,61 @@ class TestLRUHash < Minitest::Test
     end
 
     assert notified, 'No notifications has been emitted'
+  ensure
+    Semian.unsubscribe(subscriber)
+  end
+
+  def test_monotonically_increasing
+    start_time = Time.now
+
+    notification = 0
+    subscriber = Semian.subscribe do |event, _resource, _scope, _adapter, payload|
+      next unless event == :lru_hash_gc
+
+      notification += 1
+      if notification < 5
+        assert_equal notification, payload[:size]
+        assert_equal 1, payload[:examined]
+      elsif notification == 5
+        # At this point, the table looks like: [a, c, b, d, e]
+        assert_equal notification, payload[:size]
+        assert_equal 3, payload[:examined]
+      else
+        assert_nil true
+      end
+    end
+
+    assert_monotonic = lambda do
+      previous_timestamp = start_time
+      @lru_hash.table.each do |key, val|
+        assert val.updated_at > previous_timestamp, "Timestamp for #{key} was not monotonically increasing"
+      end
+    end
+
+    @lru_hash.set('a', create_circuit_breaker('a'))
+    @lru_hash.set('b', create_circuit_breaker('b'))
+    @lru_hash.set('c', create_circuit_breaker('c'))
+
+    # Before: [a, b, c]
+    # After: [a, c, b]
+    Timecop.travel(60) do
+      @lru_hash.get('b')
+      assert_monotonic.call
+    end
+
+    # Before: [a, c, b]
+    # After: [a, c, b, d]
+    Timecop.travel(60) do
+      @lru_hash.set('d', create_circuit_breaker('d'))
+      assert_monotonic.call
+    end
+
+    # Before: [a, c, b, d]
+    # After: [b, d, e]
+    Timecop.travel(LRUHash::MINIMUM_TIME_IN_LRU) do
+      @lru_hash.set('e', create_circuit_breaker('e'))
+      assert_monotonic.call
+    end
   ensure
     Semian.unsubscribe(subscriber)
   end
