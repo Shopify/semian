@@ -55,12 +55,15 @@ class LRUHash
 
   # This method uses the property that "Hashes enumerate their values in the
   # order that the corresponding keys were inserted." Deleting a key and
-  # re-inserting it effectively moves it to the back of the cache.
+  # re-inserting it effectively moves it to the front of the cache.
+  # Update the `updated_at` field so we can use it later do decide if the
+  # resource is "in use".
   def get(key)
     @lock.synchronize do
       found = @table.delete(key)
       if found
         @table[key] = found
+        found.updated_at = Time.now
       end
       found
     end
@@ -98,7 +101,13 @@ class LRUHash
       stop_time = Time.now - MINIMUM_TIME_IN_LRU # Don't process resources updated after this time
       @table.each do |_, resource|
         payload[:examined] += 1
+
+        # The update times of the resources in the LRU are monotonically increasing,
+        # time, so we can stop looking once we find the first resource with an
+        # update time after the stop_time.
         break if resource.updated_at > stop_time
+
+        # TODO(michaelkipper): Should this be a flag?
         next if resource.in_use?
 
         resource = @table.delete(resource.name)
