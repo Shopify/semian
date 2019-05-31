@@ -8,8 +8,6 @@ class LRUHash
   extend Forwardable
   def_delegators :@table, :size, :count, :empty?, :values
   attr_reader :table
-  MAXIMUM_SIZE_OF_LRU = 1000
-  MINIMUM_TIME_IN_LRU = 300
 
   class NoopMutex
     def synchronize(*)
@@ -49,7 +47,7 @@ class LRUHash
   #   circuits to disparate endpoints (or your circuit names are bad).
   #   If the max_size is 0, the garbage collection will be very aggressive and
   #   potentially computationally expensive.
-  def initialize(max_size: MAXIMUM_SIZE_OF_LRU, min_time: MINIMUM_TIME_IN_LRU)
+  def initialize(max_size: Semian.maximum_lru_size, min_time: Semian.minimum_lru_time)
     @max_size = max_size
     @min_time = min_time
     @table = {}
