@@ -90,6 +90,10 @@ module Semian
   InternalError = Class.new(BaseError)
   OpenCircuitError = Class.new(BaseError)
 
+  attr_accessor :maximum_lru_size, :minimum_lru_time
+  self.maximum_lru_size = 500
+  self.minimum_lru_time = 300
+
   def issue_disabled_semaphores_warning
     return if defined?(@warning_issued)
     @warning_issued = true
