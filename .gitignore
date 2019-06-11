@@ -11,4 +11,5 @@ vendor/
 nohup.out
 .vagrant
 .byebug_history
+*.log
 .idea
