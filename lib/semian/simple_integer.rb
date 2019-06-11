@@ -5,11 +5,13 @@ module Semian
     class Integer #:nodoc:
       attr_accessor :value
 
-      def initialize
+      def initialize(name)
+        @name = name
+        initialize_simple_integer if respond_to?(:initialize_simple_integer)
         reset
       end
 
-      def increment(val = 1)
+      def increment(val)
         @value += val
       end
 

@@ -8,6 +8,8 @@ module Semian
 
     def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, implementation:, half_open_resource_timeout: nil)
       @name = name.to_sym
+      initialize_circuit_breaker(@name)
+
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
       @error_timeout = error_timeout
@@ -15,7 +17,7 @@ module Semian
       @half_open_resource_timeout = half_open_resource_timeout
 
       @errors = implementation::SlidingWindow.new(max_size: @error_count_threshold)
-      @successes = implementation::Integer.new
+      @successes = implementation::Integer.new(name)
       @state = implementation::State.new
     end
 
@@ -59,7 +61,7 @@ module Semian
 
     def mark_success
       return unless half_open?
-      @successes.increment
+      @successes.increment(1)
       transition_to_close if success_threshold_reached?
     end
 

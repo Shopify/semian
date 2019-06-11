@@ -1,5 +1,7 @@
 #include "resource.h"
 
+#include "util.h"
+
 static VALUE
 cleanup_semian_resource_acquire(VALUE self);
 
@@ -14,9 +16,6 @@ check_tickets_arg(VALUE tickets);
 
 static long
 check_permissions_arg(VALUE permissions);
-
-static const
-char *check_id_arg(VALUE id);
 
 static double
 check_default_timeout_arg(VALUE default_timeout);
@@ -312,23 +311,6 @@ check_tickets_arg(VALUE tickets)
   }
 
   return c_tickets;
-}
-
-static const char*
-check_id_arg(VALUE id)
-{
-  const char *c_id_str = NULL;
-
-  if (TYPE(id) != T_SYMBOL && TYPE(id) != T_STRING) {
-    rb_raise(rb_eTypeError, "id must be a symbol or string");
-  }
-  if (TYPE(id) == T_SYMBOL) {
-    c_id_str = rb_id2name(rb_to_id(id));
-  } else if (TYPE(id) == T_STRING) {
-    c_id_str = RSTRING_PTR(id);
-  }
-
-  return c_id_str;
 }
 
 static double
