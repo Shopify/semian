@@ -11,7 +11,6 @@ and functions associated directly weth semops.
 #include <stdio.h>
 #include <string.h>
 
-#include <openssl/sha.h>
 #include <ruby.h>
 #include <ruby/util.h>
 #include <ruby/io.h>
@@ -110,11 +109,12 @@ acquire_semaphore_without_gvl(void *p);
 static inline void
 print_sem_vals(int sem_id)
 {
-  printf("lock %d, tickets: %d configured: %d, registered workers %d\n",
-   get_sem_val(sem_id, SI_SEM_LOCK),
-   get_sem_val(sem_id, SI_SEM_TICKETS),
-   get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS),
-   get_sem_val(sem_id, SI_SEM_REGISTERED_WORKERS)
+  printf("[DEBUG] sem_id: %d, lock: %d, tickets: %d configured: %d, registered workers %d\n",
+    sem_id,
+    get_sem_val(sem_id, SI_SEM_LOCK),
+    get_sem_val(sem_id, SI_SEM_TICKETS),
+    get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS),
+    get_sem_val(sem_id, SI_SEM_REGISTERED_WORKERS)
   );
 }
 #endif

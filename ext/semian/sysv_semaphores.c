@@ -1,8 +1,7 @@
 #include "sysv_semaphores.h"
-#include <time.h>
 
-static key_t
-generate_key(const char *name);
+#include <time.h>
+#include "util.h"
 
 static void *
 acquire_semaphore(void *p);
@@ -30,7 +29,6 @@ raise_semian_syscall_error(const char *syscall, int error_num)
 void
 initialize_semaphore_set(semian_resource_t* res, const char* id_str, long permissions, int tickets, double quota)
 {
-
   res->key = generate_key(id_str);
   res->strkey = (char*)  malloc((2 /*for 0x*/+ sizeof(uint64_t) /*actual key*/+ 1 /*null*/) * sizeof(char));
   sprintf(res->strkey, "0x%08x", (unsigned int) res->key);
@@ -52,6 +50,10 @@ initialize_semaphore_set(semian_resource_t* res, const char* id_str, long permis
       res->sem_id = wait_for_new_semaphore_set(res->key, permissions);
     }
   }
+
+# if DEBUG
+    printf("[DEBUG] Init semaphore '%s' (key %s) to sem_id %d\n", res->name, res->strkey, res->sem_id);
+# endif
 
   set_semaphore_permissions(res->sem_id, permissions);
 
@@ -180,31 +182,6 @@ acquire_semaphore(void *p)
   }
   return NULL;
 }
-
-static key_t
-generate_key(const char *name)
-{
-  char semset_size_key[20];
-  char *uniq_id_str;
-
-  // It is necessary for the cardinatily of the semaphore set to be part of the key
-  // or else sem_get will complain that we have requested an incorrect number of sems
-  // for the desired key, and have changed the number of semaphores for a given key
-  sprintf(semset_size_key, "_NUM_SEMS_%d", SI_NUM_SEMAPHORES);
-  uniq_id_str = malloc(strlen(name)+strlen(semset_size_key)+1);
-  strcpy(uniq_id_str, name);
-  strcat(uniq_id_str, semset_size_key);
-
-  union {
-    unsigned char str[SHA_DIGEST_LENGTH];
-    key_t key;
-  } digest;
-  SHA1((const unsigned char *) uniq_id_str, strlen(uniq_id_str), digest.str);
-  free(uniq_id_str);
-  /* TODO: compile-time assertion that sizeof(key_t) > SHA_DIGEST_LENGTH */
-  return digest.key;
-}
-
 
 static void
 initialize_new_semaphore_values(int sem_id, long permissions)
