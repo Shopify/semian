@@ -1,5 +1,7 @@
 require 'test_helper'
 
+require 'objspace'
+
 class TestResource < Minitest::Test
   include ResourceHelper
   def setup
@@ -484,6 +486,11 @@ class TestResource < Minitest::Test
 
     assert_equal 5, create_resource(:testing, tickets: 0).count
     assert_equal 0, timeouts
+  end
+
+  def test_memsize
+    r = create_resource :testing, tickets: 1
+    puts "mkipper: Resource size is #{ObjectSpace.memsize_of(r)} byte(s)"
   end
 
   def create_resource(*args)

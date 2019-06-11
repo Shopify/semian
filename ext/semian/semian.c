@@ -64,4 +64,7 @@ void Init_semian()
 
   /* Maximum number of tickets available on this system. */
   rb_define_const(cSemian, "MAX_TICKETS", INT2FIX(system_max_semaphore_count));
+
+  Init_SimpleInteger();
+  Init_CircuitBreaker();
 }

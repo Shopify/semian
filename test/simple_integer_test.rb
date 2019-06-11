@@ -2,7 +2,7 @@ require 'test_helper'
 
 class TestSimpleInteger < Minitest::Test
   def setup
-    @integer = ::Semian::ThreadSafe::Integer.new
+    @integer = ::Semian::ThreadSafe::Integer.new(:simple_integer)
   end
 
   def teardown
@@ -26,7 +26,7 @@ class TestSimpleInteger < Minitest::Test
     def test_increment
       @integer.increment(4)
       assert_equal(4, @integer.value)
-      @integer.increment
+      @integer.increment(1)
       assert_equal(5, @integer.value)
       @integer.increment(-2)
       assert_equal(3, @integer.value)

@@ -38,4 +38,23 @@ typedef struct {
   long wait_time;
 } semian_resource_t;
 
+// Internal circuit breaker structure
+typedef struct {
+  int sem_id;
+  uint64_t key;
+  char *strkey;
+  char *name;
+} semian_circuit_breaker_t;
+
+// Shared circuit breaker structure
+typedef struct {
+  int successes;
+} semian_circuit_breaker_shared_t;
+
+// Internal simple integer structure
+typedef struct {
+  uint64_t key;
+  int val;
+} semian_simple_integer_t;
+
 #endif // SEMIAN_TYPES_H
