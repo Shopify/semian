@@ -18,11 +18,16 @@ module Semian
       @half_open_resource_timeout = half_open_resource_timeout
 
       @errors = implementation::SlidingWindow.new(max_size: @error_count_threshold)
+<<<<<<< HEAD
+      @successes = implementation::Integer.new(name)
+      @state = implementation::State.new
+
+      reset
+=======
       @successes = implementation::Integer.new("#{name}_successes")
       state_val = implementation::Integer.new("#{name}_state")
       @state = implementation::State.new(state_val)
-
-      reset
+>>>>>>> WIP: Move Simple::State to shared memory
     end
 
     def acquire(resource = nil, &block)
