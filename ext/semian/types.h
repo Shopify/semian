@@ -10,6 +10,8 @@ For custom type definitions specific to semian
 #include <sys/sem.h>
 #include <sys/time.h>
 
+#define SLIDING_WINDOW_MAX_SIZE 4096
+
 // For sysV semop syscals
 // see man semop
 union semun {
@@ -54,7 +56,20 @@ typedef struct {
 // Internal simple integer structure
 typedef struct {
   uint64_t key;
-  int val;
 } semian_simple_integer_t;
+
+// Shared simple sliding window structure
+typedef struct {
+  int max_size;
+  int length;
+  int start;
+  int end;
+  int data[SLIDING_WINDOW_MAX_SIZE];
+} semian_simple_sliding_window_shared_t;
+
+// Internal simple sliding window structure
+typedef struct {
+  uint64_t key;
+} semian_simple_sliding_window_t;
 
 #endif // SEMIAN_TYPES_H

@@ -288,7 +288,9 @@ class TestRedis < Minitest::Test
       client.get('foo')
     end
 
+    puts "[DEBUG] #1 Time.now = #{Time.now}"
     Timecop.travel(ERROR_TIMEOUT + 1) do
+      puts "[DEBUG] #2 Time.now = #{Time.now}"
       assert_equal '2', client.get('foo')
     end
   end
