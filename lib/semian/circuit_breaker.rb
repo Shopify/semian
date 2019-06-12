@@ -17,7 +17,7 @@ module Semian
       @exceptions = exceptions
       @half_open_resource_timeout = half_open_resource_timeout
 
-      @errors = implementation::SlidingWindow.new(max_size: @error_count_threshold)
+      @errors = implementation::SlidingWindow.new("#{name}_window", max_size: @error_count_threshold)
       @successes = implementation::Integer.new("#{name}_successes")
       state_val = implementation::Integer.new("#{name}_state")
       @state = implementation::State.new(state_val)
@@ -26,6 +26,8 @@ module Semian
     end
 
     def acquire(resource = nil, &block)
+      puts "[DEBUG] #{Time.now} - Acquiring resource '#{resource}'"
+
       return yield if disabled?
       transition_to_half_open if transition_to_half_open?
 
@@ -117,6 +119,7 @@ module Semian
     end
 
     def error_timeout_expired?
+      puts "[DEBUG] Checking error_timeout_expired? #{@errors.last}"
       last_error_time = @errors.last
       return false unless last_error_time
       Time.at(last_error_time) + @error_timeout < Time.now
@@ -127,6 +130,7 @@ module Semian
     end
 
     def push_time(window, time: Time.now)
+      puts "[DEBUG] push_time(#{time.to_i}) - rejecting before #{time.to_i - @error_timeout}"
       window.reject! { |err_time| err_time + @error_timeout < time.to_i }
       window << time.to_i
     end

@@ -8,19 +8,8 @@
 
 static const rb_data_type_t semian_simple_integer_type;
 
-static const char* get_string(VALUE obj) {
-  if (RB_TYPE_P(obj, T_STRING)) {
-    return RSTRING_PTR(obj);
-  } else if (RB_TYPE_P(obj, T_SYMBOL)) {
-    return rb_id2name(SYM2ID(obj));
-  }
-
-  rb_raise(rb_eArgError, "could not convert object to string");
-  return NULL;
-}
-
 static int* get_value(VALUE self) {
-  const char* name = get_string(rb_iv_get(self, "@name"));
+  const char* name = to_s(rb_iv_get(self, "@name"));
   if (name == NULL) {
     rb_raise(rb_eArgError, "could not get object name");
   }

@@ -39,3 +39,14 @@ key_t generate_key(const char *name)
   /* TODO: compile-time assertion that sizeof(key_t) > SHA_DIGEST_LENGTH */
   return digest.key;
 }
+
+const char* to_s(VALUE obj) {
+  if (RB_TYPE_P(obj, T_STRING)) {
+    return RSTRING_PTR(obj);
+  } else if (RB_TYPE_P(obj, T_SYMBOL)) {
+    return rb_id2name(SYM2ID(obj));
+  }
+
+  rb_raise(rb_eArgError, "could not convert object to string");
+  return NULL;
+}
