@@ -10,6 +10,7 @@ Implements Init_semian, which is used as C/Ruby entrypoint.
 #include "circuit_breaker.h"
 #include "resource.h"
 #include "simple_integer.h"
+#include "sliding_window.h"
 
 void Init_semian();
 

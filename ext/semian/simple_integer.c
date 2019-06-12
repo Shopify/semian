@@ -92,7 +92,10 @@ VALUE semian_simple_integer_value_get(VALUE self) {
 
 VALUE semian_simple_integer_value_set(VALUE self, VALUE val) {
   int *data = get_value(self);
-  *data = RB_NUM2INT(val);
+
+  // TODO(michaelkipper): Check for respond_to?(:to_i) before calling.
+  VALUE to_i = rb_funcall(val, rb_intern("to_i"), 0);
+  *data = RB_NUM2INT(to_i);
 
   return RB_INT2NUM(*data);
 }
