@@ -17,8 +17,9 @@ module Semian
       @half_open_resource_timeout = half_open_resource_timeout
 
       @errors = implementation::SlidingWindow.new(max_size: @error_count_threshold)
-      @successes = implementation::Integer.new(name)
-      @state = implementation::State.new
+      @successes = implementation::Integer.new("#{name}_successes")
+      state_val = implementation::Integer.new("#{name}_state")
+      @state = implementation::State.new(state_val)
     end
 
     def acquire(resource = nil, &block)
