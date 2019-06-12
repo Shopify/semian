@@ -11,8 +11,6 @@ class TestCircuitBreaker < Minitest::Test
     rescue
       nil
     end
-
-    puts "[DEBUG] Registering semian :testing at #{Time.now} (#{Time.now.to_i})"
     Semian.register(:testing, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5, success_threshold: 1)
     @resource = Semian[:testing]
   end
@@ -42,14 +40,8 @@ class TestCircuitBreaker < Minitest::Test
   end
 
   def test_until_success_threshold_is_reached_a_single_error_will_reopen_the_circuit
-    puts @strio.string
-    puts "[DEBUG] Half open circuit..."
     half_open_cicuit!
-    puts @strio.string
-    puts "[DEBUG] Trigger error..."
     trigger_error!
-    puts @strio.string
-    puts "[DEBUG] Assert circuit opened..."
     assert_circuit_opened
     assert_match(/State transition from open to half_open/, @strio.string)
   end
