@@ -6,8 +6,8 @@
 void Init_SimpleInteger();
 
 VALUE semian_simple_integer_alloc(VALUE klass);
-VALUE semian_simple_integer_initialize(VALUE self);
-VALUE semian_simple_integer_increment(VALUE self, VALUE val);
+VALUE semian_simple_integer_initialize(VALUE self, VALUE name);
+VALUE semian_simple_integer_increment(int argc, VALUE *argv, VALUE self);
 VALUE semian_simple_integer_reset(VALUE self);
 VALUE semian_simple_integer_value_get(VALUE self);
 VALUE semian_simple_integer_value_set(VALUE self, VALUE val);

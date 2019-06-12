@@ -6,12 +6,11 @@ module Semian
       attr_accessor :value
 
       def initialize(name)
-        @name = name
-        initialize_simple_integer if respond_to?(:initialize_simple_integer)
+        initialize_simple_integer(name) if respond_to?(:initialize_simple_integer)
         reset
       end
 
-      def increment(val)
+      def increment(val = 1)
         @value += val
       end
 
