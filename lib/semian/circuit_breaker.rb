@@ -128,7 +128,7 @@ module Semian
     def log_state_transition(new_state)
       return if @state.nil? || new_state == @state.value
 
-      str = "[#{self.class.name}] State transition from #{@state.value} to #{new_state}."
+      str = "[#{self.class.name}] State transition from #{@state} to #{new_state}."
       str << " success_count=#{@successes.value} error_count=#{@errors.size}"
       str << " success_count_threshold=#{@success_count_threshold} error_count_threshold=#{@error_count_threshold}"
       str << " error_timeout=#{@error_timeout} error_last_at=\"#{@errors.last}\""
