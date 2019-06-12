@@ -8,7 +8,6 @@ class LRUHash
   extend Forwardable
   def_delegators :@table, :size, :count, :empty?, :values
   attr_reader :table
-  MINIMUM_TIME_IN_LRU = 300
 
   class NoopMutex
     def synchronize(*)
@@ -34,7 +33,23 @@ class LRUHash
     end
   end
 
-  def initialize
+  # Create an LRU hash
+  #
+  # Arguments:
+  #   +max_size+ The maximum size of the table
+  #   +min_time+ The minimum time a resource can live in the cache
+  #
+  # Note:
+  #   The +min_time+ is a stronger guarantee than +max_size+. That is, if there are
+  #   more than +max_size+ entries in the cache, but they've all been updated more
+  #   recently than +min_time+, the garbage collection will not remove them and the
+  #   cache can grow without bound. This usually means that you have many active
+  #   circuits to disparate endpoints (or your circuit names are bad).
+  #   If the max_size is 0, the garbage collection will be very aggressive and
+  #   potentially computationally expensive.
+  def initialize(max_size: Semian.maximum_lru_size, min_time: Semian.minimum_lru_time)
+    @max_size = max_size
+    @min_time = min_time
     @table = {}
     @lock =
       if Semian.thread_safe?
@@ -50,7 +65,7 @@ class LRUHash
       @table[key] = resource
       resource.updated_at = Time.now
     end
-    clear_unused_resources
+    clear_unused_resources if @table.length > @max_size
   end
 
   # This method uses the property that "Hashes enumerate their values in the
@@ -98,7 +113,7 @@ class LRUHash
           elapsed: nil,
       }
 
-      stop_time = Time.now - MINIMUM_TIME_IN_LRU # Don't process resources updated after this time
+      stop_time = Time.now - @min_time # Don't process resources updated after this time
       @table.each do |_, resource|
         payload[:examined] += 1
 

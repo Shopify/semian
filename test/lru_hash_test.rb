@@ -3,7 +3,7 @@ require 'test_helper'
 class TestLRUHash < Minitest::Test
   def setup
     Semian.thread_safe = true
-    @lru_hash = LRUHash.new
+    @lru_hash = LRUHash.new(max_size: 0)
   end
 
   def test_set_get_item
@@ -166,26 +166,60 @@ class TestLRUHash < Minitest::Test
 
     # Before: [a, b, c]
     # After: [a, c, b]
-    Timecop.travel(60) do
+    Timecop.travel(Semian.minimum_lru_time - 1) do
       @lru_hash.get('b')
       assert_monotonic.call
     end
 
     # Before: [a, c, b]
     # After: [a, c, b, d]
-    Timecop.travel(60) do
+    Timecop.travel(Semian.minimum_lru_time - 1) do
       @lru_hash.set('d', create_circuit_breaker('d'))
       assert_monotonic.call
     end
 
     # Before: [a, c, b, d]
     # After: [b, d, e]
-    Timecop.travel(LRUHash::MINIMUM_TIME_IN_LRU) do
+    Timecop.travel(Semian.minimum_lru_time) do
       @lru_hash.set('e', create_circuit_breaker('e'))
       assert_monotonic.call
     end
   ensure
     Semian.unsubscribe(subscriber)
+  end
+
+  def test_max_size
+    lru_hash = LRUHash.new(max_size: 3)
+    lru_hash.set('a', create_circuit_breaker('a'))
+    lru_hash.set('b', create_circuit_breaker('b'))
+    lru_hash.set('c', create_circuit_breaker('c'))
+    assert_equal 3, lru_hash.table.length
+
+    Timecop.travel(Semian.minimum_lru_time) do
+      # [a, b, c] are older than the min_time, so they get garbage collected.
+      lru_hash.set('d', create_circuit_breaker('d'))
+      assert_equal 1, lru_hash.table.length
+    end
+  end
+
+  def test_max_size_overflow
+    lru_hash = LRUHash.new(max_size: 3)
+    lru_hash.set('a', create_circuit_breaker('a'))
+    lru_hash.set('b', create_circuit_breaker('b'))
+    assert_equal 2, lru_hash.table.length
+
+    Timecop.travel(Semian.minimum_lru_time) do
+      # [a, b] are older than the min_time, but the hash isn't full, so
+      # there's no garbage collection.
+      lru_hash.set('c', create_circuit_breaker('c'))
+      assert_equal 3, lru_hash.table.length
+    end
+
+    Timecop.travel(Semian.minimum_lru_time + 1) do
+      # [a, b] are beyond the min_time, but [c] isn't.
+      lru_hash.set('d', create_circuit_breaker('d'))
+      assert_equal 2, lru_hash.table.length
+    end
   end
 
   private
