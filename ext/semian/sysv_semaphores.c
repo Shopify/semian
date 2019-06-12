@@ -29,6 +29,7 @@ raise_semian_syscall_error(const char *syscall, int error_num)
 void
 initialize_semaphore_set(semian_resource_t* res, const char* id_str, long permissions, int tickets, double quota)
 {
+
   res->key = generate_key(id_str);
   res->strkey = (char*)  malloc((2 /*for 0x*/+ sizeof(uint64_t) /*actual key*/+ 1 /*null*/) * sizeof(char));
   sprintf(res->strkey, "0x%08x", (unsigned int) res->key);
@@ -50,10 +51,6 @@ initialize_semaphore_set(semian_resource_t* res, const char* id_str, long permis
       res->sem_id = wait_for_new_semaphore_set(res->key, permissions);
     }
   }
-
-# if DEBUG
-    printf("[DEBUG] Init semaphore '%s' (key %s) to sem_id %d\n", res->name, res->strkey, res->sem_id);
-# endif
 
   set_semaphore_permissions(res->sem_id, permissions);
 

@@ -8,16 +8,12 @@
 
 static const rb_data_type_t semian_simple_integer_type;
 
-static int* get_value(VALUE self) {
-  const char* name = to_s(rb_iv_get(self, "@name"));
-  if (name == NULL) {
-    rb_raise(rb_eArgError, "could not get object name");
-  }
-
-  key_t key = generate_key(name);
+static semian_simple_integer_shared_t* get_value(VALUE self) {
+  semian_simple_integer_t *res;
+  TypedData_Get_Struct(self, semian_simple_integer_t, &semian_simple_integer_type, res);
 
   const int permissions = 0664;
-  int shmid = shmget(key, sizeof(int), IPC_CREAT | permissions);
+  int shmid = shmget(res->key, sizeof(semian_simple_integer_shared_t), IPC_CREAT | permissions);
   if (shmid == -1) {
     rb_raise(rb_eArgError, "could not create shared memory (%s)", strerror(errno));
   }
@@ -27,7 +23,7 @@ static int* get_value(VALUE self) {
     rb_raise(rb_eArgError, "could not get shared memory (%s)", strerror(errno));
   }
 
-  return (int*)val;
+  return (semian_simple_integer_shared_t*)val;
 }
 
 void Init_SimpleInteger()
@@ -37,8 +33,8 @@ void Init_SimpleInteger()
   VALUE cSimpleInteger = rb_const_get(cSimple, rb_intern("Integer"));
 
   rb_define_alloc_func(cSimpleInteger, semian_simple_integer_alloc);
-  rb_define_method(cSimpleInteger, "initialize_simple_integer", semian_simple_integer_initialize, 0);
-  rb_define_method(cSimpleInteger, "increment", semian_simple_integer_increment, 1);
+  rb_define_method(cSimpleInteger, "initialize_simple_integer", semian_simple_integer_initialize, 1);
+  rb_define_method(cSimpleInteger, "increment", semian_simple_integer_increment, -1);
   rb_define_method(cSimpleInteger, "reset", semian_simple_integer_reset, 0);
   rb_define_method(cSimpleInteger, "value", semian_simple_integer_value_get, 0);
   rb_define_method(cSimpleInteger, "value=", semian_simple_integer_value_set, 1);
@@ -52,39 +48,53 @@ VALUE semian_simple_integer_alloc(VALUE klass)
 }
 
 
-VALUE semian_simple_integer_initialize(VALUE self)
+VALUE semian_simple_integer_initialize(VALUE self, VALUE name)
 {
-  int* data = get_value(self);
-  *data = 0;
+  semian_simple_integer_t *res;
+  TypedData_Get_Struct(self, semian_simple_integer_t, &semian_simple_integer_type, res);
+  res->key = generate_key(to_s(name));
+
+  semian_simple_integer_shared_t* data = get_value(self);
+  data->val = 0;
 
   return self;
 }
 
-VALUE semian_simple_integer_increment(VALUE self, VALUE val) {
-  int *data = get_value(self);
-  *data += rb_num2int(val);
+VALUE semian_simple_integer_increment(int argc, VALUE *argv, VALUE self) {
+  // This is definitely the worst API ever.
+  // https://silverhammermba.github.io/emberb/c/#parsing-arguments
+  VALUE val;
+  rb_scan_args(argc, argv, "01", &val);
 
-  return RB_INT2NUM(*data);
+  semian_simple_integer_shared_t *data = get_value(self);
+
+  if (NIL_P(val)) {
+    data->val += 1;
+  } else {
+    data->val += RB_NUM2INT(val);
+  }
+
+  return RB_INT2NUM(data->val);
 }
 
 VALUE semian_simple_integer_reset(VALUE self) {
-  int *data = get_value(self);
-  *data = 0;
+  semian_simple_integer_shared_t *data = get_value(self);
+  data->val = 0;
 
-  return RB_INT2NUM(*data);
+  return RB_INT2NUM(data->val);
 }
 
 VALUE semian_simple_integer_value_get(VALUE self) {
-  int *data = get_value(self);
-  return RB_INT2NUM(*data);
+  semian_simple_integer_shared_t *data = get_value(self);
+  return RB_INT2NUM(data->val);
 }
 
 VALUE semian_simple_integer_value_set(VALUE self, VALUE val) {
-  int *data = get_value(self);
+  semian_simple_integer_shared_t *data = get_value(self);
 
   // TODO(michaelkipper): Check for respond_to?(:to_i) before calling.
   VALUE to_i = rb_funcall(val, rb_intern("to_i"), 0);
-  *data = RB_NUM2INT(to_i);
+  data->val = RB_NUM2INT(to_i);
 
-  return RB_INT2NUM(*data);
+  return RB_INT2NUM(data->val);
 }

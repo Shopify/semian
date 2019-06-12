@@ -26,7 +26,7 @@ class TestSimpleInteger < Minitest::Test
     def test_increment
       @integer.increment(4)
       assert_equal(4, @integer.value)
-      @integer.increment(1)
+      @integer.increment
       assert_equal(5, @integer.value)
       @integer.increment(-2)
       assert_equal(3, @integer.value)

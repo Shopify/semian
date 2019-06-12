@@ -58,6 +58,16 @@ typedef struct {
   uint64_t key;
 } semian_simple_integer_t;
 
+// Shared simple integer structure
+typedef struct {
+  int val;
+} semian_simple_integer_shared_t;
+
+// Internal simple sliding window structure
+typedef struct {
+  uint64_t key;
+} semian_simple_sliding_window_t;
+
 // Shared simple sliding window structure
 typedef struct {
   int max_size;
@@ -66,10 +76,5 @@ typedef struct {
   int end;
   int data[SLIDING_WINDOW_MAX_SIZE];
 } semian_simple_sliding_window_shared_t;
-
-// Internal simple sliding window structure
-typedef struct {
-  uint64_t key;
-} semian_simple_sliding_window_t;
 
 #endif // SEMIAN_TYPES_H

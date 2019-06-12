@@ -25,7 +25,7 @@ class TestSimpleSlidingWindow < Minitest::Test
   end
 
   def test_sliding_window_reject
-    @sliding_window << 0 << 1 << 2 << 3 << 4 << 5 << 6 << 7;
+    @sliding_window << 0 << 1 << 2 << 3 << 4 << 5 << 6 << 7
     assert_equal(6, @sliding_window.size)
     assert_sliding_window(@sliding_window, [2, 3, 4, 5, 6, 7], 6)
     @sliding_window.reject! { |val| val <= 3 }
@@ -33,7 +33,7 @@ class TestSimpleSlidingWindow < Minitest::Test
   end
 
   def test_sliding_window_reject_failure
-    @sliding_window << 0 << 1 << 2 << 3 << 4 << 5 << 6 << 7;
+    @sliding_window << 0 << 1 << 2 << 3 << 4 << 5 << 6 << 7
     assert_equal(6, @sliding_window.size)
     assert_sliding_window(@sliding_window, [2, 3, 4, 5, 6, 7], 6)
     assert_raises ArgumentError do
