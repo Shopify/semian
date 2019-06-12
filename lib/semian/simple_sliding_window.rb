@@ -3,6 +3,8 @@ require 'thread'
 module Semian
   module Simple
     class SlidingWindow #:nodoc:
+      attr_reader :max_size
+
       # A sliding window is a structure that stores the most @max_size recent timestamps
       # like this: if @max_size = 4, current time is 10, @window =[5,7,9,10].
       # Another push of (11) at 11 sec would make @window [7,9,10,11], shifting off 5.
@@ -15,10 +17,6 @@ module Semian
 
       def size
         @window.size
-      end
-
-      def max_size
-        @max_size
       end
 
       def last

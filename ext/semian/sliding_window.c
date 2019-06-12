@@ -38,7 +38,7 @@ static int check_max_size_arg(VALUE max_size)
   if (retval <= 0) {
     rb_raise(rb_eArgError, "max_size must be greater than zero");
   } else if (retval > SLIDING_WINDOW_MAX_SIZE) {
-    rb_raise(rb_eArgError, "max_size must be less than %d", SLIDING_WINDOW_MAX_SIZE);
+    rb_raise(rb_eArgError, "max_size cannot be greater than %d", SLIDING_WINDOW_MAX_SIZE);
   }
 
   return retval;

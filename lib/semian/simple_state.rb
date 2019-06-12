@@ -6,9 +6,9 @@ module Semian
       def_delegators :@value, :value
 
       # State constants. Looks like a flag, but is actually an enum.
-      UNKNOWN   = 0x0
-      CLOSED    = 0x1
-      OPEN      = 0x2
+      UNKNOWN = 0x0
+      CLOSED = 0x1
+      OPEN = 0x2
       HALF_OPEN = 0x4
 
       def initialize(value)
