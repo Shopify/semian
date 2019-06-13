@@ -45,7 +45,7 @@ static int check_max_size_arg(VALUE max_size)
 }
 
 void Init_SlidingWindow() {
-  printf("[DEBUG] Init_SlidingWindow\n");
+  dprintf("Init_SlidingWindow");
 
   VALUE cSemian = rb_const_get(rb_cObject, rb_intern("Semian"));
   VALUE cSimple = rb_const_get(cSemian, rb_intern("Simple"));
@@ -69,7 +69,7 @@ VALUE semian_simple_sliding_window_alloc(VALUE klass) {
 }
 
 VALUE semian_simple_sliding_window_initialize(VALUE self, VALUE name, VALUE max_size) {
-  printf("[DEBUG] semian_simple_sliding_window_initialize\n");
+  dprintf("semian_simple_sliding_window_initialize");
 
   semian_simple_sliding_window_t *res;
   TypedData_Get_Struct(self, semian_simple_sliding_window_t, &semian_simple_sliding_window_type, res);
@@ -83,37 +83,37 @@ VALUE semian_simple_sliding_window_initialize(VALUE self, VALUE name, VALUE max_
   window->start = 0;
   window->end = 0;
 
-  printf("[DEBUG]   key:%lu addr:0x%p max_size:%d length:%d start:%d end:%d\n", res->key, window, window->max_size, window->length, window->start, window->end);
+  dprintf("  key:%lu addr:0x%p max_size:%d length:%d start:%d end:%d", res->key, window, window->max_size, window->length, window->start, window->end);
 
   return self;
 }
 
 VALUE semian_simple_sliding_window_size(VALUE self) {
-  printf("[DEBUG] semian_simple_sliding_window_size\n");
+  dprintf("semian_simple_sliding_window_size");
 
   semian_simple_sliding_window_t *res;
   TypedData_Get_Struct(self, semian_simple_sliding_window_t, &semian_simple_sliding_window_type, res);
 
   semian_simple_sliding_window_shared_t *window = get_window(res->key);
-  printf("[DEBUG]   key:%lu addr:0x%p max_size:%d length:%d start:%d end:%d\n", res->key, window, window->max_size, window->length, window->start, window->end);
+  dprintf("  key:%lu addr:0x%p max_size:%d length:%d start:%d end:%d", res->key, window, window->max_size, window->length, window->start, window->end);
 
   return RB_INT2NUM(window->length);
 }
 
 VALUE semian_simple_sliding_window_max_size(VALUE self) {
-  printf("[DEBUG] semian_simple_sliding_window_max_size\n");
+  dprintf("semian_simple_sliding_window_max_size");
 
   semian_simple_sliding_window_t *res;
   TypedData_Get_Struct(self, semian_simple_sliding_window_t, &semian_simple_sliding_window_type, res);
 
   semian_simple_sliding_window_shared_t *window = get_window(res->key);
-  printf("[DEBUG]   key:%lu addr:0x%p max_size:%d length:%d start:%d end:%d\n", res->key, window, window->max_size, window->length, window->start, window->end);
+  dprintf("  key:%lu addr:0x%p max_size:%d length:%d start:%d end:%d", res->key, window, window->max_size, window->length, window->start, window->end);
 
   return RB_INT2NUM(window->max_size);
 }
 
 VALUE semian_simple_sliding_window_values(VALUE self) {
-  printf("[DEBUG] semian_simple_sliding_window_values\n");
+  dprintf("semian_simple_sliding_window_values");
 
   semian_simple_sliding_window_t *res;
   TypedData_Get_Struct(self, semian_simple_sliding_window_t, &semian_simple_sliding_window_type, res);
@@ -123,7 +123,7 @@ VALUE semian_simple_sliding_window_values(VALUE self) {
   for (int i = 0; i < window->length; ++i) {
     int index = (window->start + i) % window->max_size;
     int value = window->data[index];
-    printf("[DEBUG]   i:%d index: %d value:%d max_size:%d length:%d start:%d end:%d\n", i, index, value, window->max_size, window->length, window->start, window->end);
+    dprintf("  i:%d index: %d value:%d max_size:%d length:%d start:%d end:%d", i, index, value, window->max_size, window->length, window->start, window->end);
     rb_ary_store(retval, i, RB_INT2NUM(value));
   }
 
@@ -131,20 +131,20 @@ VALUE semian_simple_sliding_window_values(VALUE self) {
 }
 
 VALUE semian_simple_sliding_window_last(VALUE self) {
-  printf("[DEBUG] semian_simple_sliding_window_last\n");
+  dprintf("semian_simple_sliding_window_last");
 
   semian_simple_sliding_window_t *res;
   TypedData_Get_Struct(self, semian_simple_sliding_window_t, &semian_simple_sliding_window_type, res);
   semian_simple_sliding_window_shared_t *window = get_window(res->key);
 
   int index = (window->start + window->length - 1) % window->max_size;
-  printf("[DEBUG]   index:%d last:%d\n", index, window->data[index]);
+  dprintf("  index:%d last:%d", index, window->data[index]);
 
   return RB_INT2NUM(window->data[index]);
 }
 
 VALUE semian_simple_sliding_window_clear(VALUE self) {
-  printf("[DEBUG] semian_simple_sliding_window_clear\n");
+  dprintf("semian_simple_sliding_window_clear");
 
   semian_simple_sliding_window_t *res;
   TypedData_Get_Struct(self, semian_simple_sliding_window_t, &semian_simple_sliding_window_type, res);
@@ -158,7 +158,7 @@ VALUE semian_simple_sliding_window_clear(VALUE self) {
 }
 
 VALUE semian_simple_sliding_window_reject(VALUE self) {
-  printf("[DEBUG] semian_simple_sliding_window_reject\n");
+  dprintf("semian_simple_sliding_window_reject");
 
   rb_need_block();
 
@@ -174,7 +174,7 @@ VALUE semian_simple_sliding_window_reject(VALUE self) {
   for (int i = 0; i < length; ++i) {
     int index = (start + i) % length;
     int value = window->data[index];
-    printf("[DEBUG]   i:%d index: %d value:%d max_size:%d length:%d start:%d end:%d\n", i, index, value, window->max_size, window->length, window->start, window->end);
+    dprintf("  i:%d index: %d value:%d max_size:%d length:%d start:%d end:%d", i, index, value, window->max_size, window->length, window->start, window->end);
     VALUE y = rb_yield(RB_INT2NUM(value));
     if (RTEST(y)) {
       if (cleared++ != i) {
@@ -182,7 +182,7 @@ VALUE semian_simple_sliding_window_reject(VALUE self) {
       }
       window->start = (window->start + 1) % window->length;
       window->length--;
-      printf("[DEBUG]   Removed index:%d (val:%d)\n", i, value);
+      dprintf("  Removed index:%d (val:%d)", i, value);
     }
   }
 
@@ -190,7 +190,7 @@ VALUE semian_simple_sliding_window_reject(VALUE self) {
 }
 
 VALUE semian_simple_sliding_window_push(VALUE self, VALUE value) {
-  printf("[DEBUG] semian_simple_sliding_window_push\n");
+  dprintf("semian_simple_sliding_window_push");
 
   semian_simple_sliding_window_t *res;
   TypedData_Get_Struct(self, semian_simple_sliding_window_t, &semian_simple_sliding_window_type, res);
@@ -206,7 +206,7 @@ VALUE semian_simple_sliding_window_push(VALUE self, VALUE value) {
   window->data[index] = RB_NUM2INT(value);
   window->end = (window->end + 1) % window->max_size;
 
-  printf("[DEBUG]   Pushed val:%d index:%d max_size:%d length:%d start:%d end:%d\n", RB_NUM2INT(value), index, window->max_size, window->length, window->start, window->end);
+  dprintf("  Pushed val:%d index:%d max_size:%d length:%d start:%d end:%d", RB_NUM2INT(value), index, window->max_size, window->length, window->start, window->end);
 
   return self;
 }
