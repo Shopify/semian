@@ -65,22 +65,24 @@ VALUE semian_simple_integer_increment(int argc, VALUE *argv, VALUE self) {
   // This is definitely the worst API ever.
   // https://silverhammermba.github.io/emberb/c/#parsing-arguments
   VALUE val;
+  semian_simple_integer_t *res;
+  VALUE rb_val;
+
   rb_scan_args(argc, argv, "01", &val);
 
-  semian_simple_integer_t *res;
   TypedData_Get_Struct(self, semian_simple_integer_t, &semian_simple_integer_type, res);
 
   sem_meta_lock(res->sem_id);
+  {
+    semian_simple_integer_shared_t *data = get_value(res);
 
-  semian_simple_integer_shared_t *data = get_value(res);
-
-  if (NIL_P(val)) {
-    data->val += 1;
-  } else {
-    data->val += RB_NUM2INT(val);
+    if (NIL_P(val)) {
+      data->val += 1;
+    } else {
+      data->val += RB_NUM2INT(val);
+    }
+    rb_val = RB_INT2NUM(data->val);
   }
-  VALUE rb_val = RB_INT2NUM(data->val);
-
   sem_meta_unlock(res->sem_id);
 
   return rb_val;
@@ -88,14 +90,16 @@ VALUE semian_simple_integer_increment(int argc, VALUE *argv, VALUE self) {
 
 VALUE semian_simple_integer_reset(VALUE self) {
   semian_simple_integer_t *res;
+  VALUE rb_val;
+
   TypedData_Get_Struct(self, semian_simple_integer_t, &semian_simple_integer_type, res);
 
   sem_meta_lock(res->sem_id);
-
-  semian_simple_integer_shared_t *data = get_value(res);
-  data->val = 0;
-  VALUE rb_val = RB_INT2NUM(data->val);
-
+  {
+    semian_simple_integer_shared_t *data = get_value(res);
+    data->val = 0;
+    rb_val = RB_INT2NUM(data->val);
+  }
   sem_meta_unlock(res->sem_id);
 
   return rb_val;
@@ -103,13 +107,15 @@ VALUE semian_simple_integer_reset(VALUE self) {
 
 VALUE semian_simple_integer_value_get(VALUE self) {
   semian_simple_integer_t *res;
+  VALUE rb_val;
+
   TypedData_Get_Struct(self, semian_simple_integer_t, &semian_simple_integer_type, res);
 
   sem_meta_lock(res->sem_id);
-
-  semian_simple_integer_shared_t *data = get_value(res);
-  VALUE rb_val = RB_INT2NUM(data->val);
-
+  {
+    semian_simple_integer_shared_t *data = get_value(res);
+    rb_val = RB_INT2NUM(data->val);
+  }
   sem_meta_unlock(res->sem_id);
 
   return rb_val;
@@ -117,17 +123,19 @@ VALUE semian_simple_integer_value_get(VALUE self) {
 
 VALUE semian_simple_integer_value_set(VALUE self, VALUE val) {
   semian_simple_integer_t *res;
+  VALUE rb_val;
+
   TypedData_Get_Struct(self, semian_simple_integer_t, &semian_simple_integer_type, res);
 
   sem_meta_lock(res->sem_id);
+  {
+    semian_simple_integer_shared_t *data = get_value(res);
 
-  semian_simple_integer_shared_t *data = get_value(res);
-
-  // TODO(michaelkipper): Check for respond_to?(:to_i) before calling.
-  VALUE to_i = rb_funcall(val, rb_intern("to_i"), 0);
-  data->val = RB_NUM2INT(to_i);
-  VALUE rb_val = RB_INT2NUM(data->val);
-
+    // TODO(michaelkipper): Check for respond_to?(:to_i) before calling.
+    VALUE to_i = rb_funcall(val, rb_intern("to_i"), 0);
+    data->val = RB_NUM2INT(to_i);
+    rb_val = RB_INT2NUM(data->val);
+  }
   sem_meta_unlock(res->sem_id);
 
   return rb_val;
