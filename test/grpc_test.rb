@@ -69,7 +69,9 @@ class TestGRPC < Minitest::Test
       Toxiproxy['semian_test_grpc'].downstream(:latency, latency: 1000).apply do
         ERROR_THRESHOLD.times do
           assert_raises GRPC::DeadlineExceeded do
-            stub.an_rpc(EchoMsg.new)
+            5.times do |_|
+              stub.an_rpc(EchoMsg.new)
+            end
           end
         end
       end
