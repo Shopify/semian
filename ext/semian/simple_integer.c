@@ -5,13 +5,11 @@
 #include <sys/shm.h>
 #include "types.h"
 #include "util.h"
+#include "sysv_semaphores.h"
 
 static const rb_data_type_t semian_simple_integer_type;
 
-static semian_simple_integer_shared_t* get_value(VALUE self) {
-  semian_simple_integer_t *res;
-  TypedData_Get_Struct(self, semian_simple_integer_t, &semian_simple_integer_type, res);
-
+static semian_simple_integer_shared_t* get_value(semian_simple_integer_t* res) {
   const int permissions = 0664;
   int shmid = shmget(res->key, sizeof(semian_simple_integer_shared_t), IPC_CREAT | permissions);
   if (shmid == -1) {
@@ -56,8 +54,11 @@ VALUE semian_simple_integer_initialize(VALUE self, VALUE name)
   TypedData_Get_Struct(self, semian_simple_integer_t, &semian_simple_integer_type, res);
   res->key = generate_key(to_s(name));
 
-  semian_simple_integer_shared_t* data = get_value(self);
+  semian_simple_integer_shared_t* data = get_value(res);
   data->val = 0;
+
+  const int permissions = 0664;
+  res->sem_id = initialize_single_semaphore(res->key, permissions);
 
   return self;
 }
@@ -68,35 +69,68 @@ VALUE semian_simple_integer_increment(int argc, VALUE *argv, VALUE self) {
   VALUE val;
   rb_scan_args(argc, argv, "01", &val);
 
-  semian_simple_integer_shared_t *data = get_value(self);
+  semian_simple_integer_t *res;
+  TypedData_Get_Struct(self, semian_simple_integer_t, &semian_simple_integer_type, res);
+
+  sem_meta_lock(res->sem_id);
+
+  semian_simple_integer_shared_t *data = get_value(res);
 
   if (NIL_P(val)) {
     data->val += 1;
   } else {
     data->val += RB_NUM2INT(val);
   }
+  VALUE rb_val = RB_INT2NUM(data->val);
 
-  return RB_INT2NUM(data->val);
+  sem_meta_unlock(res->sem_id);
+
+  return rb_val;
 }
 
 VALUE semian_simple_integer_reset(VALUE self) {
-  semian_simple_integer_shared_t *data = get_value(self);
-  data->val = 0;
+  semian_simple_integer_t *res;
+  TypedData_Get_Struct(self, semian_simple_integer_t, &semian_simple_integer_type, res);
 
-  return RB_INT2NUM(data->val);
+  sem_meta_lock(res->sem_id);
+
+  semian_simple_integer_shared_t *data = get_value(res);
+  data->val = 0;
+  VALUE rb_val = RB_INT2NUM(data->val);
+
+  sem_meta_unlock(res->sem_id);
+
+  return rb_val;
 }
 
 VALUE semian_simple_integer_value_get(VALUE self) {
-  semian_simple_integer_shared_t *data = get_value(self);
-  return RB_INT2NUM(data->val);
+  semian_simple_integer_t *res;
+  TypedData_Get_Struct(self, semian_simple_integer_t, &semian_simple_integer_type, res);
+
+  sem_meta_lock(res->sem_id);
+
+  semian_simple_integer_shared_t *data = get_value(res);
+  VALUE rb_val = RB_INT2NUM(data->val);
+
+  sem_meta_unlock(res->sem_id);
+
+  return rb_val;
 }
 
 VALUE semian_simple_integer_value_set(VALUE self, VALUE val) {
-  semian_simple_integer_shared_t *data = get_value(self);
+  semian_simple_integer_t *res;
+  TypedData_Get_Struct(self, semian_simple_integer_t, &semian_simple_integer_type, res);
+
+  sem_meta_lock(res->sem_id);
+
+  semian_simple_integer_shared_t *data = get_value(res);
 
   // TODO(michaelkipper): Check for respond_to?(:to_i) before calling.
   VALUE to_i = rb_funcall(val, rb_intern("to_i"), 0);
   data->val = RB_NUM2INT(to_i);
+  VALUE rb_val = RB_INT2NUM(data->val);
 
-  return RB_INT2NUM(data->val);
+  sem_meta_unlock(res->sem_id);
+
+  return rb_val;
 }
