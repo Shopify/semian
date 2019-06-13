@@ -65,7 +65,9 @@ void Init_semian()
   /* Maximum number of tickets available on this system. */
   rb_define_const(cSemian, "MAX_TICKETS", INT2FIX(system_max_semaphore_count));
 
-  Init_SimpleInteger();
-  Init_SlidingWindow();
-  Init_CircuitBreaker();
+  if (getenv("USE_RUBY_CIRCUITS") == NULL || strcmp(getenv("USE_RUBY_CIRCUITS"), "false")) {
+    Init_SimpleInteger();
+    Init_SlidingWindow();
+    Init_CircuitBreaker();
+  }
 }
