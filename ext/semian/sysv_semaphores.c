@@ -33,6 +33,7 @@ initialize_semaphore_set(semian_resource_t* res, const char* id_str, long permis
   res->key = generate_key(id_str);
   res->strkey = (char*)  malloc((2 /*for 0x*/+ sizeof(uint64_t) /*actual key*/+ 1 /*null*/) * sizeof(char));
   sprintf(res->strkey, "0x%08x", (unsigned int) res->key);
+
   res->sem_id = semget(res->key, SI_NUM_SEMAPHORES, IPC_CREAT | IPC_EXCL | permissions);
 
   /*
@@ -242,4 +243,39 @@ diff_timespec_ms(struct timespec *end, struct timespec *begin)
   long end_ms = (end->tv_sec * 1e3) + (end->tv_nsec / 1e6);
   long begin_ms = (begin->tv_sec * 1e3) + (begin->tv_nsec / 1e6);
   return end_ms - begin_ms;
+}
+
+int
+initialize_single_semaphore(key_t key, long permissions)
+{
+
+  int sem_id = semget(key, 1, IPC_CREAT | IPC_EXCL | permissions);
+
+  /*
+  This approach is based on http://man7.org/tlpi/code/online/dist/svsem/svsem_good_init.c.html
+  which avoids race conditions when initializing semaphore sets.
+  */
+  if (sem_id != -1) {
+    // Happy path - we are the first worker, initialize the semaphore set.
+    //
+    if (semctl(sem_id, 0, SETVAL, 1) == -1) {
+      raise_semian_syscall_error("semctl()", errno);
+    }
+  } else {
+    // Something went wrong
+    if (errno != EEXIST) {
+      raise_semian_syscall_error("semget() failed to initialize semaphore values", errno);
+    } else {
+      // The semaphore set already exists, ensure it is initialized
+      sem_id = wait_for_new_semaphore_set(key, permissions);
+    }
+  }
+
+  set_semaphore_permissions(sem_id, permissions);
+
+  sem_meta_lock(sem_id); // Sets otime for the first time by acquiring the sem lock
+
+  sem_meta_unlock(sem_id);
+
+  return sem_id;
 }

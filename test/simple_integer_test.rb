@@ -43,25 +43,21 @@ class TestSimpleInteger < Minitest::Test
     end
 
     unless ENV['USE_RUBY_CIRCUITS']
-      def test_integer_race
+      # Without locks, this only passes around 1 in every 5 runs
+      def test_increment_race
         process_count = 255
-
-        5.times do
+        100.times do
           process_count.times do
             fork do
-              # An attempt to run all the increments at approximately the same
-              # time
-              loop until Time.now.sec.modulo(2).zero?
               value = @integer.increment(1)
               exit!(value)
             end
           end
-
-          finished_processes = Process.waitall
-
-          exit_codes = finished_processes.map { |_, status| status.exitstatus }
-          assert_equal((1..process_count).to_a, exit_codes)
-          @integer.reset
+          exit_codes = Process.waitall.map { |_, status| status.exitstatus }
+          # No two processes should exit with the same exit code
+          duplicate_values = exit_codes.group_by { |i| i }.select { |_, v| v.size > 1 }
+          puts "Duplicate values: #{duplicate_values}" unless duplicate_values.empty?
+          assert_equal(process_count, exit_codes.uniq.length)
         end
       end
     end
