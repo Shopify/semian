@@ -28,6 +28,8 @@ static semian_simple_integer_shared_t* get_value(VALUE self) {
 
 void Init_SimpleInteger()
 {
+  printf("[DEBUG] Init_SimpleInteger\n");
+
   VALUE cSemian = rb_const_get(rb_cObject, rb_intern("Semian"));
   VALUE cSimple = rb_const_get(cSemian, rb_intern("Simple"));
   VALUE cSimpleInteger = rb_const_get(cSimple, rb_intern("Integer"));

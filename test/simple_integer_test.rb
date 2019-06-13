@@ -41,6 +41,28 @@ class TestSimpleInteger < Minitest::Test
       @integer.reset
       assert_equal(0, @integer.value)
     end
+
+    def test_integer_race
+      process_count = 255
+
+      5.times do
+        process_count.times do
+          fork do
+            # An attempt to run all the increments at approximately the same
+            # time
+            loop until Time.now.sec.modulo(2).zero?
+            value = @integer.increment(1)
+            exit!(value)
+          end
+        end
+
+        finished_processes = Process.waitall
+
+        exit_codes = finished_processes.map { |_, status| status.exitstatus }
+        assert_equal((1..process_count).to_a, exit_codes)
+        @integer.reset
+      end
+    end
   end
 
   include IntegerTestCases
