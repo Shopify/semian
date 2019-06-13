@@ -56,6 +56,7 @@ typedef struct {
 // Internal simple integer structure
 typedef struct {
   uint64_t key;
+  int sem_id;
 } semian_simple_integer_t;
 
 // Shared simple integer structure

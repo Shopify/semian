@@ -105,6 +105,11 @@ get_semaphore(int key);
 void *
 acquire_semaphore_without_gvl(void *p);
 
+// Initializes a semaphore set with a single semaphore, for general purpose
+// locking
+int
+initialize_single_semaphore(key_t key, long permissions);
+
 #ifdef DEBUG
 static inline void
 print_sem_vals(int sem_id)
