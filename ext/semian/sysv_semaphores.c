@@ -245,7 +245,6 @@ diff_timespec_ms(struct timespec *end, struct timespec *begin)
 int
 initialize_single_semaphore(key_t key, long permissions)
 {
-
   int sem_id = semget(key, 1, IPC_CREAT | IPC_EXCL | permissions);
 
   /*

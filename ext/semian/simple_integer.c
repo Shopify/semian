@@ -10,8 +10,7 @@
 static const rb_data_type_t semian_simple_integer_type;
 
 static semian_simple_integer_shared_t* get_value(semian_simple_integer_t* res) {
-  const int permissions = 0664;
-  int shmid = shmget(res->key, sizeof(semian_simple_integer_shared_t), IPC_CREAT | permissions);
+  int shmid = shmget(res->key, sizeof(semian_simple_integer_shared_t), IPC_CREAT | SEM_DEFAULT_PERMISSIONS);
   if (shmid == -1) {
     rb_raise(rb_eArgError, "could not create shared memory (%s)", strerror(errno));
   }
@@ -57,8 +56,7 @@ VALUE semian_simple_integer_initialize(VALUE self, VALUE name)
   semian_simple_integer_shared_t* data = get_value(res);
   data->val = 0;
 
-  const int permissions = 0664;
-  res->sem_id = initialize_single_semaphore(res->key, permissions);
+  res->sem_id = initialize_single_semaphore(res->key, SEM_DEFAULT_PERMISSIONS);
 
   return self;
 }

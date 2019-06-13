@@ -38,6 +38,10 @@ typedef VALUE (*my_blocking_fn_t)(void*);
 // Helper definition to prevent magic number for conversion of microseconds to seconds
 #define MICROSECONDS_IN_SECOND 1000000
 
+// Default permissions for semaphore set - execute permissions are not meaningful for
+// semaphores
+#define SEM_DEFAULT_PERMISSIONS 0660
+
 // Here we define an enum value and string representation of each semaphore
 // This allows us to key the sem value and string rep in sync easily
 // utilizing pre-processor macros.
