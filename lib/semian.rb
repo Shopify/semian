@@ -264,6 +264,12 @@ module Semian
       raise ArgumentError, "Missing required arguments for Semian: #{diff}"
     end
   end
+
+  class TimeoutError
+    def marks_semian_circuits?
+      ENV.fetch('SEMIAN_DISABLE_BULKHEAD_TIMEOUT_ERR', "0") != "1"
+    end
+  end
 end
 
 if Semian.semaphores_enabled?
