@@ -67,6 +67,7 @@ typedef struct {
 // Internal simple sliding window structure
 typedef struct {
   uint64_t key;
+  int sem_id;
 } semian_simple_sliding_window_t;
 
 // Shared simple sliding window structure

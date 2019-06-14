@@ -4,6 +4,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include "util.h"
+#include "sysv_semaphores.h"
 
 static const rb_data_type_t semian_simple_sliding_window_type;
 
@@ -85,62 +86,88 @@ VALUE semian_simple_sliding_window_initialize(VALUE self, VALUE name, VALUE max_
 
   dprintf("  key:%lu addr:0x%p max_size:%d length:%d start:%d end:%d", res->key, window, window->max_size, window->length, window->start, window->end);
 
+  res->sem_id = initialize_single_semaphore(res->key, SEM_DEFAULT_PERMISSIONS);
   return self;
 }
 
 VALUE semian_simple_sliding_window_size(VALUE self) {
+  VALUE retval;
   dprintf("semian_simple_sliding_window_size");
 
   semian_simple_sliding_window_t *res;
   TypedData_Get_Struct(self, semian_simple_sliding_window_t, &semian_simple_sliding_window_type, res);
 
-  semian_simple_sliding_window_shared_t *window = get_window(res->key);
-  dprintf("  key:%lu addr:0x%p max_size:%d length:%d start:%d end:%d", res->key, window, window->max_size, window->length, window->start, window->end);
+  sem_meta_lock(res->sem_id);
+  {
+    semian_simple_sliding_window_shared_t *window = get_window(res->key);
+    dprintf("  key:%lu addr:0x%p max_size:%d length:%d start:%d end:%d", res->key, window, window->max_size, window->length, window->start, window->end);
+    retval = RB_INT2NUM(window->length);
+  }
+  sem_meta_unlock(res->sem_id);
 
-  return RB_INT2NUM(window->length);
+  return retval;
 }
 
 VALUE semian_simple_sliding_window_max_size(VALUE self) {
+  VALUE retval;
   dprintf("semian_simple_sliding_window_max_size");
 
   semian_simple_sliding_window_t *res;
   TypedData_Get_Struct(self, semian_simple_sliding_window_t, &semian_simple_sliding_window_type, res);
 
-  semian_simple_sliding_window_shared_t *window = get_window(res->key);
-  dprintf("  key:%lu addr:0x%p max_size:%d length:%d start:%d end:%d", res->key, window, window->max_size, window->length, window->start, window->end);
+  sem_meta_lock(res->sem_id);
+  {
+    semian_simple_sliding_window_shared_t *window = get_window(res->key);
+    dprintf("  key:%lu addr:0x%p max_size:%d length:%d start:%d end:%d", res->key, window, window->max_size, window->length, window->start, window->end);
+    retval = RB_INT2NUM(window->max_size);
+  }
+  sem_meta_unlock(res->sem_id);
 
-  return RB_INT2NUM(window->max_size);
+  return retval;
 }
 
 VALUE semian_simple_sliding_window_values(VALUE self) {
+  VALUE retval;
   dprintf("semian_simple_sliding_window_values");
 
   semian_simple_sliding_window_t *res;
   TypedData_Get_Struct(self, semian_simple_sliding_window_t, &semian_simple_sliding_window_type, res);
-  semian_simple_sliding_window_shared_t *window = get_window(res->key);
 
-  VALUE retval = rb_ary_new_capa(window->length);
-  for (int i = 0; i < window->length; ++i) {
-    int index = (window->start + i) % window->max_size;
-    int value = window->data[index];
-    dprintf("  i:%d index: %d value:%d max_size:%d length:%d start:%d end:%d", i, index, value, window->max_size, window->length, window->start, window->end);
-    rb_ary_store(retval, i, RB_INT2NUM(value));
+  sem_meta_lock(res->sem_id);
+  {
+    semian_simple_sliding_window_shared_t *window = get_window(res->key);
+
+    retval = rb_ary_new_capa(window->length);
+    for (int i = 0; i < window->length; ++i) {
+      int index = (window->start + i) % window->max_size;
+      int value = window->data[index];
+      dprintf("  i:%d index: %d value:%d max_size:%d length:%d start:%d end:%d", i, index, value, window->max_size, window->length, window->start, window->end);
+      rb_ary_store(retval, i, RB_INT2NUM(value));
+    }
   }
+  sem_meta_unlock(res->sem_id);
 
   return retval;
 }
 
 VALUE semian_simple_sliding_window_last(VALUE self) {
+  VALUE retval;
   dprintf("semian_simple_sliding_window_last");
 
   semian_simple_sliding_window_t *res;
   TypedData_Get_Struct(self, semian_simple_sliding_window_t, &semian_simple_sliding_window_type, res);
-  semian_simple_sliding_window_shared_t *window = get_window(res->key);
 
-  int index = (window->start + window->length - 1) % window->max_size;
-  dprintf("  index:%d last:%d", index, window->data[index]);
+  sem_meta_lock(res->sem_id);
+  {
+    semian_simple_sliding_window_shared_t *window = get_window(res->key);
 
-  return RB_INT2NUM(window->data[index]);
+    int index = (window->start + window->length - 1) % window->max_size;
+    dprintf("  index:%d last:%d", index, window->data[index]);
+    retval = RB_INT2NUM(window->data[index]);
+  }
+  sem_meta_unlock(res->sem_id);
+
+  return retval;
 }
 
 VALUE semian_simple_sliding_window_clear(VALUE self) {
@@ -148,11 +175,16 @@ VALUE semian_simple_sliding_window_clear(VALUE self) {
 
   semian_simple_sliding_window_t *res;
   TypedData_Get_Struct(self, semian_simple_sliding_window_t, &semian_simple_sliding_window_type, res);
-  semian_simple_sliding_window_shared_t *window = get_window(res->key);
 
-  window->length = 0;
-  window->start = 0;
-  window->end = 0;
+  sem_meta_lock(res->sem_id);
+  {
+    semian_simple_sliding_window_shared_t *window = get_window(res->key);
+
+    window->length = 0;
+    window->start = 0;
+    window->end = 0;
+  }
+  sem_meta_unlock(res->sem_id);
 
   return self;
 }
@@ -164,27 +196,33 @@ VALUE semian_simple_sliding_window_reject(VALUE self) {
 
   semian_simple_sliding_window_t *res;
   TypedData_Get_Struct(self, semian_simple_sliding_window_t, &semian_simple_sliding_window_type, res);
-  semian_simple_sliding_window_shared_t *window = get_window(res->key);
 
-  // Store these values because we're going to be modifying the buffer.
-  int start = window->start;
-  int length = window->length;
+  sem_meta_lock(res->sem_id);
+  {
+    semian_simple_sliding_window_shared_t *window = get_window(res->key);
 
-  int cleared = 0;
-  for (int i = 0; i < length; ++i) {
-    int index = (start + i) % length;
-    int value = window->data[index];
-    dprintf("  i:%d index: %d value:%d max_size:%d length:%d start:%d end:%d", i, index, value, window->max_size, window->length, window->start, window->end);
-    VALUE y = rb_yield(RB_INT2NUM(value));
-    if (RTEST(y)) {
-      if (cleared++ != i) {
-        rb_raise(rb_eArgError, "reject! must delete monotonically");
+    // Store these values because we're going to be modifying the buffer.
+    int start = window->start;
+    int length = window->length;
+
+    int cleared = 0;
+    for (int i = 0; i < length; ++i) {
+      int index = (start + i) % length;
+      int value = window->data[index];
+      dprintf("  i:%d index: %d value:%d max_size:%d length:%d start:%d end:%d", i, index, value, window->max_size, window->length, window->start, window->end);
+      VALUE y = rb_yield(RB_INT2NUM(value));
+      if (RTEST(y)) {
+        if (cleared++ != i) {
+          sem_meta_unlock(res->sem_id);
+          rb_raise(rb_eArgError, "reject! must delete monotonically");
+        }
+        window->start = (window->start + 1) % window->length;
+        window->length--;
+        dprintf("  Removed index:%d (val:%d)", i, value);
       }
-      window->start = (window->start + 1) % window->length;
-      window->length--;
-      dprintf("  Removed index:%d (val:%d)", i, value);
     }
   }
+  sem_meta_unlock(res->sem_id);
 
   return self;
 }
@@ -195,18 +233,22 @@ VALUE semian_simple_sliding_window_push(VALUE self, VALUE value) {
   semian_simple_sliding_window_t *res;
   TypedData_Get_Struct(self, semian_simple_sliding_window_t, &semian_simple_sliding_window_type, res);
 
-  semian_simple_sliding_window_shared_t *window = get_window(res->key);
-  if (window->length == window->max_size) {
-    window->length--;
-    window->start = (window->start + 1) % window->max_size;
+  sem_meta_lock(res->sem_id);
+  {
+    semian_simple_sliding_window_shared_t *window = get_window(res->key);
+    if (window->length == window->max_size) {
+      window->length--;
+      window->start = (window->start + 1) % window->max_size;
+    }
+
+    const int index = window->end;
+    window->length++;
+    window->data[index] = RB_NUM2INT(value);
+    window->end = (window->end + 1) % window->max_size;
+
+    dprintf("  Pushed val:%d index:%d max_size:%d length:%d start:%d end:%d", RB_NUM2INT(value), index, window->max_size, window->length, window->start, window->end);
   }
-
-  const int index = window->end;
-  window->length++;
-  window->data[index] = RB_NUM2INT(value);
-  window->end = (window->end + 1) % window->max_size;
-
-  dprintf("  Pushed val:%d index:%d max_size:%d length:%d start:%d end:%d", RB_NUM2INT(value), index, window->max_size, window->length, window->start, window->end);
+  sem_meta_unlock(res->sem_id);
 
   return self;
 }
