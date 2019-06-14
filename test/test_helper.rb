@@ -15,6 +15,7 @@ require 'helpers/background_helper'
 require 'helpers/circuit_breaker_helper'
 require 'helpers/resource_helper'
 require 'helpers/adapter_helper'
+require 'helpers/mock_server.rb'
 
 require 'config/semian_config'
 
@@ -38,7 +39,7 @@ Toxiproxy.populate([
   },
   {
     name: 'semian_test_net_http',
-    upstream: "#{SemianConfig['http_host']}:#{SemianConfig['http_port']}",
+    upstream: "#{SemianConfig['http_host']}:#{SemianConfig['http_port_service_a']}",
     listen: "#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['http_toxiproxy_port']}",
   },
   {
@@ -47,6 +48,16 @@ Toxiproxy.populate([
     listen: "#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['grpc_toxiproxy_port']}",
   },
 ])
+
+tids = []
+tids << MockServer.start(hostname: SemianConfig['http_host'], port: SemianConfig['http_port_service_a'])
+tids << MockServer.start(hostname: SemianConfig['http_host'], port: SemianConfig['http_port_service_b'])
+
+Minitest.after_run do
+  tids.each do |tid|
+    MockServer.cleanup(tid)
+  end
+end
 
 class Minitest::Test
   include BackgroundHelper

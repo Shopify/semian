@@ -1,16 +1,7 @@
 require 'test_helper'
 require 'semian/net_http'
-require 'thin'
 
 class TestNetHTTP < Minitest::Test
-  class RackServer
-    def self.call(env)
-      response_code = env['REQUEST_URI'].delete("/")
-      response_code = '200' if response_code == ""
-      [response_code, {'Content-Type' => 'text/html'}, ['Success']]
-    end
-  end
-
   DEFAULT_SEMIAN_OPTIONS = {
     tickets: 3,
     success_threshold: 1,
@@ -20,16 +11,6 @@ class TestNetHTTP < Minitest::Test
   DEFAULT_SEMIAN_CONFIGURATION = proc do |host, port|
     next nil if host == SemianConfig['toxiproxy_upstream_host'] && port == SemianConfig['toxiproxy_upstream_port'] # disable if toxiproxy
     DEFAULT_SEMIAN_OPTIONS.merge(name: "#{host}_#{port}")
-  end
-
-  def test_with_server_raises_if_binding_fails
-    # Occurs when trying to bind to invalid addresses, like non-private
-    # addresses, or when the address is already bound to something else
-    with_server do
-      assert_raises RuntimeError do
-        with_server {}
-      end
-    end
   end
 
   def test_semian_identifier
@@ -257,7 +238,7 @@ class TestNetHTTP < Minitest::Test
       Semian["nethttp_default"].reset if Semian["nethttp_default"]
       Semian.destroy("nethttp_default")
       with_semian_configuration(semian_configuration_proc) do
-        Net::HTTP.start(SemianConfig['http_host'], SemianConfig['http_port']) do |http|
+        Net::HTTP.start(SemianConfig['http_host'], SemianConfig['http_port_service_a']) do |http|
           expected_config = semian_config["development"]["nethttp_default"].dup
           assert_equal expected_config, http.raw_semian_options.dup.tap { |o| o.delete(:name) }
         end
@@ -293,7 +274,7 @@ class TestNetHTTP < Minitest::Test
       with_server do
         open_circuit!
       end
-      with_server(ports: [SemianConfig['http_port'], SemianConfig['http_port'] + 100], reset_semian_state: false) do
+      with_server(ports: [SemianConfig['http_port_service_a'], SemianConfig['http_port_service_b']], reset_semian_state: false) do
         assert_raises Net::CircuitOpenError do
           Net::HTTP.get(URI("http://#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['http_toxiproxy_port']}/200"))
         end
@@ -368,7 +349,7 @@ class TestNetHTTP < Minitest::Test
 
     with_semian_configuration(options) do
       with_server do
-        http = Net::HTTP.new(SemianConfig['http_host'], SemianConfig['http_port'])
+        http = Net::HTTP.new(SemianConfig['http_host'], SemianConfig['http_port_service_a'])
         http.raw_semian_options[:error_threshold].times do
           http.get("/500")
         end
@@ -382,7 +363,7 @@ class TestNetHTTP < Minitest::Test
   def test_5xxs_dont_raise_exceptions_unless_fatal_server_flag_enabled
     with_semian_configuration do
       with_server do
-        http = Net::HTTP.new(SemianConfig['http_host'], SemianConfig['http_port'])
+        http = Net::HTTP.new(SemianConfig['http_host'], SemianConfig['http_port_service_a'])
         http.raw_semian_options[:error_threshold].times do
           http.get("/500")
         end
@@ -393,13 +374,13 @@ class TestNetHTTP < Minitest::Test
 
   def test_multiple_different_endpoints_and_ports_are_tracked_differently
     with_semian_configuration do
-      ports = [SemianConfig['http_port'], SemianConfig['http_port'] + 100]
+      ports = [SemianConfig['http_port_service_a'], SemianConfig['http_port_service_b']]
       ports.each do |port|
-        reset_semian_resource(hostname: SemianConfig['toxiproxy_upstream_host'], port: port.to_i)
+        reset_semian_resource(port: port.to_i)
       end
 
       with_server(ports: ports, reset_semian_state: false) do |host, port|
-        with_toxic(hostname: host, upstream_port: SemianConfig['http_port'], toxic_port: port + 1) do |name|
+        with_toxic(hostname: host, upstream_port: SemianConfig['http_port_service_a'], toxic_port: port + 1) do |name|
           Net::HTTP.get(URI("http://#{host}:#{port + 1}/"))
           open_circuit!(hostname: host, toxic_port: port + 1, toxic_name: name)
           assert_raises Net::CircuitOpenError do
@@ -407,7 +388,7 @@ class TestNetHTTP < Minitest::Test
           end
         end
       end
-      with_server(ports: [SemianConfig['http_port']], reset_semian_state: false) do
+      with_server(ports: [SemianConfig['http_port_service_a']], reset_semian_state: false) do
         # different endpoint, should not raise errors even though localhost == 127.0.0.1
         Net::HTTP.get(URI("http://#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['http_toxiproxy_port']}/"))
       end
@@ -416,12 +397,12 @@ class TestNetHTTP < Minitest::Test
 
   def test_persistent_state_after_server_restart
     with_semian_configuration do
-      with_server(ports: [SemianConfig['http_port'] + 100]) do |_, port|
+      with_server(ports: [SemianConfig['http_port_service_b']]) do |_, port|
         with_toxic(hostname: SemianConfig['http_host'], upstream_port: port, toxic_port: port + 1) do |name|
           open_circuit!(hostname: SemianConfig['toxiproxy_upstream_host'], toxic_port: port + 1, toxic_name: name)
         end
       end
-      with_server(ports: [SemianConfig['http_port'] + 100], reset_semian_state: false) do |_, port|
+      with_server(ports: [SemianConfig['http_port_service_b']], reset_semian_state: false) do |_, port|
         with_toxic(hostname: SemianConfig['http_host'], upstream_port: port, toxic_port: port + 1) do |_|
           assert_raises Net::CircuitOpenError do
             Net::HTTP.get(URI("http://#{SemianConfig['toxiproxy_upstream_host']}:#{port + 1}/200"))
@@ -509,51 +490,22 @@ class TestNetHTTP < Minitest::Test
     end
   end
 
-  def with_server(ports: [SemianConfig['http_port']], reset_semian_state: true)
+  def with_server(ports: [SemianConfig['http_port_service_a']], reset_semian_state: true)
     ports.each do |port|
-      hostname = '0.0.0.0'
-      begin
-        server = nil
-        server_threw_error = false
-        server_thread = Thread.new do
-          Thin::Logging.silent = true
-          server = Thin::Server.new(hostname, port, RackServer)
-          begin
-            server.start
-          rescue StandardError
-            server_threw_error = true
-            raise
-          end
-        end
-
-        begin
-          poll_until_ready(hostname: hostname, port: port)
-        rescue RuntimeError
-          server_thread.kill
-          server_thread.join if server_threw_error
-          raise
-        end
-
-        assert(server.running?)
-        reset_semian_resource(hostname: SemianConfig['toxiproxy_upstream_host'], port: port) if reset_semian_state
-        @proxy = Toxiproxy[:semian_test_net_http]
-        yield(hostname, port.to_i)
-      ensure
-        server&.stop
-        server_thread.kill
-        poll_until_gone(hostname: hostname, port: port)
-      end
+      reset_semian_resource(port: port) if reset_semian_state
+      @proxy = Toxiproxy[:semian_test_net_http]
+      yield(SemianConfig['http_host'], port.to_i)
     end
   end
 
-  def reset_semian_resource(hostname:, port:)
+  def reset_semian_resource(hostname: SemianConfig['toxiproxy_upstream_host'], port:)
     Semian["nethttp_#{hostname}_#{port}"].reset if Semian["nethttp_#{hostname}_#{port}"]
     Semian["nethttp_#{hostname}_#{port.to_i + 1}"].reset if Semian["nethttp_#{hostname}_#{port.to_i + 1}"]
     Semian.destroy("nethttp_#{hostname}_#{port}")
     Semian.destroy("nethttp_#{hostname}_#{port.to_i + 1}")
   end
 
-  def with_toxic(hostname: SemianConfig['http_host'], upstream_port: SemianConfig['http_port'], toxic_port: upstream_port + 1)
+  def with_toxic(hostname: SemianConfig['http_host'], upstream_port: SemianConfig['http_port_service_a'], toxic_port: upstream_port + 1)
     old_proxy = @proxy
     name = "semian_test_net_http_#{hostname}_#{upstream_port}<-#{toxic_port}"
     Toxiproxy.populate([
@@ -571,33 +523,6 @@ class TestNetHTTP < Minitest::Test
     begin
       Toxiproxy[name].destroy
     rescue StandardError
-    end
-  end
-
-  def poll_until_ready(hostname: SemianConfig['http_host'], port: SemianConfig['http_port'], time_to_wait: 1)
-    start_time = Time.now.to_i
-    begin
-      TCPSocket.new(hostname, port).close
-    rescue Errno::ECONNREFUSED, Errno::ECONNRESET
-      if Time.now.to_i > start_time + time_to_wait
-        raise "Couldn't reach the service on hostname #{hostname} port #{port} after #{time_to_wait}s"
-      else
-        retry
-      end
-    end
-  end
-
-  def poll_until_gone(hostname: SemianConfig['http_host'], port: SemianConfig['http_port'], time_to_wait: 1)
-    start_time = Time.now.to_i
-    loop do
-      if Time.now.to_i > start_time + time_to_wait
-        raise "Could still reach the service on hostname #{hostname} port #{port} after #{time_to_wait}s"
-      end
-      begin
-        TCPSocket.new(hostname, port).close
-      rescue Errno::ECONNREFUSED, Errno::ECONNRESET
-        return true
-      end
     end
   end
 end

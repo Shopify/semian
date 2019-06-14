@@ -17,3 +17,6 @@ gemfile:
 
 services:
   - redis-server
+
+notifications:
+  email: false

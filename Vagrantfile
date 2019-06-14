@@ -75,11 +75,11 @@ Vagrant.configure("2") do |config|
     printf "create user vagrant;\n" | mysql
 
     mkdir -p /usr/local/share/ruby-build/
-    curl -Lo /usr/local/share/ruby-build/2.4.3 https://raw.githubusercontent.com/rbenv/ruby-build/master/share/ruby-build/2.4.3
-    ruby-build /usr/local/share/ruby-build/2.4.3 /usr/local/
+    curl -Lo /usr/local/share/ruby-build/2.6.3 https://raw.githubusercontent.com/rbenv/ruby-build/master/share/ruby-build/2.6.3
+    ruby-build /usr/local/share/ruby-build/2.6.3 /usr/local/
 
-    curl -Lo /var/tmp/toxiproxy-2.1.2.deb https://github.com/Shopify/toxiproxy/releases/download/v2.1.2/toxiproxy_2.1.2_amd64.deb
-    dpkg -i /var/tmp/toxiproxy-2.1.2.deb
+    curl -Lo /var/tmp/toxiproxy-2.1.4.deb https://github.com/Shopify/toxiproxy/releases/download/v2.1.4/toxiproxy_2.1.4_amd64.deb
+    dpkg -i /var/tmp/toxiproxy-2.1.4.deb
 
     /usr/local/bin/gem install bundler
     (cd /vagrant && sudo -u vagrant bundle install)
