@@ -25,7 +25,7 @@ static semian_simple_integer_shared_t* get_value(semian_simple_integer_t* res) {
 
 void Init_SimpleInteger()
 {
-  dprintf("[DEBUG] Init_SimpleInteger\n");
+  dprintf("Init_SimpleInteger\n");
 
   VALUE cSemian = rb_const_get(rb_cObject, rb_intern("Semian"));
   VALUE cSimple = rb_const_get(cSemian, rb_intern("Simple"));
