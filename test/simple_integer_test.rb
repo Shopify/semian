@@ -42,7 +42,7 @@ class TestSimpleInteger < Minitest::Test
       assert_equal(0, @integer.value)
     end
 
-    if ENV['CIRCUIT_IMPL'] != 'ruby'
+    if ENV['SEMIAN_CIRCUIT_BREAKER_IMPL'] != 'ruby'
       # Without locks, this only passes around 1 in every 5 runs
       def test_increment_race
         process_count = 255

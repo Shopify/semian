@@ -76,7 +76,7 @@ void Init_semian()
 
 static int
 use_c_circuits() {
-  char *circuit_impl = getenv("CIRCUIT_IMPL");
+  char *circuit_impl = getenv("SEMIAN_CIRCUIT_BREAKER_IMPL");
   if (circuit_impl == NULL || strcmp(circuit_impl, "ruby") != 0) {
     return 1;
   } else {
