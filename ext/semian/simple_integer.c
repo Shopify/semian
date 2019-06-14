@@ -66,7 +66,7 @@ VALUE semian_simple_integer_increment(int argc, VALUE *argv, VALUE self) {
   // https://silverhammermba.github.io/emberb/c/#parsing-arguments
   VALUE val;
   semian_simple_integer_t *res;
-  VALUE rb_val;
+  VALUE retval;
 
   rb_scan_args(argc, argv, "01", &val);
 
@@ -81,16 +81,16 @@ VALUE semian_simple_integer_increment(int argc, VALUE *argv, VALUE self) {
     } else {
       data->val += RB_NUM2INT(val);
     }
-    rb_val = RB_INT2NUM(data->val);
+    retval = RB_INT2NUM(data->val);
   }
   sem_meta_unlock(res->sem_id);
 
-  return rb_val;
+  return retval;
 }
 
 VALUE semian_simple_integer_reset(VALUE self) {
   semian_simple_integer_t *res;
-  VALUE rb_val;
+  VALUE retval;
 
   TypedData_Get_Struct(self, semian_simple_integer_t, &semian_simple_integer_type, res);
 
@@ -98,32 +98,32 @@ VALUE semian_simple_integer_reset(VALUE self) {
   {
     semian_simple_integer_shared_t *data = get_value(res);
     data->val = 0;
-    rb_val = RB_INT2NUM(data->val);
+    retval = RB_INT2NUM(data->val);
   }
   sem_meta_unlock(res->sem_id);
 
-  return rb_val;
+  return retval;
 }
 
 VALUE semian_simple_integer_value_get(VALUE self) {
   semian_simple_integer_t *res;
-  VALUE rb_val;
+  VALUE retval;
 
   TypedData_Get_Struct(self, semian_simple_integer_t, &semian_simple_integer_type, res);
 
   sem_meta_lock(res->sem_id);
   {
     semian_simple_integer_shared_t *data = get_value(res);
-    rb_val = RB_INT2NUM(data->val);
+    retval = RB_INT2NUM(data->val);
   }
   sem_meta_unlock(res->sem_id);
 
-  return rb_val;
+  return retval;
 }
 
 VALUE semian_simple_integer_value_set(VALUE self, VALUE val) {
   semian_simple_integer_t *res;
-  VALUE rb_val;
+  VALUE retval;
 
   TypedData_Get_Struct(self, semian_simple_integer_t, &semian_simple_integer_type, res);
 
@@ -134,9 +134,9 @@ VALUE semian_simple_integer_value_set(VALUE self, VALUE val) {
     // TODO(michaelkipper): Check for respond_to?(:to_i) before calling.
     VALUE to_i = rb_funcall(val, rb_intern("to_i"), 0);
     data->val = RB_NUM2INT(to_i);
-    rb_val = RB_INT2NUM(data->val);
+    retval = RB_INT2NUM(data->val);
   }
   sem_meta_unlock(res->sem_id);
 
-  return rb_val;
+  return retval;
 }
