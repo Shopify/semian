@@ -193,7 +193,7 @@ class TestRedis < Minitest::Test
   ].each do |message|
     test_suffix = message.gsub(/\W/, '_').downcase
     define_method(:"test_dns_resolution_failure_#{test_suffix}") do
-      ::Socket.expects(:getaddrinfo).with('example.com', any_parameters).raises(message)
+      Redis::Client.any_instance.expects(:raw_connect).raises(message)
 
       assert_raises Redis::ResolveError do
         connect_to_redis!(host: 'example.com')
