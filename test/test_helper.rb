@@ -8,6 +8,8 @@ require 'timecop'
 require 'tempfile'
 require 'fileutils'
 require 'byebug'
+require 'mocha'
+require 'mocha/minitest'
 
 require 'helpers/background_helper'
 require 'helpers/circuit_breaker_helper'
