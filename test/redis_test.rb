@@ -185,6 +185,22 @@ class TestRedis < Minitest::Test
     end
   end
 
+  [
+    "Temporary failure in name resolution",
+    "Can't resolve example.com",
+    "name or service not known",
+    "Could not resolve hostname example.com: nodename nor servname provided, or not known",
+  ].each do |message|
+    test_suffix = message.gsub(/\W/, '_').downcase
+    define_method(:"test_dns_resolution_failure_#{test_suffix}") do
+      ::Socket.expects(:getaddrinfo).with('example.com', any_parameters).raises(message)
+
+      assert_raises Redis::ResolveError do
+        connect_to_redis!(host: 'example.com')
+      end
+    end
+  end
+
   def test_circuit_breaker_on_connect
     @proxy.downstream(:latency, latency: 500).apply do
       background { connect_to_redis! }
