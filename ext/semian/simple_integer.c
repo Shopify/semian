@@ -9,7 +9,9 @@
 
 static const rb_data_type_t semian_simple_integer_type;
 
-static semian_simple_integer_shared_t* get_value(semian_simple_integer_t* res) {
+static semian_simple_integer_shared_t*
+get_value(semian_simple_integer_t* res)
+{
   int shmid = shmget(res->key, sizeof(semian_simple_integer_shared_t), IPC_CREAT | SEM_DEFAULT_PERMISSIONS);
   if (shmid == -1) {
     rb_raise(rb_eArgError, "could not create shared memory (%s)", strerror(errno));
@@ -23,7 +25,8 @@ static semian_simple_integer_shared_t* get_value(semian_simple_integer_t* res) {
   return (semian_simple_integer_shared_t*)val;
 }
 
-void Init_SimpleInteger()
+void
+Init_SimpleInteger()
 {
   dprintf("Init_SimpleInteger\n");
 
@@ -39,7 +42,8 @@ void Init_SimpleInteger()
   rb_define_method(cSimpleInteger, "value=", semian_simple_integer_value_set, 1);
 }
 
-VALUE semian_simple_integer_alloc(VALUE klass)
+VALUE
+semian_simple_integer_alloc(VALUE klass)
 {
   semian_simple_integer_t *res;
   VALUE obj = TypedData_Make_Struct(klass, semian_simple_integer_t, &semian_simple_integer_type, res);
@@ -47,7 +51,8 @@ VALUE semian_simple_integer_alloc(VALUE klass)
 }
 
 
-VALUE semian_simple_integer_initialize(VALUE self, VALUE name)
+VALUE
+semian_simple_integer_initialize(VALUE self, VALUE name)
 {
   semian_simple_integer_t *res;
   TypedData_Get_Struct(self, semian_simple_integer_t, &semian_simple_integer_type, res);
@@ -61,7 +66,9 @@ VALUE semian_simple_integer_initialize(VALUE self, VALUE name)
   return self;
 }
 
-VALUE semian_simple_integer_increment(int argc, VALUE *argv, VALUE self) {
+VALUE
+semian_simple_integer_increment(int argc, VALUE *argv, VALUE self)
+{
   // This is definitely the worst API ever.
   // https://silverhammermba.github.io/emberb/c/#parsing-arguments
   VALUE val;
@@ -88,7 +95,9 @@ VALUE semian_simple_integer_increment(int argc, VALUE *argv, VALUE self) {
   return retval;
 }
 
-VALUE semian_simple_integer_reset(VALUE self) {
+VALUE
+semian_simple_integer_reset(VALUE self)
+{
   semian_simple_integer_t *res;
   VALUE retval;
 
@@ -105,7 +114,9 @@ VALUE semian_simple_integer_reset(VALUE self) {
   return retval;
 }
 
-VALUE semian_simple_integer_value_get(VALUE self) {
+VALUE
+semian_simple_integer_value_get(VALUE self)
+{
   semian_simple_integer_t *res;
   VALUE retval;
 
@@ -121,7 +132,9 @@ VALUE semian_simple_integer_value_get(VALUE self) {
   return retval;
 }
 
-VALUE semian_simple_integer_value_set(VALUE self, VALUE val) {
+VALUE
+semian_simple_integer_value_set(VALUE self, VALUE val)
+{
   semian_simple_integer_t *res;
   VALUE retval;
 

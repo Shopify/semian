@@ -8,7 +8,9 @@
 
 static const rb_data_type_t semian_simple_sliding_window_type;
 
-static semian_simple_sliding_window_shared_t* get_window(uint64_t key) {
+static semian_simple_sliding_window_shared_t*
+get_window(uint64_t key)
+{
   const int permissions = 0664;
   int shmid = shmget(key, sizeof(int), IPC_CREAT | permissions);
   if (shmid == -1) {
@@ -23,7 +25,8 @@ static semian_simple_sliding_window_shared_t* get_window(uint64_t key) {
   return (semian_simple_sliding_window_shared_t*)val;
 }
 
-static int check_max_size_arg(VALUE max_size)
+static int
+check_max_size_arg(VALUE max_size)
 {
   int retval = -1;
   switch (TYPE(max_size)) {
@@ -45,7 +48,18 @@ static int check_max_size_arg(VALUE max_size)
   return retval;
 }
 
-void Init_SlidingWindow() {
+// Get the C object for a Ruby instance
+static semian_simple_sliding_window_t*
+get_object(VALUE self)
+{
+  semian_simple_sliding_window_t *res;
+  TypedData_Get_Struct(self, semian_simple_sliding_window_t, &semian_simple_sliding_window_type, res);
+  return res;
+}
+
+void
+Init_SlidingWindow()
+{
   dprintf("Init_SlidingWindow");
 
   VALUE cSemian = rb_const_get(rb_cObject, rb_intern("Semian"));
@@ -63,17 +77,18 @@ void Init_SlidingWindow() {
   rb_define_method(cSlidingWindow, "reject!", semian_simple_sliding_window_reject, 0);
 }
 
-VALUE semian_simple_sliding_window_alloc(VALUE klass) {
+VALUE
+semian_simple_sliding_window_alloc(VALUE klass)
+{
   semian_simple_sliding_window_t *res;
   VALUE obj = TypedData_Make_Struct(klass, semian_simple_sliding_window_t, &semian_simple_sliding_window_type, res);
   return obj;
 }
 
-VALUE semian_simple_sliding_window_initialize(VALUE self, VALUE name, VALUE max_size) {
-  dprintf("semian_simple_sliding_window_initialize");
-
-  semian_simple_sliding_window_t *res;
-  TypedData_Get_Struct(self, semian_simple_sliding_window_t, &semian_simple_sliding_window_type, res);
+VALUE
+semian_simple_sliding_window_initialize(VALUE self, VALUE name, VALUE max_size)
+{
+  semian_simple_sliding_window_t *res = get_object(self);
 
   const char *id_str = check_id_arg(name);
   res->key = generate_key(id_str);
@@ -84,18 +99,15 @@ VALUE semian_simple_sliding_window_initialize(VALUE self, VALUE name, VALUE max_
   window->start = 0;
   window->end = 0;
 
-  dprintf("  key:%lu addr:0x%p max_size:%d length:%d start:%d end:%d", res->key, window, window->max_size, window->length, window->start, window->end);
-
   res->sem_id = initialize_single_semaphore(res->key, SEM_DEFAULT_PERMISSIONS);
   return self;
 }
 
-VALUE semian_simple_sliding_window_size(VALUE self) {
+VALUE
+semian_simple_sliding_window_size(VALUE self)
+{
+  semian_simple_sliding_window_t *res = get_object(self);
   VALUE retval;
-  dprintf("semian_simple_sliding_window_size");
-
-  semian_simple_sliding_window_t *res;
-  TypedData_Get_Struct(self, semian_simple_sliding_window_t, &semian_simple_sliding_window_type, res);
 
   sem_meta_lock(res->sem_id);
   {
@@ -108,12 +120,11 @@ VALUE semian_simple_sliding_window_size(VALUE self) {
   return retval;
 }
 
-VALUE semian_simple_sliding_window_max_size(VALUE self) {
+VALUE
+semian_simple_sliding_window_max_size(VALUE self)
+{
+  semian_simple_sliding_window_t *res = get_object(self);
   VALUE retval;
-  dprintf("semian_simple_sliding_window_max_size");
-
-  semian_simple_sliding_window_t *res;
-  TypedData_Get_Struct(self, semian_simple_sliding_window_t, &semian_simple_sliding_window_type, res);
 
   sem_meta_lock(res->sem_id);
   {
@@ -126,12 +137,11 @@ VALUE semian_simple_sliding_window_max_size(VALUE self) {
   return retval;
 }
 
-VALUE semian_simple_sliding_window_values(VALUE self) {
+VALUE
+semian_simple_sliding_window_values(VALUE self)
+{
+  semian_simple_sliding_window_t *res = get_object(self);
   VALUE retval;
-  dprintf("semian_simple_sliding_window_values");
-
-  semian_simple_sliding_window_t *res;
-  TypedData_Get_Struct(self, semian_simple_sliding_window_t, &semian_simple_sliding_window_type, res);
 
   sem_meta_lock(res->sem_id);
   {
@@ -150,19 +160,17 @@ VALUE semian_simple_sliding_window_values(VALUE self) {
   return retval;
 }
 
-VALUE semian_simple_sliding_window_last(VALUE self) {
+VALUE
+semian_simple_sliding_window_last(VALUE self)
+{
+  semian_simple_sliding_window_t *res = get_object(self);
   VALUE retval;
-  dprintf("semian_simple_sliding_window_last");
-
-  semian_simple_sliding_window_t *res;
-  TypedData_Get_Struct(self, semian_simple_sliding_window_t, &semian_simple_sliding_window_type, res);
 
   sem_meta_lock(res->sem_id);
   {
     semian_simple_sliding_window_shared_t *window = get_window(res->key);
 
     int index = (window->start + window->length - 1) % window->max_size;
-    dprintf("  index:%d last:%d", index, window->data[index]);
     retval = RB_INT2NUM(window->data[index]);
   }
   sem_meta_unlock(res->sem_id);
@@ -170,11 +178,10 @@ VALUE semian_simple_sliding_window_last(VALUE self) {
   return retval;
 }
 
-VALUE semian_simple_sliding_window_clear(VALUE self) {
-  dprintf("semian_simple_sliding_window_clear");
-
-  semian_simple_sliding_window_t *res;
-  TypedData_Get_Struct(self, semian_simple_sliding_window_t, &semian_simple_sliding_window_type, res);
+VALUE
+semian_simple_sliding_window_clear(VALUE self)
+{
+  semian_simple_sliding_window_t *res = get_object(self);
 
   sem_meta_lock(res->sem_id);
   {
@@ -189,13 +196,12 @@ VALUE semian_simple_sliding_window_clear(VALUE self) {
   return self;
 }
 
-VALUE semian_simple_sliding_window_reject(VALUE self) {
-  dprintf("semian_simple_sliding_window_reject");
+VALUE
+semian_simple_sliding_window_reject(VALUE self)
+{
+  semian_simple_sliding_window_t *res = get_object(self);
 
   rb_need_block();
-
-  semian_simple_sliding_window_t *res;
-  TypedData_Get_Struct(self, semian_simple_sliding_window_t, &semian_simple_sliding_window_type, res);
 
   sem_meta_lock(res->sem_id);
   {
@@ -209,7 +215,6 @@ VALUE semian_simple_sliding_window_reject(VALUE self) {
     for (int i = 0; i < length; ++i) {
       int index = (start + i) % length;
       int value = window->data[index];
-      dprintf("  i:%d index: %d value:%d max_size:%d length:%d start:%d end:%d", i, index, value, window->max_size, window->length, window->start, window->end);
       VALUE y = rb_yield(RB_INT2NUM(value));
       if (RTEST(y)) {
         if (cleared++ != i) {
@@ -227,11 +232,10 @@ VALUE semian_simple_sliding_window_reject(VALUE self) {
   return self;
 }
 
-VALUE semian_simple_sliding_window_push(VALUE self, VALUE value) {
-  dprintf("semian_simple_sliding_window_push");
-
-  semian_simple_sliding_window_t *res;
-  TypedData_Get_Struct(self, semian_simple_sliding_window_t, &semian_simple_sliding_window_type, res);
+VALUE
+semian_simple_sliding_window_push(VALUE self, VALUE value)
+{
+  semian_simple_sliding_window_t *res = get_object(self);
 
   sem_meta_lock(res->sem_id);
   {
@@ -245,8 +249,6 @@ VALUE semian_simple_sliding_window_push(VALUE self, VALUE value) {
     window->length++;
     window->data[index] = RB_NUM2INT(value);
     window->end = (window->end + 1) % window->max_size;
-
-    dprintf("  Pushed val:%d index:%d max_size:%d length:%d start:%d end:%d", RB_NUM2INT(value), index, window->max_size, window->length, window->start, window->end);
   }
   sem_meta_unlock(res->sem_id);
 

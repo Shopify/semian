@@ -8,7 +8,8 @@
 
 static const rb_data_type_t semian_circuit_breaker_type;
 
-void Init_CircuitBreaker() {
+void
+Init_CircuitBreaker() {
   dprintf("Init_CircuitBreaker");
 
   VALUE cSemian = rb_const_get(rb_cObject, rb_intern("Semian"));
@@ -18,7 +19,8 @@ void Init_CircuitBreaker() {
   rb_define_method(cCircuitBreaker, "initialize_circuit_breaker", semian_circuit_breaker_initialize, 1);
 }
 
-VALUE semian_circuit_breaker_alloc(VALUE klass)
+VALUE
+semian_circuit_breaker_alloc(VALUE klass)
 {
   dprintf("semian_circuit_breaker_alloc");
 
@@ -27,10 +29,10 @@ VALUE semian_circuit_breaker_alloc(VALUE klass)
   return obj;
 }
 
-VALUE semian_circuit_breaker_initialize(VALUE self, VALUE id)
+VALUE
+semian_circuit_breaker_initialize(VALUE self, VALUE id)
 {
   const char *c_id_str = check_id_arg(id);
-
   dprintf("semian_circuit_breaker_initialize('%s')", c_id_str);
 
   // Build semian resource structure
