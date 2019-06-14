@@ -1,5 +1,7 @@
 #include "semian.h"
 
+static int use_c_circuits();
+
 void Init_semian()
 {
   VALUE cSemian, cResource;
@@ -65,9 +67,19 @@ void Init_semian()
   /* Maximum number of tickets available on this system. */
   rb_define_const(cSemian, "MAX_TICKETS", INT2FIX(system_max_semaphore_count));
 
-  if (getenv("USE_RUBY_CIRCUITS") == NULL || strcmp(getenv("USE_RUBY_CIRCUITS"), "false")) {
+  if (use_c_circuits()) {
     Init_SimpleInteger();
     Init_SlidingWindow();
     Init_CircuitBreaker();
+  }
+}
+
+static int
+use_c_circuits() {
+  char *circuit_impl = getenv("CIRCUIT_IMPL");
+  if (circuit_impl == NULL || strcmp(circuit_impl, "ruby") != 0) {
+    return 1;
+  } else {
+    return 0;
   }
 }
