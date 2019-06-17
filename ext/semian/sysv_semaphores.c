@@ -7,7 +7,7 @@ static void *
 acquire_semaphore(void *p);
 
 static int
-wait_for_new_semaphore_set(key_t key, long permissions);
+wait_for_new_semaphore_set(uint64_t key, long permissions);
 
 static void
 initialize_new_semaphore_values(int sem_id, long permissions);
@@ -43,6 +43,7 @@ initialize_semaphore_set(semian_resource_t* res, const char* id_str, long permis
   if (res->sem_id != -1) {
     // Happy path - we are the first worker, initialize the semaphore set.
     initialize_new_semaphore_values(res->sem_id, permissions);
+    dprintf("Created semaphore set (key:%lu sem_id:%d)", res->key, res->sem_id);
   } else {
     // Something went wrong
     if (errno != EEXIST) {
@@ -199,7 +200,7 @@ initialize_new_semaphore_values(int sem_id, long permissions)
 }
 
 static int
-wait_for_new_semaphore_set(key_t key, long permissions)
+wait_for_new_semaphore_set(uint64_t key, long permissions)
 {
   int i;
   int sem_id = -1;
@@ -246,7 +247,7 @@ diff_timespec_ms(struct timespec *end, struct timespec *begin)
 }
 
 int
-initialize_single_semaphore(key_t key, long permissions)
+initialize_single_semaphore(uint64_t key, long permissions)
 {
   int sem_id = semget(key, 1, IPC_CREAT | IPC_EXCL | permissions);
 
@@ -260,6 +261,7 @@ initialize_single_semaphore(key_t key, long permissions)
     if (semctl(sem_id, 0, SETVAL, 1) == -1) {
       raise_semian_syscall_error("semctl()", errno);
     }
+    dprintf("Created semaphore (key:%lu sem_id:%d)", key, sem_id);
   } else {
     // Something went wrong
     if (errno != EEXIST) {

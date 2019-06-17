@@ -6,10 +6,15 @@ module Semian
 
     attr_reader :name, :half_open_resource_timeout, :error_timeout, :state, :last_error
 
+<<<<<<< HEAD
     def initialize(name, exceptions:, success_threshold:, error_threshold:,
                          error_timeout:, implementation:, half_open_resource_timeout: nil)
       @name = name.to_sym
       initialize_circuit_breaker(@name)
+=======
+    def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, implementation:, half_open_resource_timeout: nil)
+      initialize_circuit_breaker("#{name}_circuit")
+>>>>>>> More locks around shared data structures
 
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
@@ -17,17 +22,12 @@ module Semian
       @exceptions = exceptions
       @half_open_resource_timeout = half_open_resource_timeout
 
-      @errors = implementation::SlidingWindow.new(max_size: @error_count_threshold)
-<<<<<<< HEAD
-      @successes = implementation::Integer.new(name)
-      @state = implementation::State.new
-
-      reset
-=======
+      @errors = implementation::SlidingWindow.new("#{name}_window", max_size: @error_count_threshold)
       @successes = implementation::Integer.new("#{name}_successes")
       state_val = implementation::Integer.new("#{name}_state")
       @state = implementation::State.new(state_val)
->>>>>>> WIP: Move Simple::State to shared memory
+
+      reset
     end
 
     def acquire(resource = nil, &block)
@@ -139,7 +139,7 @@ module Semian
     def log_state_transition(new_state)
       return if @state.nil? || new_state == @state.value
 
-      str = "[#{self.class.name}] State transition from #{@state.value} to #{new_state}."
+      str = "[#{self.class.name}] State transition from #{@state} to #{new_state}."
       str << " success_count=#{@successes.value} error_count=#{@errors.size}"
       str << " success_count_threshold=#{@success_count_threshold} error_count_threshold=#{@error_count_threshold}"
       str << " error_timeout=#{@error_timeout} error_last_at=\"#{@errors.last}\""

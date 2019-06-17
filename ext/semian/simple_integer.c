@@ -1,28 +1,38 @@
 #include "simple_integer.h"
 
-#include <errno.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
+#include "sysv_semaphores.h"
+#include "sysv_shared_memory.h"
 #include "types.h"
 #include "util.h"
-#include "sysv_semaphores.h"
 
-static const rb_data_type_t semian_simple_integer_type;
-
-static semian_simple_integer_shared_t*
-get_value(semian_simple_integer_t* res)
+void
+semian_simple_integer_dfree(void* ptr)
 {
-  int shmid = shmget(res->key, sizeof(semian_simple_integer_shared_t), IPC_CREAT | SEM_DEFAULT_PERMISSIONS);
-  if (shmid == -1) {
-    rb_raise(rb_eArgError, "could not create shared memory (%s)", strerror(errno));
-  }
+  semian_simple_integer_t* res = (semian_simple_integer_t*)ptr;
+  free_shared_memory(res->shmem);
+}
 
-  void *val = shmat(shmid, NULL, 0);
-  if (val == (void*)-1) {
-    rb_raise(rb_eArgError, "could not get shared memory (%s)", strerror(errno));
-  }
+size_t
+semian_simple_integer_dsize(const void* ptr)
+{
+  return sizeof(semian_simple_integer_t);
+}
 
-  return (semian_simple_integer_shared_t*)val;
+static const rb_data_type_t semian_simple_integer_type = {
+  .wrap_struct_name = "semian_simple_integer",
+  .function = {
+    .dmark = NULL,
+    .dfree = semian_simple_integer_dfree,
+    .dsize = semian_simple_integer_dsize,
+  },
+  .data = NULL,
+  .flags = RUBY_TYPED_FREE_IMMEDIATELY,
+};
+
+static void init_fn(void* ptr)
+{
+  semian_simple_integer_shared_t* res = (semian_simple_integer_shared_t*)ptr;
+  res->val = 0;
 }
 
 void
@@ -50,7 +60,6 @@ semian_simple_integer_alloc(VALUE klass)
   return obj;
 }
 
-
 VALUE
 semian_simple_integer_initialize(VALUE self, VALUE name)
 {
@@ -58,10 +67,9 @@ semian_simple_integer_initialize(VALUE self, VALUE name)
   TypedData_Get_Struct(self, semian_simple_integer_t, &semian_simple_integer_type, res);
   res->key = generate_key(to_s(name));
 
-  semian_simple_integer_shared_t* data = get_value(res);
-  data->val = 0;
-
+  dprintf("Initializing simple integer '%s' (key: %lu)", to_s(name), res->key);
   res->sem_id = initialize_single_semaphore(res->key, SEM_DEFAULT_PERMISSIONS);
+  res->shmem = get_or_create_shared_memory(res->key, &init_fn);
 
   return self;
 }
@@ -81,14 +89,12 @@ semian_simple_integer_increment(int argc, VALUE *argv, VALUE self)
 
   sem_meta_lock(res->sem_id);
   {
-    semian_simple_integer_shared_t *data = get_value(res);
-
     if (NIL_P(val)) {
-      data->val += 1;
+      res->shmem->val += 1;
     } else {
-      data->val += RB_NUM2INT(val);
+      res->shmem->val += RB_NUM2INT(val);
     }
-    retval = RB_INT2NUM(data->val);
+    retval = RB_INT2NUM(res->shmem->val);
   }
   sem_meta_unlock(res->sem_id);
 
@@ -105,9 +111,8 @@ semian_simple_integer_reset(VALUE self)
 
   sem_meta_lock(res->sem_id);
   {
-    semian_simple_integer_shared_t *data = get_value(res);
-    data->val = 0;
-    retval = RB_INT2NUM(data->val);
+    res->shmem->val = 0;
+    retval = RB_INT2NUM(res->shmem->val);
   }
   sem_meta_unlock(res->sem_id);
 
@@ -124,8 +129,7 @@ semian_simple_integer_value_get(VALUE self)
 
   sem_meta_lock(res->sem_id);
   {
-    semian_simple_integer_shared_t *data = get_value(res);
-    retval = RB_INT2NUM(data->val);
+    retval = RB_INT2NUM(res->shmem->val);
   }
   sem_meta_unlock(res->sem_id);
 
@@ -142,12 +146,10 @@ semian_simple_integer_value_set(VALUE self, VALUE val)
 
   sem_meta_lock(res->sem_id);
   {
-    semian_simple_integer_shared_t *data = get_value(res);
-
     // TODO(michaelkipper): Check for respond_to?(:to_i) before calling.
     VALUE to_i = rb_funcall(val, rb_intern("to_i"), 0);
-    data->val = RB_NUM2INT(to_i);
-    retval = RB_INT2NUM(data->val);
+    res->shmem->val = RB_NUM2INT(to_i);
+    retval = RB_INT2NUM(res->shmem->val);
   }
   sem_meta_unlock(res->sem_id);
 

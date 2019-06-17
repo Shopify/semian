@@ -17,6 +17,7 @@ and functions associated directly weth semops.
 
 #include "types.h"
 #include "tickets.h"
+#include "util.h"
 
 // Defines for ruby threading primitives
 #if defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL) && defined(HAVE_RUBY_THREAD_H)
@@ -112,13 +113,13 @@ acquire_semaphore_without_gvl(void *p);
 // Initializes a semaphore set with a single semaphore, for general purpose
 // locking
 int
-initialize_single_semaphore(key_t key, long permissions);
+initialize_single_semaphore(uint64_t key, long permissions);
 
 #ifdef DEBUG
 static inline void
 print_sem_vals(int sem_id)
 {
-  printf("[DEBUG] sem_id: %d, lock: %d, tickets: %d configured: %d, registered workers %d\n",
+  dprintf("sem_id: %d, lock: %d, tickets: %d configured: %d, registered workers %d",
     sem_id,
     get_sem_val(sem_id, SI_SEM_LOCK),
     get_sem_val(sem_id, SI_SEM_TICKETS),
