@@ -2,7 +2,8 @@ require 'test_helper'
 
 class TestSimpleEnum < Minitest::Test
   def setup
-    state_val = ::Semian::ThreadSafe::Integer.new(:test_simple_enum)
+    id = Time.now.strftime('%H:%M:%S.%N')
+    state_val = ::Semian::ThreadSafe::Integer.new(id)
     @state = ::Semian::ThreadSafe::State.new(state_val)
   end
 
