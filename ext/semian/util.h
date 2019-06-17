@@ -16,7 +16,7 @@
 #define dprintf(fmt, ...) \
   do { \
     if (DEBUG_TEST) { \
-      printf("[DEBUG] %s:%d" fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__); \
+      printf("[DEBUG] %s:%d - " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__); \
     } \
   } while (0)
 

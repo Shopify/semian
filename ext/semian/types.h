@@ -40,35 +40,29 @@ typedef struct {
   long wait_time;
 } semian_resource_t;
 
-// Internal circuit breaker structure
-typedef struct {
-  int sem_id;
-  uint64_t key;
-  char *strkey;
-  char *name;
-} semian_circuit_breaker_t;
-
 // Shared circuit breaker structure
 typedef struct {
   int successes;
 } semian_circuit_breaker_shared_t;
 
-// Internal simple integer structure
+// Internal circuit breaker structure
 typedef struct {
   uint64_t key;
   int sem_id;
-} semian_simple_integer_t;
+  semian_circuit_breaker_shared_t* shmem;
+} semian_circuit_breaker_t;
 
 // Shared simple integer structure
 typedef struct {
   int val;
 } semian_simple_integer_shared_t;
 
-// Internal simple sliding window structure
+// Internal simple integer structure
 typedef struct {
   uint64_t key;
   int sem_id;
-} semian_simple_sliding_window_t;
+  semian_simple_integer_shared_t* shmem;
+} semian_simple_integer_t;
 
 // Shared simple sliding window structure
 typedef struct {
@@ -78,5 +72,12 @@ typedef struct {
   int end;
   int data[SLIDING_WINDOW_MAX_SIZE];
 } semian_simple_sliding_window_shared_t;
+
+// Internal simple sliding window structure
+typedef struct {
+  uint64_t key;
+  int sem_id;
+  semian_simple_sliding_window_shared_t* shmem;
+} semian_simple_sliding_window_t;
 
 #endif // SEMIAN_TYPES_H
