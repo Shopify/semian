@@ -7,8 +7,7 @@ module Semian
     attr_reader :name, :half_open_resource_timeout, :error_timeout, :state, :last_error
 
     def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, implementation:, half_open_resource_timeout: nil)
-      @name = name.to_sym
-      initialize_circuit_breaker(@name)
+      initialize_circuit_breaker("#{name}_circuit")
 
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
