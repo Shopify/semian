@@ -2,7 +2,8 @@ require 'test_helper'
 
 class TestSimpleSlidingWindow < Minitest::Test
   def setup
-    @sliding_window = ::Semian::ThreadSafe::SlidingWindow.new(:sliding_window_test, max_size: 6)
+    id = Time.now.strftime('%H:%M:%S.%N')
+    @sliding_window = ::Semian::ThreadSafe::SlidingWindow.new(id, max_size: 6)
     @sliding_window.clear
   end
 

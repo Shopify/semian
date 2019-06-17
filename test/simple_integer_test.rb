@@ -2,7 +2,8 @@ require 'test_helper'
 
 class TestSimpleInteger < Minitest::Test
   def setup
-    @integer = ::Semian::ThreadSafe::Integer.new(:simple_integer)
+    id = Time.now.strftime('%H:%M:%S.%N')
+    @integer = ::Semian::ThreadSafe::Integer.new(id)
   end
 
   def teardown

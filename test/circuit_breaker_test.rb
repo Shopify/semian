@@ -4,15 +4,16 @@ class TestCircuitBreaker < Minitest::Test
   include CircuitBreakerHelper
 
   def setup
+    id = Time.now.strftime('%H:%M:%S.%N')
     @strio = StringIO.new
     Semian.logger = Logger.new @strio
     begin
-      Semian.destroy(:testing)
+      Semian.destroy(id)
     rescue
       nil
     end
-    Semian.register(:testing, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5, success_threshold: 1)
-    @resource = Semian[:testing]
+    Semian.register(id, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5, success_threshold: 1)
+    @resource = Semian[id]
   end
 
   def test_acquire_yield_when_the_circuit_is_closed
