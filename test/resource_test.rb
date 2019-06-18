@@ -3,7 +3,9 @@ require 'objspace'
 
 class TestResource < Minitest::Test
   include ResourceHelper
+
   def setup
+    @workers = []
     Semian.destroy(:testing)
   rescue
     nil

@@ -162,9 +162,7 @@ acquire_semaphore(void *p)
   semian_resource_t *res = (semian_resource_t *) p;
   res->error = 0;
   res->wait_time = -1;
-#ifdef DEBUG
-  print_sem_vals(res->sem_id);
-#endif
+  dprint_sem_vals(res->sem_id);
 
   struct timespec begin, end;
   int benchmark_result = clock_gettime(CLOCK_MONOTONIC, &begin);
@@ -191,9 +189,7 @@ initialize_new_semaphore_values(int sem_id, long permissions)
   if (semctl(sem_id, 0, SETALL, init_vals) == -1) {
     raise_semian_syscall_error("semctl()", errno);
   }
-#ifdef DEBUG
-  print_sem_vals(sem_id);
-#endif
+  dprint_sem_vals(sem_id);
 }
 
 static int
