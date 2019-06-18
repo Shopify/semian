@@ -11,6 +11,24 @@ class TestSimpleSlidingWindow < Minitest::Test
     @sliding_window.destroy
   end
 
+  def test_clear
+    id = Time.now.strftime('%H:%M:%S.%N')
+    window = ::Semian::ThreadSafe::SlidingWindow.new(id, max_size: 6)
+    window << 1 << 2 << 3
+    assert_equal(3, window.size)
+    window.clear
+    assert_equal(0, window.size)
+  end
+
+  def test_destroy
+    id = Time.now.strftime('%H:%M:%S.%N')
+    window = ::Semian::ThreadSafe::SlidingWindow.new(id, max_size: 6)
+    window << 1 << 2 << 3
+    assert_equal(3, window.size)
+    window.destroy
+    assert_equal(0, window.size)
+  end
+
   def test_sliding_window_push
     assert_equal(0, @sliding_window.size)
     @sliding_window << 1
@@ -43,10 +61,15 @@ class TestSimpleSlidingWindow < Minitest::Test
     end
   end
 
-  def resize_to_less_than_1_raises
+  def test_resize_to_less_than_1_raises
     assert_raises ArgumentError do
       @sliding_window.resize_to 0
     end
+  end
+
+  def test_resize_to_1_works
+    assert_equal(0, @sliding_window.size)
+    @sliding_window.resize_to 1
   end
 
   def test_resize_to_simple

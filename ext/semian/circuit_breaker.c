@@ -37,7 +37,7 @@ Init_CircuitBreaker() {
   VALUE cCircuitBreaker = rb_const_get(cSemian, rb_intern("CircuitBreaker"));
 
   rb_define_alloc_func(cCircuitBreaker, semian_circuit_breaker_alloc);
-  rb_define_method(cCircuitBreaker, "initialize_circuit_breaker", semian_circuit_breaker_initialize, 1);
+  rb_define_method(cCircuitBreaker, "initialize_circuit_breaker", semian_circuit_breaker_initialize, 2);
 }
 
 VALUE
@@ -53,9 +53,13 @@ semian_circuit_breaker_initialize(VALUE self, VALUE name)
 {
   semian_circuit_breaker_t *res = NULL;
   TypedData_Get_Struct(self, semian_circuit_breaker_t, &semian_circuit_breaker_type, res);
-  res->key = generate_key(to_s(name));
 
-  dprintf("Initializing circuit breaker '%s' (key: %lu)", to_s(name), res->key);
+  char buffer[1024];
+  strcpy(buffer, to_s(name));
+  strcat(buffer, "_circuit_breaker");
+  res->key = generate_key(buffer);
+
+  dprintf("Initializing circuit breaker '%s' (key: %lu)", buffer, res->key);
   res->sem_id = initialize_single_semaphore(res->key, SEM_DEFAULT_PERMISSIONS);
   res->shmem = get_or_create_shared_memory(res->key, NULL);
 

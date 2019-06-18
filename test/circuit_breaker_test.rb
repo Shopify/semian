@@ -25,6 +25,7 @@ class TestCircuitBreaker < Minitest::Test
   def test_acquire_raises_circuit_open_error_when_the_circuit_is_open
     open_circuit!
     assert_raises Semian::OpenCircuitError do
+      puts "test: Acquiring resource #{@resource.circuit_breaker}"
       @resource.acquire { 1 + 1 }
     end
     assert_match(/State transition from closed to open/, @strio.string)

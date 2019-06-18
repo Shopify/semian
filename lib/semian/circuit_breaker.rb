@@ -9,7 +9,7 @@ module Semian
     def initialize(name, exceptions:, success_threshold:, error_threshold:,
                          error_timeout:, implementation:, half_open_resource_timeout: nil)
       @name = name.to_sym
-      initialize_circuit_breaker("#{name}_circuit")
+      initialize_circuit_breaker(name, error_threshold)
 
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
@@ -17,7 +17,7 @@ module Semian
       @exceptions = exceptions
       @half_open_resource_timeout = half_open_resource_timeout
 
-      @errors = implementation::SlidingWindow.new("#{name}_window", max_size: @error_count_threshold)
+      @errors = implementation::SlidingWindow.new(name, max_size: @error_count_threshold)
       @successes = implementation::Integer.new("#{name}_successes")
       state_val = implementation::Integer.new("#{name}_state")
       @state = implementation::State.new(state_val)
@@ -161,6 +161,10 @@ module Semian
         end
 
       result
+    end
+
+    def to_s
+      "<CircuitBreaker values:#{@errors.values}>"
     end
   end
 end

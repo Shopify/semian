@@ -42,7 +42,6 @@ typedef struct {
 
 // Shared circuit breaker structure
 typedef struct {
-  int successes;
 } semian_circuit_breaker_shared_t;
 
 // Internal circuit breaker structure
@@ -77,6 +76,8 @@ typedef struct {
 typedef struct {
   uint64_t key;
   int sem_id;
+  uint64_t parent_key;
+  int error_threshold;
   semian_simple_sliding_window_shared_t* shmem;
 } semian_simple_sliding_window_t;
 

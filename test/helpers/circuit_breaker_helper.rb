@@ -14,7 +14,10 @@ module CircuitBreakerHelper
   end
 
   def trigger_error!(resource = @resource, error = SomeError)
-    resource.acquire { raise error }
+    resource.acquire do
+      puts "Triggering error"
+      raise error
+    end
   rescue error
   end
 
