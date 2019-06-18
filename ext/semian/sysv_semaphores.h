@@ -115,9 +115,8 @@ acquire_semaphore_without_gvl(void *p);
 int
 initialize_single_semaphore(uint64_t key, long permissions);
 
-#ifdef DEBUG
 static inline void
-print_sem_vals(int sem_id)
+dprint_sem_vals(int sem_id)
 {
   dprintf("sem_id: %d, lock: %d, tickets: %d configured: %d, registered workers %d",
     sem_id,
@@ -127,6 +126,5 @@ print_sem_vals(int sem_id)
     get_sem_val(sem_id, SI_SEM_REGISTERED_WORKERS)
   );
 }
-#endif
 
 #endif // SEMIAN_SEMSET_H

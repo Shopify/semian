@@ -9,6 +9,7 @@ void Init_SlidingWindow();
 VALUE semian_simple_sliding_window_alloc(VALUE klass);
 VALUE semian_simple_sliding_window_initialize(VALUE self, VALUE name, VALUE max_size);
 VALUE semian_simple_sliding_window_size(VALUE self);
+VALUE semian_simple_sliding_window_resize_to(VALUE self, VALUE new_size);
 VALUE semian_simple_sliding_window_max_size(VALUE self);
 VALUE semian_simple_sliding_window_push(VALUE self, VALUE value);
 VALUE semian_simple_sliding_window_values(VALUE self);

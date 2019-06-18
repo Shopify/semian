@@ -49,10 +49,113 @@ class TestSimpleSlidingWindow < Minitest::Test
     end
   end
 
+  def test_resize_to_simple
+    id = Time.now.strftime('%H:%M:%S.%N')
+    window = ::Semian::ThreadSafe::SlidingWindow.new(id, max_size: 4)
+    window << 0 << 1
+    assert_sliding_window(window, [0, 1], 4)
+    window.resize_to(8)
+    assert_sliding_window(window, [0, 1], 8)
+    window << 2 << 3 << 4 << 5
+    assert_sliding_window(window, [0, 1, 2, 3, 4, 5], 8)
+  end
+
+  def test_resize_to_simple_full
+    id = Time.now.strftime('%H:%M:%S.%N')
+    window = ::Semian::ThreadSafe::SlidingWindow.new(id, max_size: 4)
+    window << 0 << 1 << 2 << 3
+    assert_sliding_window(window, [0, 1, 2, 3], 4)
+    window.resize_to(8)
+    assert_sliding_window(window, [0, 1, 2, 3], 8)
+    window << 4 << 5
+    assert_sliding_window(window, [0, 1, 2, 3, 4, 5], 8)
+  end
+
+  def test_resize_to_simple_floating
+    id = Time.now.strftime('%H:%M:%S.%N')
+    window = ::Semian::ThreadSafe::SlidingWindow.new(id, max_size: 4)
+    window << 0 << 1 << 2 << 3
+    assert_sliding_window(window, [0, 1, 2, 3], 4)
+    window.reject! { |val| val < 2 }
+    assert_sliding_window(window, [2, 3], 4)
+    window.resize_to(8)
+    assert_sliding_window(window, [2, 3], 8)
+    window << 4 << 5
+    assert_sliding_window(window, [2, 3, 4, 5], 8)
+  end
+
+  def test_resize_to_hard
+    id = Time.now.strftime('%H:%M:%S.%N')
+    window = ::Semian::ThreadSafe::SlidingWindow.new(id, max_size: 4)
+    window << 0 << 1 << 2 << 3 << 4 << 5
+    assert_sliding_window(window, [2, 3, 4, 5], 4)
+    window.resize_to(8)
+    assert_sliding_window(window, [2, 3, 4, 5], 8)
+    window << 6 << 7
+    assert_sliding_window(window, [2, 3, 4, 5, 6, 7], 8)
+    window << 8 << 9
+    assert_sliding_window(window, [2, 3, 4, 5, 6, 7, 8, 9], 8)
+  end
+
+  def test_resize_to_shrink_simple
+    id = Time.now.strftime('%H:%M:%S.%N')
+    window = ::Semian::ThreadSafe::SlidingWindow.new(id, max_size: 4)
+    window << 0 << 1
+    assert_sliding_window(window, [0, 1], 4)
+    window.resize_to(2)
+    assert_sliding_window(window, [0, 1], 2)
+  end
+
+  def test_resize_to_shrink_simple_full
+    id = Time.now.strftime('%H:%M:%S.%N')
+    window = ::Semian::ThreadSafe::SlidingWindow.new(id, max_size: 4)
+    window << 0 << 1 << 2 << 3
+    assert_sliding_window(window, [0, 1, 2, 3], 4)
+    window.resize_to(2)
+    assert_sliding_window(window, [0, 1], 2)
+  end
+
+  def test_resize_to_shrink_hard
+    id = Time.now.strftime('%H:%M:%S.%N')
+    window = ::Semian::ThreadSafe::SlidingWindow.new(id, max_size: 4)
+    window << 0 << 1 << 2 << 3 << 4 << 5
+    assert_sliding_window(window, [2, 3, 4, 5], 4)
+    window.resize_to(2)
+    assert_sliding_window(window, [2, 3], 2)
+  end
+
+  def test_resize_to_shrink_all_index
+    4.times do |offset|
+      id = Time.now.strftime('%H:%M:%S.%N-#{offset}')
+      window = ::Semian::ThreadSafe::SlidingWindow.new(id, max_size: 4)
+      offset.times { window << offset }
+      window << 0 << 1 << 2 << 3
+      assert_sliding_window(window, [0, 1, 2, 3], 4)
+      window.resize_to(2)
+      assert_sliding_window(window, [0, 1], 2)
+    end
+  end
+
+  def test_resize_to_grow_all_index
+    4.times do |offset|
+      id = Time.now.strftime('%H:%M:%S.%N-#{offset}')
+      window = ::Semian::ThreadSafe::SlidingWindow.new(id, max_size: 4)
+      offset.times { window << offset }
+      window << 0 << 1 << 2 << 3
+      assert_sliding_window(window, [0, 1, 2, 3], 4)
+      window.resize_to(8)
+      assert_sliding_window(window, [0, 1, 2, 3], 8)
+      window << 4 << 5 << 6 << 7
+      assert_sliding_window(window, [0, 1, 2, 3, 4, 5, 6, 7], 8)
+      window << 8 << 9
+      assert_sliding_window(window, [2, 3, 4, 5, 6, 7, 8, 9], 8)
+    end
+  end
+
   private
 
   def assert_sliding_window(sliding_window, array, max_size)
-    assert_equal(array, sliding_window.values)
-    assert_equal(max_size, sliding_window.max_size)
+    assert_equal(array, sliding_window.values, "Window contents were different")
+    assert_equal(max_size, sliding_window.max_size, "Window max_size was not equal")
   end
 end
