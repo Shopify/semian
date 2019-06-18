@@ -18,3 +18,5 @@ nohup.out
 
 # IntelliJ/RubyMine/CLion project files
 .idea
+CMakeLists.txt
+cmake-build-debug
