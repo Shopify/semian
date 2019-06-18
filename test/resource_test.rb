@@ -8,6 +8,7 @@ class TestResource < Minitest::Test
   EPSILON = 0.1
 
   def setup
+    @workers = []
     Semian.destroy(:testing)
   rescue
     nil

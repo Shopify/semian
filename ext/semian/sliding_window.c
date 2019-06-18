@@ -60,6 +60,71 @@ check_max_size_arg(VALUE max_size)
   return retval;
 }
 
+static VALUE
+grow_window(semian_simple_sliding_window_shared_t* window, int new_max_size)
+{
+  if (new_max_size > SLIDING_WINDOW_MAX_SIZE) return Qnil;
+
+  if (window->end > window->start) {
+    // Easy case - the window doesn't wrap around
+    if (window->length) window->end = window->start + window->length;
+  } else {
+    // Hard case - the window wraps, and data might need to move
+    int offset = new_max_size - window->max_size;
+    for (int i = offset - window->start - 1; i >= 0; --i) {
+      int srci = window->start + i;
+      int dsti = window->start + offset + i;
+      window->data[dsti] = window->data[srci];
+    }
+    window->start += offset;
+  }
+
+  window->max_size = new_max_size;
+
+  return RB_INT2NUM(new_max_size);
+}
+
+static void swap(int *a, int *b) {
+  int c = *a;
+  *a = *b;
+  *b = c;
+}
+
+static VALUE
+shrink_window(semian_simple_sliding_window_shared_t* window, int new_max_size)
+{
+  if (new_max_size > SLIDING_WINDOW_MAX_SIZE) return Qnil;
+
+  int new_length = (new_max_size > window->length) ? window->length : new_max_size;
+
+  if (window->end > window->start) {
+    // Easy case - the window doesn't wrap around
+    window->end = window->start + new_length;
+  } else {
+    // Hard case - the window wraps, so re-index the data
+    // Adapted from http://www.cplusplus.com/reference/algorithm/rotate/
+    int first = 0;
+    int middle = window->start;
+    int last = window->max_size;
+    int next = middle;
+    while (first != next) {
+      swap(&window->data[first++], &window->data[next++]);
+      if (next == last) {
+        next = middle;
+      } else if (first == middle) {
+        middle = next;
+      }
+    }
+    window->start = 0;
+    window->end = new_length;
+  }
+
+  window->max_size = new_max_size;
+  window->length = new_length;
+
+  return RB_INT2NUM(new_max_size);
+}
+
 // Get the C object for a Ruby instance
 static semian_simple_sliding_window_t*
 get_object(VALUE self)
@@ -81,6 +146,7 @@ Init_SlidingWindow()
   rb_define_alloc_func(cSlidingWindow, semian_simple_sliding_window_alloc);
   rb_define_method(cSlidingWindow, "initialize_sliding_window", semian_simple_sliding_window_initialize, 2);
   rb_define_method(cSlidingWindow, "size", semian_simple_sliding_window_size, 0);
+  rb_define_method(cSlidingWindow, "resize_to", semian_simple_sliding_window_resize_to, 1);
   rb_define_method(cSlidingWindow, "max_size", semian_simple_sliding_window_max_size, 0);
   rb_define_method(cSlidingWindow, "values", semian_simple_sliding_window_values, 0);
   rb_define_method(cSlidingWindow, "last", semian_simple_sliding_window_last, 0);
@@ -115,11 +181,13 @@ semian_simple_sliding_window_initialize(VALUE self, VALUE name, VALUE max_size)
       dprintf("Setting max_size for '%s' to %d", to_s(name), max_size_val);
       res->shmem->max_size = max_size_val;
     } else if (res->shmem->max_size != max_size_val) {
-      // TODO(michaelkipper): Figure out what do do in this case...
-      printf("Warning: Max size of %d is different than current value of %d", max_size_val, res->shmem->max_size);
-      // dprintf("max_size %d is different than %d", max_size_val, res->shmem->max_size);
-      // sem_meta_unlock(res->sem_id);
-      // rb_raise(rb_eArgError, "max_size was different");
+      if (max_size_val > res->shmem->max_size) {
+        grow_window(res->shmem, max_size_val);
+      } else {
+        // TODO(michaelkipper): Figure out what do do in this case...
+        printf("Warning: Shrinking window from %d to %d", res->shmem->max_size, max_size_val);
+        shrink_window(res->shmem, max_size_val);
+      }
     }
   }
   sem_meta_unlock(res->sem_id);
@@ -136,6 +204,26 @@ semian_simple_sliding_window_size(VALUE self)
   sem_meta_lock(res->sem_id);
   {
     retval = RB_INT2NUM(res->shmem->length);
+  }
+  sem_meta_unlock(res->sem_id);
+
+  return retval;
+}
+
+VALUE
+semian_simple_sliding_window_resize_to(VALUE self, VALUE new_size)
+{
+  semian_simple_sliding_window_t *res = get_object(self);
+  VALUE retval = Qnil;
+
+  int new_max_size = RB_NUM2INT(new_size);
+  sem_meta_lock(res->sem_id);
+  {
+    if (new_max_size > res->shmem->max_size) {
+      retval = grow_window(res->shmem, new_max_size);
+    } else if (new_max_size < res->shmem->max_size) {
+      retval = shrink_window(res->shmem, new_max_size);
+    }
   }
   sem_meta_unlock(res->sem_id);
 
