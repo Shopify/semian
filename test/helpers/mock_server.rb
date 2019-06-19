@@ -7,7 +7,7 @@ module MockServer
 
   def start(hostname:, port:)
     tid = Thread.new do
-      TestServer.new(hostname: hostname, port: port).start
+      new_server(hostname, port).start
     end
     poll_until_ready(hostname: hostname, port: port)
     puts "Created test server #{tid}, port: #{port}"
@@ -17,6 +17,29 @@ module MockServer
   def cleanup(tid)
     Thread.kill(tid)
     puts "Killed test server #{tid}."
+  end
+
+  def new_server(hostname, port)
+    server = TCPServer.new(hostname, port)
+    while (sock = server.accept)
+      begin
+        config = WEBrick::Config::HTTP
+        res = WEBrick::HTTPResponse.new(config)
+        req = WEBrick::HTTPRequest.new(config)
+        req.parse(sock)
+
+        response_code = req.path_info.delete("/")
+        response_code = 200 if response_code == ""
+
+        res.status = response_code
+        res.content_type = 'text/html'
+      rescue WEBrick::HTTPStatus::EOFError, WEBrick::HTTPStatus::BadRequest
+        res.status = 200
+        res.content_type = 'text/html'
+      ensure
+        res.send_response(sock)
+      end
+    end
   end
 
   def poll_until_ready(hostname:, port:, time_to_wait: 1)
@@ -30,30 +53,5 @@ module MockServer
         retry
       end
     end
-  end
-end
-
-class TestServer
-  def initialize(hostname:, port:)
-    @server = WEBrick::HTTPServer.new(
-      Port:  port,
-      BindAddress: hostname,
-      Logger: WEBrick::Log.new("/dev/null"),
-      AccessLog: [],
-    )
-    @server.mount '/', Handler
-  end
-
-  def start
-    @server.start
-  end
-end
-
-class Handler < WEBrick::HTTPServlet::AbstractServlet
-  def do_GET(request, response) # rubocop:disable all
-    response_code = request.path.delete("/")
-    response_code = '200' if response_code == ""
-    response.status = response_code
-    response['Content-Type'] = 'text/html'
   end
 end
