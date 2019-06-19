@@ -100,17 +100,20 @@ set_semaphore_permissions(int sem_id, long permissions)
 int
 perform_semop(int sem_id, short index, short op, short flags, struct timespec *ts)
 {
+  int result;
   struct sembuf buf = { 0 };
 
   buf.sem_num = index;
   buf.sem_op  = op;
   buf.sem_flg = flags;
 
-  if (ts) {
-    return semtimedop(sem_id, &buf, 1, ts);
-  } else {
-    return semop(sem_id, &buf, 1);
-  }
+  int num_retries = 3;
+
+  do {
+    result = semtimedop(sem_id, &buf, 1, ts);
+  } while (result < 0 && errno == EINTR && num_retries-- > 0);
+
+  return result;
 }
 
 int
