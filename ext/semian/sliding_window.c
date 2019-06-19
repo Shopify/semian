@@ -194,7 +194,7 @@ get_number_of_registered_workers(semian_simple_sliding_window_t* res)
 {
   int sem_id = semget(res->parent_key, SI_NUM_SEMAPHORES, SEM_DEFAULT_PERMISSIONS);
   if (sem_id == -1) {
-    dprintf("Warning: Could not get semaphore for key=%d", res->parent_key);
+    dprintf("Warning: Could not get semaphore for key=%lu", res->parent_key);
     return 1;
   }
 
