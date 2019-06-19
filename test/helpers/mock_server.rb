@@ -7,7 +7,7 @@ module MockServer
 
   def start(hostname:, port:)
     tid = Thread.new do
-      new_server(hostname, port).start
+      start_server(hostname, port)
     end
     poll_until_ready(hostname: hostname, port: port)
     puts "Created test server #{tid}, port: #{port}"
@@ -19,7 +19,7 @@ module MockServer
     puts "Killed test server #{tid}."
   end
 
-  def new_server(hostname, port)
+  def start_server(hostname, port)
     server = TCPServer.new(hostname, port)
     while (sock = server.accept)
       begin
