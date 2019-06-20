@@ -681,37 +681,54 @@ non-IO.
 
 # Developing Semian
 
-Semian requires a Linux environment.  We provide a [Vagrantfile](Vagrantfile)
-that installs MySQL, Redis and Ruby in an Ubuntu 16.04 virtual machine.  Use
+Semian requires a Linux environment.  We provide a [docker-compose](https://docs.docker.com/compose/) file
+that runs MySQL, Redis, ToxiProxy and Ruby in containers.  Use
 the steps below to work on Semian from a Mac OS environment.
 
+Prerequisites :
 ```bash
-# install Vagrant and VirtualBox
-$ brew cask install vagrant virtualbox
+# install docker-for-desktop
+$ brew cask install docker
+
+# install visual-studio-code (optional)
+$ brew cask install visual-studio-code
 
 # clone Semian
 $ git clone https://github.com/Shopify/semian.git
 $ cd semian
-
-# build the virtual machine (can take a while for ruby to compile)
-$ vagrant up
-
-# shell in to the virtual machine
-$ vagrant ssh
-
-# start the toxiproxy-server inside the virtual machine
-$ toxiproxy-server > /dev/null &
-# TODO: provide a systemd unit for toxiproxy
-
-# run the tests inside the virtual machine
-$ cd /vagrant && bundle exec rake
 ```
 
+Developing :
+
+- Visual Studio Code
+  - Open semian in vscode
+  - Install recommended extensions (one off requirement)
+  - Click `reopen in container` (first boot might take about a minute)
+  
+  See https://code.visualstudio.com/docs/remote/containers for more details
+
+- Everything else
+  - `$ docker-compose -f .devcontainer/docker-compose.yml run semian bash`
+  OR
+  - Make changes in your preferred IDE and run `./scripts/ci.sh` 
+
+Running the tests suite :
+
+- Within the docker-compose development environment
+  ```bash
+  $ bundle exec rake
+  ```
+
+- Standalone:
+  ```bash
+  $ ./scripts/ci.sh
+  ```
+
 Be careful not to run `bundle install` from Mac OS.  The folder is shared with
-the virtual machine and this can overwrite Linux libraries with incompatible Mac
-OS versions.  If you run in to problems with the machine, you can run `vagrant
-up --provision` to execute the provision script again; or you can run `vagrant
-destroy -f && vagrant up` to rebuild it from scratch.
+the docker container and this can overwrite Linux libraries with incompatible Mac
+OS versions. 
+
+If you run in to problems with the container, you can run `git clean -fxd`
 
 [hystrix]: https://github.com/Netflix/Hystrix
 [release-it]: https://pragprog.com/book/mnee/release-it
