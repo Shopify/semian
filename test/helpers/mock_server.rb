@@ -45,7 +45,7 @@ class MockServer
         res.status = response_code
         res.content_type = 'text/html'
       rescue WEBrick::HTTPStatus::EOFError, WEBrick::HTTPStatus::BadRequest
-        res.status = 200
+        res.status = 400
         res.content_type = 'text/html'
       ensure
         res.send_response(sock)

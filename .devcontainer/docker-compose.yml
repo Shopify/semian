@@ -1,0 +1,50 @@
+version: "3.7"
+services:
+  semian:
+    container_name: semian-dev
+    build:
+      dockerfile: Dockerfile
+      context: .
+    volumes:
+      # This is where VS Code should expect to find your project's source code
+      # and the value of "workspaceFolder" in .devcontainer/devcontainer.json
+      - ..:/workspace
+      - ../.vscode-server:/root/.vscode-server
+      # This lets you avoid setting up Git again in the container
+      - ~/.gitconfig:/root/.gitconfig
+    # Required for ptrace-based debuggers like C++, Go, and Rust
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    depends_on: 
+    - redis
+    - mysql
+    - toxiproxy
+    command: sleep infinity
+      
+  toxiproxy:
+    image: shopify/toxiproxy:latest
+    logging:
+      driver: none
+    container_name: toxiproxy-dev
+    depends_on: 
+    - redis
+    - mysql
+
+  redis:
+    image: redis:latest
+    logging:
+      driver: none
+    container_name: redis-dev
+    command: redis-server
+
+  mysql:
+    container_name: mysql-dev
+    image: mysql
+    command: --default-authentication-plugin=mysql_native_password
+    logging:
+      driver: none
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+      MYSQL_ROOT_HOST: '%'

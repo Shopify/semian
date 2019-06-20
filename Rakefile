@@ -44,7 +44,6 @@ Rake::TestTask.new 'test' do |t|
   t.verbose = false
   t.warning = false
 end
-task test: :build
 
 # ==========================================================
 # Documentation
@@ -54,5 +53,6 @@ RDoc::Task.new do |rdoc|
   rdoc.rdoc_files.include("lib/*.rb", "ext/semian/*.c")
 end
 
+task default: :build
 task default: :test
 task default: :rubocop

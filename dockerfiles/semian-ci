@@ -1,0 +1,12 @@
+FROM ruby:2.6.3
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+    && apt-get install -y build-essential libssl-dev
+
+RUN gem install bundler
+
+WORKDIR /app
+COPY . .
+RUN bundle install --jobs=3 --retry=3

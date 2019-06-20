@@ -2,17 +2,13 @@ version: "3.7"
 services:
   semian:
     build:
-      dockerfile: dockerfiles/semian-base
+      dockerfile: dockerfiles/semian-ci
       context: .
     depends_on: 
     - redis
     - mysql
     - toxiproxy
-    command:
-      - /bin/bash 
-      - -c 
-      - |
-        ./scripts/run_tests.sh
+    command: ./scripts/run_tests.sh
       
   toxiproxy:
     image: shopify/toxiproxy:latest
