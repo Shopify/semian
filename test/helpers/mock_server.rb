@@ -2,25 +2,36 @@
 
 require 'webrick'
 
-module MockServer
-  extend self
-
-  def start(hostname:, port:)
-    tid = Thread.new do
-      start_server(hostname, port)
+class MockServer
+  class << self
+    def start(hostname:, port:)
+      new(hostname: hostname, port: port).tap do |server|
+        server.start
+        server.poll_until_ready
+        puts "Created test server on port: #{port}"
+      end
     end
-    poll_until_ready(hostname: hostname, port: port)
-    puts "Created test server #{tid}, port: #{port}"
-    tid
   end
 
-  def cleanup(tid)
-    Thread.kill(tid)
-    puts "Killed test server #{tid}."
+  def initialize(hostname:, port:)
+    @hostname = hostname
+    @port = port
+    @tid = nil
   end
 
-  def start_server(hostname, port)
-    server = TCPServer.new(hostname, port)
+  def start
+    @tid = Thread.new do
+      start_server
+    end
+  end
+
+  def stop
+    Thread.kill(@tid)
+    puts "Killed test server on port: #{@port}"
+  end
+
+  def start_server
+    server = TCPServer.new(@hostname, @port)
     while (sock = server.accept)
       begin
         config = WEBrick::Config::HTTP
@@ -42,13 +53,13 @@ module MockServer
     end
   end
 
-  def poll_until_ready(hostname:, port:, time_to_wait: 1)
+  def poll_until_ready(time_to_wait: 1)
     start_time = Time.now.to_i
     begin
-      TCPSocket.new(hostname, port).close
+      TCPSocket.new(@hostname, @port).close
     rescue Errno::ECONNREFUSED, Errno::ECONNRESET
       if Time.now.to_i > start_time + time_to_wait
-        raise "Couldn't reach the service on hostname #{hostname} port #{port} after #{time_to_wait}s"
+        raise "Couldn't reach the service on hostname #{@hostname} port #{@port} after #{time_to_wait}s"
       else
         retry
       end
