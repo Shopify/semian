@@ -1,22 +1,19 @@
-language: ruby
+dist: xenial
+
+env:
+  - DOCKER_COMPOSE_VERSION=1.24.0
 
 before_install:
-  - gem update --system
-  - gem install bundler
-  - scripts/install_toxiproxy.sh
-
-rvm:
-  - '2.4'
-  - '2.5'
-  - '2.6'
-
-gemfile:
-  - gemfiles/mysql2-0-4-10.gemfile
-  - gemfiles/mysql2-0-5-0.gemfile
-  - gemfiles/hiredis-0-6.gemfile
+  - sudo rm /usr/local/bin/docker-compose
+  - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
+  - chmod +x docker-compose
+  - sudo mv docker-compose /usr/local/bin
 
 services:
-  - redis-server
+  - docker
+
+script:
+  - travis_retry ./scripts/ci.sh
 
 notifications:
   email: false

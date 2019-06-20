@@ -5,5 +5,5 @@ gemspec path: '..'
 gem 'mysql2', '~> 0.4.10'
 
 group :development, :test do
-  gem 'rubocop', '~> 0.34.2'
+  gem 'rubocop'
 end

@@ -1,0 +1,10 @@
+FROM ruby:2.6.3
+
+RUN apt-get update
+RUN apt-get upgrade -y
+RUN apt-get install -y build-essential libssl-dev
+RUN gem install bundler
+
+WORKDIR /app
+COPY . .
+RUN bundle install --jobs=3 --retry=3

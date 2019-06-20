@@ -494,7 +494,7 @@ class TestNetHTTP < Minitest::Test
     ports.each do |port|
       reset_semian_resource(port: port) if reset_semian_state
       @proxy = Toxiproxy[:semian_test_net_http]
-      yield(SemianConfig['http_host'], port.to_i)
+      yield(BIND_ADDRESS, port.to_i)
     end
   end
 
