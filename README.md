@@ -682,7 +682,7 @@ non-IO.
 # Developing Semian
 
 Semian requires a Linux environment.  We provide a [docker-compose](https://docs.docker.com/compose/) file
-that runs MySQL, Redis, ToxiProxy and Ruby in containers.  Use
+that runs MySQL, Redis, Toxiproxy and Ruby in containers.  Use
 the steps below to work on Semian from a Mac OS environment.
 
 Prerequisites :
@@ -712,7 +712,7 @@ Developing :
   OR
   - Make changes in your preferred IDE and run `./scripts/ci.sh` 
 
-Running the tests suite :
+Running the test suite :
 
 - Within the docker-compose development environment
   ```bash

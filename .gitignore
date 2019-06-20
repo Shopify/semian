@@ -13,3 +13,4 @@ nohup.out
 .byebug_history
 .vscode-server
 .rubocop-*
+.vscode/ipch

@@ -19,6 +19,8 @@
         },
         "ruby.lintDebounceTime": 500,
         "[ruby]": {
+            "editor.insertSpaces": true,
+			"editor.tabSize": 2,
             "editor.formatOnSaveTimeout": 1500,
             //TODO:paranoidaditya remove comment after repo is formatted correctly
             // "editor.formatOnSave": true,
