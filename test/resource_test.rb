@@ -2,6 +2,10 @@ require 'test_helper'
 
 class TestResource < Minitest::Test
   include ResourceHelper
+
+  # Time epsilon to account for super fast machines
+  EPSILON = 0.1
+
   def setup
     Semian.destroy(:testing)
   rescue
@@ -540,7 +544,7 @@ class TestResource < Minitest::Test
         end
       end
     end
-    sleep((count / 2.0).ceil * timeout) if wait_for_timeout # give time for threads to timeout
+    sleep((count / 2.0).ceil * timeout + EPSILON) if wait_for_timeout # give time for threads to timeout
   end
 
   def count_worker_timeouts
