@@ -56,8 +56,6 @@ class TestSimpleInteger < Minitest::Test
           end
           exit_codes = Process.waitall.map { |_, status| status.exitstatus }
           # No two processes should exit with the same exit code
-          duplicate_values = exit_codes.group_by { |i| i }.select { |_, v| v.size > 1 }
-          puts "Duplicate values: #{duplicate_values}" unless duplicate_values.empty?
           assert_equal(process_count, exit_codes.uniq.length)
         end
       end
