@@ -1,5 +1,17 @@
 #!/bin/bash
 
+echo "Waiting for MySQL at mysql..."
+attempts=0
+while ! nc -w 1 mysql 3306| grep -q "mysql"; do
+sleep 1
+attempts=$((attempts + 1))
+if (( attempts > 60 )); then
+  echo "ERROR: mysql was not started." >&2
+  exit 1
+fi
+done
+echo "MySQL at mysql:// has started!"
+
 echo "Buidling extension"
 bundle exec rake build 
 if [[ $? -ne 0 ]]; then
