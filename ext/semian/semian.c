@@ -77,9 +77,19 @@ void Init_semian()
 static int
 use_c_circuits() {
   char *circuit_impl = getenv("SEMIAN_CIRCUIT_BREAKER_IMPL");
-  if (circuit_impl == NULL || strcmp(circuit_impl, "ruby") != 0) {
-    return 1;
-  } else {
+  if (circuit_impl == NULL) {
+    fprintf(stderr, "Warning: Defaulting to worker-based circuit breaker implementation\n");
     return 0;
+  } else {
+    if (!strcmp(circuit_impl, "ruby") || !strcmp(circuit_impl, "worker")) {
+      return 0;
+    } else if (!strcmp(circuit_impl, "c") || !strcmp(circuit_impl, "host")) {
+      return 1;
+    } else {
+      fprintf(stderr, "Warning: Unknown circuit breaker implementation: '%s'\n", circuit_impl);
+      return 0;
+    }
   }
+
+  rb_raise(rb_eArgError, "Unknown circuit breaker implementation");
 }
