@@ -18,7 +18,8 @@ matrix:
   - env: GEMFILE=gemfiles/hiredis-0-6.gemfile
   - env: GEMFILE=gemfiles/mysql2-0-4-10.gemfile
   - env: GEMFILE=gemfiles/mysql2-0-5-0.gemfile
-  - env: GEMFILE=Gemfile
+  - env: GEMFILE=Gemfile SEMIAN_CIRCUIT_BREAKER_IMPL=worker
+  - env: GEMFILE=Gemfile SEMIAN_CIRCUIT_BREAKER_IMPL=host
 
 script:
   - docker build --build-arg BUNDLE_GEMFILE="$GEMFILE" -t shopify/semian-ci:latest -f dockerfiles/semian-ci .
