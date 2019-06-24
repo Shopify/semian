@@ -1,4 +1,5 @@
 require 'minitest/autorun'
+require 'minitest/fail_fast'
 require 'semian'
 require 'semian/mysql2'
 require 'semian/redis'

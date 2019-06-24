@@ -6,4 +6,5 @@ gem 'hiredis', '~> 0.6'
 
 group :development, :test do
   gem 'rubocop'
+  gem 'minitest-fail-fast'
 end
