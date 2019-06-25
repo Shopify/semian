@@ -1,17 +1,5 @@
 #!/bin/bash
 
-echo "Waiting for MySQL to start."
-attempts=0
-while ! nc -w 1 mysql 3306 | grep -q "mysql"; do
-  sleep 1
-  attempts=$((attempts + 1))
-  if (( attempts > 60 )); then
-    echo "ERROR: mysql was not started." >&2
-    exit 1
-  fi
-done
-echo "MySQL has started!"
-
 echo "Running bundle install"
 if ! bundle install --jobs=3 --retry=3 2>&1; then
   echo "Running bundle install failed"
@@ -23,6 +11,18 @@ if ! bundle exec rake build 2>&1; then
   echo "Building C extensions failed"
   exit 1
 fi
+
+echo "Waiting for MySQL to start."
+attempts=0
+while ! nc -w 1 mysql 3306 | grep -q "mysql"; do
+  sleep 1
+  attempts=$((attempts + 1))
+  if (( attempts > 60 )); then
+    echo "ERROR: mysql was not started." >&2
+    exit 1
+  fi
+done
+echo "MySQL has started!"
 
 echo "Running Tests"
 if ! bundle exec rake test 2>&1; then
