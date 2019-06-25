@@ -4,6 +4,7 @@
 /tmp
 /pkg
 *.gem
+*.log
 /html/
 Gemfile.lock
 vendor/
