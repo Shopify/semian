@@ -721,10 +721,10 @@ Running Tests:
   - `$ docker-compose -f .devcontainer/docker-compose.yml up -d`
   - `$ docker exec -it semian-dev bash`
   - `$ cd /workspace && bundle install`
-  - `$ bundle exec rake`
+  - `$ bundle exec rake` Run with `SKIP_FLAKY_TESTS=true` to skip flaky tests (CI runs all tests)
 
 
-If you make any changes to `.devcontainer/..`, you'd need to recreate the containers:
+If you make any changes to `.devcontainer/` you'd need to recreate the containers:
   - `$ docker-compose -f .devcontainer/docker-compose.yml up -d --force-recreate` 
 
 

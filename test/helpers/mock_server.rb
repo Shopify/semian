@@ -8,7 +8,6 @@ class MockServer
       new(hostname: hostname, port: port).tap do |server|
         server.start
         server.poll_until_ready
-        puts "Created test server on port: #{port}"
       end
     end
   end
@@ -27,7 +26,6 @@ class MockServer
 
   def stop
     Thread.kill(@tid)
-    puts "Killed test server on port: #{@port}"
   end
 
   def start_server

@@ -23,7 +23,7 @@ services:
     - mysql
     - toxiproxy
     command: sleep infinity
-      
+
   toxiproxy:
     image: shopify/toxiproxy:latest
     container_name: toxiproxy-dev
