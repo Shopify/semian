@@ -55,4 +55,3 @@ end
 
 task default: :build
 task default: :test
-task default: :rubocop

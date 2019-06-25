@@ -5,6 +5,7 @@ services:
     build:
       dockerfile: Dockerfile
       context: .
+    working_dir: /workspace
     volumes:
       # This is where VS Code should expect to find your project's source code
       # and the value of "workspaceFolder" in .devcontainer/devcontainer.json
@@ -22,7 +23,12 @@ services:
     - redis
     - mysql
     - toxiproxy
-    command: sleep infinity
+    command:
+      - /bin/bash
+      - -c
+      - |
+        bundle install
+        sleep infinity
 
   toxiproxy:
     image: shopify/toxiproxy:latest

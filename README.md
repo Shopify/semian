@@ -698,40 +698,37 @@ $ git clone https://github.com/Shopify/semian.git
 $ cd semian
 ```
 
-Developing :
+# Developing :
 
-- Visual Studio Code
+## Visual Studio Code
   - Open semian in vscode
   - Install recommended extensions (one off requirement)
   - Click `reopen in container` (first boot might take about a minute)
   
   See https://code.visualstudio.com/docs/remote/containers for more details
 
-- Everything else
-  - `$ docker-compose -f .devcontainer/docker-compose.yml up -d`
-  - `$ docker exec -it semian-dev bash`
-  - `$ cd /workspace && bundle install`
-  -  Use vim or your TUI editor of choice inside the container 
-  
-  OR
-  
-  - Make changes outside the container and run tests inside the container
 
-Running Tests:
-  - `$ docker-compose -f .devcontainer/docker-compose.yml up -d`
-  - `$ docker exec -it semian-dev bash`
-  - `$ cd /workspace && bundle install`
+  If you make any changes to `.devcontainer/` you'd need to recreate the containers:
+
+  - Select `Rebuild Container` from the command palette
+
+
+  Running Tests:
   - `$ bundle exec rake` Run with `SKIP_FLAKY_TESTS=true` to skip flaky tests (CI runs all tests)
 
+## Everything else
+  - `$ docker-compose -f .devcontainer/docker-compose.yml up -d`
+  - `$ docker exec -it semian-dev bash`
 
-If you make any changes to `.devcontainer/` you'd need to recreate the containers:
+
+  If you make any changes to `.devcontainer/` you'd need to recreate the containers:
+
   - `$ docker-compose -f .devcontainer/docker-compose.yml up -d --force-recreate` 
 
 
-  OR
+  Running Tests:
+  - `$ bundle exec rake` Run with `SKIP_FLAKY_TESTS=true` to skip flaky tests (CI runs all tests)
 
-
-  - Visual-Studio-Code: Select `Rebuild Container` from the command palette
 
 [hystrix]: https://github.com/Netflix/Hystrix
 [release-it]: https://pragprog.com/book/mnee/release-it
