@@ -709,20 +709,6 @@ Developing :
 
 - Everything else
   - `$ docker-compose -f .devcontainer/docker-compose.yml run semian bash`
-  OR
-  - Make changes in your preferred IDE and run `./scripts/ci.sh` 
-
-Running the test suite :
-
-- Within the docker-compose development environment
-  ```bash
-  $ bundle exec rake
-  ```
-
-- Standalone:
-  ```bash
-  $ ./scripts/ci.sh
-  ```
 
 Be careful not to run `bundle install` from Mac OS.  The folder is shared with
 the docker container and this can overwrite Linux libraries with incompatible Mac
