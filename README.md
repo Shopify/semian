@@ -708,13 +708,30 @@ Developing :
   See https://code.visualstudio.com/docs/remote/containers for more details
 
 - Everything else
-  - `$ docker-compose -f .devcontainer/docker-compose.yml run semian bash`
+  - `$ docker-compose -f .devcontainer/docker-compose.yml up -d`
+  - `$ docker exec -it semian-dev bash`
+  - `$ cd /workspace && bundle install`
+  -  Use vim or your TUI editor of choice inside the container 
+  
+  OR
+  
+  - Make changes outside the container and run tests inside the container
 
-Be careful not to run `bundle install` from Mac OS.  The folder is shared with
-the docker container and this can overwrite Linux libraries with incompatible Mac
-OS versions. 
+Running Tests:
+  - `$ docker-compose -f .devcontainer/docker-compose.yml up -d`
+  - `$ docker exec -it semian-dev bash`
+  - `$ cd /workspace && bundle install`
+  - `$ bundle exec rake`
 
-If you run in to problems with the container, you can run `git clean -fxd`
+
+If you make any changes to `.devcontainer/..`, you'd need to recreate the containers:
+  - `$ docker-compose -f .devcontainer/docker-compose.yml up -d --force-recreate` 
+
+
+  OR
+
+
+  - Visual-Studio-Code: Select `Rebuild Container` from the command palette
 
 [hystrix]: https://github.com/Netflix/Hystrix
 [release-it]: https://pragprog.com/book/mnee/release-it

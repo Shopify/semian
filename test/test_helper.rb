@@ -52,8 +52,8 @@ Toxiproxy.populate([
 ])
 
 servers = []
-servers << MockServer.start(hostname: SemianConfig['http_host'], port: SemianConfig['http_port_service_a'])
-servers << MockServer.start(hostname: SemianConfig['http_host'], port: SemianConfig['http_port_service_b'])
+servers << MockServer.start(hostname: BIND_ADDRESS, port: SemianConfig['http_port_service_a'])
+servers << MockServer.start(hostname: BIND_ADDRESS, port: SemianConfig['http_port_service_b'])
 
 Minitest.after_run do
   servers.each(&:stop)
