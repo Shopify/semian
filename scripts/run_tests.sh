@@ -1,56 +1,37 @@
 #!/bin/bash
 
-echo "Waiting for MySQL at mysql..."
+echo "Waiting for MySQL to start."
 attempts=0
-while ! nc -w 1 mysql 3306| grep -q "mysql"; do
-sleep 1
-attempts=$((attempts + 1))
-if (( attempts > 60 )); then
-  echo "ERROR: mysql was not started." >&2
+while ! nc -w 1 mysql 3306 | grep -q "mysql"; do
+  sleep 1
+  attempts=$((attempts + 1))
+  if (( attempts > 60 )); then
+    echo "ERROR: mysql was not started." >&2
+    exit 1
+  fi
+done
+echo "MySQL has started!"
+
+echo "Running bundle install"
+bundle install --jobs=3 --retry=3 2>&1
+if [[ $? -ne 0 ]]; then
+  echo "Running bundle install failed"
   exit 1
 fi
-done
-echo "MySQL at mysql:// has started!"
 
-echo "Buidling extension"
+echo "Building C extensions"
 bundle exec rake build 
 if [[ $? -ne 0 ]]; then
-  echo "Building the extension failed"
+  echo "Building C extensions failed"
   exit 1
 fi
 
-echo
-echo "*****************************************"
-echo
-# File that contains failures.
-failure_file=failure.log
-touch ${failure_file}
-# Loop through the gem files, and test independently.
-for f in ./gemfiles/*; do
-  echo "Testing with $f ... "
-  BUNDLE_GEMFILE=$f bundle install --jobs=3 --retry=3 > /dev/null 2>&1
-  BUNDLE_GEMFILE=$f bundle exec rake test 2>&1
-  if [[ $? -ne 0 ]]; then
-    echo "Testing with gemfile $f failed" | tee -a ${failure_file}
-  fi
-  echo
-  echo "*****************************************"
-  echo
-done
-
-# Check if there is any failure.
-if [[ -s ${failure_file} ]]; then
-  echo
-  echo "Some Gemfile Tests failed:"
-  cat ${failure_file}
-  echo "Exiting."
+echo "Running Tests"
+bundle exec rake test 2>&1
+if [[ $? -ne 0 ]]; then
+  echo "Running Tests failed"
   exit 1
 fi
-echo "All Gemfile Tests succeeded."
-
-echo
-echo "*****************************************"
-echo
 
 echo "Running rubocop"
 # TODO:paranoidaditya remove pipe to /dev/null after repo is formatted correctly

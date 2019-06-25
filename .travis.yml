@@ -1,19 +1,24 @@
 dist: xenial
 
-env:
-  - DOCKER_COMPOSE_VERSION=1.24.0
-
 before_install:
   - sudo rm /usr/local/bin/docker-compose
-  - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
+  - curl -L https://github.com/docker/compose/releases/download/1.24.0/docker-compose-`uname -s`-`uname -m` > docker-compose
   - chmod +x docker-compose
   - sudo mv docker-compose /usr/local/bin
 
 services:
   - docker
 
+matrix:
+  include:
+  - env: GEMFILE=gemfiles/hiredis-0-6.gemfile
+  - env: GEMFILE=gemfiles/mysql2-0-4-10.gemfile
+  - env: GEMFILE=gemfiles/mysql2-0-5-0.gemfile
+  - env: GEMFILE=Gemfile
+
 script:
-  - travis_retry ./scripts/ci.sh
+  - docker build --build-arg BUNDLE_GEMFILE="$GEMFILE" -t shopify/semian-ci:latest -f dockerfiles/semian-ci .
+  - travis_retry docker-compose -f docker-compose.ci.yml up --force-recreate --exit-code-from semian
 
 notifications:
   email: false

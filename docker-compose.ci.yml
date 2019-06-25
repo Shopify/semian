@@ -1,9 +1,7 @@
 version: "3.7"
 services:
   semian:
-    build:
-      dockerfile: dockerfiles/semian-ci
-      context: .
+    image: shopify/semian-ci:latest
     depends_on: 
     - redis
     - mysql
