@@ -7,7 +7,7 @@
 #include <openssl/sha.h>
 #include <ruby.h>
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(SEMIAN_DEBUG)
 #  define DEBUG_TEST 1
 #else
 #  define DEBUG_TEST 0
