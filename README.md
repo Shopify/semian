@@ -685,10 +685,13 @@ Semian requires a Linux environment.  We provide a [docker-compose](https://docs
 that runs MySQL, Redis, Toxiproxy and Ruby in containers.  Use
 the steps below to work on Semian from a Mac OS environment.
 
-Prerequisites :
+## Prerequisites :
 ```bash
 # install docker-for-desktop
 $ brew cask install docker
+
+# install latest docker-compose
+$ brew install docker-compose
 
 # install visual-studio-code (optional)
 $ brew cask install visual-studio-code
@@ -697,8 +700,6 @@ $ brew cask install visual-studio-code
 $ git clone https://github.com/Shopify/semian.git
 $ cd semian
 ```
-
-# Developing :
 
 ## Visual Studio Code
   - Open semian in vscode
