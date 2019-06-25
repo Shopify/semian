@@ -1,22 +1,24 @@
-language: ruby
+dist: xenial
 
 before_install:
-  - gem update --system
-  - gem install bundler
-  - scripts/install_toxiproxy.sh
-
-rvm:
-  - '2.4'
-  - '2.5'
-  - '2.6'
-
-gemfile:
-  - gemfiles/mysql2-0-4-10.gemfile
-  - gemfiles/mysql2-0-5-0.gemfile
-  - gemfiles/hiredis-0-6.gemfile
+  - sudo rm /usr/local/bin/docker-compose
+  - curl -L https://github.com/docker/compose/releases/download/1.24.0/docker-compose-`uname -s`-`uname -m` > docker-compose
+  - chmod +x docker-compose
+  - sudo mv docker-compose /usr/local/bin
 
 services:
-  - redis-server
+  - docker
+
+matrix:
+  include:
+  - env: GEMFILE=gemfiles/hiredis-0-6.gemfile
+  - env: GEMFILE=gemfiles/mysql2-0-4-10.gemfile
+  - env: GEMFILE=gemfiles/mysql2-0-5-0.gemfile
+  - env: GEMFILE=Gemfile
+
+script:
+  - docker build --build-arg BUNDLE_GEMFILE="$GEMFILE" -t shopify/semian-ci:latest -f dockerfiles/semian-ci .
+  - travis_retry docker-compose -f docker-compose.ci.yml up --force-recreate --exit-code-from semian
 
 notifications:
   email: false

@@ -523,17 +523,20 @@ class TestResource < Minitest::Test
       @workers << fork do
         begin
           resource = Semian::Resource.new(resource.to_sym, quota: quota, tickets: tickets, timeout: timeout)
+
+          Signal.trap('TERM') do
+            yield if block_given?
+            exit! 0
+          end
+
+          # Hold the resource until signalled
           resource.acquire do
-            # Hold the resource until signalled
-            # This helps to avoid race conditions in testing.
-            Signal.trap('TERM') do
-              yield if block_given?
-              exit! 0
-            end
             sleep
           end
         rescue Semian::TimeoutError
           Signal.trap('TERM') do
+            # Still sleep (in the yield) to avoid SIGCHLD, which makes semtimedop get interrupted
+            yield if block_given?
             exit! 100
           end
           sleep

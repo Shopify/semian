@@ -361,6 +361,7 @@ class TestNetHTTP < Minitest::Test
   end
 
   def test_5xxs_dont_raise_exceptions_unless_fatal_server_flag_enabled
+    skip if ENV["SKIP_FLAKY_TESTS"]
     with_semian_configuration do
       with_server do
         http = Net::HTTP.new(SemianConfig['http_host'], SemianConfig['http_port_service_a'])
@@ -494,7 +495,7 @@ class TestNetHTTP < Minitest::Test
     ports.each do |port|
       reset_semian_resource(port: port) if reset_semian_state
       @proxy = Toxiproxy[:semian_test_net_http]
-      yield(SemianConfig['http_host'], port.to_i)
+      yield(BIND_ADDRESS, port.to_i)
     end
   end
 

@@ -8,7 +8,6 @@ class MockServer
       new(hostname: hostname, port: port).tap do |server|
         server.start
         server.poll_until_ready
-        puts "Created test server on port: #{port}"
       end
     end
   end
@@ -27,7 +26,6 @@ class MockServer
 
   def stop
     Thread.kill(@tid)
-    puts "Killed test server on port: #{@port}"
   end
 
   def start_server
@@ -45,7 +43,7 @@ class MockServer
         res.status = response_code
         res.content_type = 'text/html'
       rescue WEBrick::HTTPStatus::EOFError, WEBrick::HTTPStatus::BadRequest
-        res.status = 200
+        res.status = 400
         res.content_type = 'text/html'
       ensure
         res.send_response(sock)

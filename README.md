@@ -681,37 +681,55 @@ non-IO.
 
 # Developing Semian
 
-Semian requires a Linux environment.  We provide a [Vagrantfile](Vagrantfile)
-that installs MySQL, Redis and Ruby in an Ubuntu 16.04 virtual machine.  Use
+Semian requires a Linux environment.  We provide a [docker-compose](https://docs.docker.com/compose/) file
+that runs MySQL, Redis, Toxiproxy and Ruby in containers.  Use
 the steps below to work on Semian from a Mac OS environment.
 
+## Prerequisites :
 ```bash
-# install Vagrant and VirtualBox
-$ brew cask install vagrant virtualbox
+# install docker-for-desktop
+$ brew cask install docker
+
+# install latest docker-compose
+$ brew install docker-compose
+
+# install visual-studio-code (optional)
+$ brew cask install visual-studio-code
 
 # clone Semian
 $ git clone https://github.com/Shopify/semian.git
 $ cd semian
-
-# build the virtual machine (can take a while for ruby to compile)
-$ vagrant up
-
-# shell in to the virtual machine
-$ vagrant ssh
-
-# start the toxiproxy-server inside the virtual machine
-$ toxiproxy-server > /dev/null &
-# TODO: provide a systemd unit for toxiproxy
-
-# run the tests inside the virtual machine
-$ cd /vagrant && bundle exec rake
 ```
 
-Be careful not to run `bundle install` from Mac OS.  The folder is shared with
-the virtual machine and this can overwrite Linux libraries with incompatible Mac
-OS versions.  If you run in to problems with the machine, you can run `vagrant
-up --provision` to execute the provision script again; or you can run `vagrant
-destroy -f && vagrant up` to rebuild it from scratch.
+## Visual Studio Code
+  - Open semian in vscode
+  - Install recommended extensions (one off requirement)
+  - Click `reopen in container` (first boot might take about a minute)
+  
+  See https://code.visualstudio.com/docs/remote/containers for more details
+
+
+  If you make any changes to `.devcontainer/` you'd need to recreate the containers:
+
+  - Select `Rebuild Container` from the command palette
+
+
+  Running Tests:
+  - `$ bundle exec rake` Run with `SKIP_FLAKY_TESTS=true` to skip flaky tests (CI runs all tests)
+
+## Everything else
+  - `$ docker-compose -f .devcontainer/docker-compose.yml up -d`
+  - `$ docker exec -it semian-dev bash`
+
+
+  If you make any changes to `.devcontainer/` you'd need to recreate the containers:
+
+  - `$ docker-compose -f .devcontainer/docker-compose.yml up -d --force-recreate` 
+
+
+  Running Tests:
+  - `$ bundle exec rake` Run with `SKIP_FLAKY_TESTS=true` to skip flaky tests (CI runs all tests)
+
 
 [hystrix]: https://github.com/Netflix/Hystrix
 [release-it]: https://pragprog.com/book/mnee/release-it

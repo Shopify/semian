@@ -19,6 +19,8 @@ require 'helpers/mock_server.rb'
 
 require 'config/semian_config'
 
+BIND_ADDRESS = '0.0.0.0'
+
 Semian.logger = Logger.new(nil)
 
 Toxiproxy.host = URI::HTTP.build(
@@ -50,8 +52,8 @@ Toxiproxy.populate([
 ])
 
 servers = []
-servers << MockServer.start(hostname: SemianConfig['http_host'], port: SemianConfig['http_port_service_a'])
-servers << MockServer.start(hostname: SemianConfig['http_host'], port: SemianConfig['http_port_service_b'])
+servers << MockServer.start(hostname: BIND_ADDRESS, port: SemianConfig['http_port_service_a'])
+servers << MockServer.start(hostname: BIND_ADDRESS, port: SemianConfig['http_port_service_b'])
 
 Minitest.after_run do
   servers.each(&:stop)

@@ -64,7 +64,8 @@ class TestGRPC < Minitest::Test
   end
 
   def test_timeout_opens_the_circuit
-    stub = build_insecure_stub(EchoStub, host: "#{@hostname}:#{@port + 1}", opts: {timeout: 0.1})
+    skip if ENV["SKIP_FLAKY_TESTS"]
+    stub = build_insecure_stub(EchoStub, host: "#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['grpc_toxiproxy_port']}", opts: {timeout: 0.1})
     run_services_on_server(@server, services: [EchoService]) do
       Toxiproxy['semian_test_grpc'].downstream(:latency, latency: 1000).apply do
         ERROR_THRESHOLD.times do

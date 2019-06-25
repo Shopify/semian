@@ -11,3 +11,6 @@ vendor/
 nohup.out
 .vagrant
 .byebug_history
+.vscode-server
+.rubocop-*
+.vscode/ipch
