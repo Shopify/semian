@@ -43,20 +43,24 @@ class TestSimpleInteger < Minitest::Test
       assert_equal(0, @integer.value)
     end
 
-    if ENV['SEMIAN_CIRCUIT_BREAKER_IMPL'] != 'ruby'
-      # Without locks, this only passes around 1 in every 5 runs
-      def test_increment_race
-        process_count = 255
-        100.times do
-          process_count.times do
-            fork do
-              value = @integer.increment(1)
-              exit!(value)
-            end
+    # Without locks, this only passes around 1 in every 5 runs
+    def test_increment_race
+      process_count = 255
+      100.times do
+        process_count.times do
+          fork do
+            value = @integer.increment(1)
+            exit!(value)
           end
-          exit_codes = Process.waitall.map { |_, status| status.exitstatus }
-          # No two processes should exit with the same exit code
+        end
+        exit_codes = Process.waitall.map { |_, status| status.exitstatus }
+
+        if ENV['SEMIAN_CIRCUIT_BREAKER_IMPL'] == 'host'
+          # Host-based circuits: No two processes should exit with the same exit code
           assert_equal(process_count, exit_codes.uniq.length)
+        else
+          # Worker-based circuits: All the processes should exit with the same code
+          assert_equal(1, exit_codes.uniq.length)
         end
       end
     end

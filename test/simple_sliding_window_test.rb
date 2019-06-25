@@ -52,6 +52,7 @@ class TestSimpleSlidingWindow < Minitest::Test
   end
 
   def test_sliding_window_reject_failure
+    skip if ENV['SEMIAN_CIRCUIT_BREAKER_IMPL'] == 'worker'
     @sliding_window << 0 << 1 << 2 << 3 << 4 << 5 << 6 << 7
     assert_equal(6, @sliding_window.size)
     assert_sliding_window(@sliding_window, [2, 3, 4, 5, 6, 7], 6)

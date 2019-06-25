@@ -81,9 +81,9 @@ use_c_circuits() {
     fprintf(stderr, "Warning: Defaulting to worker-based circuit breaker implementation\n");
     return 0;
   } else {
-    if (!strcmp(circuit_impl, "ruby") || !strcmp(circuit_impl, "worker")) {
+    if (!strcmp(circuit_impl, "worker")) {
       return 0;
-    } else if (!strcmp(circuit_impl, "c") || !strcmp(circuit_impl, "host")) {
+    } else if (!strcmp(circuit_impl, "host")) {
       return 1;
     } else {
       fprintf(stderr, "Warning: Unknown circuit breaker implementation: '%s'\n", circuit_impl);
