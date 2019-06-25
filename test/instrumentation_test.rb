@@ -7,7 +7,7 @@ class TestInstrumentation < Minitest::Test
   end
 
   def test_busy_instrumentation
-    assert_notify(:success, :busy) do
+    assert_notify(:success, :busy, :state_change) do
       Semian[:testing].acquire do
         assert_raises Semian::TimeoutError do
           Semian[:testing].acquire {}
@@ -17,7 +17,7 @@ class TestInstrumentation < Minitest::Test
   end
 
   def test_circuit_open_instrumentation
-    assert_notify(:success, :busy) do
+    assert_notify(:success, :busy, :state_change) do
       Semian[:testing].acquire do
         assert_raises Semian::TimeoutError do
           Semian[:testing].acquire {}
