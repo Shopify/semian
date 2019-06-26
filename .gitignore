@@ -5,6 +5,7 @@
 /pkg
 *.gem
 *.log
+*.orig
 /html/
 Gemfile.lock
 vendor/
