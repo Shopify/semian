@@ -35,6 +35,9 @@ class MockServer
         config = WEBrick::Config::HTTP
         res = WEBrick::HTTPResponse.new(config)
         req = WEBrick::HTTPRequest.new(config)
+
+        # Can raise a NoMethodError in ruby 2.4/2.5
+        # See https://github.com/ruby/ruby/pull/1960
         req.parse(sock)
 
         response_code = req.path_info.delete("/")
@@ -42,7 +45,7 @@ class MockServer
 
         res.status = response_code
         res.content_type = 'text/html'
-      rescue WEBrick::HTTPStatus::EOFError, WEBrick::HTTPStatus::BadRequest
+      rescue WEBrick::HTTPStatus::EOFError, WEBrick::HTTPStatus::BadRequest, NoMethodError
         res.status = 400
         res.content_type = 'text/html'
       ensure
