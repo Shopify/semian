@@ -1,4 +1,5 @@
 require 'minitest/autorun'
+require "minitest/reporters"
 require 'semian'
 require 'semian/mysql2'
 require 'semian/redis'
@@ -22,6 +23,8 @@ require 'config/semian_config'
 BIND_ADDRESS = '0.0.0.0'
 
 Semian.logger = Logger.new(nil)
+
+Minitest::Reporters.use!
 
 Toxiproxy.host = URI::HTTP.build(
   host: SemianConfig['toxiproxy_upstream_host'],

@@ -2,16 +2,15 @@ version: "3.7"
 services:
   semian:
     image: shopify/semian-ci:latest
+    container_name: semian
     depends_on: 
     - redis
     - mysql
     - toxiproxy
-    command: ./scripts/run_tests.sh
+    command: sleep infinity
       
   toxiproxy:
     image: shopify/toxiproxy:latest
-    logging:
-      driver: none
     container_name: toxiproxy
     depends_on: 
     - redis
@@ -19,16 +18,13 @@ services:
 
   redis:
     image: redis:latest
-    logging:
-      driver: none
     container_name: redis
     command: redis-server
 
   mysql:
     image: mysql
+    container_name: mysql
     command: --default-authentication-plugin=mysql_native_password
-    logging:
-      driver: none
     environment:
       MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
       MYSQL_ROOT_HOST: '%'
