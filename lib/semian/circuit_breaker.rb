@@ -130,6 +130,7 @@ module Semian
       str << " success_count=#{@successes.value} error_count=#{@errors.size}"
       str << " success_count_threshold=#{@success_count_threshold} error_count_threshold=#{@error_count_threshold}"
       str << " error_timeout=#{@error_timeout} error_last_at=\"#{@errors.last}\""
+      str << " name=\"#{@name}\""
       Semian.logger.info(str)
     end
 
