@@ -1,4 +1,8 @@
 dist: xenial
+language: minimal
+
+git:
+  depth: 1
 
 before_install:
   - sudo rm /usr/local/bin/docker-compose
