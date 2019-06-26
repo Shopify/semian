@@ -337,6 +337,8 @@ static inline void
 semian_resource_free(void *ptr)
 {
   semian_resource_t *res = (semian_resource_t *) ptr;
+  dprintf("Freeing resource sem_id:%d", res->sem_id);
+
   if (res->name) {
     free(res->name);
     res->name = NULL;

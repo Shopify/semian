@@ -7,17 +7,18 @@ module Semian
     attr_reader :name, :half_open_resource_timeout, :error_timeout, :state, :last_error
 
     def initialize(name, exceptions:, success_threshold:, error_threshold:,
-                         error_timeout:, implementation:, half_open_resource_timeout: nil)
-      @name = name.to_sym
-      initialize_circuit_breaker(name, error_threshold)
+                         error_timeout:, implementation:, half_open_resource_timeout: nil, scale_factor: nil)
+      initialize_circuit_breaker(name, error_threshold) if respond_to?(:initialize_circuit_breaker)
 
+      @name = name.to_sym
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
+      @scale_factor = scale_factor
       @error_timeout = error_timeout
       @exceptions = exceptions
       @half_open_resource_timeout = half_open_resource_timeout
 
-      @errors = implementation::SlidingWindow.new(name, max_size: @error_count_threshold)
+      @errors = implementation::SlidingWindow.new(name, max_size: @error_count_threshold, scale_factor: @scale_factor)
       @successes = implementation::Integer.new("#{name}_successes")
       state_val = implementation::Integer.new("#{name}_state")
       @state = implementation::State.new(state_val)

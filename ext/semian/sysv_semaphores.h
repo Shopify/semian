@@ -118,6 +118,7 @@ initialize_single_semaphore(uint64_t key, long permissions);
 static inline void
 dprint_sem_vals(int sem_id)
 {
+  dprintf("dprintf(%d)", sem_id);
   dprintf("sem_id: %d, lock: %d, tickets: %d configured: %d, registered workers %d",
     sem_id,
     get_sem_val(sem_id, SI_SEM_LOCK),

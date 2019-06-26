@@ -62,3 +62,7 @@ end
 class Minitest::Test
   include BackgroundHelper
 end
+
+def flaky
+  ENV["SKIP_FLAKY_TESTS"]
+end

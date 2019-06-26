@@ -78,6 +78,7 @@ typedef struct {
   int sem_id;
   uint64_t parent_key;
   int error_threshold;
+  float scale_factor;
   semian_simple_sliding_window_shared_t* shmem;
 } semian_simple_sliding_window_t;
 

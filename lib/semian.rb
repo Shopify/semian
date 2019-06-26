@@ -259,6 +259,7 @@ module Semian
       exceptions: Array(exceptions) + [::Semian::BaseError],
       half_open_resource_timeout: options[:half_open_resource_timeout],
       implementation: implementation(**options),
+      scale_factor: options[:scale_factor],
     )
   end
 

@@ -41,20 +41,51 @@ static int
 check_max_size_arg(VALUE max_size)
 {
   int retval = -1;
-  switch (TYPE(max_size)) {
+  switch (rb_type(max_size)) {
   case T_NIL:
+  case T_UNDEF:
     retval = SLIDING_WINDOW_MAX_SIZE; break;
   case T_FLOAT:
     rb_warn("semian sliding window max_size is a float, converting to fixnum");
     retval = (int)(RFLOAT_VALUE(max_size)); break;
-  default:
+  case T_FIXNUM:
+  case T_BIGNUM:
     retval = RB_NUM2INT(max_size); break;
+  default:
+    rb_raise(rb_eArgError, "unknown type for max_size: %d", TYPE(max_size));
   }
 
   if (retval <= 0) {
     rb_raise(rb_eArgError, "max_size must be greater than zero");
   } else if (retval > SLIDING_WINDOW_MAX_SIZE) {
     rb_raise(rb_eArgError, "max_size cannot be greater than %d", SLIDING_WINDOW_MAX_SIZE);
+  }
+
+  return retval;
+}
+
+static float
+check_scale_factor_arg(VALUE scale_factor)
+{
+  float retval = 1.0;
+  switch(rb_type(scale_factor)) {
+  case T_NIL:
+  case T_UNDEF:
+    retval = 1.0; break;
+  case T_FLOAT:
+    retval = rb_float_value(scale_factor); break;
+  case T_FIXNUM:
+  case T_BIGNUM:
+    rb_warn("semian sliding window scale_factor is an int, converting to float");
+    retval = (float)RB_NUM2INT(scale_factor); break;
+  default:
+    rb_raise(rb_eArgError, "unknown type for scale_factor: %d", TYPE(scale_factor));
+  }
+
+  if (retval <= 0.0) {
+    rb_raise(rb_eArgError, "scale_factor must be greater than zero");
+  } else if (retval > 1.0) {
+    rb_raise(rb_eArgError, "scale_factor cannot be greater than 1.0");
   }
 
   return retval;
@@ -106,12 +137,12 @@ shrink_window(semian_simple_sliding_window_shared_t* window, int new_max_size)
     window->end = 0;
   } else if (window->end > window->start) {
     // Easy case - the window doesn't wrap around
-    window->end = window->start + new_length;
+    window->start = window->start + new_length;
   } else {
     // Hard case - the window wraps, so re-index the data
     // Adapted from http://www.cplusplus.com/reference/algorithm/rotate/
     int first = 0;
-    int middle = window->start;
+    int middle = (window->end - new_max_size + window->max_size) % window->max_size;
     int last = window->max_size;
     int next = middle;
     while (first != next) {
@@ -169,10 +200,11 @@ Init_SlidingWindow()
   VALUE cSlidingWindow = rb_const_get(cSimple, rb_intern("SlidingWindow"));
 
   rb_define_alloc_func(cSlidingWindow, semian_simple_sliding_window_alloc);
-  rb_define_method(cSlidingWindow, "initialize_sliding_window", semian_simple_sliding_window_initialize, 2);
+  rb_define_method(cSlidingWindow, "initialize_sliding_window", semian_simple_sliding_window_initialize, 3);
   rb_define_method(cSlidingWindow, "size", semian_simple_sliding_window_size, 0);
   rb_define_method(cSlidingWindow, "resize_to", semian_simple_sliding_window_resize_to, 1);
-  rb_define_method(cSlidingWindow, "max_size", semian_simple_sliding_window_max_size, 0);
+  rb_define_method(cSlidingWindow, "max_size", semian_simple_sliding_window_max_size_get, 0);
+  rb_define_method(cSlidingWindow, "max_size=", semian_simple_sliding_window_max_size_set, 1);
   rb_define_method(cSlidingWindow, "values", semian_simple_sliding_window_values, 0);
   rb_define_method(cSlidingWindow, "last", semian_simple_sliding_window_last, 0);
   rb_define_method(cSlidingWindow, "<<", semian_simple_sliding_window_push, 1);
@@ -212,7 +244,7 @@ static int max(int a, int b) {
 }
 
 VALUE
-semian_simple_sliding_window_initialize(VALUE self, VALUE name, VALUE max_size)
+semian_simple_sliding_window_initialize(VALUE self, VALUE name, VALUE max_size, VALUE scale_factor)
 {
   semian_simple_sliding_window_t *res = get_object(self);
 
@@ -228,13 +260,15 @@ semian_simple_sliding_window_initialize(VALUE self, VALUE name, VALUE max_size)
   res->sem_id = initialize_single_semaphore(res->key, SEM_DEFAULT_PERMISSIONS);
   res->shmem = get_or_create_shared_memory(res->key, init_fn);
   res->error_threshold = check_max_size_arg(max_size);
+  res->scale_factor = check_scale_factor_arg(scale_factor);
 
   sem_meta_lock(res->sem_id);
   {
     int workers = get_number_of_registered_workers(res);
-    float scale_factor = (workers > 1) ? 0.2 : 1.0; // TODO: Parameterize
-    int error_threshold = max(res->error_threshold, (int) ceil(workers * scale_factor * res->error_threshold));
+    float scale = (workers > 1) ? res->scale_factor : 1.0; // TODO: Parameterize
+    int error_threshold = max(res->error_threshold, (int) ceil(workers * scale * res->error_threshold));
 
+    dprintf("  workers:%d scale:%0.2f error_threshold:%d", workers, scale, error_threshold);
     resize_window(res->shmem, error_threshold);
   }
   sem_meta_unlock(res->sem_id);
@@ -264,6 +298,10 @@ semian_simple_sliding_window_resize_to(VALUE self, VALUE new_size)
   VALUE retval = Qnil;
 
   int new_max_size = RB_NUM2INT(new_size);
+  if (new_max_size < 1) {
+    rb_raise(rb_eArgError, "cannot resize to %d", new_max_size);
+  }
+
   sem_meta_lock(res->sem_id);
   {
     retval = resize_window(res->shmem, new_max_size);
@@ -274,7 +312,7 @@ semian_simple_sliding_window_resize_to(VALUE self, VALUE new_size)
 }
 
 VALUE
-semian_simple_sliding_window_max_size(VALUE self)
+semian_simple_sliding_window_max_size_get(VALUE self)
 {
   semian_simple_sliding_window_t *res = get_object(self);
   VALUE retval;
@@ -282,6 +320,26 @@ semian_simple_sliding_window_max_size(VALUE self)
   sem_meta_lock(res->sem_id);
   {
     retval = RB_INT2NUM(res->shmem->max_size);
+  }
+  sem_meta_unlock(res->sem_id);
+
+  return retval;
+}
+
+VALUE
+semian_simple_sliding_window_max_size_set(VALUE self, VALUE new_size)
+{
+  semian_simple_sliding_window_t *res = get_object(self);
+  VALUE retval;
+
+  int new_max_size = RB_NUM2INT(new_size);
+  if (new_max_size < 1) {
+    rb_raise(rb_eArgError, "max_size must be positive");
+  }
+
+  sem_meta_lock(res->sem_id);
+  {
+    retval = resize_window(res->shmem, new_max_size);
   }
   sem_meta_unlock(res->sem_id);
 

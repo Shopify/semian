@@ -9,8 +9,10 @@ module Semian
       # like this: if @max_size = 4, current time is 10, @window =[5,7,9,10].
       # Another push of (11) at 11 sec would make @window [7,9,10,11], shifting off 5.
 
-      def initialize(name, max_size:)
-        initialize_sliding_window(name, max_size)
+      def initialize(name, max_size:, scale_factor: nil)
+        initialize_sliding_window(name, max_size, scale_factor) if respond_to?(:initialize_sliding_window)
+
+        @name = name.to_sym
         @max_size = max_size
         @window = []
       end
@@ -43,6 +45,12 @@ module Semian
         self
       end
       alias_method :destroy, :clear
+
+      def max_size=(value)
+        raise ArgumentError, "max_size must be positive" if value <= 0
+        @max_size = value
+        resize_to(value)
+      end
 
       private
 

@@ -29,8 +29,9 @@ raise_semian_syscall_error(const char *syscall, int error_num)
 void
 initialize_semaphore_set(semian_resource_t* res, const char* id_str, long permissions, int tickets, double quota)
 {
-
   res->key = generate_key(id_str);
+  dprintf("Initializing semaphore set for key:%lu", res->key);
+
   res->strkey = (char*)  malloc((2 /*for 0x*/+ sizeof(uint64_t) /*actual key*/+ 1 /*null*/) * sizeof(char));
   sprintf(res->strkey, "0x%08x", (unsigned int) res->key);
 
@@ -60,6 +61,7 @@ initialize_semaphore_set(semian_resource_t* res, const char* id_str, long permis
     Ensure that a worker for this process is registered.
     Note that from ruby we ensure that at most one worker may be registered per process.
   */
+  dprintf("Registering worker for sem_id:%d", res->sem_id);
   if (perform_semop(res->sem_id, SI_SEM_REGISTERED_WORKERS, 1, SEM_UNDO, NULL) == -1) {
     rb_raise(eInternal, "error incrementing registered workers, errno: %d (%s)", errno, strerror(errno));
   }
@@ -120,10 +122,12 @@ perform_semop(int sem_id, short index, short op, short flags, struct timespec *t
 int
 get_sem_val(int sem_id, int sem_index)
 {
+  dprintf("get_sem_val(sem_id: %d, sem_index: %d)", sem_id, sem_index);
   int ret = semctl(sem_id, sem_index, GETVAL);
   if (ret == -1) {
     rb_raise(eInternal, "error getting value of %s for sem %d, errno: %d (%s)", SEMINDEX_STRING[sem_index], sem_id, errno, strerror(errno));
   }
+  dprintf("get_sem_val(sem_id: %d, sem_index: %d) == %d", sem_id, sem_index, ret);
   return ret;
 }
 
@@ -245,6 +249,7 @@ diff_timespec_ms(struct timespec *end, struct timespec *begin)
 int
 initialize_single_semaphore(uint64_t key, long permissions)
 {
+  dprintf("Initializing single semaphore for key:%lu", key);
   int sem_id = semget(key, 1, IPC_CREAT | IPC_EXCL | permissions);
 
   /*

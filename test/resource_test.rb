@@ -4,11 +4,9 @@ require 'objspace'
 class TestResource < Minitest::Test
   include ResourceHelper
 
-  # Time epsilon to account for super fast machines
-  EPSILON = 0.1
-
   def setup
     @workers = []
+    @resources = []
     Semian.destroy(:testing)
   rescue
     nil
@@ -143,10 +141,9 @@ class TestResource < Minitest::Test
   end
 
   def test_acquire_timeout
-    fork_workers(count: 2, tickets: 1, timeout: 1, wait_for_timeout: true)
+    fork_workers(count: 2, tickets: 1, timeout: 1, wait_for_timeout: true, epsilon: 0.1)
     signal_workers('TERM')
-    timeouts = count_worker_timeouts
-    assert 1, timeouts
+    assert_equal(1, count_worker_timeouts)
   end
 
   def test_acquire_timeout_override
@@ -158,8 +155,7 @@ class TestResource < Minitest::Test
 
     signal_workers('TERM')
 
-    timeouts = count_worker_timeouts
-    assert 0, timeouts
+    assert_equal(0, count_worker_timeouts)
   end
 
   def test_acquire_with_fork
@@ -522,7 +518,7 @@ class TestResource < Minitest::Test
   # Active workers are accumulated in the instance variable @workers,
   # and workers must be cleaned up between tests by the teardown script
   # An exit value of 100 is to keep track of timeouts, 0 for success.
-  def fork_workers(count:, resource: :testing, quota: nil, tickets: nil, timeout: 0.1, wait_for_timeout: false)
+  def fork_workers(count:, resource: :testing, quota: nil, tickets: nil, timeout: 0.1, wait_for_timeout: false, epsilon: 0)
     fail 'Must provide at least one of tickets or quota' unless tickets || quota
 
     @workers ||= []
@@ -548,13 +544,12 @@ class TestResource < Minitest::Test
           end
           sleep
         rescue => e
-          puts "Unhandled exception occurred in worker"
           puts e
           exit! 2
         end
       end
     end
-    sleep((count / 2.0).ceil * timeout + EPSILON) if wait_for_timeout # give time for threads to timeout
+    sleep((count / 2.0).ceil * timeout + epsilon) if wait_for_timeout # give time for threads to timeout
   end
 
   def count_worker_timeouts
