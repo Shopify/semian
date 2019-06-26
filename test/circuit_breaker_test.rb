@@ -236,4 +236,44 @@ class TestCircuitBreaker < Minitest::Test
     2.times { trigger_error!(@resource, SomeSubErrorThatDoesNotMarkCircuits) }
     assert_circuit_closed
   end
+
+  def test_notify_state_transition
+    name = :test_notify_state_transition
+
+    events = []
+    Semian.subscribe(:test_notify_state_transition) do |event, resource, _scope, _adapter, payload|
+      if event == :state_change
+        events << {name: resource.name, state: payload[:state]}
+      end
+    end
+
+    # Creating a resource should generate a :closed notification.
+    resource = Semian.register(name, tickets: 1, exceptions: [StandardError],
+                                     error_threshold: 2, error_timeout: 1, success_threshold: 1)
+    assert_equal(1, events.length)
+    assert_equal(name, events[0][:name])
+    assert_equal(:closed, events[0][:state])
+
+    # Acquiring a resource doesn't generate a transition.
+    resource.acquire { nil }
+    assert_equal(1, events.length)
+
+    # error_threshold failures causes a transition to open.
+    2.times { trigger_error!(resource) }
+    assert_equal(2, events.length)
+    assert_equal(name, events[1][:name])
+    assert_equal(:open, events[1][:state])
+
+    Timecop.travel(3600) do
+      # Acquiring the resource successfully generates a transition to half_open, then closed.
+      resource.acquire { nil }
+      assert_equal(4, events.length)
+      assert_equal(name, events[2][:name])
+      assert_equal(:half_open, events[2][:state])
+      assert_equal(name, events[3][:name])
+      assert_equal(:closed, events[3][:state])
+    end
+  ensure
+    Semian.unsubscribe(:test_notify_state_transition)
+  end
 end

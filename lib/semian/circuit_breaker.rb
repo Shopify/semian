@@ -6,7 +6,8 @@ module Semian
 
     attr_reader :name, :half_open_resource_timeout, :error_timeout, :state, :last_error
 
-    def initialize(name, exceptions:, success_threshold:, error_threshold:, error_timeout:, implementation:, half_open_resource_timeout: nil)
+    def initialize(name, exceptions:, success_threshold:, error_threshold:,
+                         error_timeout:, implementation:, half_open_resource_timeout: nil)
       @name = name.to_sym
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
@@ -17,6 +18,8 @@ module Semian
       @errors = implementation::SlidingWindow.new(max_size: @error_count_threshold)
       @successes = implementation::Integer.new
       @state = implementation::State.new
+
+      reset
     end
 
     def acquire(resource = nil, &block)
@@ -78,17 +81,20 @@ module Semian
     private
 
     def transition_to_close
+      notify_state_transition(:closed)
       log_state_transition(:closed)
       @state.close!
       @errors.clear
     end
 
     def transition_to_open
+      notify_state_transition(:open)
       log_state_transition(:open)
       @state.open!
     end
 
     def transition_to_half_open
+      notify_state_transition(:half_open)
       log_state_transition(:half_open)
       @state.half_open!
       @successes.reset
@@ -125,6 +131,10 @@ module Semian
       str << " success_count_threshold=#{@success_count_threshold} error_count_threshold=#{@error_count_threshold}"
       str << " error_timeout=#{@error_timeout} error_last_at=\"#{@errors.last}\""
       Semian.logger.info(str)
+    end
+
+    def notify_state_transition(new_state)
+      Semian.notify(:state_change, self, nil, nil, state: new_state)
     end
 
     def disabled?

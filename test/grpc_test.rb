@@ -86,8 +86,9 @@ class TestGRPC < Minitest::Test
   def test_instrumentation
     notified = false
     subscriber = Semian.subscribe do |event, resource, scope, adapter|
+      next if event != :success
+
       notified = true
-      assert_equal :success, event
       assert_equal Semian[@host], resource
       assert_equal :request_response, scope
       assert_equal :grpc, adapter
