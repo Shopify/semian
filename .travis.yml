@@ -29,7 +29,7 @@ matrix:
     env: SEMIAN_CIRCUIT_BREAKER_IMPL=host
   - gemfile: gemfiles/mysql2-0-4-10.gemfile
     env: SEMIAN_CIRCUIT_BREAKER_IMPL=host
-  - gemfile: gemfiles/Gemfile.rails-2.3.x
+  - gemfile: gemfiles/mysql2-0-5-0.gemfile
     env: SEMIAN_CIRCUIT_BREAKER_IMPL=host
 
 script:
