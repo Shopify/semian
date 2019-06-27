@@ -1,5 +1,6 @@
 require 'minitest/autorun'
 require "minitest/reporters"
+require 'minitest/retry'
 require 'semian'
 require 'semian/mysql2'
 require 'semian/redis'
@@ -25,6 +26,10 @@ BIND_ADDRESS = '0.0.0.0'
 Semian.logger = Logger.new(nil)
 
 Minitest::Reporters.use!
+
+Minitest::Retry.use!(
+  retry_count: 15,
+)
 
 Toxiproxy.host = URI::HTTP.build(
   host: SemianConfig['toxiproxy_upstream_host'],
@@ -64,4 +69,8 @@ end
 
 class Minitest::Test
   include BackgroundHelper
+end
+
+Minitest::Retry.on_retry do |klass, test_name|
+  sleep 10
 end

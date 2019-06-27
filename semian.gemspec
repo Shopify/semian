@@ -23,6 +23,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'timecop'
   s.add_development_dependency 'minitest'
   s.add_development_dependency 'minitest-reporters'
+  s.add_development_dependency 'minitest-retry'
   s.add_development_dependency 'pry-byebug'
   s.add_development_dependency 'mysql2'
   s.add_development_dependency 'redis'
@@ -30,4 +31,5 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'toxiproxy', '~> 1.0.0'
   s.add_development_dependency 'grpc'
   s.add_development_dependency 'mocha'
+  s.add_development_dependency 'rubocop'
 end

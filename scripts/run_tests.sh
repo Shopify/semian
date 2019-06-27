@@ -25,14 +25,11 @@ done
 echo "MySQL has started!"
 
 echo "Running Tests"
-attempts=0
-while ! bundle exec rake test 2>&1; do
-  attempts=$((attempts + 1))
-  if (( attempts > 5 )); then
-    echo "Running Tests failed"
-    exit 1
-  fi
-done
+if ! bundle exec rake test 2>&1; then
+  echo "Running Tests Failed"
+  exit 1
+fi
+
 
 echo "Running rubocop"
 # TODO:paranoidaditya remove pipe to /dev/null after repo is formatted correctly
