@@ -28,7 +28,7 @@ Semian.logger = Logger.new(nil)
 Minitest::Reporters.use!
 
 Minitest::Retry.use!(
-  retry_count: 15,
+  retry_count: 3,
 )
 
 Toxiproxy.host = URI::HTTP.build(
@@ -69,8 +69,4 @@ end
 
 class Minitest::Test
   include BackgroundHelper
-end
-
-Minitest::Retry.on_retry do |klass, test_name|
-  sleep 10
 end

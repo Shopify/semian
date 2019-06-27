@@ -21,7 +21,7 @@ class TestSemianAdapter < Minitest::Test
   end
 
   def test_unregister
-    skip if ENV["SKIP_FLAKY_TESTS"]
+    skip "flaky"
     client = Semian::AdapterTestClient.new(quota: 0.5)
     assert_nil(Semian.resources[:testing])
     resource = Semian.register(:testing, tickets: 2, error_threshold: 0, error_timeout: 0, success_threshold: 0)
