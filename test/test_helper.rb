@@ -1,4 +1,5 @@
 require 'minitest/autorun'
+require 'minitest/reporters'
 require 'semian'
 require 'semian/mysql2'
 require 'semian/redis'
@@ -62,6 +63,8 @@ end
 class Minitest::Test
   include BackgroundHelper
 end
+
+Minitest::Reporters.use! [Minitest::Reporters::SpecReporter.new()]
 
 def flaky
   ENV["SKIP_FLAKY_TESTS"]

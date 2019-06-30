@@ -207,9 +207,10 @@ Init_SlidingWindow()
   rb_define_method(cSlidingWindow, "max_size=", semian_simple_sliding_window_max_size_set, 1);
   rb_define_method(cSlidingWindow, "values", semian_simple_sliding_window_values, 0);
   rb_define_method(cSlidingWindow, "last", semian_simple_sliding_window_last, 0);
-  rb_define_method(cSlidingWindow, "<<", semian_simple_sliding_window_push, 1);
+  rb_define_method(cSlidingWindow, "push", semian_simple_sliding_window_push, 1);
+  rb_define_method(cSlidingWindow, "<<", semian_simple_sliding_window_push, 1); // Alias
   rb_define_method(cSlidingWindow, "clear", semian_simple_sliding_window_clear, 0);
-  rb_define_method(cSlidingWindow, "destroy", semian_simple_sliding_window_clear, 0);
+  rb_define_method(cSlidingWindow, "destroy", semian_simple_sliding_window_clear, 0);  // Alias
   rb_define_method(cSlidingWindow, "reject!", semian_simple_sliding_window_reject, 0);
 }
 
@@ -257,7 +258,7 @@ semian_simple_sliding_window_initialize(VALUE self, VALUE name, VALUE max_size, 
   res->parent_key = generate_key(to_s(name));
 
   dprintf("Initializing simple sliding window '%s' (key: %lu)", buffer, res->key);
-  res->sem_id = initialize_single_semaphore(res->key, SEM_DEFAULT_PERMISSIONS);
+  res->sem_id = initialize_single_semaphore(res->key, SEM_DEFAULT_PERMISSIONS, 1);
   res->shmem = get_or_create_shared_memory(res->key, init_fn);
   res->error_threshold = check_max_size_arg(max_size);
   res->scale_factor = check_scale_factor_arg(scale_factor);

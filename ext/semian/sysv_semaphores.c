@@ -122,13 +122,21 @@ perform_semop(int sem_id, short index, short op, short flags, struct timespec *t
 int
 get_sem_val(int sem_id, int sem_index)
 {
-  dprintf("get_sem_val(sem_id: %d, sem_index: %d)", sem_id, sem_index);
   int ret = semctl(sem_id, sem_index, GETVAL);
   if (ret == -1) {
     rb_raise(eInternal, "error getting value of %s for sem %d, errno: %d (%s)", SEMINDEX_STRING[sem_index], sem_id, errno, strerror(errno));
   }
-  dprintf("get_sem_val(sem_id: %d, sem_index: %d) == %d", sem_id, sem_index, ret);
   return ret;
+}
+
+int
+set_sem_val(int sem_id, int sem_index, int val)
+{
+    int ret = semctl(sem_id, sem_index, SETVAL, val);
+    if (ret == -1) {
+        rb_raise(eInternal, "error setting value of %s for sem %d, errno: %d (%s)", SEMINDEX_STRING[sem_index], sem_id, errno, strerror(errno));
+    }
+    return ret;
 }
 
 void
@@ -169,7 +177,7 @@ acquire_semaphore(void *p)
   semian_resource_t *res = (semian_resource_t *) p;
   res->error = 0;
   res->wait_time = -1;
-  dprint_sem_vals(res->sem_id);
+  dprint_sem_vals("acquire_semaphore", res->sem_id);
 
   struct timespec begin, end;
   int benchmark_result = clock_gettime(CLOCK_MONOTONIC, &begin);
@@ -196,26 +204,22 @@ initialize_new_semaphore_values(int sem_id, long permissions)
   if (semctl(sem_id, 0, SETALL, init_vals) == -1) {
     raise_semian_syscall_error("semctl()", errno);
   }
-  dprint_sem_vals(sem_id);
+  dprint_sem_vals("initialize_new_semaphore_values", sem_id);
 }
 
 static int
 wait_for_new_semaphore_set(uint64_t key, long permissions)
 {
-  int i;
-  int sem_id = -1;
-  union semun sem_opts;
   struct semid_ds sem_ds;
-
+  union semun sem_opts;
   sem_opts.buf = &sem_ds;
-  sem_id = semget(key, 1, permissions);
 
+  int sem_id = semget(key, 1, permissions);
   if (sem_id == -1){
       raise_semian_syscall_error("semget()", errno);
   }
 
-  for (i = 0; i < ((INTERNAL_TIMEOUT * MICROSECONDS_IN_SECOND) / INIT_WAIT); i++) {
-
+  for (int i = 0; i < ((INTERNAL_TIMEOUT * MICROSECONDS_IN_SECOND) / INIT_WAIT); i++) {
     if (semctl(sem_id, 0, IPC_STAT, sem_opts) == -1) {
       raise_semian_syscall_error("semctl()", errno);
     }
@@ -247,9 +251,9 @@ diff_timespec_ms(struct timespec *end, struct timespec *begin)
 }
 
 int
-initialize_single_semaphore(uint64_t key, long permissions)
+initialize_single_semaphore(uint64_t key, long permissions, int value)
 {
-  dprintf("Initializing single semaphore for key:%lu", key);
+  dprintf("Initializing single semaphore for key:%lu with value %d", key, value);
   int sem_id = semget(key, 1, IPC_CREAT | IPC_EXCL | permissions);
 
   /*
@@ -258,26 +262,24 @@ initialize_single_semaphore(uint64_t key, long permissions)
   */
   if (sem_id != -1) {
     // Happy path - we are the first worker, initialize the semaphore set.
-    //
-    if (semctl(sem_id, 0, SETVAL, 1) == -1) {
-      raise_semian_syscall_error("semctl()", errno);
-    }
     dprintf("Created semaphore (key:%lu sem_id:%d)", key, sem_id);
+    if (semctl(sem_id, 0, SETVAL, value) == -1) {
+      raise_semian_syscall_error("semctl() failed to set semaphore initial value", errno);
+    }
   } else {
-    // Something went wrong
-    if (errno != EEXIST) {
-      raise_semian_syscall_error("semget() failed to initialize semaphore values", errno);
-    } else {
+    if (errno == EEXIST) {
       // The semaphore set already exists, ensure it is initialized
       sem_id = wait_for_new_semaphore_set(key, permissions);
+    } else {
+      raise_semian_syscall_error("semget() failed to initialize semaphore values", errno);
     }
   }
 
   set_semaphore_permissions(sem_id, permissions);
 
-  sem_meta_lock(sem_id); // Sets otime for the first time by acquiring the sem lock
-
-  sem_meta_unlock(sem_id);
+  // Set otime for the first time by acquiring the sem lock.
+  sem_meta_unlock(sem_id); // +1
+  sem_meta_lock(sem_id);  // -1
 
   return sem_id;
 }

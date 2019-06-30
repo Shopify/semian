@@ -28,6 +28,8 @@ and functions associated directly weth semops.
  // 1.9
 typedef VALUE (*my_blocking_fn_t)(void*);
 #define WITHOUT_GVL(fn,a,ubf,b) rb_thread_blocking_region((my_blocking_fn_t)(fn),(a),(ubf),(b))
+#else
+#define WITHOUT_GVL(fn,a,ubf,b)
 #endif
 
 // Time to wait for timed ops to complete
@@ -94,6 +96,10 @@ perform_semop(int sem_id, short index, short op, short flags, struct timespec *t
 int
 get_sem_val(int sem_id, int sem_index);
 
+// Set the current number of tickets in a semaphore by its semaphore index
+int
+set_sem_val(int sem_id, int sem_index, int val);
+
 // Obtain an exclusive lock on the semaphore set critical section
 void
 sem_meta_lock(int sem_id);
@@ -113,13 +119,13 @@ acquire_semaphore_without_gvl(void *p);
 // Initializes a semaphore set with a single semaphore, for general purpose
 // locking
 int
-initialize_single_semaphore(uint64_t key, long permissions);
+initialize_single_semaphore(uint64_t key, long permissions, int value);
 
 static inline void
-dprint_sem_vals(int sem_id)
+dprint_sem_vals(const char *msg, int sem_id)
 {
-  dprintf("dprintf(%d)", sem_id);
-  dprintf("sem_id: %d, lock: %d, tickets: %d configured: %d, registered workers %d",
+  dprintf("%s (sem_id:%d lock:%d tickets:%d configured:%d, registered_workers:%d)",
+    msg,
     sem_id,
     get_sem_val(sem_id, SI_SEM_LOCK),
     get_sem_val(sem_id, SI_SEM_TICKETS),

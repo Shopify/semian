@@ -10,11 +10,17 @@ module Semian
         reset
       end
 
+      def use_host_circuits
+        ENV['SEMIAN_CIRCUIT_BREAKER_IMPL'] == 'host'
+      end
+
       def increment(val = 1)
+        raise StandardError, "Shouldn't call increment if using host circuits" if use_host_circuits
         @value += val
       end
 
       def reset
+        raise StandardError, "Shouldn't call reset if using host circuits" if use_host_circuits
         @value = 0
       end
 

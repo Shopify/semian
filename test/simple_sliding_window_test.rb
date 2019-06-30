@@ -7,6 +7,10 @@ class TestSimpleSlidingWindow < Minitest::Test
     @sliding_window.clear
   end
 
+  def teardown
+    @sliding_window.destroy unless @sliding_window.nil?
+  end
+
   def test_clear
     id = Time.now.strftime('%H:%M:%S.%N')
     window = ::Semian::ThreadSafe::SlidingWindow.new(id, max_size: 6)
@@ -215,6 +219,12 @@ class TestSimpleSlidingWindow < Minitest::Test
       rescue
         nil
       end
+    end
+  end
+
+  def test_max_size
+    8192.times do |i|
+      @sliding_window << i
     end
   end
 

@@ -49,7 +49,7 @@ update_ticket_count(int sem_id, int tickets)
 
   delta = tickets - get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS);
 
-  dprint_sem_vals(sem_id);
+  dprint_sem_vals("update_ticket_count", sem_id);
   if (perform_semop(sem_id, SI_SEM_TICKETS, delta, 0, &ts) == -1) {
     if (delta < 0 && errno == EAGAIN) {
       rb_raise(eTimeout, "timeout while trying to update ticket count");

@@ -8,8 +8,6 @@ module Semian
 
     def initialize(name, exceptions:, success_threshold:, error_threshold:,
                          error_timeout:, implementation:, half_open_resource_timeout: nil, scale_factor: nil)
-      initialize_circuit_breaker(name, error_threshold) if respond_to?(:initialize_circuit_breaker)
-
       @name = name.to_sym
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold

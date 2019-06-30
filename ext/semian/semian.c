@@ -70,7 +70,6 @@ void Init_semian()
   if (use_c_circuits()) {
     Init_SimpleInteger();
     Init_SlidingWindow();
-    Init_CircuitBreaker();
   }
 }
 
@@ -78,18 +77,20 @@ static int
 use_c_circuits() {
   char *circuit_impl = getenv("SEMIAN_CIRCUIT_BREAKER_IMPL");
   if (circuit_impl == NULL) {
-    fprintf(stderr, "Warning: Defaulting to worker-based circuit breaker implementation\n");
+    fprintf(stderr, "Warning: Defaulting to Semian worker-based circuit breaker implementation\n");
     return 0;
   } else {
     if (!strcmp(circuit_impl, "worker")) {
+      fprintf(stderr, "Info: Semian using worker-based circuit implementation\n");
       return 0;
     } else if (!strcmp(circuit_impl, "host")) {
+      fprintf(stderr, "Info: Semian using host-based circuit implementation\n");
       return 1;
     } else {
-      fprintf(stderr, "Warning: Unknown circuit breaker implementation: '%s'\n", circuit_impl);
+      fprintf(stderr, "Warning: Unknown Semian circuit breaker implementation: '%s'\n", circuit_impl);
       return 0;
     }
   }
 
-  rb_raise(rb_eArgError, "Unknown circuit breaker implementation");
+  rb_raise(rb_eArgError, "Unknown Semian circuit breaker implementation");
 }

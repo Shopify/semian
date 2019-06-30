@@ -40,27 +40,10 @@ typedef struct {
   long wait_time;
 } semian_resource_t;
 
-// Shared circuit breaker structure
-typedef struct {
-} semian_circuit_breaker_shared_t;
-
-// Internal circuit breaker structure
-typedef struct {
-  uint64_t key;
-  int sem_id;
-  semian_circuit_breaker_shared_t* shmem;
-} semian_circuit_breaker_t;
-
-// Shared simple integer structure
-typedef struct {
-  int val;
-} semian_simple_integer_shared_t;
-
 // Internal simple integer structure
 typedef struct {
   uint64_t key;
   int sem_id;
-  semian_simple_integer_shared_t* shmem;
 } semian_simple_integer_t;
 
 // Shared simple sliding window structure

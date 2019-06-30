@@ -7,7 +7,7 @@ class TestSimpleInteger < Minitest::Test
   end
 
   def teardown
-    @integer.destroy
+    @integer.destroy unless @integer.nil?
   end
 
   module IntegerTestCases
@@ -15,7 +15,7 @@ class TestSimpleInteger < Minitest::Test
       assert_equal(0, @integer.value)
       @integer.value = 99
       assert_equal(99, @integer.value)
-      time_now = (Time.now).to_i
+      time_now = (Time.now).to_i % (2**15)
       @integer.value = time_now
       assert_equal(time_now, @integer.value)
       @integer.value = 6
@@ -43,25 +43,41 @@ class TestSimpleInteger < Minitest::Test
       assert_equal(0, @integer.value)
     end
 
+    def assert_equal_with_retry(expected)
+      start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      while Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time < 1.0
+        return true if expected == yield
+        sleep(0.1)
+      end
+
+      assert_equal(expected, yield)
+    end
+
     # Without locks, this only passes around 1 in every 5 runs
     def test_increment_race
-      process_count = 255
-      100.times do
+      process_count = 16
+      10.times do
+        pids = []
+
+        id = Time.now.strftime('%H:%M:%S.%N')
+        @integer = ::Semian::ThreadSafe::Integer.new(id)
+
         process_count.times do
-          fork do
-            value = @integer.increment(1)
-            exit!(value)
+          pids << fork do
+            @integer.increment(1)
+            sleep(60)
           end
         end
-        exit_codes = Process.waitall.map { |_, status| status.exitstatus }
 
         if ENV['SEMIAN_CIRCUIT_BREAKER_IMPL'] == 'host'
-          # Host-based circuits: No two processes should exit with the same exit code
-          assert_equal(process_count, exit_codes.uniq.length)
+          # Host-based circuits: Forked processes should increment the host integer.
+          assert_equal_with_retry(process_count) { @integer.value }
         else
-          # Worker-based circuits: All the processes should exit with the same code
-          assert_equal(1, exit_codes.uniq.length)
+          # Worker-based circuits: Forked processes should increment the worker integer.
+          assert_equal_with_retry(0) { @integer.value }
         end
+      ensure
+        pids.each { |pid| Process.kill('TERM', pid) }
       end
     end
   end
