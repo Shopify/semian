@@ -13,10 +13,13 @@ INCLUDES := . /usr/local/include/ruby-2.6.0/ruby/backward /usr/local/include/rub
 CFLAGS := $(patsubst %,-l%,$(LIBRARIES)) $(patsubst %,-W%,$(WARNINGS)) $(patsubst %,-D%,$(DEFINES)) $(patsubst %,-I%,$(INCLUDES)) -std=gnu99 -O0 -g
 ROOTDIR := /workspace
 OBJDIR := $(ROOTDIR)/tmp/x86_64-linux/semian/2.6.3
-OBJS := $(wildcard $(OBJDIR)/*.o)
+OBJS = $(wildcard $(OBJDIR)/*.o)
 TESTS := semian_test
 
-all : $(TESTS)
+all : libs $(TESTS)
+
+libs :
+	cd $(ROOTDIR) && SEMIAN_DEBUG=1 bundle exec rake build
 
 %_test.o : %_test.c $(filter-out $(OBJDIR)/semian.o,$(OBJS))
 	$(CC) -o $@ $^ $(CFLAGS)
