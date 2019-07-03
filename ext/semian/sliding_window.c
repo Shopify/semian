@@ -426,6 +426,17 @@ semian_simple_sliding_window_reject(VALUE self)
     if (max_size && length) {
       int wptr = (start + length + max_size - 1) % max_size;
 
+      // Walk the sliding window backward, from the last element to the first,
+      // pushing the entries to the back of the ring. When we've gone through
+      // every element, set the start pointer to the new location.
+      //
+      // Example, deleting "2":
+      //        S       E               S     E
+      //   [x,x,0,1,2,3,x,x] --> [x,x,x,0,1,3,x,x]
+      //    0 1 2 3 4 5 6 7       0 1 2 3 4 5 6 7
+      //
+      // The runtime of this algorithm is theta(n), but n tends to be small.
+      //
       dprintf("Before reject! start:%d length:%d max_size:%d", window->start, window->length, window->max_size);
       for (int i = 0; i < length; ++i) {
         const int rptr = (start + length + max_size - i - 1) % max_size;
@@ -433,7 +444,6 @@ semian_simple_sliding_window_reject(VALUE self)
         const int value = window->data[rptr];
         if (RTEST(rb_yield(RB_INT2NUM(value)))) {
           window->length--;
-          window->data[wptr] = value;
         } else {
           window->data[wptr] = value;
           wptr = (wptr + max_size - 1) % max_size;
