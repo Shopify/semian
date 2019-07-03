@@ -51,16 +51,12 @@ class TestSimpleSlidingWindow < Minitest::Test
     assert_sliding_window(@sliding_window, [4, 5, 6, 7], 6)
   end
 
-  def test_sliding_window_reject_failure
-    skip unless ENV['SEMIAN_CIRCUIT_BREAKER_IMPL'] == 'host'
-
+  def test_sliding_window_reject_non_contiguous
     @sliding_window << 0 << 1 << 2 << 3 << 4 << 5 << 6 << 7
     assert_equal(6, @sliding_window.size)
     assert_sliding_window(@sliding_window, [2, 3, 4, 5, 6, 7], 6)
-    assert_raises ArgumentError do
-      # This deletes from the middle of the array
-      @sliding_window.reject! { |val| val == 3 }
-    end
+    @sliding_window.reject! { |val| val == 3 }
+    assert_sliding_window(@sliding_window, [2, 4, 5, 6, 7], 6)
   end
 
   def test_resize_to_less_than_1_raises

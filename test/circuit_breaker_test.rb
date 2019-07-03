@@ -14,6 +14,35 @@ class TestCircuitBreaker < Minitest::Test
     end
     Semian.register(id, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5, success_threshold: 1)
     @resource = Semian[id]
+    @resource.reset
+  end
+
+  def test_destroy
+    id = Time.now.strftime('%H:%M:%S.%N')
+
+    # Create the resource and check that it was reset.
+    Semian.register(id, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5, success_threshold: 1)
+    resource = Semian[id]
+    assert_equal(0, resource.size)
+    assert_equal(2, resource.max_size)
+    assert_equal([], resource.values)
+
+    # Open the circuit.
+    open_circuit!(resource, 2)
+    assert_equal(2, resource.size)
+    assert_equal(2, resource.max_size)
+
+    # Destroy the resource and check that it was destroyed.
+    Semian.destroy(id)
+    resource = Semian[id]
+    assert_nil(resource, "Resource was not destroyed")
+
+    # Re-create the resource and check that it was reset.
+    Semian.register(id, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5, success_threshold: 1)
+    resource = Semian[id]
+    assert_equal(0, resource.size)
+    assert_equal(2, resource.max_size)
+    assert_equal([], resource.values)
   end
 
   def test_acquire_yield_when_the_circuit_is_closed
@@ -41,6 +70,7 @@ class TestCircuitBreaker < Minitest::Test
   end
 
   def test_until_success_threshold_is_reached_a_single_error_will_reopen_the_circuit
+    assert_equal(0, @resource.size)
     half_open_cicuit!
     trigger_error!
     assert_circuit_opened
