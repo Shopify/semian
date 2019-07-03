@@ -3,6 +3,7 @@ module Semian
     extend Forwardable
 
     def_delegators :@state, :closed?, :open?, :half_open?
+    def_delegators :@errors, :size, :max_size, :values
 
     attr_reader :name, :half_open_resource_timeout, :error_timeout, :state, :last_error
 

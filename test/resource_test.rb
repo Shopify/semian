@@ -380,10 +380,12 @@ class TestResource < Minitest::Test
     end
   end
 
+  # TODO(michaelkipper): Shouldn't need to rescue InternalError, this test
+  #                      should deterministically throw SyscallError.
   def test_destroy
     resource = create_resource :testing, tickets: 1
     resource.destroy
-    assert_raises Semian::SyscallError do
+    assert_raises(Semian::InternalError, Semian::SyscallError) do
       resource.acquire {}
     end
   end

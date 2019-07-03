@@ -51,7 +51,6 @@ typedef struct {
   int max_size;
   int length;
   int start;
-  int end;
   int data[SLIDING_WINDOW_MAX_SIZE];
 } semian_simple_sliding_window_shared_t;
 

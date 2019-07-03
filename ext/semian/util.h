@@ -3,6 +3,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <time.h>
 
 #include <openssl/sha.h>
 #include <ruby.h>
@@ -16,7 +17,11 @@
 #define dprintf(fmt, ...) \
   do { \
     if (DEBUG_TEST) { \
-      printf("[DEBUG] %s:%d - " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__); \
+      const pid_t pid = getpid(); \
+      struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts); \
+      struct tm t; localtime_r(&(ts.tv_sec), &t); \
+      char buf[128]; strftime(buf, sizeof(buf), "%H:%M:%S", &t); \
+      printf("%s.%ld [DEBUG] (%d): %s:%d - " fmt "\n", buf, ts.tv_nsec, pid, __FILE__, __LINE__, ##__VA_ARGS__); \
     } \
   } while (0)
 

@@ -34,7 +34,6 @@ static void init_fn(void* ptr)
   res->max_size = 0;
   res->length = 0;
   res->start = 0;
-  res->end = 0;
 }
 
 static int
@@ -92,16 +91,17 @@ check_scale_factor_arg(VALUE scale_factor)
 }
 
 static VALUE
-grow_window(semian_simple_sliding_window_shared_t* window, int new_max_size)
+grow_window(int sem_id, semian_simple_sliding_window_shared_t* window, int new_max_size)
 {
   if (new_max_size > SLIDING_WINDOW_MAX_SIZE) return Qnil;
 
+  int end = window->max_size ? (window->start + window->length) % window->max_size : 0;
+  dprintf("Growing window - sem_id:%d start:%d end:%d length:%d max_size:%d new_max_size:%d", sem_id, window->start, end, window->length, window->max_size, new_max_size);
+
   if (window->length == 0) {
     window->start = 0;
-    window->end = 0;
-  } else if (window->end > window->start) {
+  } else if (end > window->start) {
     // Easy case - the window doesn't wrap around
-    window->end = window->start + window->length;
   } else {
     // Hard case - the window wraps, and data might need to move
     int offset = new_max_size - window->max_size;
@@ -125,24 +125,25 @@ static void swap(int *a, int *b) {
 }
 
 static VALUE
-shrink_window(semian_simple_sliding_window_shared_t* window, int new_max_size)
+shrink_window(int sem_id, semian_simple_sliding_window_shared_t* window, int new_max_size)
 {
   if (new_max_size > SLIDING_WINDOW_MAX_SIZE) return Qnil;
 
   int new_length = (new_max_size > window->length) ? window->length : new_max_size;
 
-  dprintf("Shrinking window - start:%d end:%d length:%d max_size:%d", window->start, window->end, window->length, window->max_size);
+  int end = window->max_size ? (window->start + window->length) % window->max_size : 0;
+  dprintf("Shrinking window - sem_id:%d start:%d end:%d length:%d max_size:%d new_max_size:%d", sem_id, window->start, end, window->length, window->max_size, new_max_size);
+
   if (window->length == 0) {
     window->start = 0;
-    window->end = 0;
-  } else if (window->end > window->start) {
+  } else if (end > window->start) {
     // Easy case - the window doesn't wrap around
     window->start = window->start + new_length;
   } else {
     // Hard case - the window wraps, so re-index the data
     // Adapted from http://www.cplusplus.com/reference/algorithm/rotate/
     int first = 0;
-    int middle = (window->end - new_max_size + window->max_size) % window->max_size;
+    int middle = (end - new_max_size + window->max_size) % window->max_size;
     int last = window->max_size;
     int next = middle;
     while (first != next) {
@@ -154,7 +155,6 @@ shrink_window(semian_simple_sliding_window_shared_t* window, int new_max_size)
       }
     }
     window->start = 0;
-    window->end = new_length;
   }
 
   window->max_size = new_max_size;
@@ -164,18 +164,14 @@ shrink_window(semian_simple_sliding_window_shared_t* window, int new_max_size)
 }
 
 static VALUE
-resize_window(semian_simple_sliding_window_shared_t* window, int new_max_size)
+resize_window(int sem_id, semian_simple_sliding_window_shared_t* window, int new_max_size)
 {
   if (new_max_size > SLIDING_WINDOW_MAX_SIZE) return Qnil;
 
   if (window->max_size < new_max_size) {
-    dprintf("Growing window to %d", new_max_size);
-    return grow_window(window, new_max_size);
+    return grow_window(sem_id, window, new_max_size);
   } else if (window->max_size > new_max_size) {
-    dprintf("Shrinking window to %d", new_max_size);
-    return shrink_window(window, new_max_size);
-  } else {
-    dprintf("Not re-sizing window");
+    return shrink_window(sem_id, window, new_max_size);
   }
 
   return Qnil;
@@ -202,6 +198,7 @@ Init_SlidingWindow()
   rb_define_alloc_func(cSlidingWindow, semian_simple_sliding_window_alloc);
   rb_define_method(cSlidingWindow, "initialize_sliding_window", semian_simple_sliding_window_initialize, 3);
   rb_define_method(cSlidingWindow, "size", semian_simple_sliding_window_size, 0);
+  rb_define_method(cSlidingWindow, "length", semian_simple_sliding_window_size, 0); // Alias
   rb_define_method(cSlidingWindow, "resize_to", semian_simple_sliding_window_resize_to, 1);
   rb_define_method(cSlidingWindow, "max_size", semian_simple_sliding_window_max_size_get, 0);
   rb_define_method(cSlidingWindow, "max_size=", semian_simple_sliding_window_max_size_set, 1);
@@ -270,7 +267,7 @@ semian_simple_sliding_window_initialize(VALUE self, VALUE name, VALUE max_size, 
     int error_threshold = max(res->error_threshold, (int) ceil(workers * scale * res->error_threshold));
 
     dprintf("  workers:%d scale:%0.2f error_threshold:%d", workers, scale, error_threshold);
-    resize_window(res->shmem, error_threshold);
+    resize_window(res->sem_id, res->shmem, error_threshold);
   }
   sem_meta_unlock(res->sem_id);
 
@@ -305,7 +302,7 @@ semian_simple_sliding_window_resize_to(VALUE self, VALUE new_size)
 
   sem_meta_lock(res->sem_id);
   {
-    retval = resize_window(res->shmem, new_max_size);
+    retval = resize_window(res->sem_id, res->shmem, new_max_size);
   }
   sem_meta_unlock(res->sem_id);
 
@@ -340,7 +337,7 @@ semian_simple_sliding_window_max_size_set(VALUE self, VALUE new_size)
 
   sem_meta_lock(res->sem_id);
   {
-    retval = resize_window(res->shmem, new_max_size);
+    retval = resize_window(res->sem_id, res->shmem, new_max_size);
   }
   sem_meta_unlock(res->sem_id);
 
@@ -393,12 +390,24 @@ semian_simple_sliding_window_clear(VALUE self)
     dprintf("Clearing sliding window");
     res->shmem->length = 0;
     res->shmem->start = 0;
-    res->shmem->end = 0;
   }
   sem_meta_unlock(res->sem_id);
 
   return self;
 }
+
+// Handy for debugging the sliding window, but too noisy for regular debugging.
+/*
+static void dprint_window(semian_simple_sliding_window_shared_t *window)
+{
+  dprintf("---");
+  for (int i = 0; i < window->length; ++i) {
+    const int index = (window->start + i) % window->max_size;
+    dprintf("  %0d: data[%d] = %d", i, index, window->data[index]);
+  }
+  dprintf("---");
+}
+*/
 
 VALUE
 semian_simple_sliding_window_reject(VALUE self)
@@ -409,24 +418,40 @@ semian_simple_sliding_window_reject(VALUE self)
 
   sem_meta_lock(res->sem_id);
   {
-    // Store these values because we're going to be modifying the buffer.
-    int start = res->shmem->start;
-    int length = res->shmem->length;
-    dprintf("reject! - start:%d end:%d length:%d max_size:%d", res->shmem->start, res->shmem->end, res->shmem->length, res->shmem->max_size);
+    semian_simple_sliding_window_shared_t *window = res->shmem;
+    const int start = window->start;
+    const int length = window->length;
+    const int max_size = window->max_size;
 
-    int cleared = 0;
-    for (int i = 0; i < length; ++i) {
-      int index = (start + i) % length;
-      int value = res->shmem->data[index];
-      VALUE y = rb_yield(RB_INT2NUM(value));
-      if (RTEST(y)) {
-        if (cleared++ != i) {
-          sem_meta_unlock(res->sem_id);
-          rb_raise(rb_eArgError, "reject! must delete monotonically");
+    if (max_size && length) {
+      int wptr = (start + length + max_size - 1) % max_size;
+
+      // Walk the sliding window backward, from the last element to the first,
+      // pushing the entries to the back of the ring. When we've gone through
+      // every element, set the start pointer to the new location.
+      //
+      // Example, deleting "2":
+      //        S       E               S     E
+      //   [x,x,0,1,2,3,x,x] --> [x,x,x,0,1,3,x,x]
+      //    0 1 2 3 4 5 6 7       0 1 2 3 4 5 6 7
+      //
+      // The runtime of this algorithm is theta(n), but n tends to be small.
+      //
+      dprintf("Before reject! start:%d length:%d max_size:%d", window->start, window->length, window->max_size);
+      for (int i = 0; i < length; ++i) {
+        const int rptr = (start + length + max_size - i - 1) % max_size;
+
+        const int value = window->data[rptr];
+        if (RTEST(rb_yield(RB_INT2NUM(value)))) {
+          window->length--;
+        } else {
+          window->data[wptr] = value;
+          wptr = (wptr + max_size - 1) % max_size;
         }
-        res->shmem->start = (res->shmem->start + 1) % res->shmem->length;
-        res->shmem->length--;
       }
+
+      window->start = (wptr + 1) % max_size;
+      dprintf("After reject! start:%d length:%d max_size:%d", window->start, window->length, window->max_size);
     }
   }
   sem_meta_unlock(res->sem_id);
@@ -441,7 +466,7 @@ semian_simple_sliding_window_push(VALUE self, VALUE value)
 
   sem_meta_lock(res->sem_id);
   {
-    dprintf("Before: start:%d end:%d length:%d max_size:%d", res->shmem->start, res->shmem->end, res->shmem->length, res->shmem->max_size);
+    dprintf("Before: start:%d length:%d max_size:%d", res->shmem->start, res->shmem->length, res->shmem->max_size);
     // If the window is full, make room by popping off the front.
     if (res->shmem->length == res->shmem->max_size) {
       res->shmem->length--;
@@ -449,10 +474,10 @@ semian_simple_sliding_window_push(VALUE self, VALUE value)
     }
 
     // Push onto the back of the window.
+    int index = (res->shmem->start + res->shmem->length) % res->shmem->max_size;
     res->shmem->length++;
-    res->shmem->data[res->shmem->end] = RB_NUM2INT(value);
-    dprintf("Pushed %d onto data[%d] (length %d)", RB_NUM2INT(value), res->shmem->end, res->shmem->length);
-    res->shmem->end = (res->shmem->end + 1) % res->shmem->max_size;
+    res->shmem->data[index] = RB_NUM2INT(value);
+    dprintf("Pushed %d onto data[%d] (length %d)", RB_NUM2INT(value), index, res->shmem->length);
   }
   sem_meta_unlock(res->sem_id);
 

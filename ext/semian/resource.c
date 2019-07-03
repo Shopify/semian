@@ -117,13 +117,12 @@ semian_resource_reset_workers(VALUE self)
 VALUE
 semian_resource_unregister_worker(VALUE self)
 {
-  int ret;
   semian_resource_t *res = NULL;
-
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
 
   sem_meta_lock(res->sem_id);
-  ret = perform_semop(res->sem_id, SI_SEM_REGISTERED_WORKERS, -1, IPC_NOWAIT | SEM_UNDO, NULL);
+  dprintf("Unregistering worker for sem_id:%d", res->sem_id);
+  int ret = perform_semop(res->sem_id, SI_SEM_REGISTERED_WORKERS, -1, IPC_NOWAIT | SEM_UNDO, NULL);
   sem_meta_unlock(res->sem_id);
 
   if ( ret == -1) {

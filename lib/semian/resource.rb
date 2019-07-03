@@ -36,6 +36,18 @@ module Semian
       0
     end
 
+    def size
+      0
+    end
+
+    def max_size
+      0
+    end
+
+    def values
+      []
+    end
+
     def tickets
       0
     end
