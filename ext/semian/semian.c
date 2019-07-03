@@ -73,62 +73,9 @@ void Init_semian()
   }
 }
 
-static const char*
-get_hostname()
-{
-  const char *VARIABLES[] = {
-    "KUBE_HOSTNAME",
-    "KUBE_HOST_NAME",
-    "KUBE_NODENAME",
-    "KUBE_NODE_NAME",
-    "NODENAME",
-    "NODE_NAME",
-    "HOSTNAME",
-    "HOST_NAME",
-  };
-
-  for (size_t i = 0; i < sizeof(VARIABLES); ++i) {
-    const char *hostname = getenv(VARIABLES[i]);
-    if (hostname != NULL) {
-      dprintf("Host name is %s", hostname);
-      return hostname;
-    }
-  }
-
-  return NULL;
-}
-
-static int
-force_c_circuits()
-{
-  const char *force_host = getenv("SEMIAN_CIRCUIT_BREAKER_FORCE_HOST");
-  if (!force_host) return 0;
-  const char *hostname = get_hostname();
-  if (!hostname) return 0;
-
-  int retval = 0;
-
-  char *hostnames = strdup(force_host);
-
-  char *cursor = NULL;
-  char *saveptr = hostnames;
-  while ((cursor = strtok_r(saveptr, ",; ", &saveptr))) {
-    if (strcmp(hostname, cursor) == 0) {
-      fprintf(stderr, "Info: Semian forcing host-based circuit implementation\n");
-      retval = 1;
-      break;
-    }
-  }
-
-  free(hostnames);
-  return retval;
-}
-
 static int
 use_c_circuits() {
-  if (force_c_circuits()) return 1;
-
-  const char *circuit_impl = getenv("SEMIAN_CIRCUIT_BREAKER_IMPL");
+  char *circuit_impl = getenv("SEMIAN_CIRCUIT_BREAKER_IMPL");
   if (circuit_impl == NULL) {
     fprintf(stderr, "Warning: Defaulting to Semian worker-based circuit breaker implementation\n");
     return 0;

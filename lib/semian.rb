@@ -296,7 +296,19 @@ module Semian
   end
 end
 
+def hostname
+  v = %w(KUBE_HOSTNAME KUBE_HOST_NAME KUBE_NODENAME KUBE_NODE_NAME NODENAME NODE_NAME HOSTNAME HOST_NAME)
+  var = v.filter { |x| ENV.include?(x) }.first
+  ENV[var] if var
+end
+
+def force_host_circuits
+  return false unless ENV.include?('SEMIAN_CIRCUIT_BREAKER_FORCE_HOST')
+  ENV['SEMIAN_CIRCUIT_BREAKER_FORCE_HOST'].split(',').include?(hostname)
+end
+
 if Semian.semaphores_enabled?
+  ENV['SEMIAN_CIRCUIT_BREAKER_IMPL'] = 'host' if force_host_circuits
   require 'semian/semian'
 else
   Semian::MAX_TICKETS = 0
