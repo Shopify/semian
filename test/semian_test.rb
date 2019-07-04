@@ -91,4 +91,15 @@ class TestSemian < Minitest::Test
   ensure
     ENV.delete('SEMIAN_DISABLED')
   end
+
+  def test_force_host_circuits
+    refute force_host_circuits?
+    ENV['SEMIAN_CIRCUIT_BREAKER_FORCE_HOST'] = 'machine-1,machine-2,machine-3'
+    refute force_host_circuits?
+    ENV['KUBE_HOSTNAME'] = 'machine-2'
+    assert force_host_circuits?
+  ensure
+    ENV.delete('SEMIAN_CIRCUIT_BREAKER_FORCE_HOST')
+    ENV.delete('KUBE_HOSTNAME')
+  end
 end
