@@ -200,6 +200,7 @@ initialize_new_semaphore_values(int sem_id, long permissions)
   init_vals[SI_SEM_TICKETS] = init_vals[SI_SEM_CONFIGURED_TICKETS] = 0;
   init_vals[SI_SEM_REGISTERED_WORKERS] = 0;
   init_vals[SI_SEM_LOCK] = 1;
+  init_vals[SI_SEM_TICKET_THROTTLE] = 0;
 
   if (semctl(sem_id, 0, SETALL, init_vals) == -1) {
     raise_semian_syscall_error("semctl()", errno);
@@ -214,7 +215,7 @@ wait_for_new_semaphore_set(uint64_t key, long permissions)
   union semun sem_opts;
   sem_opts.buf = &sem_ds;
 
-  int sem_id = semget(key, 1, permissions);
+  int sem_id = semget((key_t)key, 1, permissions);
   if (sem_id == -1){
       raise_semian_syscall_error("semget()", errno);
   }

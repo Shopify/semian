@@ -218,9 +218,18 @@ class TestSimpleSlidingWindow < Minitest::Test
     end
   end
 
-  def test_max_size
-    8192.times do |i|
-      @sliding_window << i
+  def test_huge_sliding_window
+    id = Time.now.strftime('%H:%M:%S.%N')
+    window = ::Semian::ThreadSafe::SlidingWindow.new(id, max_size: 1000)
+    4000.times do |i|
+      window << i
+    end
+  end
+
+  def test_huge_sliding_window_fails
+    id = Time.now.strftime('%H:%M:%S.%N')
+    assert_raises ArgumentError do
+      ::Semian::ThreadSafe::SlidingWindow.new(id, max_size: 1001)
     end
   end
 

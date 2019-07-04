@@ -8,12 +8,10 @@
 
 // Default permissions for shared memory
 #define SHM_DEFAULT_PERMISSIONS 0660
-#define SHM_DEFAULT_SIZE 1024
-
-typedef void (*shared_memory_init_fn)(void*);
+#define SHM_DEFAULT_SIZE 4096
 
 void*
-get_or_create_shared_memory(uint64_t key, shared_memory_init_fn fn);
+get_or_create_shared_memory(uint64_t key);
 
 void
 free_shared_memory(void* key);

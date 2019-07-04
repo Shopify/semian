@@ -28,14 +28,6 @@ static const rb_data_type_t semian_simple_sliding_window_type = {
   .flags = RUBY_TYPED_FREE_IMMEDIATELY,
 };
 
-static void init_fn(void* ptr)
-{
-  semian_simple_sliding_window_shared_t* res = (semian_simple_sliding_window_shared_t*)ptr;
-  res->max_size = 0;
-  res->length = 0;
-  res->start = 0;
-}
-
 static int
 check_max_size_arg(VALUE max_size)
 {
@@ -93,7 +85,10 @@ check_scale_factor_arg(VALUE scale_factor)
 static VALUE
 grow_window(int sem_id, semian_simple_sliding_window_shared_t* window, int new_max_size)
 {
-  if (new_max_size > SLIDING_WINDOW_MAX_SIZE) return Qnil;
+  if (new_max_size > SLIDING_WINDOW_MAX_SIZE) {
+    sem_meta_unlock(sem_id);
+    rb_raise(rb_eArgError, "Cannot grow window to %d (MAX_SIZE=%d)", new_max_size, SLIDING_WINDOW_MAX_SIZE);
+  }
 
   int end = window->max_size ? (window->start + window->length) % window->max_size : 0;
   dprintf("Growing window - sem_id:%d start:%d end:%d length:%d max_size:%d new_max_size:%d", sem_id, window->start, end, window->length, window->max_size, new_max_size);
@@ -127,7 +122,10 @@ static void swap(int *a, int *b) {
 static VALUE
 shrink_window(int sem_id, semian_simple_sliding_window_shared_t* window, int new_max_size)
 {
-  if (new_max_size > SLIDING_WINDOW_MAX_SIZE) return Qnil;
+  if (new_max_size > SLIDING_WINDOW_MAX_SIZE) {
+    sem_meta_unlock(sem_id);
+    rb_raise(rb_eArgError, "Cannot shrink window to %d (MAX_SIZE=%d)", new_max_size, SLIDING_WINDOW_MAX_SIZE);
+  }
 
   int new_length = (new_max_size > window->length) ? window->length : new_max_size;
 
@@ -256,7 +254,7 @@ semian_simple_sliding_window_initialize(VALUE self, VALUE name, VALUE max_size, 
 
   dprintf("Initializing simple sliding window '%s' (key: %lu)", buffer, res->key);
   res->sem_id = initialize_single_semaphore(res->key, SEM_DEFAULT_PERMISSIONS, 1);
-  res->shmem = get_or_create_shared_memory(res->key, init_fn);
+  res->shmem = get_or_create_shared_memory(res->key);
   res->error_threshold = check_max_size_arg(max_size);
   res->scale_factor = check_scale_factor_arg(scale_factor);
 
@@ -396,8 +394,8 @@ semian_simple_sliding_window_clear(VALUE self)
   return self;
 }
 
+#if 0
 // Handy for debugging the sliding window, but too noisy for regular debugging.
-/*
 static void dprint_window(semian_simple_sliding_window_shared_t *window)
 {
   dprintf("---");
@@ -407,7 +405,7 @@ static void dprint_window(semian_simple_sliding_window_shared_t *window)
   }
   dprintf("---");
 }
-*/
+#endif
 
 VALUE
 semian_simple_sliding_window_reject(VALUE self)

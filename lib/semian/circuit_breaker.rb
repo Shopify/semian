@@ -93,12 +93,14 @@ module Semian
       log_state_transition(:closed)
       @state.close!
       @errors.clear
+      throttle(nil)
     end
 
     def transition_to_open
       notify_state_transition(:open)
       log_state_transition(:open)
       @state.open!
+      throttle(1)
     end
 
     def transition_to_half_open
@@ -106,6 +108,16 @@ module Semian
       log_state_transition(:half_open)
       @state.half_open!
       @successes.reset
+      throttle(@success_count_threshold)
+    end
+
+    def throttle(val = nil)
+      resource = Semian[@name]
+      return if resource.nil?
+      bulkhead = resource.bulkhead
+      return if bulkhead.nil?
+
+      bulkhead.throttle(val)
     end
 
     def success_threshold_reached?

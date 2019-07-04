@@ -10,7 +10,7 @@ For custom type definitions specific to semian
 #include <sys/sem.h>
 #include <sys/time.h>
 
-#define SLIDING_WINDOW_MAX_SIZE 4096
+#define SLIDING_WINDOW_MAX_SIZE 1000
 
 // For sysV semop syscals
 // see man semop

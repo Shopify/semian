@@ -130,4 +130,8 @@ semian_resource_alloc(VALUE klass);
 VALUE
 semian_resource_in_use(VALUE self);
 
+// Throttle the bulkhead to a given value
+VALUE
+semian_resource_throttle(VALUE self, VALUE throttle);
+
 #endif //SEMIAN_RESOURCE_H

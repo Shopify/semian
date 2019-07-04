@@ -97,7 +97,7 @@ semian_simple_integer_increment(int argc, VALUE *argv, VALUE self)
   rb_scan_args(argc, argv, "01", &val);
 
   int value = check_increment_arg(val);
-  if (perform_semop(res->sem_id, 0, value, SEM_UNDO, NULL) == -1) {
+  if (perform_semop(res->sem_id, 0, value, 0, NULL) == -1) {
     rb_raise(eInternal, "error incrementing simple integer, errno: %d (%s)", errno, strerror(errno));
   }
 
