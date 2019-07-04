@@ -4,13 +4,16 @@ static VALUE
 cleanup_semian_resource_acquire(VALUE self);
 
 static void
-check_tickets_xor_quota_arg(VALUE tickets, VALUE quota);
+check_tickets_xor_quota_arg(VALUE tickets, VALUE min_tickets, VALUE quota);
 
 static double
 check_quota_arg(VALUE quota);
 
 static int
 check_tickets_arg(VALUE tickets);
+
+static int
+check_min_tickets_arg(VALUE min_tickets);
 
 static long
 check_permissions_arg(VALUE permissions);
@@ -203,13 +206,13 @@ VALUE
 semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE permissions, VALUE default_timeout, VALUE min_tickets)
 {
   // Check and cast arguments
-  check_tickets_xor_quota_arg(tickets, quota);
+  check_tickets_xor_quota_arg(tickets, min_tickets, quota);
   double c_quota = check_quota_arg(quota);
   int c_tickets = check_tickets_arg(tickets);
   long c_permissions = check_permissions_arg(permissions);
   const char *c_id_str = check_id_arg(id);
   double c_timeout = check_default_timeout_arg(default_timeout);
-  int c_min_tickets = check_tickets_arg(min_tickets);
+  int c_min_tickets = check_min_tickets_arg(min_tickets);
 
   // Build semian resource structure
   semian_resource_t *res = NULL;
@@ -254,10 +257,22 @@ check_permissions_arg(VALUE permissions)
 }
 
 static void
-check_tickets_xor_quota_arg(VALUE tickets, VALUE quota)
+check_tickets_xor_quota_arg(VALUE tickets, VALUE min_tickets, VALUE quota)
 {
-  if ((TYPE(tickets) == T_NIL && TYPE(quota) == T_NIL) ||(TYPE(tickets) != T_NIL && TYPE(quota) != T_NIL)){
-    rb_raise(rb_eArgError, "Must pass exactly one of ticket or quota");
+  const char *msg = "Must pass exactly one of ticket or quota/min_tickets";
+  if (TYPE(quota) != T_NIL) {
+    if (TYPE(tickets) != T_NIL) {
+      dprintf("FOO");
+      rb_raise(rb_eArgError, msg);
+    }
+  } else if (TYPE(tickets) != T_NIL) {
+    if (TYPE(quota) != T_NIL || TYPE(min_tickets) != T_NIL) {
+      dprintf("FOO");
+      rb_raise(rb_eArgError, msg);
+    }
+  } else {
+      dprintf("FOO");
+    rb_raise(rb_eArgError, msg);
   }
 }
 
@@ -301,6 +316,32 @@ check_tickets_arg(VALUE tickets)
   }
 
   return c_tickets;
+}
+
+static int
+check_min_tickets_arg(VALUE min_tickets)
+{
+  int retval = -1;
+
+  switch (rb_type(min_tickets)) {
+  case T_NIL:
+  case T_UNDEF:
+    return -1;
+  case T_FLOAT:
+    rb_warn("semian min_tickets value %f is a float, converting to fixnum", RFLOAT_VALUE(min_tickets));
+    retval = (int) RFLOAT_VALUE(min_tickets);
+    break;
+  case T_FIXNUM:
+    retval = FIX2LONG(min_tickets); break;
+  default:
+    retval = -1; break;
+  }
+
+  if (retval <= 0 || retval > system_max_semaphore_count) {
+    rb_raise(rb_eArgError, "max_tickets must be in range [1,%d)", system_max_semaphore_count);
+  }
+
+  return retval;
 }
 
 static const char*

@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <time.h>
 
-#if defined(DEBUG) || defined(SEMIAN_DEBUG)
+#ifdef DEBUG
 #  define DEBUG_TEST 1
 #else
 #  define DEBUG_TEST 0

@@ -80,10 +80,10 @@ max(const int a, const int b)
 }
 
 static int
-calculate_quota_tickets (int sem_id, double quota, int min_tickets)
+calculate_quota_tickets(int sem_id, double quota, int min_tickets)
 {
   int workers = get_sem_val(sem_id, SI_SEM_REGISTERED_WORKERS);
   int tickets = (int) ceil(workers * quota);
-  dprintf("Calculating quota tickets - sem_id:%d quota:%0.2f%% workers:%d min_tickets:%d tickets:%d", sem_id, quota, workers, min_tickets, tickets);
+  dprintf("Calculating quota tickets - sem_id:%d quota:%0.2f%% workers:%d min_tickets:%d tickets:%d", sem_id, quota * 100.0, workers, min_tickets, tickets);
   return min_tickets > 0 ? min(workers, max(tickets, min_tickets)) : tickets;
 }

@@ -187,7 +187,7 @@ Per the above example, you no longer need to care about the number of tickets. R
 
 In this case, we'd allow 49% of the workers on a particular host to connect to this redis resource.
 
-In particular, 1 worker = 1 ticket (due to `ceil`), 2 workers = 2 tickets (due to `min_tickets`), 4 workers = 2 tickets, 16 workers = 8 tickets, 100 workers = 49 tickets.
+In particular, 1 worker = 1 ticket (due to `ceil`), 2 workers = 2 tickets (due to `min_tickets`), 4 workers = 2 tickets (due to `ceil`), 100 workers = 49 tickets.
 
 **Note**:
 

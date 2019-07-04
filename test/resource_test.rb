@@ -506,6 +506,14 @@ class TestResource < Minitest::Test
     assert_equal(8, resource.tickets)
   end
 
+  def test_min_tickets_float
+    expected_warning = /semian min_tickets value 2\.000000 is a float, converting to fixnum/
+    with_fake_std_error(warn_message: expected_warning) do
+      id = Time.now.strftime('%H:%M:%S.%N')
+      Semian::Resource.new(id, quota: 0.49, timeout: 0.1, min_tickets: 2.0)
+    end
+  end
+
   def test_min_tickets_nil
     id = Time.now.strftime('%H:%M:%S.%N')
     resource = Semian::Resource.new(id, quota: 0.49, timeout: 0.1, min_tickets: nil)
@@ -522,22 +530,22 @@ class TestResource < Minitest::Test
 
   def test_min_tickets_zero
     id = Time.now.strftime('%H:%M:%S.%N')
-    resource = Semian::Resource.new(id, quota: 0.49, timeout: 0.1, min_tickets: 0)
-    assert_equal(1, resource.tickets)
-    fork_workers(resource: id, count: 1, quota: 0.49, min_tickets: 0, timeout: 0.1, wait_for_timeout: true)
-    assert_equal(1, resource.tickets)
-    fork_workers(resource: id, count: 1, quota: 0.49, min_tickets: 0, timeout: 0.1, wait_for_timeout: true)
-    assert_equal(2, resource.tickets)
-    fork_workers(resource: id, count: 1, quota: 0.49, min_tickets: 0, timeout: 0.1, wait_for_timeout: true)
-    assert_equal(2, resource.tickets)
-    fork_workers(resource: id, count: 12, quota: 0.49, min_tickets: 0, timeout: 0.1, wait_for_timeout: true)
-    assert_equal(8, resource.tickets)
+    assert_raises ArgumentError do
+      Semian::Resource.new(id, quota: 0.49, timeout: 0.1, min_tickets: 0)
+    end
   end
 
   def test_min_tickets_negative
     id = Time.now.strftime('%H:%M:%S.%N')
     assert_raises ArgumentError do
       Semian::Resource.new(id, quota: 0.49, timeout: 0.1, min_tickets: -1)
+    end
+  end
+
+  def test_min_tickets_out_of_range
+    id = Time.now.strftime('%H:%M:%S.%N')
+    assert_raises ArgumentError do
+      Semian::Resource.new(id, quota: 0.49, timeout: 0.1, min_tickets: 32768)
     end
   end
 
