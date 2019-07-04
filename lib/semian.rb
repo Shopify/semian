@@ -302,13 +302,13 @@ def hostname
   ENV[var] if var
 end
 
-def force_host_circuits
+def force_host_circuits?
   return false unless ENV.include?('SEMIAN_CIRCUIT_BREAKER_FORCE_HOST')
   ENV['SEMIAN_CIRCUIT_BREAKER_FORCE_HOST'].split(',').include?(hostname)
 end
 
 if Semian.semaphores_enabled?
-  ENV['SEMIAN_CIRCUIT_BREAKER_IMPL'] = 'host' if force_host_circuits
+  ENV['SEMIAN_CIRCUIT_BREAKER_IMPL'] = 'host' if force_host_circuits?
   require 'semian/semian'
 else
   Semian::MAX_TICKETS = 0
