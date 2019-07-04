@@ -495,6 +495,17 @@ class TestResource < Minitest::Test
     assert_equal 128, ObjectSpace.memsize_of(r)
   end
 
+  def test_throttle
+    id = Time.now.strftime('%H:%M:%S.%N')
+    resource = create_resource(id, quota: 0.5, timeout: 0.1)
+    fork_workers(resource: id, count: 15, quota: 0.5, wait_for_timeout: true)
+    assert_equal(8, resource.tickets)
+    resource.throttle(1)
+    assert_equal(1, resource.tickets)
+    resource.throttle(nil)
+    assert_equal(8, resource.tickets)
+  end
+
   def create_resource(*args)
     @resources ||= []
     resource = Semian::Resource.new(*args)

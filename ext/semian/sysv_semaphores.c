@@ -200,6 +200,7 @@ initialize_new_semaphore_values(int sem_id, long permissions)
   init_vals[SI_SEM_TICKETS] = init_vals[SI_SEM_CONFIGURED_TICKETS] = 0;
   init_vals[SI_SEM_REGISTERED_WORKERS] = 0;
   init_vals[SI_SEM_LOCK] = 1;
+  init_vals[SI_SEM_TICKET_THROTTLE] = 0;
 
   if (semctl(sem_id, 0, SETALL, init_vals) == -1) {
     raise_semian_syscall_error("semctl()", errno);

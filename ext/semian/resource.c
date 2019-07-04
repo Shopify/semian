@@ -20,6 +20,9 @@ check_permissions_arg(VALUE permissions);
 static double
 check_default_timeout_arg(VALUE default_timeout);
 
+static int
+check_throttle_arg(VALUE throttle);
+
 static void
 ms_to_timespec(long ms, struct timespec *ts);
 
@@ -103,8 +106,13 @@ semian_resource_reset_workers(VALUE self)
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
 
   sem_meta_lock(res->sem_id);
-  // This SETVAL will purge the SEM_UNDO table
-  ret = semctl(res->sem_id, SI_SEM_REGISTERED_WORKERS, SETVAL, 0);
+  {
+    // This SETVAL will purge the SEM_UNDO table
+    ret = semctl(res->sem_id, SI_SEM_REGISTERED_WORKERS, SETVAL, 0);
+    if (ret != -1) {
+      ret = semctl(res->sem_id, SI_SEM_TICKET_THROTTLE, SETVAL, 0);
+    }
+  }
   sem_meta_unlock(res->sem_id);
 
   if (ret == -1) {
@@ -238,6 +246,54 @@ semian_resource_in_use(VALUE self)
   return Qtrue;
 }
 
+VALUE
+semian_resource_throttle(VALUE self, VALUE value)
+{
+  semian_resource_t *res = NULL;
+  TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
+
+  int val = check_throttle_arg(value);
+  if (val == -1) {
+    rb_raise(rb_eArgError, "Unknown throttle argument");
+  }
+
+  sem_meta_lock(res->sem_id);
+  {
+    // Get the current value
+    int tickets = get_sem_val(res->sem_id, SI_SEM_CONFIGURED_TICKETS);
+
+    if (val > 0) {
+      int op = tickets - val;
+      dprintf("Throttling sem_id:%d (op:%d)", res->sem_id, op);
+
+      // Use SEM_UNDO so if this process is terminated, the throttle is undone.
+      if (perform_semop(res->sem_id, SI_SEM_CONFIGURED_TICKETS, -op, SEM_UNDO, NULL) == -1) {
+        sem_meta_unlock(res->sem_id);
+        rb_raise(eInternal, "Unknown error");
+      }
+      if (semctl(res->sem_id, SI_SEM_TICKET_THROTTLE, SETVAL, op) == -1) {
+        sem_meta_unlock(res->sem_id);
+        rb_raise(eInternal, "Unknown error");
+      }
+    } else {
+      int op = get_sem_val(res->sem_id, SI_SEM_TICKET_THROTTLE);
+      dprintf("Unthrottling sem_id:%d (op:%d)", res->sem_id, op);
+
+      if (perform_semop(res->sem_id, SI_SEM_CONFIGURED_TICKETS, op, SEM_UNDO, NULL) == -1) {
+        sem_meta_unlock(res->sem_id);
+        rb_raise(eInternal, "Unknown error");
+      }
+      if (semctl(res->sem_id, SI_SEM_TICKET_THROTTLE, SETVAL, 0) == -1) {
+        sem_meta_unlock(res->sem_id);
+        rb_raise(eInternal, "Unknown error");
+      }
+    }
+  }
+  sem_meta_unlock(res->sem_id);
+
+  return Qnil;
+}
+
 static VALUE
 cleanup_semian_resource_acquire(VALUE self)
 {
@@ -317,6 +373,21 @@ check_default_timeout_arg(VALUE default_timeout)
     rb_raise(rb_eArgError, "default timeout must be non-negative value");
   }
   return NUM2DBL(default_timeout);
+}
+
+static int
+check_throttle_arg(VALUE throttle)
+{
+  switch (rb_type(throttle)) {
+  case T_NIL:
+  case T_UNDEF:
+    return 0;
+  case T_FIXNUM:
+  case T_BIGNUM:
+    return RB_NUM2INT(throttle);
+  default:
+    return -1;
+  }
 }
 
 static void
