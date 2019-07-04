@@ -28,7 +28,7 @@ raise_semian_syscall_error(const char *syscall, int error_num)
 }
 
 void
-initialize_semaphore_set(semian_resource_t* res, const char* id_str, long permissions, int tickets, double quota)
+initialize_semaphore_set(semian_resource_t* res, const char* id_str, long permissions, int tickets, int min_tickets, double quota)
 {
 
   res->key = generate_key(id_str);
@@ -69,6 +69,7 @@ initialize_semaphore_set(semian_resource_t* res, const char* id_str, long permis
   configure_tickets_args_t configure_tickets_args = (configure_tickets_args_t){
     .sem_id = res->sem_id,
     .tickets = tickets,
+    .min_tickets = min_tickets,
     .quota = quota,
   };
   rb_protect(

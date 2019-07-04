@@ -200,24 +200,19 @@ semian_resource_key(VALUE self)
 }
 
 VALUE
-semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE permissions, VALUE default_timeout)
+semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE permissions, VALUE default_timeout, VALUE min_tickets)
 {
-  long c_permissions;
-  double c_timeout;
-  double c_quota;
-  int c_tickets;
-  semian_resource_t *res = NULL;
-  const char *c_id_str = NULL;
-
   // Check and cast arguments
   check_tickets_xor_quota_arg(tickets, quota);
-  c_quota = check_quota_arg(quota);
-  c_tickets = check_tickets_arg(tickets);
-  c_permissions = check_permissions_arg(permissions);
-  c_id_str = check_id_arg(id);
-  c_timeout = check_default_timeout_arg(default_timeout);
+  double c_quota = check_quota_arg(quota);
+  int c_tickets = check_tickets_arg(tickets);
+  long c_permissions = check_permissions_arg(permissions);
+  const char *c_id_str = check_id_arg(id);
+  double c_timeout = check_default_timeout_arg(default_timeout);
+  int c_min_tickets = check_tickets_arg(min_tickets);
 
   // Build semian resource structure
+  semian_resource_t *res = NULL;
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
 
   // Populate struct fields
@@ -227,7 +222,7 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VAL
   res->wait_time = -1;
 
   // Initialize the semaphore set
-  initialize_semaphore_set(res, c_id_str, c_permissions, c_tickets, c_quota);
+  initialize_semaphore_set(res, c_id_str, c_permissions, c_tickets, c_min_tickets, c_quota);
 
   return self;
 }
