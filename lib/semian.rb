@@ -298,7 +298,7 @@ end
 
 def hostname
   v = %w(KUBE_HOSTNAME KUBE_HOST_NAME KUBE_NODENAME KUBE_NODE_NAME NODENAME NODE_NAME HOSTNAME HOST_NAME)
-  var = v.filter { |x| ENV.include?(x) }.first
+  var = v.find { |x| ENV.include?(x) }
   ENV[var] if var
 end
 
