@@ -174,7 +174,8 @@ You may now set quotas per worker:
 ```ruby
 client = Redis.new(semian: {
   name: "inventory",
-  quota: 0.5,
+  quota: 0.49,
+  min_tickets: 2,
   success_threshold: 2,
   error_threshold: 4,
   error_timeout: 20
@@ -182,17 +183,18 @@ client = Redis.new(semian: {
 
 ```
 
-Per the above example, you no longer need to care about the number of tickets.
+Per the above example, you no longer need to care about the number of tickets. Rather, the tickets shall be computed as a proportion of the number of active workers.
 
-Rather, the tickets shall be computed as a proportion of the number of active workers.
+In this case, we'd allow 49% of the workers on a particular host to connect to this redis resource.
 
-In this case, we'd allow 50% of the workers on a particular host to connect to this redis resource.
+In particular, 1 worker = 1 ticket (due to `ceil`), 2 workers = 2 tickets (due to `min_tickets`), 4 workers = 2 tickets, 16 workers = 8 tickets, 100 workers = 49 tickets.
 
 **Note**:
 
 - You must pass **exactly** one of ticket or quota.
 - Tickets available will be the ceiling of the quota ratio to the number of workers
- - So, with one worker, there will always be a minimum of 1 ticket
+  - So, with one worker, there will always be a minimum of 1 ticket
+  - If you want to guarantee 2 tickets when there are 2 workers, use `min_tickets: 2`
 - Workers in different processes will automatically unregister when the process exits.
 
 #### Net::HTTP
@@ -484,7 +486,9 @@ still experimenting with ways to figure out optimal ticket numbers. Generally
 something below half the number of workers on the server for endpoints that are
 queried frequently has worked well for us.
 
-* **tickets**. Number of workers that can concurrently access a resource.
+* **tickets**. Number of workers that can concurrently access a resource. (Mutually exclusive with **quota**.)
+* **quota**. Percentage of workers that can concurrently access a resource. (Mutually exclusive with **tickets**.)
+* **min_tickets**. Minimum number of tickets to allow when using **quota**.
 * **timeout**. Time to wait in seconds to acquire a ticket if there are no tickets left.
   We recommend this to be `0` unless you have very few workers running (i.e.
   less than ~5).
