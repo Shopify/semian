@@ -214,7 +214,7 @@ wait_for_new_semaphore_set(uint64_t key, long permissions)
   union semun sem_opts;
   sem_opts.buf = &sem_ds;
 
-  int sem_id = semget(key, 1, permissions);
+  int sem_id = semget((key_t)key, 1, permissions);
   if (sem_id == -1){
       raise_semian_syscall_error("semget()", errno);
   }
