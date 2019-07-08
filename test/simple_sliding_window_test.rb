@@ -227,6 +227,7 @@ class TestSimpleSlidingWindow < Minitest::Test
   end
 
   def test_huge_sliding_window_fails
+    skip unless ENV['SEMIAN_CIRCUIT_BREAKER_IMPL'] == 'host'
     id = Time.now.strftime('%H:%M:%S.%N')
     assert_raises ArgumentError do
       ::Semian::ThreadSafe::SlidingWindow.new(id, max_size: 1001)
