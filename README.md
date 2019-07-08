@@ -448,6 +448,33 @@ There are three configuration parameters for circuit breakers in Semian:
 * **success_threshold**. The amount of successes on the circuit until closing it
   again, that is to start accepting all requests to the circuit.
 * **half_open_resource_timeout**. Timeout for the resource in seconds when the circuit is half-open (only supported for MySQL and Net::HTTP).
+* **scale_factor**. When using [host-based circuits](#host-based-circuits), the
+  scaling factor to determine how to scale `error_threshold * num_workers` to
+  achieve faster circuit opens.
+
+#### Host-Based Circuits
+
+On systems with [SysV support][sysv], we can share circuit error information
+between processes on a server. This means that those processes can effectively
+share information between each other about resource health, leading to faster,
+more efficient opening of circuits.
+
+As an example, imagine a system with _N_ processes on a host with an error
+threshold of _E_, and a client timeout of _T_. By default, the system needs to
+see _N * E_ errors to open the circuit. We can reduce this by using the
+`scale_factor` configuration parameter. If we set `scale_factor` to _1 / N_,
+the total number of errors we'd need to see server-wide is still _E_. In
+this configuration, we can reduce the time-to-open for a circuit from _E * T_
+to simply _T_ (provided that _N_ is greater than _E_).
+
+You should run a simulation with your workloads to determine an efficient
+scaling factor that will produce a time-to-open reduction but isn't too
+sensitive.
+
+The circuit breaker implementation is based on the environment variable
+`SEMIAN_CIRCUIT_BREAKER_IMPL`. Set it to `worker` to disable sharing circuit
+state and `host` to enable host-based circuits. The default is `worker` for
+backward compatibility.
 
 ### Bulkheading
 

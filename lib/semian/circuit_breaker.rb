@@ -3,21 +3,24 @@ module Semian
     extend Forwardable
 
     def_delegators :@state, :closed?, :open?, :half_open?
+    def_delegators :@errors, :size, :max_size, :values
 
     attr_reader :name, :half_open_resource_timeout, :error_timeout, :state, :last_error
 
     def initialize(name, exceptions:, success_threshold:, error_threshold:,
-                         error_timeout:, implementation:, half_open_resource_timeout: nil)
+                         error_timeout:, implementation:, half_open_resource_timeout: nil, scale_factor: nil)
       @name = name.to_sym
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
+      @scale_factor = scale_factor
       @error_timeout = error_timeout
       @exceptions = exceptions
       @half_open_resource_timeout = half_open_resource_timeout
 
-      @errors = implementation::SlidingWindow.new(max_size: @error_count_threshold)
-      @successes = implementation::Integer.new
-      @state = implementation::State.new
+      @errors = implementation::SlidingWindow.new(name, max_size: @error_count_threshold, scale_factor: @scale_factor)
+      @successes = implementation::Integer.new("#{name}_successes")
+      state_val = implementation::Integer.new("#{name}_state")
+      @state = implementation::State.new(state_val)
 
       reset
     end
@@ -62,7 +65,7 @@ module Semian
 
     def mark_success
       return unless half_open?
-      @successes.increment
+      @successes.increment(1)
       transition_to_close if success_threshold_reached?
     end
 
@@ -131,7 +134,7 @@ module Semian
     def log_state_transition(new_state)
       return if @state.nil? || new_state == @state.value
 
-      str = "[#{self.class.name}] State transition from #{@state.value} to #{new_state}."
+      str = "[#{self.class.name}] State transition from #{@state} to #{new_state}."
       str << " success_count=#{@successes.value} error_count=#{@errors.size}"
       str << " success_count_threshold=#{@success_count_threshold} error_count_threshold=#{@error_count_threshold}"
       str << " error_timeout=#{@error_timeout} error_last_at=\"#{@errors.last}\""
@@ -158,6 +161,10 @@ module Semian
         end
 
       result
+    end
+
+    def to_s
+      "<CircuitBreaker values:#{@errors.values}>"
     end
   end
 end

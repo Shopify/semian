@@ -13,15 +13,32 @@ before_install:
 services:
   - docker
 
+gemfile:
+  - Gemfile
+  - gemfiles/hiredis-0-6.gemfile
+  - gemfiles/mysql2-0-4-10.gemfile
+  - gemfiles/mysql2-0-5-0.gemfile
+
+env:
+  - SEMIAN_CIRCUIT_BREAKER_IMPL=worker
+  - SEMIAN_CIRCUIT_BREAKER_IMPL=host
+
 matrix:
-  include:
-  - env: GEMFILE=gemfiles/hiredis-0-6.gemfile
-  - env: GEMFILE=gemfiles/mysql2-0-4-10.gemfile
-  - env: GEMFILE=gemfiles/mysql2-0-5-0.gemfile
-  - env: GEMFILE=Gemfile
+  exclude:
+  - gemfile: gemfiles/hiredis-0-6.gemfile
+    env: SEMIAN_CIRCUIT_BREAKER_IMPL=host
+  - gemfile: gemfiles/mysql2-0-4-10.gemfile
+    env: SEMIAN_CIRCUIT_BREAKER_IMPL=host
+  - gemfile: gemfiles/mysql2-0-5-0.gemfile
+    env: SEMIAN_CIRCUIT_BREAKER_IMPL=host
 
 script:
-  - docker build --build-arg BUNDLE_GEMFILE="$GEMFILE" -t shopify/semian-ci:latest -f dockerfiles/semian-ci .
+  - |
+    docker build \
+    --build-arg BUNDLE_GEMFILE="$BUNDLE_GEMFILE" \
+    --build-arg SEMIAN_CIRCUIT_BREAKER_IMPL="$SEMIAN_CIRCUIT_BREAKER_IMPL" \
+    -t shopify/semian-ci:latest \
+    -f dockerfiles/semian-ci .
   - travis_retry docker-compose -f docker-compose.ci.yml up --force-recreate --exit-code-from semian
 
 notifications:

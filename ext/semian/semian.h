@@ -8,6 +8,8 @@ Implements Init_semian, which is used as C/Ruby entrypoint.
 #define SEMIAN_H
 
 #include "resource.h"
+#include "simple_integer.h"
+#include "sliding_window.h"
 
 void Init_semian();
 

@@ -1,5 +1,7 @@
 #include "resource.h"
 
+#include "util.h"
+
 static VALUE
 cleanup_semian_resource_acquire(VALUE self);
 
@@ -14,9 +16,6 @@ check_tickets_arg(VALUE tickets);
 
 static long
 check_permissions_arg(VALUE permissions);
-
-static const
-char *check_id_arg(VALUE id);
 
 static double
 check_default_timeout_arg(VALUE default_timeout);
@@ -118,13 +117,12 @@ semian_resource_reset_workers(VALUE self)
 VALUE
 semian_resource_unregister_worker(VALUE self)
 {
-  int ret;
   semian_resource_t *res = NULL;
-
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
 
   sem_meta_lock(res->sem_id);
-  ret = perform_semop(res->sem_id, SI_SEM_REGISTERED_WORKERS, -1, IPC_NOWAIT | SEM_UNDO, NULL);
+  dprintf("Unregistering worker for sem_id:%d", res->sem_id);
+  int ret = perform_semop(res->sem_id, SI_SEM_REGISTERED_WORKERS, -1, IPC_NOWAIT | SEM_UNDO, NULL);
   sem_meta_unlock(res->sem_id);
 
   if ( ret == -1) {
@@ -202,22 +200,16 @@ semian_resource_key(VALUE self)
 VALUE
 semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE permissions, VALUE default_timeout)
 {
-  long c_permissions;
-  double c_timeout;
-  double c_quota;
-  int c_tickets;
-  semian_resource_t *res = NULL;
-  const char *c_id_str = NULL;
-
   // Check and cast arguments
   check_tickets_xor_quota_arg(tickets, quota);
-  c_quota = check_quota_arg(quota);
-  c_tickets = check_tickets_arg(tickets);
-  c_permissions = check_permissions_arg(permissions);
-  c_id_str = check_id_arg(id);
-  c_timeout = check_default_timeout_arg(default_timeout);
+  double c_quota = check_quota_arg(quota);
+  int c_tickets = check_tickets_arg(tickets);
+  long c_permissions = check_permissions_arg(permissions);
+  const char *c_id_str = check_id_arg(id);
+  double c_timeout = check_default_timeout_arg(default_timeout);
 
   // Build semian resource structure
+  semian_resource_t *res = NULL;
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);
 
   // Populate struct fields
@@ -314,23 +306,6 @@ check_tickets_arg(VALUE tickets)
   return c_tickets;
 }
 
-static const char*
-check_id_arg(VALUE id)
-{
-  const char *c_id_str = NULL;
-
-  if (TYPE(id) != T_SYMBOL && TYPE(id) != T_STRING) {
-    rb_raise(rb_eTypeError, "id must be a symbol or string");
-  }
-  if (TYPE(id) == T_SYMBOL) {
-    c_id_str = rb_id2name(rb_to_id(id));
-  } else if (TYPE(id) == T_STRING) {
-    c_id_str = RSTRING_PTR(id);
-  }
-
-  return c_id_str;
-}
-
 static double
 check_default_timeout_arg(VALUE default_timeout)
 {
@@ -361,6 +336,8 @@ static inline void
 semian_resource_free(void *ptr)
 {
   semian_resource_t *res = (semian_resource_t *) ptr;
+  dprintf("Freeing resource sem_id:%d", res->sem_id);
+
   if (res->name) {
     free(res->name);
     res->name = NULL;

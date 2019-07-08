@@ -4,6 +4,8 @@
 /tmp
 /pkg
 *.gem
+*.log
+*.orig
 /html/
 Gemfile.lock
 vendor/
@@ -18,3 +20,5 @@ nohup.out
 
 # IntelliJ/RubyMine/CLion project files
 .idea
+CMakeLists.txt
+cmake-build-debug

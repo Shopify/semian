@@ -1,14 +1,13 @@
 #include "sysv_semaphores.h"
-#include <time.h>
 
-static key_t
-generate_key(const char *name);
+#include <time.h>
+#include "util.h"
 
 static void *
 acquire_semaphore(void *p);
 
 static int
-wait_for_new_semaphore_set(key_t key, long permissions);
+wait_for_new_semaphore_set(uint64_t key, long permissions);
 
 static void
 initialize_new_semaphore_values(int sem_id, long permissions);
@@ -30,10 +29,12 @@ raise_semian_syscall_error(const char *syscall, int error_num)
 void
 initialize_semaphore_set(semian_resource_t* res, const char* id_str, long permissions, int tickets, double quota)
 {
-
   res->key = generate_key(id_str);
+  dprintf("Initializing semaphore set for key:%lu", res->key);
+
   res->strkey = (char*)  malloc((2 /*for 0x*/+ sizeof(uint64_t) /*actual key*/+ 1 /*null*/) * sizeof(char));
   sprintf(res->strkey, "0x%08x", (unsigned int) res->key);
+
   res->sem_id = semget(res->key, SI_NUM_SEMAPHORES, IPC_CREAT | IPC_EXCL | permissions);
 
   /*
@@ -43,6 +44,7 @@ initialize_semaphore_set(semian_resource_t* res, const char* id_str, long permis
   if (res->sem_id != -1) {
     // Happy path - we are the first worker, initialize the semaphore set.
     initialize_new_semaphore_values(res->sem_id, permissions);
+    dprintf("Created semaphore set (key:%lu sem_id:%d)", res->key, res->sem_id);
   } else {
     // Something went wrong
     if (errno != EEXIST) {
@@ -59,6 +61,7 @@ initialize_semaphore_set(semian_resource_t* res, const char* id_str, long permis
     Ensure that a worker for this process is registered.
     Note that from ruby we ensure that at most one worker may be registered per process.
   */
+  dprintf("Registering worker for sem_id:%d", res->sem_id);
   if (perform_semop(res->sem_id, SI_SEM_REGISTERED_WORKERS, 1, SEM_UNDO, NULL) == -1) {
     rb_raise(eInternal, "error incrementing registered workers, errno: %d (%s)", errno, strerror(errno));
   }
@@ -126,6 +129,16 @@ get_sem_val(int sem_id, int sem_index)
   return ret;
 }
 
+int
+set_sem_val(int sem_id, int sem_index, int val)
+{
+    int ret = semctl(sem_id, sem_index, SETVAL, val);
+    if (ret == -1) {
+        rb_raise(eInternal, "error setting value of %s for sem %d, errno: %d (%s)", SEMINDEX_STRING[sem_index], sem_id, errno, strerror(errno));
+    }
+    return ret;
+}
+
 void
 sem_meta_lock(int sem_id)
 {
@@ -164,9 +177,7 @@ acquire_semaphore(void *p)
   semian_resource_t *res = (semian_resource_t *) p;
   res->error = 0;
   res->wait_time = -1;
-#ifdef DEBUG
-  print_sem_vals(res->sem_id);
-#endif
+  dprint_sem_vals("acquire_semaphore", res->sem_id);
 
   struct timespec begin, end;
   int benchmark_result = clock_gettime(CLOCK_MONOTONIC, &begin);
@@ -181,31 +192,6 @@ acquire_semaphore(void *p)
   return NULL;
 }
 
-static key_t
-generate_key(const char *name)
-{
-  char semset_size_key[20];
-  char *uniq_id_str;
-
-  // It is necessary for the cardinatily of the semaphore set to be part of the key
-  // or else sem_get will complain that we have requested an incorrect number of sems
-  // for the desired key, and have changed the number of semaphores for a given key
-  sprintf(semset_size_key, "_NUM_SEMS_%d", SI_NUM_SEMAPHORES);
-  uniq_id_str = malloc(strlen(name)+strlen(semset_size_key)+1);
-  strcpy(uniq_id_str, name);
-  strcat(uniq_id_str, semset_size_key);
-
-  union {
-    unsigned char str[SHA_DIGEST_LENGTH];
-    key_t key;
-  } digest;
-  SHA1((const unsigned char *) uniq_id_str, strlen(uniq_id_str), digest.str);
-  free(uniq_id_str);
-  /* TODO: compile-time assertion that sizeof(key_t) > SHA_DIGEST_LENGTH */
-  return digest.key;
-}
-
-
 static void
 initialize_new_semaphore_values(int sem_id, long permissions)
 {
@@ -218,28 +204,22 @@ initialize_new_semaphore_values(int sem_id, long permissions)
   if (semctl(sem_id, 0, SETALL, init_vals) == -1) {
     raise_semian_syscall_error("semctl()", errno);
   }
-#ifdef DEBUG
-  print_sem_vals(sem_id);
-#endif
+  dprint_sem_vals("initialize_new_semaphore_values", sem_id);
 }
 
 static int
-wait_for_new_semaphore_set(key_t key, long permissions)
+wait_for_new_semaphore_set(uint64_t key, long permissions)
 {
-  int i;
-  int sem_id = -1;
-  union semun sem_opts;
   struct semid_ds sem_ds;
-
+  union semun sem_opts;
   sem_opts.buf = &sem_ds;
-  sem_id = semget(key, 1, permissions);
 
+  int sem_id = semget((key_t)key, 1, permissions);
   if (sem_id == -1){
       raise_semian_syscall_error("semget()", errno);
   }
 
-  for (i = 0; i < ((INTERNAL_TIMEOUT * MICROSECONDS_IN_SECOND) / INIT_WAIT); i++) {
-
+  for (int i = 0; i < ((INTERNAL_TIMEOUT * MICROSECONDS_IN_SECOND) / INIT_WAIT); i++) {
     if (semctl(sem_id, 0, IPC_STAT, sem_opts) == -1) {
       raise_semian_syscall_error("semctl()", errno);
     }
@@ -268,4 +248,38 @@ diff_timespec_ms(struct timespec *end, struct timespec *begin)
   long end_ms = (end->tv_sec * 1e3) + (end->tv_nsec / 1e6);
   long begin_ms = (begin->tv_sec * 1e3) + (begin->tv_nsec / 1e6);
   return end_ms - begin_ms;
+}
+
+int
+initialize_single_semaphore(uint64_t key, long permissions, int value)
+{
+  dprintf("Initializing single semaphore for key:%lu with value %d", key, value);
+  int sem_id = semget(key, 1, IPC_CREAT | IPC_EXCL | permissions);
+
+  /*
+  This approach is based on http://man7.org/tlpi/code/online/dist/svsem/svsem_good_init.c.html
+  which avoids race conditions when initializing semaphore sets.
+  */
+  if (sem_id != -1) {
+    // Happy path - we are the first worker, initialize the semaphore set.
+    dprintf("Created semaphore (key:%lu sem_id:%d)", key, sem_id);
+    if (semctl(sem_id, 0, SETVAL, value) == -1) {
+      raise_semian_syscall_error("semctl() failed to set semaphore initial value", errno);
+    }
+  } else {
+    if (errno == EEXIST) {
+      // The semaphore set already exists, ensure it is initialized
+      sem_id = wait_for_new_semaphore_set(key, permissions);
+    } else {
+      raise_semian_syscall_error("semget() failed to initialize semaphore values", errno);
+    }
+  }
+
+  set_semaphore_permissions(sem_id, permissions);
+
+  // Set otime for the first time by acquiring the sem lock.
+  sem_meta_unlock(sem_id); // +1
+  sem_meta_lock(sem_id);  // -1
+
+  return sem_id;
 }

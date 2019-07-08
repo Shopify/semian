@@ -113,8 +113,9 @@ class TestLRUHash < Minitest::Test
 
     notified = false
     subscriber = Semian.subscribe do |event, resource, scope, adapter, payload|
+      next unless event == :lru_hash_gc
+
       notified = true
-      assert_equal :lru_hash_gc, event
       assert_equal @lru_hash, resource
       assert_nil scope
       assert_nil adapter
@@ -234,6 +235,7 @@ class TestLRUHash < Minitest::Test
       exceptions: [::Semian::BaseError],
       half_open_resource_timeout: nil,
       implementation: implementation,
+      scale_factor: 1.0,
     )
     circuit_breaker.mark_failed(nil) if exceptions
     Semian::ProtectedResource.new(name, create_bulkhead(name, bulkhead), circuit_breaker)

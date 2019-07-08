@@ -1,5 +1,7 @@
 #include "semian.h"
 
+static int use_c_circuits();
+
 void Init_semian()
 {
   VALUE cSemian, cResource;
@@ -64,4 +66,31 @@ void Init_semian()
 
   /* Maximum number of tickets available on this system. */
   rb_define_const(cSemian, "MAX_TICKETS", INT2FIX(system_max_semaphore_count));
+
+  if (use_c_circuits()) {
+    Init_SimpleInteger();
+    Init_SlidingWindow();
+  }
+}
+
+static int
+use_c_circuits() {
+  char *circuit_impl = getenv("SEMIAN_CIRCUIT_BREAKER_IMPL");
+  if (circuit_impl == NULL) {
+    fprintf(stderr, "Warning: Defaulting to Semian worker-based circuit breaker implementation\n");
+    return 0;
+  } else {
+    if (!strcmp(circuit_impl, "worker")) {
+      fprintf(stderr, "Info: Semian using worker-based circuit implementation\n");
+      return 0;
+    } else if (!strcmp(circuit_impl, "host")) {
+      fprintf(stderr, "Info: Semian using host-based circuit implementation\n");
+      return 1;
+    } else {
+      fprintf(stderr, "Warning: Unknown Semian circuit breaker implementation: '%s'\n", circuit_impl);
+      return 0;
+    }
+  }
+
+  rb_raise(rb_eArgError, "Unknown Semian circuit breaker implementation");
 }

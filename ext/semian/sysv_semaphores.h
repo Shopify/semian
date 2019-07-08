@@ -11,13 +11,13 @@ and functions associated directly weth semops.
 #include <stdio.h>
 #include <string.h>
 
-#include <openssl/sha.h>
 #include <ruby.h>
 #include <ruby/util.h>
 #include <ruby/io.h>
 
 #include "types.h"
 #include "tickets.h"
+#include "util.h"
 
 // Defines for ruby threading primitives
 #if defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL) && defined(HAVE_RUBY_THREAD_H)
@@ -28,6 +28,8 @@ and functions associated directly weth semops.
  // 1.9
 typedef VALUE (*my_blocking_fn_t)(void*);
 #define WITHOUT_GVL(fn,a,ubf,b) rb_thread_blocking_region((my_blocking_fn_t)(fn),(a),(ubf),(b))
+#else
+#define WITHOUT_GVL(fn,a,ubf,b)
 #endif
 
 // Time to wait for timed ops to complete
@@ -38,6 +40,10 @@ typedef VALUE (*my_blocking_fn_t)(void*);
 
 // Helper definition to prevent magic number for conversion of microseconds to seconds
 #define MICROSECONDS_IN_SECOND 1000000
+
+// Default permissions for semaphore set - execute permissions are not meaningful for
+// semaphores
+#define SEM_DEFAULT_PERMISSIONS 0660
 
 // Here we define an enum value and string representation of each semaphore
 // This allows us to key the sem value and string rep in sync easily
@@ -90,6 +96,10 @@ perform_semop(int sem_id, short index, short op, short flags, struct timespec *t
 int
 get_sem_val(int sem_id, int sem_index);
 
+// Set the current number of tickets in a semaphore by its semaphore index
+int
+set_sem_val(int sem_id, int sem_index, int val);
+
 // Obtain an exclusive lock on the semaphore set critical section
 void
 sem_meta_lock(int sem_id);
@@ -106,17 +116,22 @@ get_semaphore(int key);
 void *
 acquire_semaphore_without_gvl(void *p);
 
-#ifdef DEBUG
+// Initializes a semaphore set with a single semaphore, for general purpose
+// locking
+int
+initialize_single_semaphore(uint64_t key, long permissions, int value);
+
 static inline void
-print_sem_vals(int sem_id)
+dprint_sem_vals(const char *msg, int sem_id)
 {
-  printf("lock %d, tickets: %d configured: %d, registered workers %d\n",
-   get_sem_val(sem_id, SI_SEM_LOCK),
-   get_sem_val(sem_id, SI_SEM_TICKETS),
-   get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS),
-   get_sem_val(sem_id, SI_SEM_REGISTERED_WORKERS)
+  dprintf("%s (sem_id:%d lock:%d tickets:%d configured:%d, registered_workers:%d)",
+    msg,
+    sem_id,
+    get_sem_val(sem_id, SI_SEM_LOCK),
+    get_sem_val(sem_id, SI_SEM_TICKETS),
+    get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS),
+    get_sem_val(sem_id, SI_SEM_REGISTERED_WORKERS)
   );
 }
-#endif
 
 #endif // SEMIAN_SEMSET_H

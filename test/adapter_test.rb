@@ -21,10 +21,10 @@ class TestSemianAdapter < Minitest::Test
   end
 
   def test_unregister
-    skip if ENV["SKIP_FLAKY_TESTS"]
+    skip if flaky
     client = Semian::AdapterTestClient.new(quota: 0.5)
     assert_nil(Semian.resources[:testing])
-    resource = Semian.register(:testing, tickets: 2, error_threshold: 0, error_timeout: 0, success_threshold: 0)
+    resource = Semian.register(:testing, tickets: 2, error_threshold: 1, error_timeout: 0, success_threshold: 0)
     assert_equal(Semian.resources[:testing], resource)
 
     assert_equal 1, resource.registered_workers

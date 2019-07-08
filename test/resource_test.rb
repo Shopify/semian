@@ -1,12 +1,12 @@
 require 'test_helper'
+require 'objspace'
 
 class TestResource < Minitest::Test
   include ResourceHelper
 
-  # Time epsilon to account for super fast machines
-  EPSILON = 0.1
-
   def setup
+    @workers = []
+    @resources = []
     Semian.destroy(:testing)
   rescue
     nil
@@ -56,7 +56,7 @@ class TestResource < Minitest::Test
 
   def test_unregister_past_0
     workers = 10
-    resource = Semian.register(:testing, tickets: workers * 2, error_threshold: 0, error_timeout: 0, success_threshold: 0)
+    resource = Semian.register(:testing, tickets: workers * 2, error_threshold: 1, error_timeout: 0, success_threshold: 0)
 
     fork_workers(count: workers, tickets: 0, timeout: 0.5, wait_for_timeout: true) do
       Semian.unregister(:testing)
@@ -71,7 +71,7 @@ class TestResource < Minitest::Test
 
   def test_reset_registered_workers
     workers = 10
-    resource = Semian.register(:testing, tickets: 1, error_threshold: 0, error_timeout: 0, success_threshold: 0)
+    resource = Semian.register(:testing, tickets: 1, error_threshold: 1, error_timeout: 0, success_threshold: 0)
 
     fork_workers(count: workers - 1, tickets: 0, timeout: 0.5, wait_for_timeout: true)
 
@@ -141,10 +141,9 @@ class TestResource < Minitest::Test
   end
 
   def test_acquire_timeout
-    fork_workers(count: 2, tickets: 1, timeout: 1, wait_for_timeout: true)
+    fork_workers(count: 2, tickets: 1, timeout: 1, wait_for_timeout: true, epsilon: 0.1)
     signal_workers('TERM')
-    timeouts = count_worker_timeouts
-    assert 1, timeouts
+    assert_equal(1, count_worker_timeouts)
   end
 
   def test_acquire_timeout_override
@@ -156,8 +155,7 @@ class TestResource < Minitest::Test
 
     signal_workers('TERM')
 
-    timeouts = count_worker_timeouts
-    assert 0, timeouts
+    assert_equal(0, count_worker_timeouts)
   end
 
   def test_acquire_with_fork
@@ -382,10 +380,12 @@ class TestResource < Minitest::Test
     end
   end
 
+  # TODO(michaelkipper): Shouldn't need to rescue InternalError, this test
+  #                      should deterministically throw SyscallError.
   def test_destroy
     resource = create_resource :testing, tickets: 1
     resource.destroy
-    assert_raises Semian::SyscallError do
+    assert_raises(Semian::InternalError, Semian::SyscallError) do
       resource.acquire {}
     end
   end
@@ -490,6 +490,11 @@ class TestResource < Minitest::Test
     assert_equal 0, timeouts
   end
 
+  def test_memsize
+    r = create_resource :testing, tickets: 1
+    assert_equal 128, ObjectSpace.memsize_of(r)
+  end
+
   def create_resource(*args)
     @resources ||= []
     resource = Semian::Resource.new(*args)
@@ -515,7 +520,7 @@ class TestResource < Minitest::Test
   # Active workers are accumulated in the instance variable @workers,
   # and workers must be cleaned up between tests by the teardown script
   # An exit value of 100 is to keep track of timeouts, 0 for success.
-  def fork_workers(count:, resource: :testing, quota: nil, tickets: nil, timeout: 0.1, wait_for_timeout: false)
+  def fork_workers(count:, resource: :testing, quota: nil, tickets: nil, timeout: 0.1, wait_for_timeout: false, epsilon: 0)
     fail 'Must provide at least one of tickets or quota' unless tickets || quota
 
     @workers ||= []
@@ -541,13 +546,12 @@ class TestResource < Minitest::Test
           end
           sleep
         rescue => e
-          puts "Unhandled exception occurred in worker"
           puts e
           exit! 2
         end
       end
     end
-    sleep((count / 2.0).ceil * timeout + EPSILON) if wait_for_timeout # give time for threads to timeout
+    sleep((count / 2.0).ceil * timeout + epsilon) if wait_for_timeout # give time for threads to timeout
   end
 
   def count_worker_timeouts

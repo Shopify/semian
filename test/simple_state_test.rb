@@ -2,7 +2,9 @@ require 'test_helper'
 
 class TestSimpleEnum < Minitest::Test
   def setup
-    @state = ::Semian::ThreadSafe::State.new
+    id = Time.now.strftime('%H:%M:%S.%N')
+    state_val = ::Semian::ThreadSafe::Integer.new(id)
+    @state = ::Semian::ThreadSafe::State.new(state_val)
   end
 
   def teardown
@@ -17,25 +19,25 @@ class TestSimpleEnum < Minitest::Test
     def test_open
       @state.open!
       assert @state.open?
-      assert_equal @state.value, :open
+      assert_equal ::Semian::Simple::State::OPEN, @state.value
     end
 
     def test_close
       @state.close!
       assert @state.closed?
-      assert_equal @state.value, :closed
+      assert_equal ::Semian::Simple::State::CLOSED, @state.value
     end
 
     def test_half_open
       @state.half_open!
       assert @state.half_open?
-      assert_equal @state.value, :half_open
+      assert_equal ::Semian::Simple::State::HALF_OPEN, @state.value
     end
 
     def test_reset
       @state.reset
       assert @state.closed?
-      assert_equal @state.value, :closed
+      assert_equal ::Semian::Simple::State::CLOSED, @state.value
     end
   end
 
