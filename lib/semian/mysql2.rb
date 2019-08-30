@@ -26,9 +26,6 @@ module Semian
       /Too many connections/i,
       /closed MySQL connection/i,
       /MySQL client is not connected/i,
-    )
-
-    TIMEOUT_ERROR = Regexp.union(
       /Timeout waiting for a response/i,
     )
 
@@ -122,7 +119,7 @@ module Semian
     def acquire_semian_resource(*)
       super
     rescue ::Mysql2::Error => error
-      if error.message =~ CONNECTION_ERROR || error.message =~ TIMEOUT_ERROR || error.is_a?(PingFailure)
+      if error.is_a?(PingFailure) || (!error.is_a?(::Mysql2::SemianError) && error.message.match?(CONNECTION_ERROR))
         semian_resource.mark_failed(error)
         error.semian_identifier = semian_identifier
       end

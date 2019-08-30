@@ -347,6 +347,18 @@ class TestMysql2 < Minitest::Test
     assert_equal 2, client.query_options[:write_timeout]
   end
 
+  def test_circuit_open_errors_do_not_trigger_the_circuit_breaker
+    mysql_connection_error = defined?(Mysql2::Error::ConnectionError) ? Mysql2::Error::ConnectionError : Mysql2::Error
+    @proxy.down do
+      3.times do
+        assert_raises(Mysql2::Error) do
+          connect_to_mysql!
+        end
+        assert_equal mysql_connection_error, Semian[:mysql_testing].circuit_breaker.last_error.class
+      end
+    end
+  end
+
   private
 
   def connect_to_mysql!(semian_options = {})
