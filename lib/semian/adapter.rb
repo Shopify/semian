@@ -35,12 +35,10 @@ module Semian
         mark_resource_as_acquired(&block)
       end
     rescue ::Semian::OpenCircuitError => error
-      begin
-        raise semian_resource.circuit_breaker.last_error
-      rescue
-        last_error_message = semian_resource.circuit_breaker.last_error.message
-        raise self.class::CircuitOpenError.new(semian_identifier, "#{error.message} caused by #{last_error_message}")
-      end
+      last_error = semian_resource.circuit_breaker.last_error
+      message = "#{error.message} caused by #{last_error.message}"
+      last_error = nil unless last_error.is_a?(Exception) # Net::HTTPServerError is not an exception
+      raise self.class::CircuitOpenError.new(semian_identifier, message), cause: last_error
     rescue ::Semian::BaseError => error
       raise self.class::ResourceBusyError.new(semian_identifier, error.message)
     rescue *resource_exceptions => error
