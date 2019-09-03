@@ -113,8 +113,8 @@ class TestLRUHash < Minitest::Test
 
     notified = false
     subscriber = Semian.subscribe do |event, resource, scope, adapter, payload|
+      next unless event == :lru_hash_gc
       notified = true
-      assert_equal :lru_hash_gc, event
       assert_equal @lru_hash, resource
       assert_nil scope
       assert_nil adapter
