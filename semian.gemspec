@@ -20,4 +20,10 @@ Gem::Specification.new do |s|
 
   s.files = Dir['{lib,ext}/**/**/*.{rb,h,c}']
   s.extensions = ['ext/semian/extconf.rb']
+
+  s.metadata = {
+    'changelog_uri' => 'https://github.com/Shopify/semian/blob/master/CHANGELOG.md',
+    'bug_tracker_uri' => 'https://github.com/Shopify/semian/issues',
+    'source_code_uri' => 'https://github.com/Shopify/semian',
+  }
 end
