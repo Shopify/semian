@@ -1,3 +1,7 @@
+# v0.9.0
+
+* Feature: Add a LRU to garbage collect old resources. (#193)
+
 # v0.8.9
 * Fix: Recursion issue in MySQL2 adapter causing circuits breakers to stay open much longer than they should. (#250)
 * Fix: Better handle DNS resolutions exceptions in Redis adapter. (#230)
