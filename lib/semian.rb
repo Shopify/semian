@@ -13,6 +13,7 @@ require 'semian/unprotected_resource'
 require 'semian/simple_sliding_window'
 require 'semian/simple_integer'
 require 'semian/simple_state'
+require 'semian/lru_hash'
 
 #
 # === Overview
@@ -88,6 +89,10 @@ module Semian
   TimeoutError = Class.new(BaseError)
   InternalError = Class.new(BaseError)
   OpenCircuitError = Class.new(BaseError)
+
+  attr_accessor :maximum_lru_size, :minimum_lru_time
+  self.maximum_lru_size = 500
+  self.minimum_lru_time = 300
 
   def issue_disabled_semaphores_warning
     return if defined?(@warning_issued)
@@ -216,7 +221,7 @@ module Semian
 
   # Retrieves a hash of all registered resources.
   def resources
-    @resources ||= {}
+    @resources ||= LRUHash.new
   end
 
   # Retrieves a hash of all registered resource consumers.
@@ -226,7 +231,16 @@ module Semian
 
   def reset!
     @consumers = {}
-    @resources = {}
+    @resources = LRUHash.new
+  end
+
+  def thread_safe?
+    return @thread_safe if defined?(@thread_safe)
+    @thread_safe = true
+  end
+
+  def thread_safe=(thread_safe)
+    @thread_safe = thread_safe
   end
 
   private
@@ -235,7 +249,6 @@ module Semian
     circuit_breaker = options.fetch(:circuit_breaker, true)
     return unless circuit_breaker
     require_keys!([:success_threshold, :error_threshold, :error_timeout], options)
-    implementation = options[:thread_safety_disabled] ? ::Semian::Simple : ::Semian::ThreadSafe
 
     exceptions = options[:exceptions] || []
     CircuitBreaker.new(
@@ -245,8 +258,24 @@ module Semian
       error_timeout: options[:error_timeout],
       exceptions: Array(exceptions) + [::Semian::BaseError],
       half_open_resource_timeout: options[:half_open_resource_timeout],
-      implementation: implementation,
+      implementation: implementation(**options),
     )
+  end
+
+  def implementation(**options)
+    # thread_safety_disabled will be replaced by a global setting
+    # Semian is thread safe by default. It is possible
+    # to modify the value by using Semian.thread_safe=
+    unless options[:thread_safety_disabled].nil?
+      logger.info(
+        "NOTE: thread_safety_disabled will be replaced by a global setting" \
+        "Semian is thread safe by default. It is possible" \
+        "to modify the value by using Semian.thread_safe=",
+      )
+    end
+
+    thread_safe = options[:thread_safety_disabled].nil? ? Semian.thread_safe? : !options[:thread_safety_disabled]
+    thread_safe ? ::Semian::ThreadSafe : ::Semian::Simple
   end
 
   def create_bulkhead(name, **options)

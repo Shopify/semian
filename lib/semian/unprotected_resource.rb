@@ -3,9 +3,11 @@ module Semian
   # the semian configuration of an `Adapter` is missing or explicitly disabled
   class UnprotectedResource
     attr_reader :name
+    attr_accessor :updated_at
 
     def initialize(name)
       @name = name
+      @updated_at = Time.now
     end
 
     def registered_workers
@@ -62,6 +64,10 @@ module Semian
 
     def circuit_breaker
       nil
+    end
+
+    def in_use?
+      true
     end
   end
 end

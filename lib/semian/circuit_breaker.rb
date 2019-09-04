@@ -78,6 +78,11 @@ module Semian
       @state.destroy
     end
 
+    def in_use?
+      return false if error_timeout_expired?
+      @errors.size > 0
+    end
+
     private
 
     def transition_to_close

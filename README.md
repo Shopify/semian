@@ -102,6 +102,22 @@ The best resource is looking at the [already implemented adapters](#adapters).
 
 ### Configuration
 
+There are some global configuration options that can be set for Semian:
+
+```ruby
+# Maximum size of the LRU cache (default: 500)
+# Note: Setting this to 0 enables aggressive garbage collection. 
+Semian.maximum_lru_size = 0
+
+# Minimum time a resource should be resident in the LRU cache (default: 300s)
+Semian.minimum_lru_time = 60
+```
+
+Note: `minimum_lru_time` is a stronger guarantee than `maximum_lru_size`. That
+is, if a resource has been updated more recently than `minimum_lru_time` it
+will not be garbage collected, even if it would cause the LRU cache to grow
+larger than `maximum_lru_size`.
+
 When instantiating a resource it now needs to be configured for Semian. This is
 done by passing `semian` as an argument when initializing the client. Examples
 built in adapters:
