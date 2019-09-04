@@ -1,3 +1,7 @@
+# v0.9.0
+
+* Feature: Add a LRU to garbage collect old resources. (#193)
+
 # v0.8.8
 * Feature: Introduce the GRPC adapter (#200)
 
