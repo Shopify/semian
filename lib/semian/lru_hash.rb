@@ -25,12 +25,18 @@ class LRUHash
     def locked?
       true
     end
+
+    def owned?
+      true
+    end
   end
 
-  [:keys, :clear].each do |attribute|
-    define_method :"#{attribute}" do
-      @lock.synchronize { @table.public_send(attribute) }
-    end
+  def keys
+    @lock.synchronize { @table.keys }
+  end
+
+  def clear
+    @lock.synchronize { @table.clear }
   end
 
   # Create an LRU hash
@@ -101,17 +107,16 @@ class LRUHash
   private
 
   def clear_unused_resources
-    return unless @lock.try_lock
-    # Clears resources that have not been used in the last 5 minutes.
-    begin
-      timer_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    payload = {
+        size: @table.size,
+        examined: 0,
+        cleared: 0,
+        elapsed: nil,
+    }
+    timer_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
-      payload = {
-          size: @table.size,
-          examined: 0,
-          cleared: 0,
-          elapsed: nil,
-      }
+    ran = try_synchronize do
+      # Clears resources that have not been used in the last 5 minutes.
 
       stop_time = Time.now - @min_time # Don't process resources updated after this time
       @table.each do |_, resource|
@@ -122,7 +127,6 @@ class LRUHash
         # update time after the stop_time.
         break if resource.updated_at > stop_time
 
-        # TODO(michaelkipper): Should this be a flag?
         next if resource.in_use?
 
         resource = @table.delete(resource.name)
@@ -131,11 +135,26 @@ class LRUHash
           resource.destroy
         end
       end
+    end
 
+    if ran
       payload[:elapsed] = Process.clock_gettime(Process::CLOCK_MONOTONIC) - timer_start
       Semian.notify(:lru_hash_gc, self, nil, nil, payload)
+    end
+  end
+
+  EXCEPTION_NEVER = {Exception => :never}.freeze
+  EXCEPTION_IMMEDIATE = {Exception => :immediate}.freeze
+  private_constant :EXCEPTION_NEVER
+  private_constant :EXCEPTION_IMMEDIATE
+
+  def try_synchronize
+    Thread.handle_interrupt(EXCEPTION_NEVER) do
+      return false unless @lock.try_lock
+      Thread.handle_interrupt(EXCEPTION_IMMEDIATE) { yield }
+      true
     ensure
-      @lock.unlock
+      @lock.unlock if @lock.owned?
     end
   end
 end
