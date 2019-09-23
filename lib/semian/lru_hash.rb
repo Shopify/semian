@@ -150,11 +150,13 @@ class LRUHash
 
   def try_synchronize
     Thread.handle_interrupt(EXCEPTION_NEVER) do
-      return false unless @lock.try_lock
-      Thread.handle_interrupt(EXCEPTION_IMMEDIATE) { yield }
-      true
-    ensure
-      @lock.unlock if @lock.owned?
+      begin
+        return false unless @lock.try_lock
+        Thread.handle_interrupt(EXCEPTION_IMMEDIATE) { yield }
+        true
+      ensure
+        @lock.unlock if @lock.owned?
+      end
     end
   end
 end
