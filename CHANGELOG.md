@@ -1,3 +1,7 @@
+# v0.9.1
+
+* Fix: Compatibility with MRI 2.3
+
 # v0.9.0
 
 * Feature: Add a LRU to garbage collect old resources. (#193)
