@@ -119,7 +119,7 @@ module Semian
     def acquire_semian_resource(*)
       super
     rescue ::Mysql2::Error => error
-      if error.is_a?(PingFailure) || (!error.is_a?(::Mysql2::SemianError) && error.message.match?(CONNECTION_ERROR))
+      if error.is_a?(PingFailure) || (!error.is_a?(::Mysql2::SemianError) && error.message =~ CONNECTION_ERROR)
         semian_resource.mark_failed(error)
         error.semian_identifier = semian_identifier
       end
