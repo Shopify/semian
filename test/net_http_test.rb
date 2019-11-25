@@ -413,6 +413,15 @@ class TestNetHTTP < Minitest::Test
     end
   end
 
+  def test_bad_dns
+    current_dns = `cat /etc/resolv.conf |grep -i '^nameserver'|head -n1|cut -d ' ' -f2`
+    puts "current DNS: #{current_dns}"
+    raise "omgomg" unless current_dns.strip.size > 0
+
+    `route add -host #{current_dns} reject`
+    Net::HTTP.get("shopify.com")
+  end
+
   private
 
   def half_open_cicuit!(backwards_time_travel = 10)
