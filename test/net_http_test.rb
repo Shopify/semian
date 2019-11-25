@@ -418,8 +418,9 @@ class TestNetHTTP < Minitest::Test
     puts "current DNS: #{current_dns}"
     raise "omgomg" unless current_dns.strip.size > 0
 
-    `sudo route add -host #{current_dns} reject`
+    `route add -host #{current_dns} reject`
     Net::HTTP.get("shopify.com", '/')
+    `route del -host #{current_dns} reject`
   end
 
   private
