@@ -5,7 +5,6 @@ git:
   depth: 1
 
 before_install:
-  - apt-get install net-tools
   - sudo rm /usr/local/bin/docker-compose
   - curl -L https://github.com/docker/compose/releases/download/1.24.0/docker-compose-`uname -s`-`uname -m` > docker-compose
   - chmod +x docker-compose
@@ -16,9 +15,9 @@ services:
 
 matrix:
   include:
-  - env: GEMFILE=gemfiles/hiredis-0-6.gemfile
-  - env: GEMFILE=gemfiles/mysql2-0-4-10.gemfile
-  - env: GEMFILE=gemfiles/mysql2-0-5-0.gemfile
+  # - env: GEMFILE=gemfiles/hiredis-0-6.gemfile
+  # - env: GEMFILE=gemfiles/mysql2-0-4-10.gemfile
+  # - env: GEMFILE=gemfiles/mysql2-0-5-0.gemfile
   - env: GEMFILE=Gemfile
 
 script:
