@@ -6,6 +6,7 @@ services:
     - redis
     - mysql
     - toxiproxy
+    privileged: true
     command: ./scripts/run_tests.sh
       
   toxiproxy:
