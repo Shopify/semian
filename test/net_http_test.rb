@@ -413,14 +413,25 @@ class TestNetHTTP < Minitest::Test
     end
   end
 
-  def test_bad_dns
-    current_dns = `cat /etc/resolv.conf |grep -i '^nameserver'|head -n1|cut -d ' ' -f2`
-    puts "current DNS: #{current_dns}"
-    raise "omgomg" unless current_dns.strip.size > 0
+  def test_dns_down
+    with_semian_configuration do
+      with_server do
+        http = Net::HTTP.new(SemianConfig['toxiproxy_upstream_host'], SemianConfig['http_toxiproxy_port'])
+        uri = URI("http://#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['http_toxiproxy_port']}/200")
+        with_dns_down do
+          http.raw_semian_options[:error_threshold].times do
+            request = Net::HTTP::Get.new(uri)
+            assert_raises ::SocketError do
+              http.request(request)
+            end
+          end
+        end
 
-    `route add -host #{current_dns} reject`
-    Net::HTTP.get("shopify.com", '/')
-    `route del -host #{current_dns} reject`
+        assert_raises Net::CircuitOpenError do
+          Net::HTTP.get(uri)
+        end
+      end
+    end
   end
 
   private
@@ -534,6 +545,18 @@ class TestNetHTTP < Minitest::Test
     begin
       Toxiproxy[name].destroy
     rescue StandardError
+    end
+  end
+
+  def with_dns_down
+    dns_server = %x(cat /etc/resolv.conf |grep -i '^nameserver'|head -n1|cut -d ' ' -f2).strip
+    raise "enable to find local dns server" if dns_server.empty?
+
+    %x(route add -host #{dns_server} reject)
+    begin
+      yield
+    ensure
+      %x(route del -host #{dns_server} reject)
     end
   end
 end
