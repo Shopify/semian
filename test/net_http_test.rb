@@ -434,6 +434,25 @@ class TestNetHTTP < Minitest::Test
     end
   end
 
+  def test_dns_slow
+    with_semian_configuration do
+      with_server do
+        http = Net::HTTP.new(SemianConfig['toxiproxy_upstream_host'], SemianConfig['http_toxiproxy_port'])
+
+        # on MRI < 2.7, the DNS resolution timeout
+        with_unresponsive_dns do
+          uri = URI("http://#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['http_toxiproxy_port']}/200")
+          request = Net::HTTP::Get.new(uri)
+          assert_raises ::SocketError do
+            http.request(request)
+          end
+        end
+
+        assert_equal ::SocketError, http.semian_resource.circuit_breaker.last_error.class
+      end
+    end
+  end
+
   private
 
   def half_open_cicuit!(backwards_time_travel = 10)
@@ -550,7 +569,7 @@ class TestNetHTTP < Minitest::Test
 
   def with_dns_down
     dns_server = %x(cat /etc/resolv.conf |grep -i '^nameserver'|head -n1|cut -d ' ' -f2).strip
-    raise "enable to find local dns server" if dns_server.empty?
+    raise "unable to find local dns server" if dns_server.empty?
 
     %x(route add -host #{dns_server} reject)
     begin
@@ -558,5 +577,26 @@ class TestNetHTTP < Minitest::Test
     ensure
       %x(route del -host #{dns_server} reject)
     end
+  end
+
+  def with_unresponsive_dns
+    require 'socket'
+
+    fake_dns_ip = "127.0.0.1"
+
+    th = Thread.new do
+      server = UDPSocket.new
+      server.bind(fake_dns_ip, 53)
+      server.recvfrom(16)
+      sleep
+    end
+
+    original_dns = %x(cat /etc/resolv.conf |grep -i '^nameserver'|head -n1|cut -d ' ' -f2).strip
+    `echo "$(sed 's/#{original_dns}/#{fake_dns_ip}/g' /etc/resolv.conf)" > /etc/resolv.conf`
+    yield
+  ensure
+    `echo "$(sed 's/#{fake_dns_ip}/#{original_dns}/g' /etc/resolv.conf)" > /etc/resolv.conf`
+    th.kill
+    th.join
   end
 end
