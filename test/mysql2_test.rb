@@ -1,14 +1,16 @@
 require 'test_helper'
+require 'benchmark'
 
 class TestMysql2 < Minitest::Test
   ERROR_TIMEOUT = 5
   ERROR_THRESHOLD = 1
+  SUCCESS_THRESHOLD = 2
   SEMIAN_OPTIONS = {
     name: :testing,
     tickets: 1,
     timeout: 0,
     error_threshold: ERROR_THRESHOLD,
-    success_threshold: 2,
+    success_threshold: SUCCESS_THRESHOLD,
     error_timeout: ERROR_TIMEOUT,
   }
 
@@ -312,19 +314,22 @@ class TestMysql2 < Minitest::Test
   def test_changes_timeout_when_half_open_and_configured
     client = connect_to_mysql!(half_open_resource_timeout: 1)
 
-    @proxy.downstream(:latency, latency: 3000).apply do
-      (ERROR_THRESHOLD * 2).times do
-        assert_raises Mysql2::Error do
-          client.query('SELECT 1 + 1;')
+    Timecop.freeze do
+      @proxy.downstream(:latency, latency: 3000).apply do
+        ERROR_THRESHOLD.times do
+          assert_raises Mysql2::Error do
+            client.query('SELECT 1 + 1;')
+          end
         end
+      end
+
+      assert_raises Mysql2::CircuitOpenError do
+        client.query('SELECT 1 + 1;')
       end
     end
 
-    assert_raises Mysql2::CircuitOpenError do
-      client.query('SELECT 1 + 1;')
-    end
-
-    Timecop.travel(ERROR_TIMEOUT + 1) do
+    time_circuit_half_open = ERROR_TIMEOUT + 1
+    Timecop.travel(time_circuit_half_open) do
       @proxy.downstream(:latency, latency: 1500).apply do
         assert_raises Mysql2::Error do
           client.query('SELECT 1 + 1;')
@@ -332,12 +337,12 @@ class TestMysql2 < Minitest::Test
       end
     end
 
-    Timecop.travel(ERROR_TIMEOUT * 2 + 1) do
-      client.query('SELECT 1 + 1;')
-      client.query('SELECT 1 + 1;')
+    time_circuit_closed = time_circuit_half_open + ERROR_TIMEOUT + 1
+    Timecop.travel(time_circuit_closed) do
+      SUCCESS_THRESHOLD.times { client.query('SELECT 1 + 1;') }
 
       # Timeout has reset to the normal 2 seconds now that Circuit is closed
-      @proxy.downstream(:latency, latency: 1500).apply do
+      assert_mysql_timeout_in_delta(expected_timeout: 2.0) do
         client.query('SELECT 1 + 1;')
       end
     end
@@ -371,6 +376,19 @@ class TestMysql2 < Minitest::Test
       port: SemianConfig['mysql_toxiproxy_port'],
       semian: SEMIAN_OPTIONS.merge(semian_options),
     )
+  end
+
+  def assert_mysql_timeout_in_delta(expected_timeout:, delta: 0.1)
+    latency = ((expected_timeout + 2 * delta) * 1000).to_i
+
+    bench = Benchmark.measure do
+      assert_raises Mysql2::Error do
+        @proxy.downstream(:latency, latency: latency).apply do
+          yield
+        end
+      end
+    end
+    assert_in_delta bench.real, expected_timeout, delta
   end
 
   class FakeMysql < Mysql2::Client
