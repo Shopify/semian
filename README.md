@@ -447,7 +447,7 @@ There are three configuration parameters for circuit breakers in Semian:
   again.
 * **success_threshold**. The amount of successes on the circuit until closing it
   again, that is to start accepting all requests to the circuit.
-* **half_open_resource_timeout**. Timeout for the resource in seconds when the circuit is half-open (only supported for MySQL and Net::HTTP).
+* **half_open_resource_timeout**. Timeout for the resource in seconds when the circuit is half-open (supported for MySQL, Net::HTTP and Redis).
 
 ### Bulkheading
 

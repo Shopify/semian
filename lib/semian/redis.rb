@@ -91,6 +91,28 @@ module Semian
       end
     end
 
+    def with_resource_timeout(temp_timeout)
+      timeout = options[:timeout]
+      connect_timeout = options[:connect_timeout]
+      read_timeout = options[:read_timeout]
+      write_timeout = options[:write_timeout]
+
+      begin
+        connection.timeout = temp_timeout if connected?
+        options[:timeout] = Float(temp_timeout),
+        options[:connect_timeout] = Float(temp_timeout)
+        options[:read_timeout] = Float(temp_timeout)
+        options[:write_timeout] = Float(temp_timeout)
+        yield
+      ensure
+        options[:timeout] = timeout
+        options[:connect_timeout] = connect_timeout
+        options[:read_timeout] = read_timeout
+        options[:write_timeout] = write_timeout
+        connection.timeout = self.timeout if connected?
+      end
+    end
+
     private
 
     def resource_exceptions
