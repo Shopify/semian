@@ -1,3 +1,7 @@
+# v0.10.0
+
+* Feature: Support half open resource timeout for redis.
+
 # v0.9.1
 
 * Fix: Compatibility with MRI 2.3
