@@ -439,7 +439,7 @@ all workers on a server.
 
 #### Circuit Breaker Configuration
 
-There are three configuration parameters for circuit breakers in Semian:
+There are four configuration parameters for circuit breakers in Semian:
 
 * **error_threshold**. The amount of errors to encounter for the worker before
   opening the circuit, that is to start rejecting requests instantly.
