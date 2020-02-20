@@ -449,6 +449,8 @@ There are four configuration parameters for circuit breakers in Semian:
   again, that is to start accepting all requests to the circuit.
 * **half_open_resource_timeout**. Timeout for the resource in seconds when the circuit is half-open (supported for MySQL, Net::HTTP and Redis).
 
+For more information about configuring these parameters, please read [this post](https://engineering.shopify.com/blogs/engineering/circuit-breaker-misconfigured).
+
 ### Bulkheading
 
 For some applications, circuit breakers are not enough. This is best illustrated
