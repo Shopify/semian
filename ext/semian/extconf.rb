@@ -30,4 +30,6 @@ else
   $CFLAGS << "-O3"
 end
 
+$LDFLAGS << "-Wl,--allow-multiple-definition"
+
 create_makefile('semian/semian')
