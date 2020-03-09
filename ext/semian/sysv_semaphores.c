@@ -21,6 +21,10 @@ static const char *SEMINDEX_STRING[] = {
     FOREACH_SEMINDEX(GENERATE_STRING)
 };
 
+VALUE eTimeout;
+VALUE eSyscall;
+VALUE eInternal;
+
 void
 raise_semian_syscall_error(const char *syscall, int error_num)
 {

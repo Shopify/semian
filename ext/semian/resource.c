@@ -27,6 +27,10 @@ ms_to_timespec(long ms, struct timespec *ts);
 static const rb_data_type_t
 semian_resource_type;
 
+ID id_wait_time;
+ID id_timeout;
+int system_max_semaphore_count;
+
 VALUE
 semian_resource_acquire(int argc, VALUE *argv, VALUE self)
 {
