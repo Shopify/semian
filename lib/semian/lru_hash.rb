@@ -5,8 +5,6 @@ class LRUHash
   # everytime we set a new resource. A default window of
   # 5 minutes will allow empty item to stay in the hash
   # for a maximum of 5 minutes
-  attr_reader :table
-
   class NoopMutex
     def synchronize(*)
       yield

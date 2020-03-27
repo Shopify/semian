@@ -34,9 +34,9 @@ class TestLRUHash < Minitest::Test
     assert_equal 3, @lru_hash.count
 
     @lru_hash.delete('b')
-    assert_equal 2, @lru_hash.table.count
-    assert_equal @lru_hash.table.values.last, @lru_hash.get('c')
-    assert_equal @lru_hash.table.values.first, @lru_hash.get('a')
+    assert_equal 2, @lru_hash.size
+    assert_equal @lru_hash.values.last, @lru_hash.get('c')
+    assert_equal @lru_hash.values.first, @lru_hash.get('a')
   end
 
   def test_get_moves_the_item_at_the_top
@@ -44,10 +44,10 @@ class TestLRUHash < Minitest::Test
     @lru_hash.set('b', create_circuit_breaker('b'))
     @lru_hash.set('c', create_circuit_breaker('c'))
 
-    assert_equal 3, @lru_hash.table.count
+    assert_equal 3, @lru_hash.size
     @lru_hash.get('a') # Reading the value will move the resource at the tail position
-    assert_equal @lru_hash.table.values.last, @lru_hash.get('a')
-    assert_equal @lru_hash.table.values.first, @lru_hash.get('b')
+    assert_equal @lru_hash.values.last, @lru_hash.get('a')
+    assert_equal @lru_hash.values.first, @lru_hash.get('b')
   end
 
   def test_set_cleans_resources_if_last_error_has_expired
@@ -55,7 +55,7 @@ class TestLRUHash < Minitest::Test
 
     Timecop.travel(2000) do
       @lru_hash.set('d', create_circuit_breaker('d'))
-      assert_equal 1, @lru_hash.table.count
+      assert_equal 1, @lru_hash.size
     end
   end
 
@@ -64,7 +64,7 @@ class TestLRUHash < Minitest::Test
 
     Timecop.travel(600) do
       @lru_hash.set('d', create_circuit_breaker('d'))
-      assert_equal 2, @lru_hash.table.count
+      assert_equal 2, @lru_hash.size
     end
   end
 
@@ -75,7 +75,7 @@ class TestLRUHash < Minitest::Test
 
     Timecop.travel(600) do
       @lru_hash.set('d', create_circuit_breaker('d'))
-      assert_equal 2, @lru_hash.table.count
+      assert_equal 2, @lru_hash.size
     end
   end
 
@@ -84,7 +84,7 @@ class TestLRUHash < Minitest::Test
     @lru_hash.set('b', create_circuit_breaker('b', false))
     @lru_hash.set('c', create_circuit_breaker('c'))
 
-    assert_equal 3, @lru_hash.table.count
+    assert_equal 3, @lru_hash.size
   end
 
   def test_keys
@@ -155,7 +155,8 @@ class TestLRUHash < Minitest::Test
 
     assert_monotonic = lambda do
       previous_timestamp = start_time
-      @lru_hash.table.each do |key, val|
+      @lru_hash.keys.zip(@lru_hash.values).each do |key, val|
+        val = 
         assert val.updated_at > previous_timestamp, "Timestamp for #{key} was not monotonically increasing"
       end
     end
@@ -193,12 +194,12 @@ class TestLRUHash < Minitest::Test
     lru_hash.set('a', create_circuit_breaker('a'))
     lru_hash.set('b', create_circuit_breaker('b'))
     lru_hash.set('c', create_circuit_breaker('c'))
-    assert_equal 3, lru_hash.table.length
+    assert_equal 3, lru_hash.size
 
     Timecop.travel(Semian.minimum_lru_time) do
       # [a, b, c] are older than the min_time, so they get garbage collected.
       lru_hash.set('d', create_circuit_breaker('d'))
-      assert_equal 1, lru_hash.table.length
+      assert_equal 1, lru_hash.size
     end
   end
 
@@ -206,19 +207,19 @@ class TestLRUHash < Minitest::Test
     lru_hash = LRUHash.new(max_size: 3)
     lru_hash.set('a', create_circuit_breaker('a'))
     lru_hash.set('b', create_circuit_breaker('b'))
-    assert_equal 2, lru_hash.table.length
+    assert_equal 2, lru_hash.size
 
     Timecop.travel(Semian.minimum_lru_time) do
       # [a, b] are older than the min_time, but the hash isn't full, so
       # there's no garbage collection.
       lru_hash.set('c', create_circuit_breaker('c'))
-      assert_equal 3, lru_hash.table.length
+      assert_equal 3, lru_hash.size
     end
 
     Timecop.travel(Semian.minimum_lru_time + 1) do
       # [a, b] are beyond the min_time, but [c] isn't.
       lru_hash.set('d', create_circuit_breaker('d'))
-      assert_equal 2, lru_hash.table.length
+      assert_equal 2, lru_hash.size
     end
   end
 
