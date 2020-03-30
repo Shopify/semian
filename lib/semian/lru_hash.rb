@@ -5,10 +5,6 @@ class LRUHash
   # everytime we set a new resource. A default window of
   # 5 minutes will allow empty item to stay in the hash
   # for a maximum of 5 minutes
-  extend Forwardable
-  def_delegators :@table, :size, :count, :empty?, :values
-  attr_reader :table
-
   class NoopMutex
     def synchronize(*)
       yield
@@ -63,6 +59,22 @@ class LRUHash
       else
         NoopMutex.new
       end
+  end
+
+  def size
+    @lock.synchronize { @table.size }
+  end
+
+  def count(&block)
+    @lock.synchronize { @table.count(&block) }
+  end
+
+  def empty?
+    @lock.synchronize { @table.empty? }
+  end
+
+  def values
+    @lock.synchronize { @table.values }
   end
 
   def set(key, resource)
