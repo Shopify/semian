@@ -1,3 +1,7 @@
+# v0.10.1
+
+* Fix: thread safety bug on Ruby 2.7. (#263)
+
 # v0.10.0
 
 * Feature: Support half open resource timeout for redis.

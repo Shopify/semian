@@ -16,6 +16,8 @@ Gem::Specification.new do |s|
   s.email = 'scott.francis@shopify.com'
   s.license = 'MIT'
 
+  s.metadata['allowed_push_host'] = 'https://rubygems.org'
+
   s.files = Dir['{lib,ext}/**/**/*.{rb,h,c}']
   s.extensions = ['ext/semian/extconf.rb']
   s.add_development_dependency 'rake-compiler'
