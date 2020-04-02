@@ -68,6 +68,24 @@ class TestSemian < Minitest::Test
     assert_equal exception.message, "Must pass exactly one of ticket or quota"
   end
 
+  def test_register_with_error_rate_circuitbreaker
+    resource = Semian.register(
+        :testing_error_rate,
+        success_threshold: 1,
+        error_percent_threshold: 0.2,
+        request_volume_threshold: 1,
+        window_size: 10,
+        error_timeout: 5,
+        circuit_breaker: true,
+        bulkhead: false,
+        thread_safety_disabled: false,
+        )
+
+    assert resource, Semian[:testing_error_rate]
+    assert resource.circuit_breaker.state.instance_of?(Semian::ThreadSafe::State)
+    assert resource.circuit_breaker.instance_of?(Semian::ErrorRateCircuitBreaker)
+  end
+
   def test_unsuported_constants
     assert defined?(Semian::BaseError)
     assert defined?(Semian::SyscallError)

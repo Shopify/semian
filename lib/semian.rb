@@ -8,9 +8,11 @@ require 'semian/instrumentable'
 require 'semian/platform'
 require 'semian/resource'
 require 'semian/circuit_breaker'
+require 'semian/error_rate_circuit_breaker'
 require 'semian/protected_resource'
 require 'semian/unprotected_resource'
 require 'semian/simple_sliding_window'
+require 'semian/time_sliding_window'
 require 'semian/simple_integer'
 require 'semian/simple_state'
 require 'semian/lru_hash'
@@ -245,9 +247,27 @@ module Semian
 
   private
 
+  def create_error_rate_circuit_breaker(name, **options)
+    require_keys!([:success_threshold, :error_percent_threshold, :error_timeout,
+                   :request_volume_threshold, :window_size], options)
+
+    exceptions = options[:exceptions] || []
+    ErrorRateCircuitBreaker.new(name,
+                                success_threshold: options[:success_threshold],
+                                error_percent_threshold: options[:error_percent_threshold],
+                                error_timeout: options[:error_timeout],
+                                exceptions: Array(exceptions) + [::Semian::BaseError],
+                                half_open_resource_timeout: options[:half_open_resource_timeout],
+                                request_volume_threshold: options[:request_volume_threshold],
+                                window_size: options[:window_size],
+                                implementation: implementation(**options))
+  end
+
   def create_circuit_breaker(name, **options)
     circuit_breaker = options.fetch(:circuit_breaker, true)
     return unless circuit_breaker
+    return create_error_rate_circuit_breaker(name, **options) if options.key?(:error_percent_threshold)
+
     require_keys!([:success_threshold, :error_threshold, :error_timeout], options)
 
     exceptions = options[:exceptions] || []
