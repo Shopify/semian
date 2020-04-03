@@ -21,7 +21,7 @@ module Semian
       @request_volume_threshold = request_volume_threshold
       @success_count_threshold = success_threshold
 
-      @results = implementation::TimeSlidingWindow.new(window_size)
+      @window = implementation::TimeSlidingWindow.new(window_size)
       @state = implementation::State.new
 
       reset
@@ -65,14 +65,14 @@ module Semian
     end
 
     def mark_success
-      @results << true
+      @window << true
       return unless half_open?
       transition_to_close if success_threshold_reached?
     end
 
     def reset
       @last_error_time = nil
-      @results.clear
+      @window.clear
       transition_to_close
     end
 
@@ -80,10 +80,9 @@ module Semian
       @state.destroy
     end
 
-    # TODO understand what this is used for inside Semian lib
     def in_use?
       return false if error_timeout_expired?
-      @results.count(false) > 0
+      @window.count(false) > 0
     end
 
     private
@@ -96,7 +95,7 @@ module Semian
       notify_state_transition(:closed)
       log_state_transition(:closed)
       @state.close!
-      @results.clear
+      @window.clear
     end
 
     def transition_to_open
@@ -109,16 +108,16 @@ module Semian
       notify_state_transition(:half_open)
       log_state_transition(:half_open)
       @state.half_open!
-      @results.clear
+      @window.clear
     end
 
     def success_threshold_reached?
-      @results.count(true) >= @success_count_threshold
+      @window.count(true) >= @success_count_threshold
     end
 
     def error_threshold_reached?
-      return false if @results.empty? or @results.length < @request_volume_threshold
-      @results.count(false).to_f / @results.length.to_f >= @error_percent_threshold
+      return false if @window.empty? or @window.length < @request_volume_threshold
+      @window.count(false).to_f / @window.length.to_f >= @error_percent_threshold
     end
 
     def error_timeout_expired?
@@ -129,14 +128,14 @@ module Semian
     def push_error(error)
       @last_error = error
       @last_error_time = current_time
-      @results << false
+      @window << false
     end
 
     def log_state_transition(new_state)
       return if @state.nil? || new_state == @state.value
 
       str = "[#{self.class.name}] State transition from #{@state.value} to #{new_state}."
-      str << " success_count=#{@results.count(true)} error_count=#{@results.count(false)}"
+      str << " success_count=#{@window.count(true)} error_count=#{@window.count(false)}"
       str << " success_count_threshold=#{@success_count_threshold} error_count_percent=#{@error_percent_threshold}"
       str << " error_timeout=#{@error_timeout} error_last_at=\"#{@last_error_time}\""
       str << " name=\"#{@name}\""
