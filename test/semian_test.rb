@@ -65,7 +65,7 @@ class TestSemian < Minitest::Test
         circuit_breaker: false,
       )
     end
-    assert_equal exception.message, "Must pass exactly one of ticket or quota"
+    assert_equal exception.message, "Must pass exactly one of ticket or quota/min_tickets"
   end
 
   def test_unsuported_constants

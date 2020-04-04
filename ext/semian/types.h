@@ -23,6 +23,7 @@ union semun {
 typedef struct {
   int sem_id;
   int tickets;
+  int min_tickets;
   double quota;
 } configure_tickets_args_t;
 

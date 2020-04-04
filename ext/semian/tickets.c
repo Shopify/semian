@@ -5,7 +5,7 @@ static VALUE
 update_ticket_count(int sem_id, int count);
 
 static int
-calculate_quota_tickets(int sem_id, double quota);
+calculate_quota_tickets(int sem_id, double quota, int min_tickets);
 
 // Must be called with the semaphore meta lock already acquired
 VALUE
@@ -14,7 +14,7 @@ configure_tickets(VALUE value)
   configure_tickets_args_t *args = (configure_tickets_args_t *)value;
 
   if (args->quota > 0) {
-    args->tickets = calculate_quota_tickets(args->sem_id, args->quota);
+    args->tickets = calculate_quota_tickets(args->sem_id, args->quota, args->min_tickets);
   }
 
   /*
@@ -68,9 +68,22 @@ update_ticket_count(int sem_id, int tickets)
 }
 
 static int
-calculate_quota_tickets (int sem_id, double quota)
+min(const int a, const int b)
 {
-  int tickets = 0;
-  tickets = (int) ceil(get_sem_val(sem_id, SI_SEM_REGISTERED_WORKERS) * quota);
-  return tickets;
+  return a < b ? a : b;
+}
+
+static int
+max(const int a, const int b)
+{
+  return a > b ? a : b;
+}
+
+static int
+calculate_quota_tickets(int sem_id, double quota, int min_tickets)
+{
+  int workers = get_sem_val(sem_id, SI_SEM_REGISTERED_WORKERS);
+  int tickets = (int) ceil(workers * quota);
+  dprintf("Calculating quota tickets - sem_id:%d quota:%0.2f%% workers:%d min_tickets:%d tickets:%d", sem_id, quota * 100.0, workers, min_tickets, tickets);
+  return min_tickets > 0 ? min(workers, max(tickets, min_tickets)) : tickets;
 }

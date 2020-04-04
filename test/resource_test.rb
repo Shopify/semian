@@ -7,6 +7,8 @@ class TestResource < Minitest::Test
   EPSILON = 0.1
 
   def setup
+    @resources = []
+    @workers = []
     Semian.destroy(:testing)
   rescue
     nil
@@ -490,6 +492,63 @@ class TestResource < Minitest::Test
     assert_equal 0, timeouts
   end
 
+  def test_min_tickets
+    id = Time.now.strftime('%H:%M:%S.%N')
+    resource = Semian::Resource.new(id, quota: 0.49, timeout: 0.1, min_tickets: 2)
+    assert_equal(1, resource.tickets)
+    fork_workers(resource: id, count: 1, quota: 0.49, min_tickets: 2, timeout: 0.1, wait_for_timeout: true)
+    assert_equal(2, resource.tickets)
+    fork_workers(resource: id, count: 1, quota: 0.49, min_tickets: 2, timeout: 0.1, wait_for_timeout: true)
+    assert_equal(2, resource.tickets)
+    fork_workers(resource: id, count: 1, quota: 0.49, min_tickets: 2, timeout: 0.1, wait_for_timeout: true)
+    assert_equal(2, resource.tickets)
+    fork_workers(resource: id, count: 12, quota: 0.49, min_tickets: 2, timeout: 0.1, wait_for_timeout: true)
+    assert_equal(8, resource.tickets)
+  end
+
+  def test_min_tickets_float
+    expected_warning = /semian min_tickets value 2\.000000 is a float, converting to fixnum/
+    with_fake_std_error(warn_message: expected_warning) do
+      id = Time.now.strftime('%H:%M:%S.%N')
+      Semian::Resource.new(id, quota: 0.49, timeout: 0.1, min_tickets: 2.0)
+    end
+  end
+
+  def test_min_tickets_nil
+    id = Time.now.strftime('%H:%M:%S.%N')
+    resource = Semian::Resource.new(id, quota: 0.49, timeout: 0.1, min_tickets: nil)
+    assert_equal(1, resource.tickets)
+    fork_workers(resource: id, count: 1, quota: 0.49, min_tickets: nil, timeout: 0.1, wait_for_timeout: true)
+    assert_equal(1, resource.tickets)
+    fork_workers(resource: id, count: 1, quota: 0.49, min_tickets: nil, timeout: 0.1, wait_for_timeout: true)
+    assert_equal(2, resource.tickets)
+    fork_workers(resource: id, count: 1, quota: 0.49, min_tickets: nil, timeout: 0.1, wait_for_timeout: true)
+    assert_equal(2, resource.tickets)
+    fork_workers(resource: id, count: 12, quota: 0.49, min_tickets: nil, timeout: 0.1, wait_for_timeout: true)
+    assert_equal(8, resource.tickets)
+  end
+
+  def test_min_tickets_zero
+    id = Time.now.strftime('%H:%M:%S.%N')
+    assert_raises ArgumentError do
+      Semian::Resource.new(id, quota: 0.49, timeout: 0.1, min_tickets: 0)
+    end
+  end
+
+  def test_min_tickets_negative
+    id = Time.now.strftime('%H:%M:%S.%N')
+    assert_raises ArgumentError do
+      Semian::Resource.new(id, quota: 0.49, timeout: 0.1, min_tickets: -1)
+    end
+  end
+
+  def test_min_tickets_out_of_range
+    id = Time.now.strftime('%H:%M:%S.%N')
+    assert_raises ArgumentError do
+      Semian::Resource.new(id, quota: 0.49, timeout: 0.1, min_tickets: 32768)
+    end
+  end
+
   def create_resource(*args)
     @resources ||= []
     resource = Semian::Resource.new(*args)
@@ -515,14 +574,14 @@ class TestResource < Minitest::Test
   # Active workers are accumulated in the instance variable @workers,
   # and workers must be cleaned up between tests by the teardown script
   # An exit value of 100 is to keep track of timeouts, 0 for success.
-  def fork_workers(count:, resource: :testing, quota: nil, tickets: nil, timeout: 0.1, wait_for_timeout: false)
+  def fork_workers(count:, resource: :testing, quota: nil, tickets: nil, min_tickets: nil, timeout: 0.1, wait_for_timeout: false)
     fail 'Must provide at least one of tickets or quota' unless tickets || quota
 
     @workers ||= []
     count.times do
       @workers << fork do
         begin
-          resource = Semian::Resource.new(resource.to_sym, quota: quota, tickets: tickets, timeout: timeout)
+          resource = Semian::Resource.new(resource.to_sym, quota: quota, tickets: tickets, min_tickets: min_tickets, timeout: timeout)
 
           Signal.trap('TERM') do
             yield if block_given?

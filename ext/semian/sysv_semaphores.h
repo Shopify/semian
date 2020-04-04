@@ -18,6 +18,7 @@ and functions associated directly weth semops.
 
 #include "types.h"
 #include "tickets.h"
+#include "util.h"
 
 // Defines for ruby threading primitives
 #if defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL) && defined(HAVE_RUBY_THREAD_H)
@@ -71,7 +72,7 @@ raise_semian_syscall_error(const char *syscall, int error_num);
 
 // Initialize the sysv semaphore structure
 void
-initialize_semaphore_set(semian_resource_t* res, const char* id_str, long permissions, int tickets, double quota);
+initialize_semaphore_set(semian_resource_t* res, const char* id_str, long permissions, int tickets, int min_tickets, double quota);
 
 // Set semaphore UNIX octal permissions
 void
@@ -106,17 +107,15 @@ get_semaphore(int key);
 void *
 acquire_semaphore_without_gvl(void *p);
 
-#ifdef DEBUG
 static inline void
 print_sem_vals(int sem_id)
 {
-  printf("lock %d, tickets: %d configured: %d, registered workers %d\n",
+  dprintf("lock %d, tickets: %d configured: %d, registered workers %d",
    get_sem_val(sem_id, SI_SEM_LOCK),
    get_sem_val(sem_id, SI_SEM_TICKETS),
    get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS),
    get_sem_val(sem_id, SI_SEM_REGISTERED_WORKERS)
   );
 }
-#endif
 
 #endif // SEMIAN_SEMSET_H
