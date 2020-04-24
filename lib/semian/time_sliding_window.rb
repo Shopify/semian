@@ -12,18 +12,26 @@ module Semian
       Pair = Struct.new(:head, :tail)
 
       # A sliding window is a structure that stores the most recent entries that were pushed within the last slice of time
-      def initialize(time_window)
+      def initialize(time_window, time_source = nil)
         @time_window_millis = time_window * 1000
+        @time_source = time_source ? time_source : -> { Process.clock_gettime(Process::CLOCK_MONOTONIC, :float_millisecond) }
         @window = []
       end
 
-      def count(arg)
+      def count(&block)
+        _remove_old
         vals = @window.map { |pair| pair.tail}
-        vals.count(arg)
+        vals.count(&block)
+      end
+
+      def each_with_object(memo, &block)
+        _remove_old
+        vals = @window.map { |pair| pair.tail}
+        vals.each_with_object(memo, &block)
       end
 
       def push(value)
-        remove_old # make room
+        _remove_old # make room
         @window << Pair.new(current_time, value)
         self
       end
@@ -40,6 +48,14 @@ module Semian
       end
 
       def remove_old
+        _remove_old
+      end
+
+      alias_method :destroy, :clear
+
+      private
+
+      def _remove_old
         midtime = current_time - time_window_millis
         # special case, everything is too old
         @window.clear if !@window.empty? and @window.last.head < midtime
@@ -48,12 +64,8 @@ module Semian
         @window.slice!(0, idx) if idx
       end
 
-      alias_method :destroy, :clear
-
-      private
-
       def current_time
-        Process.clock_gettime(Process::CLOCK_MONOTONIC, :float_millisecond)
+        @time_source.call
       end
     end
   end
@@ -73,6 +85,10 @@ module Semian
       # have the lock or not.
 
       def count(*)
+        @lock.synchronize { super }
+      end
+
+      def each_with_object(*)
         @lock.synchronize { super }
       end
 

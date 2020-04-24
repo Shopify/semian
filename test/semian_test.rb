@@ -71,10 +71,11 @@ class TestSemian < Minitest::Test
   def test_register_with_error_rate_circuitbreaker
     resource = Semian.register(
         :testing_error_rate,
+        circuit_breaker_type: :error_rate,
         success_threshold: 1,
         error_percent_threshold: 0.2,
         request_volume_threshold: 1,
-        window_size: 10,
+        time_window: 10,
         error_timeout: 5,
         circuit_breaker: true,
         bulkhead: false,

@@ -2,7 +2,7 @@ require 'test_helper'
 
 class TestTimeSlidingWindow < Minitest::Test
   def setup
-    @sliding_window = ::Semian::ThreadSafe::TimeSlidingWindow.new(0.5) # Timecop doesn't work with a monotonic clock
+    @sliding_window = ::Semian::ThreadSafe::TimeSlidingWindow.new(0.5, -> { Time.now.to_f * 1000 }) # Timecop doesn't work with a monotonic clock
     @sliding_window.clear
   end
 
@@ -20,44 +20,55 @@ class TestTimeSlidingWindow < Minitest::Test
 
   def test_special_everything_too_old
     @sliding_window << 0 << 1
-    sleep(0.501)
-    assert_sliding_window(@sliding_window, [], 500)
+    Timecop.travel(0.501) do
+      assert_sliding_window(@sliding_window, [], 500)
+    end
   end
-
 
   def test_sliding_window_edge_falloff
     assert_equal(0, @sliding_window.size)
     @sliding_window << 0 << 1 << 2 << 3 << 4 << 5 << 6 << 7
     assert_sliding_window(@sliding_window, [0, 1, 2, 3, 4, 5, 6, 7], 500)
-    sleep(0.251)
-    @sliding_window << 8 << 9 << 10
-    sleep(0.251)
-    assert_sliding_window(@sliding_window, [8, 9, 10], 500)
-    @sliding_window << 11
-    sleep(0.251)
-    assert_sliding_window(@sliding_window, [11], 500)
+    Timecop.travel(0.251) do
+      @sliding_window << 8 << 9 << 10
+    end
+
+    Timecop.travel(0.251 * 2) do
+      assert_sliding_window(@sliding_window, [8, 9, 10], 500)
+      @sliding_window << 11
+    end
+    Timecop.travel(0.251 * 3) do
+      assert_sliding_window(@sliding_window, [11], 500)
+    end
   end
 
   def test_sliding_window_count
     @sliding_window << true << false << true << false << true << true << true
-    assert_equal(5, @sliding_window.count(true))
-    assert_equal(2, @sliding_window.count(false))
+    assert_equal(5, @sliding_window.count {|e| e == true})
+    assert_equal(2, @sliding_window.count {|e| e == false})
   end
 
-  def test_issue
-    @window = @sliding_window.instance_variable_get("@window")
-    @window << ::Semian::ThreadSafe::TimeSlidingWindow::Pair.new(338019700.707, true)
-    @window << ::Semian::ThreadSafe::TimeSlidingWindow::Pair.new(338019701.707, true)
-    @sliding_window << false
-    puts('break')
+  def test_each_with_object
+    assert_equal(0, @sliding_window.size)
+    @sliding_window << [false, 1] << [false, 2] << [true, 1] << [true, 3]
+    result = @sliding_window.each_with_object([0.0, 0.0]) do |entry, sum|
+      if entry[0] == true
+        sum[0] = entry[1] + sum[0]
+      else
+        sum[1] = entry[1] + sum[1]
+      end
+    end
+
+    assert_equal([4.0, 3.0], result)
   end
+
 
   private
 
   def assert_sliding_window(sliding_window, array, time_window_millis)
     # Get private member, the sliding_window doesn't expose the entire array
     sliding_window.remove_old
-    data = sliding_window.instance_variable_get("@window").map { |pair| pair.tail }
+    data = sliding_window.instance_variable_get("@window").map(&:tail)
     assert_equal(array, data)
     assert_equal(time_window_millis, sliding_window.time_window_millis)
   end

@@ -12,35 +12,33 @@ class TestErrorRateCircuitBreaker < Minitest::Test
       nil
     end
     @resource = ::Semian::ErrorRateCircuitBreaker.new(:testing,
-                                                      exceptions: [Exception],
+                                                      exceptions: [SomeError],
                                                       error_percent_threshold: 0.5,
                                                       error_timeout: 1,
-                                                      window_size: 2,
+                                                      time_window: 2,
                                                       request_volume_threshold: 2,
                                                       implementation: ::Semian::ThreadSafe,
                                                       success_threshold: 1,
-                                                      half_open_resource_timeout: nil)
-  end
-
-  # Timecop doesn't work with MONOTONIC_CLOCK
-  def sleep_for_sec(seconds)
-    sleep(seconds)
+                                                      half_open_resource_timeout: nil,
+                                                      time_source: -> { Time.now.to_f * 1000 }
+                                                      )
   end
 
   def half_open_circuit(resource = @resource)
-    open_circuit!(resource)
-    assert_circuit_opened(resource)
-    sleep_for_sec(1.1)
+    Timecop.travel(-1.1) do
+      open_circuit!(resource)
+      assert_circuit_opened(resource)
+    end
     assert resource.transition_to_half_open?, 'Expect breaker to be half-open'
   end
 
   def test_error_threshold_must_be_between_0_and_1
     assert_raises RuntimeError do
       ::Semian::ErrorRateCircuitBreaker.new(:testing,
-                                            exceptions: [Exception],
+                                            exceptions: [SomeError],
                                             error_percent_threshold: 1.0,
                                             error_timeout: 1,
-                                            window_size: 2,
+                                            time_window: 2,
                                             request_volume_threshold: 2,
                                             implementation: ::Semian::ThreadSafe,
                                             success_threshold: 1,
@@ -49,10 +47,10 @@ class TestErrorRateCircuitBreaker < Minitest::Test
 
     assert_raises RuntimeError do
       ::Semian::ErrorRateCircuitBreaker.new(:testing,
-                                            exceptions: [Exception],
+                                            exceptions: [SomeError],
                                             error_percent_threshold: 0.0,
                                             error_timeout: 1,
-                                            window_size: 2,
+                                            time_window: 2,
                                             request_volume_threshold: 2,
                                             implementation: ::Semian::ThreadSafe,
                                             success_threshold: 1,
@@ -92,10 +90,10 @@ class TestErrorRateCircuitBreaker < Minitest::Test
 
   def test_once_success_threshold_is_reached_only_error_threshold_will_open_the_circuit_again
     half_open_circuit
-    assert_circuit_closed
-    trigger_error!
-    assert_circuit_closed
-    trigger_error!
+    assert_circuit_closed_elapse_time(@resource, 0.1) # one success
+    assert_circuit_closed_elapse_time(@resource, 0.1) # two success
+    trigger_error_elapse_time!(@resource, 0.11) # one failure
+    trigger_error_elapse_time!(@resource, 0.11) # two failures (>50%)
     assert_circuit_opened
   end
 
@@ -107,67 +105,123 @@ class TestErrorRateCircuitBreaker < Minitest::Test
   end
 
   def test_errors_more_than_duration_apart_doesnt_open_circuit
-    trigger_error!
-    sleep_for_sec(2) # allow time for error to slide off time window
+    # allow time for error to slide off time window
+    Timecop.travel(-2) do
+      trigger_error!
+    end
     trigger_error!
     assert_circuit_closed
   end
 
+  def test_not_too_many_errors
+    resource = ::Semian::ErrorRateCircuitBreaker.new(:testing,
+                                                     exceptions: [SomeError],
+                                                     error_percent_threshold: 0.90,
+                                                     error_timeout: 1,
+                                                     time_window: 100,
+                                                     request_volume_threshold: 2,
+                                                     implementation: ::Semian::ThreadSafe,
+                                                     success_threshold: 1,
+                                                     half_open_resource_timeout: nil,
+                                                     time_source: -> { Time.now.to_f * 1000 }
+    )
+
+    success_cnt = 0
+    error_cnt = 0
+    # time window is 100 seconds, we spend the first half of that making successful requests:
+    Timecop.travel(-50) do
+      time_start = Time.now.to_f
+
+      while Time.now.to_f - time_start < 50
+        resource.acquire { Timecop.travel(0.05) }
+        success_cnt = success_cnt + 1
+      end
+    end
+
+    # resource goes completely down (not timing out, down)
+    Timecop.travel(-10) do
+      time_start = Time.now.to_f
+
+      while Time.now.to_f - time_start < 10
+        begin
+          resource.acquire {
+            # connection errors happen quickly, using up very little time
+            Timecop.travel(0.005)
+            raise SomeError
+          }
+        rescue SomeError
+        end
+
+        error_cnt = error_cnt + 1
+      end
+    end
+
+    assert_operator error_cnt, :<, 10 # this would ideally be some percentage
+  end
+
   def test_errors_under_threshold_doesnt_open_circuit
     # 60% success rate
-    @resource.acquire { 1 + 1}
-    @resource.acquire { 1 + 1}
+    Timecop.travel(-2) do
+      @resource.acquire do
+        Timecop.travel(-1)
+        1 + 1
+      end
+
+      @resource.acquire do
+        Timecop.return
+        1 + 1
+      end
+    end
     trigger_error!
-    @resource.acquire { 1 + 1}
     trigger_error!
     assert_circuit_closed
   end
 
   def test_request_allowed_query_doesnt_trigger_transitions
-    open_circuit!
-    refute_predicate @resource, :request_allowed?
-    assert_predicate @resource, :open?
-    sleep_for_sec(1.1)
+    Timecop.travel(-1.1) do
+      open_circuit!
+      refute_predicate @resource, :request_allowed?
+      assert_predicate @resource, :open?
+    end
     assert_predicate @resource, :request_allowed?
     assert_predicate @resource, :open?
   end
 
   def test_open_close_open_cycle
     resource = ::Semian::ErrorRateCircuitBreaker.new(:testing,
-                                                     exceptions: [Exception],
+                                                     exceptions: [SomeError],
                                                      error_percent_threshold: 0.5,
                                                      error_timeout: 1,
-                                                     window_size: 2,
+                                                     time_window: 2,
                                                      request_volume_threshold: 2,
                                                      implementation: ::Semian::ThreadSafe,
                                                      success_threshold: 2,
-                                                     half_open_resource_timeout: nil)
-    open_circuit!(resource)
-    assert_circuit_opened(resource)
-
-    sleep_for_sec(1.1)
-
-    assert_circuit_closed(resource)
-
-    assert resource.half_open?
-    assert_circuit_closed(resource)
-
-    assert resource.closed?
-
-    open_circuit!(resource)
-    assert_circuit_opened(resource)
-
-    sleep_for_sec(1.1)
-
+                                                     half_open_resource_timeout: nil,
+                                                     time_source: -> {Time.now.to_f * 1000})
+    Timecop.travel(-1.1) do
+      open_circuit!(resource)
+      assert_circuit_opened(resource)
+    end
 
     assert_circuit_closed(resource)
 
     assert resource.half_open?
-    assert_circuit_closed(resource)
+
+    assert_circuit_closed_elapse_time(resource, 0.1)
 
     assert resource.closed?
 
+    open_circuit!(resource, 1, 1)
+    assert_circuit_opened(resource)
 
+    Timecop.travel(1.1) do
+      assert_circuit_closed(resource)
+
+      assert resource.half_open?
+      assert_circuit_closed(resource)
+
+      assert resource.closed?
+    end
   end
 
   def test_env_var_disables_circuit_breaker
@@ -202,14 +256,15 @@ class TestErrorRateCircuitBreaker < Minitest::Test
 
   def test_changes_resource_timeout_when_configured
     resource = ::Semian::ErrorRateCircuitBreaker.new(:resource_timeout,
-                                                     exceptions: [Exception],
+                                                     exceptions: [SomeError],
                                                      error_percent_threshold: 0.5,
                                                      error_timeout: 1,
-                                                     window_size: 2,
+                                                     time_window: 2,
                                                      request_volume_threshold: 2,
                                                      implementation: ::Semian::ThreadSafe,
                                                      success_threshold: 2,
-                                                     half_open_resource_timeout: 0.123)
+                                                     half_open_resource_timeout: 0.123,
+                                                     time_source: -> { Time.now.to_f * 1000 })
 
     half_open_circuit(resource)
     assert_circuit_closed(resource)
@@ -229,14 +284,15 @@ class TestErrorRateCircuitBreaker < Minitest::Test
 
   def test_doesnt_change_resource_timeout_when_closed
     resource = ::Semian::ErrorRateCircuitBreaker.new(:resource_timeout,
-                                                     exceptions: [Exception],
+                                                     exceptions: [SomeError],
                                                      error_percent_threshold: 0.5,
                                                      error_timeout: 1,
-                                                     window_size: 2,
+                                                     time_window: 2,
                                                      request_volume_threshold: 2,
                                                      implementation: ::Semian::ThreadSafe,
                                                      success_threshold: 2,
-                                                     half_open_resource_timeout: 0.123)
+                                                     half_open_resource_timeout: 0.123,
+                                                     time_source: -> { Time.now.to_f * 1000 })
 
     raw_resource = RawResource.new
 
@@ -252,14 +308,15 @@ class TestErrorRateCircuitBreaker < Minitest::Test
 
   def test_doesnt_blow_up_when_configured_half_open_timeout_but_adapter_doesnt_support
     resource = ::Semian::ErrorRateCircuitBreaker.new(:resource_timeout,
-                                                     exceptions: [Exception],
+                                                     exceptions: [SomeError],
                                                      error_percent_threshold: 0.5,
                                                      error_timeout: 1,
-                                                     window_size: 2,
+                                                     time_window: 2,
                                                      request_volume_threshold: 2,
                                                      implementation: ::Semian::ThreadSafe,
                                                      success_threshold: 2,
-                                                     half_open_resource_timeout: 0.123)
+                                                     half_open_resource_timeout: 0.123,
+                                                     time_source: -> { Time.now.to_f * 1000 })
 
     raw_resource = Object.new
 
@@ -305,37 +362,38 @@ class TestErrorRateCircuitBreaker < Minitest::Test
 
     # Creating a resource should generate a :closed notification.
     resource = ::Semian::ErrorRateCircuitBreaker.new(name,
-                                                     exceptions: [Exception],
+                                                     exceptions: [SomeError],
                                                      error_percent_threshold: 0.6666,
                                                      error_timeout: 1,
-                                                     window_size: 2,
+                                                     time_window: 2,
                                                      request_volume_threshold: 2,
                                                      implementation: ::Semian::ThreadSafe,
                                                      success_threshold: 1,
-                                                     half_open_resource_timeout: 0.123)
+                                                     half_open_resource_timeout: 0.123,
+                                                     time_source: -> { Time.now.to_f * 1000 })
     assert_equal(1, events.length)
     assert_equal(name, events[0][:name])
     assert_equal(:closed, events[0][:state])
 
     # Acquiring a resource doesn't generate a transition.
-    resource.acquire { nil }
+    assert_circuit_closed_elapse_time(resource, 0.1)
     assert_equal(1, events.length)
 
     # error_threshold_percent failures causes a transition to open.
-    2.times { trigger_error!(resource) }
+    2.times { trigger_error_elapse_time!(resource, 0.12) }
     assert_equal(2, events.length)
     assert_equal(name, events[1][:name])
     assert_equal(:open, events[1][:state])
 
-    sleep_for_sec(1.1)
-
+    Timecop.travel(1.1) do
       # Acquiring the resource successfully generates a transition to half_open, then closed.
-    resource.acquire { nil }
-    assert_equal(4, events.length)
-    assert_equal(name, events[2][:name])
-    assert_equal(:half_open, events[2][:state])
-    assert_equal(name, events[3][:name])
-    assert_equal(:closed, events[3][:state])
+      resource.acquire { nil }
+      assert_equal(4, events.length)
+      assert_equal(name, events[2][:name])
+      assert_equal(:half_open, events[2][:state])
+      assert_equal(name, events[3][:name])
+      assert_equal(:closed, events[3][:state])
+    end
   ensure
     Semian.unsubscribe(:test_notify_state_transition)
   end

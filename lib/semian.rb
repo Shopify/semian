@@ -128,6 +128,9 @@ module Semian
   #
   # +circuit_breaker+: The boolean if you want a circuit breaker acquired for your resource. Default true.
   #
+  # +circuit_breaker_type+: The string representing the type of circuit breaker, one of :normal or :error_rate
+  # Default normal (optional)
+  #
   # +bulkhead+: The boolean if you want a bulkhead to be acquired for your resource. Default true.
   #
   # +tickets+: Number of tickets. If this value is 0, the ticket count will not be set,
@@ -154,6 +157,18 @@ module Semian
   #
   # +exceptions+: An array of exception classes that should be accounted as resource errors. Default [].
   # (circuit breaker)
+  #
+  # +error_percent_threshold+: The percentage of time spent making calls that ultimately ended in error
+  # that will trigger the circuit opening (error_rate circuit breaker required)
+  #
+  # +request_volume_threshold+: The number of calls that must happen within the time_window before the circuit
+  # will consider opening based on error_percent_threshold. For example, if the value is 20, then if only 19 requests
+  # are received in the rolling window the circuit will not trip open even if all 19 failed.
+  # Without this the circuit would open if the first request was an error (100% failure rate).
+  # (error_rate circuit breaker required)
+  #
+  # +time_window+: The time window in seconds over which the error rate will be calculated
+  # (error_rate circuit breaker required)
   #
   # Returns the registered resource.
   def register(name, **options)
@@ -249,7 +264,7 @@ module Semian
 
   def create_error_rate_circuit_breaker(name, **options)
     require_keys!([:success_threshold, :error_percent_threshold, :error_timeout,
-                   :request_volume_threshold, :window_size], options)
+                   :request_volume_threshold, :time_window], options)
 
     exceptions = options[:exceptions] || []
     ErrorRateCircuitBreaker.new(name,
@@ -259,14 +274,20 @@ module Semian
                                 exceptions: Array(exceptions) + [::Semian::BaseError],
                                 half_open_resource_timeout: options[:half_open_resource_timeout],
                                 request_volume_threshold: options[:request_volume_threshold],
-                                window_size: options[:window_size],
+                                time_window: options[:time_window],
                                 implementation: implementation(**options))
   end
 
   def create_circuit_breaker(name, **options)
     circuit_breaker = options.fetch(:circuit_breaker, true)
     return unless circuit_breaker
-    return create_error_rate_circuit_breaker(name, **options) if options.key?(:error_percent_threshold)
+
+    type = options.fetch(:circuit_breaker_type, :normal)
+    unless [:normal, :error_rate].include?(type)
+      raise ArgumentError, "Unknown 'circuit_breaker_type': #{type}, should be :normal or :error_rate"
+    end
+
+    return create_error_rate_circuit_breaker(name, **options) if type == :error_rate
 
     require_keys!([:success_threshold, :error_threshold, :error_timeout], options)
 
