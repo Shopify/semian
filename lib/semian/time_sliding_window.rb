@@ -2,7 +2,6 @@ require 'thread'
 
 module Semian
   module Simple
-
     class TimeSlidingWindow #:nodoc:
       extend Forwardable
 
@@ -20,13 +19,13 @@ module Semian
 
       def count(&block)
         _remove_old
-        vals = @window.map { |pair| pair.tail}
+        vals = @window.map(&:tail)
         vals.count(&block)
       end
 
       def each_with_object(memo, &block)
         _remove_old
-        vals = @window.map { |pair| pair.tail}
+        vals = @window.map(&:tail)
         vals.each_with_object(memo, &block)
       end
 
@@ -58,7 +57,7 @@ module Semian
       def _remove_old
         midtime = current_time - time_window_millis
         # special case, everything is too old
-        @window.clear if !@window.empty? and @window.last.head < midtime
+        @window.clear if !@window.empty? && @window.last.head < midtime
         # otherwise we find the index position where the cutoff is
         idx = (0...@window.size).bsearch { |n| @window[n].head >= midtime }
         @window.slice!(0, idx) if idx
