@@ -20,8 +20,7 @@ class TestErrorRateCircuitBreaker < Minitest::Test
                                                       implementation: ::Semian::ThreadSafe,
                                                       success_threshold: 1,
                                                       half_open_resource_timeout: nil,
-                                                      time_source: -> { Time.now.to_f * 1000 }
-                                                      )
+                                                      time_source: -> { Time.now.to_f * 1000 })
   end
 
   def half_open_circuit(resource = @resource)
@@ -114,6 +113,7 @@ class TestErrorRateCircuitBreaker < Minitest::Test
   end
 
   def test_not_too_many_errors
+    skip 'Pending decision on if this warrants another threshold'
     resource = ::Semian::ErrorRateCircuitBreaker.new(:testing,
                                                      exceptions: [SomeError],
                                                      error_percent_threshold: 0.90,

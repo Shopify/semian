@@ -44,8 +44,8 @@ class TestTimeSlidingWindow < Minitest::Test
 
   def test_sliding_window_count
     @sliding_window << true << false << true << false << true << true << true
-    assert_equal(5, @sliding_window.count {|e| e == true})
-    assert_equal(2, @sliding_window.count {|e| e == false})
+    assert_equal(5, @sliding_window.count { |e| e == true })
+    assert_equal(2, @sliding_window.count { |e| e == false })
   end
 
   def test_each_with_object
@@ -61,7 +61,6 @@ class TestTimeSlidingWindow < Minitest::Test
 
     assert_equal([4.0, 3.0], result)
   end
-
 
   private
 

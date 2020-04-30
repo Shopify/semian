@@ -5,11 +5,11 @@ module Semian
     def_delegators :@state, :closed?, :open?, :half_open?
 
     attr_reader :name, :half_open_resource_timeout, :error_timeout, :state, :last_error, :error_percent_threshold,
-                :request_volume_threshold, :success_count_threshold
+                :request_volume_threshold, :success_threshold, :time_window
 
     def initialize(name, exceptions:, error_percent_threshold:, error_timeout:, time_window:,
-                   request_volume_threshold:, success_threshold:, implementation:,
-                   half_open_resource_timeout: nil, time_source: nil)
+      request_volume_threshold:, success_threshold:, implementation:,
+      half_open_resource_timeout: nil, time_source: nil)
 
       raise 'error_threshold_percent should be between 0.0 and 1.0 exclusive' unless (0.0001...1.0).cover?(error_percent_threshold)
 
@@ -20,7 +20,7 @@ module Semian
       @error_percent_threshold = error_percent_threshold
       @last_error_time = nil
       @request_volume_threshold = request_volume_threshold
-      @success_count_threshold = success_threshold
+      @success_threshold = success_threshold
       @time_source = time_source ? time_source : -> { Process.clock_gettime(Process::CLOCK_MONOTONIC, :float_millisecond) }
       @window = implementation::TimeSlidingWindow.new(time_window, @time_source)
       @state = implementation::State.new
@@ -114,7 +114,7 @@ module Semian
     end
 
     def success_threshold_reached?
-      success_count >= @success_count_threshold
+      success_count >= @success_threshold
     end
 
     def error_threshold_reached?
@@ -158,7 +158,7 @@ module Semian
 
       str = "[#{self.class.name}] State transition from #{@state.value} to #{new_state}."
       str << " success_count=#{success_count} error_count=#{error_count}"
-      str << " success_count_threshold=#{@success_count_threshold} error_count_percent=#{@error_percent_threshold}"
+      str << " success_count_threshold=#{@success_threshold} error_count_percent=#{@error_percent_threshold}"
       str << " error_timeout=#{@error_timeout} error_last_at=\"#{@last_error_time}\""
       str << " name=\"#{@name}\""
       Semian.logger.info(str)
