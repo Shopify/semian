@@ -70,6 +70,6 @@ class TestTimeSlidingWindow < Minitest::Test
     # each_with_object will remove old entries first
     data = sliding_window.each_with_object([]) { |v, data| data.append(v) }
     assert_equal(array, data)
-    assert_equal(time_window_millis, sliding_window.time_window_millis)
+    assert_equal(time_window_millis, sliding_window.time_window_ms)
   end
 end

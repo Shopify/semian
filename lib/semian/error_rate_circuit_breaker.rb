@@ -5,7 +5,9 @@ module Semian
     def_delegators :@state, :closed?, :open?, :half_open?
 
     attr_reader :name, :half_open_resource_timeout, :error_timeout, :state, :last_error, :error_percent_threshold,
-                :minimum_request_volume, :success_threshold, :time_window
+                :minimum_request_volume, :success_threshold
+
+    def_delegator :@window, :time_window_ms
 
     def initialize(name, exceptions:, error_percent_threshold:, error_timeout:, time_window:,
       minimum_request_volume:, success_threshold:, implementation:,
@@ -14,7 +16,7 @@ module Semian
       raise 'error_threshold_percent should be between 0.0 and 1.0 exclusive' unless 0 < error_percent_threshold && error_percent_threshold < 1
 
       @name = name.to_sym
-      @error_timeout = error_timeout * 1000
+      @error_timeout = error_timeout
       @exceptions = exceptions
       @half_open_resource_timeout = half_open_resource_timeout
       @error_percent_threshold = error_percent_threshold
@@ -144,7 +146,7 @@ module Semian
 
     def error_timeout_expired?
       return false unless @last_error_time
-      current_time - @last_error_time >= @error_timeout
+      current_time - @last_error_time >= @error_timeout * 1000
     end
 
     def push_error(error, time_spent)
@@ -160,6 +162,7 @@ module Semian
       str << " success_count=#{success_count} error_count=#{error_count}"
       str << " success_count_threshold=#{@success_threshold} error_count_percent=#{@error_percent_threshold}"
       str << " error_timeout=#{@error_timeout} error_last_at=\"#{@last_error_time}\""
+      str << " minimum_request_volume=#{@minimum_request_volume} time_window_ms=#{@window.time_window_ms}"
       str << " name=\"#{@name}\""
       Semian.logger.info(str)
     end

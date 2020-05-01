@@ -6,13 +6,13 @@ module Semian
       extend Forwardable
 
       def_delegators :@window, :size, :empty?, :length
-      attr_reader :time_window_millis
+      attr_reader :time_window_ms
 
       Pair = Struct.new(:head, :tail)
 
       # A sliding window is a structure that stores the most recent entries that were pushed within the last slice of time
       def initialize(time_window, time_source = nil)
-        @time_window_millis = time_window * 1000
+        @time_window_ms = time_window * 1000
         @time_source = time_source ? time_source : -> { Process.clock_gettime(Process::CLOCK_MONOTONIC, :float_millisecond) }
         @window = []
       end
@@ -52,7 +52,7 @@ module Semian
 
       def remove_old
         return if @window.empty?
-        midtime = current_time - time_window_millis
+        midtime = current_time - time_window_ms
         # special case, everything is too old
         @window.clear if @window.last.head < midtime
         # otherwise we find the index position where the cutoff is

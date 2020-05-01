@@ -74,6 +74,9 @@ class TestErrorRateCircuitBreaker < Minitest::Test
       @resource.acquire { 1 + 1 }
     end
     assert_match(/State transition from closed to open/, @strio.string)
+    assert_match(/minimum_request_volume=2/, @strio.string)
+    assert_match(/time_window_ms=2000/, @strio.string)
+    assert_match(/error_count_percent=0\.5/, @strio.string)
   end
 
   def test_after_error_threshold_the_circuit_is_open
