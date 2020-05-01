@@ -18,19 +18,19 @@ module Semian
       end
 
       def count(&block)
-        _remove_old
+        remove_old
         vals = @window.map(&:tail)
         vals.count(&block)
       end
 
       def each_with_object(memo, &block)
-        _remove_old
+        remove_old
         vals = @window.map(&:tail)
         vals.each_with_object(memo, &block)
       end
 
       def push(value)
-        _remove_old # make room
+        remove_old # make room
         @window << Pair.new(current_time, value)
         self
       end
@@ -46,18 +46,15 @@ module Semian
         @window.last&.tail
       end
 
-      def remove_old
-        _remove_old
-      end
-
       alias_method :destroy, :clear
 
       private
 
-      def _remove_old
+      def remove_old
+        return if @window.empty?
         midtime = current_time - time_window_millis
         # special case, everything is too old
-        @window.clear if !@window.empty? && @window.last.head < midtime
+        @window.clear if @window.last.head < midtime
         # otherwise we find the index position where the cutoff is
         idx = (0...@window.size).bsearch { |n| @window[n].head >= midtime }
         @window.slice!(0, idx) if idx
@@ -88,10 +85,6 @@ module Semian
       end
 
       def each_with_object(*)
-        @lock.synchronize { super }
-      end
-
-      def remove_old
         @lock.synchronize { super }
       end
 

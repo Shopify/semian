@@ -74,7 +74,7 @@ class TestSemian < Minitest::Test
         circuit_breaker_type: :error_rate,
         success_threshold: 1,
         error_percent_threshold: 0.2,
-        request_volume_threshold: 1,
+        minimum_request_volume: 1,
         time_window: 10,
         error_timeout: 5,
         circuit_breaker: true,

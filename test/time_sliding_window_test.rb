@@ -4,10 +4,12 @@ class TestTimeSlidingWindow < Minitest::Test
   def setup
     @sliding_window = ::Semian::ThreadSafe::TimeSlidingWindow.new(0.5, -> { Time.now.to_f * 1000 }) # Timecop doesn't work with a monotonic clock
     @sliding_window.clear
+    Timecop.freeze
   end
 
   def teardown
     @sliding_window.destroy
+    Timecop.return
   end
 
   def test_sliding_window_push
@@ -65,9 +67,8 @@ class TestTimeSlidingWindow < Minitest::Test
   private
 
   def assert_sliding_window(sliding_window, array, time_window_millis)
-    # Get private member, the sliding_window doesn't expose the entire array
-    sliding_window.remove_old
-    data = sliding_window.instance_variable_get("@window").map(&:tail)
+    # each_with_object will remove old entries first
+    data = sliding_window.each_with_object([]) { |v, data| data.append(v) }
     assert_equal(array, data)
     assert_equal(time_window_millis, sliding_window.time_window_millis)
   end

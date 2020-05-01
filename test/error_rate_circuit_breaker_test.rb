@@ -16,11 +16,16 @@ class TestErrorRateCircuitBreaker < Minitest::Test
                                                       error_percent_threshold: 0.5,
                                                       error_timeout: 1,
                                                       time_window: 2,
-                                                      request_volume_threshold: 2,
+                                                      minimum_request_volume: 2,
                                                       implementation: ::Semian::ThreadSafe,
                                                       success_threshold: 1,
                                                       half_open_resource_timeout: nil,
                                                       time_source: -> { Time.now.to_f * 1000 })
+      Timecop.return
+  end
+
+  def teardown
+    Timecop.return
   end
 
   def half_open_circuit(resource = @resource)
@@ -38,7 +43,7 @@ class TestErrorRateCircuitBreaker < Minitest::Test
                                             error_percent_threshold: 1.0,
                                             error_timeout: 1,
                                             time_window: 2,
-                                            request_volume_threshold: 2,
+                                            minimum_request_volume: 2,
                                             implementation: ::Semian::ThreadSafe,
                                             success_threshold: 1,
                                             half_open_resource_timeout: nil)
@@ -50,7 +55,7 @@ class TestErrorRateCircuitBreaker < Minitest::Test
                                             error_percent_threshold: 0.0,
                                             error_timeout: 1,
                                             time_window: 2,
-                                            request_volume_threshold: 2,
+                                            minimum_request_volume: 2,
                                             implementation: ::Semian::ThreadSafe,
                                             success_threshold: 1,
                                             half_open_resource_timeout: nil)
@@ -112,53 +117,6 @@ class TestErrorRateCircuitBreaker < Minitest::Test
     assert_circuit_closed
   end
 
-  def test_not_too_many_errors
-    skip 'Pending decision on if this warrants another threshold'
-    resource = ::Semian::ErrorRateCircuitBreaker.new(:testing,
-                                                     exceptions: [SomeError],
-                                                     error_percent_threshold: 0.90,
-                                                     error_timeout: 1,
-                                                     time_window: 100,
-                                                     request_volume_threshold: 2,
-                                                     implementation: ::Semian::ThreadSafe,
-                                                     success_threshold: 1,
-                                                     half_open_resource_timeout: nil,
-                                                     time_source: -> { Time.now.to_f * 1000 }
-    )
-
-    success_cnt = 0
-    error_cnt = 0
-    # time window is 100 seconds, we spend the first half of that making successful requests:
-    Timecop.travel(-50) do
-      time_start = Time.now.to_f
-
-      while Time.now.to_f - time_start < 50
-        resource.acquire { Timecop.travel(0.05) }
-        success_cnt = success_cnt + 1
-      end
-    end
-
-    # resource goes completely down (not timing out, down)
-    Timecop.travel(-10) do
-      time_start = Time.now.to_f
-
-      while Time.now.to_f - time_start < 10
-        begin
-          resource.acquire {
-            # connection errors happen quickly, using up very little time
-            Timecop.travel(0.005)
-            raise SomeError
-          }
-        rescue SomeError
-        end
-
-        error_cnt = error_cnt + 1
-      end
-    end
-
-    assert_operator error_cnt, :<, 10 # this would ideally be some percentage
-  end
-
   def test_errors_under_threshold_doesnt_open_circuit
     # 60% success rate
     Timecop.travel(-2) do
@@ -193,7 +151,7 @@ class TestErrorRateCircuitBreaker < Minitest::Test
                                                      error_percent_threshold: 0.5,
                                                      error_timeout: 1,
                                                      time_window: 2,
-                                                     request_volume_threshold: 2,
+                                                     minimum_request_volume: 2,
                                                      implementation: ::Semian::ThreadSafe,
                                                      success_threshold: 2,
                                                      half_open_resource_timeout: nil,
@@ -260,7 +218,7 @@ class TestErrorRateCircuitBreaker < Minitest::Test
                                                      error_percent_threshold: 0.5,
                                                      error_timeout: 1,
                                                      time_window: 2,
-                                                     request_volume_threshold: 2,
+                                                     minimum_request_volume: 2,
                                                      implementation: ::Semian::ThreadSafe,
                                                      success_threshold: 2,
                                                      half_open_resource_timeout: 0.123,
@@ -288,7 +246,7 @@ class TestErrorRateCircuitBreaker < Minitest::Test
                                                      error_percent_threshold: 0.5,
                                                      error_timeout: 1,
                                                      time_window: 2,
-                                                     request_volume_threshold: 2,
+                                                     minimum_request_volume: 2,
                                                      implementation: ::Semian::ThreadSafe,
                                                      success_threshold: 2,
                                                      half_open_resource_timeout: 0.123,
@@ -312,7 +270,7 @@ class TestErrorRateCircuitBreaker < Minitest::Test
                                                      error_percent_threshold: 0.5,
                                                      error_timeout: 1,
                                                      time_window: 2,
-                                                     request_volume_threshold: 2,
+                                                     minimum_request_volume: 2,
                                                      implementation: ::Semian::ThreadSafe,
                                                      success_threshold: 2,
                                                      half_open_resource_timeout: 0.123,
@@ -366,7 +324,7 @@ class TestErrorRateCircuitBreaker < Minitest::Test
                                                      error_percent_threshold: 0.6666,
                                                      error_timeout: 1,
                                                      time_window: 2,
-                                                     request_volume_threshold: 2,
+                                                     minimum_request_volume: 2,
                                                      implementation: ::Semian::ThreadSafe,
                                                      success_threshold: 1,
                                                      half_open_resource_timeout: 0.123,

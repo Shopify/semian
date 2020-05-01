@@ -5,13 +5,13 @@ module Semian
     def_delegators :@state, :closed?, :open?, :half_open?
 
     attr_reader :name, :half_open_resource_timeout, :error_timeout, :state, :last_error, :error_percent_threshold,
-                :request_volume_threshold, :success_threshold, :time_window
+                :minimum_request_volume, :success_threshold, :time_window
 
     def initialize(name, exceptions:, error_percent_threshold:, error_timeout:, time_window:,
-      request_volume_threshold:, success_threshold:, implementation:,
+      minimum_request_volume:, success_threshold:, implementation:,
       half_open_resource_timeout: nil, time_source: nil)
 
-      raise 'error_threshold_percent should be between 0.0 and 1.0 exclusive' unless (0.0001...1.0).cover?(error_percent_threshold)
+      raise 'error_threshold_percent should be between 0.0 and 1.0 exclusive' unless 0 < error_percent_threshold && error_percent_threshold < 1
 
       @name = name.to_sym
       @error_timeout = error_timeout * 1000
@@ -19,7 +19,7 @@ module Semian
       @half_open_resource_timeout = half_open_resource_timeout
       @error_percent_threshold = error_percent_threshold
       @last_error_time = nil
-      @request_volume_threshold = request_volume_threshold
+      @minimum_request_volume = minimum_request_volume
       @success_threshold = success_threshold
       @time_source = time_source ? time_source : -> { Process.clock_gettime(Process::CLOCK_MONOTONIC, :float_millisecond) }
       @window = implementation::TimeSlidingWindow.new(time_window, @time_source)
@@ -118,7 +118,7 @@ module Semian
     end
 
     def error_threshold_reached?
-      return false if @window.empty? || @window.length < @request_volume_threshold
+      return false if @window.empty? || @window.length < @minimum_request_volume
       success_time_spent, error_time_spent = calculate_time_spent
       total_time = error_time_spent + success_time_spent
       error_time_spent / total_time >= @error_percent_threshold
