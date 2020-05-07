@@ -5,7 +5,7 @@ module Semian
     def_delegators :@state, :closed?, :open?, :half_open?
 
     attr_reader :name, :half_open_resource_timeout, :error_timeout, :state, :last_error, :error_percent_threshold,
-                :minimum_request_volume, :success_threshold
+                :minimum_request_volume, :success_threshold, :exceptions
 
     def_delegator :@window, :time_window_ms
 
