@@ -117,7 +117,7 @@ class TestResource < Minitest::Test
 
   def test_register_with_neither_quota_nor_tickets_raises
     assert_raises ArgumentError do
-      create_resource :testing
+      Semian::Resource.new(:testing)
     end
   end
 
@@ -490,9 +490,9 @@ class TestResource < Minitest::Test
     assert_equal 0, timeouts
   end
 
-  def create_resource(*args)
+  def create_resource(name, **kwargs)
     @resources ||= []
-    resource = Semian::Resource.new(*args)
+    resource = Semian::Resource.new(name, **kwargs)
     @resources << resource
     resource
   end

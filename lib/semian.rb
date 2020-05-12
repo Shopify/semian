@@ -287,7 +287,7 @@ module Semian
     Resource.new(name, tickets: options[:tickets], quota: options[:quota], permissions: permissions, timeout: timeout)
   end
 
-  def require_keys!(required = [], **options)
+  def require_keys!(required, options)
     diff = required - options.keys
     unless diff.empty?
       raise ArgumentError, "Missing required arguments for Semian: #{diff}"

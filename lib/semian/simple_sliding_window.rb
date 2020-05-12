@@ -44,7 +44,7 @@ module Semian
 
   module ThreadSafe
     class SlidingWindow < Simple::SlidingWindow
-      def initialize(*)
+      def initialize(**)
         super
         @lock = Mutex.new
       end

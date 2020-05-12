@@ -1,3 +1,7 @@
+# unrealeased
+
+* Fix: Positional/Keyword arguments deprecations warning for Ruby 2.7
+
 # v0.10.1
 
 * Fix: thread safety bug on Ruby 2.7. (#263)
