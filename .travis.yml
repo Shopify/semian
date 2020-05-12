@@ -23,6 +23,7 @@ matrix:
 script:
   - docker build --build-arg BUNDLE_GEMFILE="$GEMFILE" -t shopify/semian-ci:latest -f dockerfiles/semian-ci .
   - travis_retry docker-compose -f docker-compose.ci.yml up --force-recreate --exit-code-from semian
+  - travis_retry docker-compose -f docker-compose.ci.2.6.yml up --force-recreate --exit-code-from semian
 
 notifications:
   email: false
