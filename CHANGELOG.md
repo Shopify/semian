@@ -1,4 +1,4 @@
-# unrealeased
+# v0.10.2
 
 * Fix: Positional/Keyword arguments deprecations warning for Ruby 2.7
 
