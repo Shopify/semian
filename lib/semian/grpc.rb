@@ -79,22 +79,22 @@ module Semian
       raw_semian_options.nil?
     end
 
-    def request_response(*, **)
+    def request_response(*)
       return super if disabled?
       acquire_semian_resource(adapter: :grpc, scope: :request_response) { super }
     end
 
-    def client_streamer(*, **)
+    def client_streamer(*)
       return super if disabled?
       acquire_semian_resource(adapter: :grpc, scope: :client_streamer) { super }
     end
 
-    def server_streamer(*, **)
+    def server_streamer(*)
       return super if disabled?
       acquire_semian_resource(adapter: :grpc, scope: :server_streamer) { super }
     end
 
-    def bidi_streamer(*, **)
+    def bidi_streamer(*)
       return super if disabled?
       acquire_semian_resource(adapter: :grpc, scope: :bidi_streamer) { super }
     end
