@@ -1,6 +1,10 @@
+# v0.10.3
+
+* Fix: Positional/Keyword arguments deprecations warning for Ruby 2.7 in the grpc adapter. (#269)
+
 # v0.10.2
 
-* Fix: Positional/Keyword arguments deprecations warning for Ruby 2.7
+* Fix: Positional/Keyword arguments deprecations warning for Ruby 2.7.
 
 # v0.10.1
 
