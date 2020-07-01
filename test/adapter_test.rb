@@ -7,10 +7,6 @@ class TestSemianAdapter < Minitest::Test
     Semian.reset!
   end
 
-  def teardown
-    Semian.unregister_all_resources
-  end
-
   def test_adapter_registers_consumer
     assert_empty(Semian.resources)
     assert_empty(Semian.consumers)

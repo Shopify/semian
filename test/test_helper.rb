@@ -19,6 +19,8 @@ require 'helpers/mock_server.rb'
 
 require 'config/semian_config'
 
+require 'semian/minitest'
+
 BIND_ADDRESS = '0.0.0.0'
 
 Semian.logger = Logger.new(nil)
