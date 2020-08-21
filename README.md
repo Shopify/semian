@@ -52,8 +52,8 @@ gem 'semian', require: %w(semian semian/mysql2 semian/redis)
 ```
 
 We recommend this pattern of requiring adapters directly from the `Gemfile`.
-This makes ensures Semian adapters is loaded as early as possible, to also
-protect your application during boot. Please see the [adapter configuration
+This ensures Semian adapters are loaded as early as possible and also
+protects your application during boot. Please see the [adapter configuration
 section](#configuration) on how to configure adapters.
 
 ## Adapters
