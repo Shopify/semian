@@ -750,7 +750,7 @@ $ cd semian
 
 
 [hystrix]: https://github.com/Netflix/Hystrix
-[release-it]: https://pragprog.com/book/mnee/release-it
+[release-it]: https://pragprog.com/titles/mnee2/release-it-second-edition/
 [shopify]: http://www.shopify.com/
 [mysql-semian-adapter]: lib/semian/mysql2.rb
 [redis-semian-adapter]: lib/semian/redis.rb
