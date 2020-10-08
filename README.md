@@ -648,11 +648,11 @@ Semian internals. For example to instrument just events with
 # `scope` is `connection` or `query` (others can be instrumented too from the adapter)
 # `adapter` is the name of the adapter (mysql2, redis, ..)
 Semian.subscribe do |event, resource, scope, adapter|
-  StatsD.increment("Shopify.#{adapter}.semian.#{event}", 1, tags: [
-    "resource:#{resource.name}",
-    "total_tickets:#{resource.tickets}",
-    "type:#{scope}",
-  ])
+  StatsD.increment("semian.#{event}", 1, tags: {
+    resource: resource.name,
+    adapter: adapter,
+    type: scope,
+  })
 end
 ```
 
