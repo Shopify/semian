@@ -22,12 +22,14 @@ void Init_semian()
    * Represents a Semian error that was caused by an underlying syscall failure.
    */
   eSyscall = rb_const_get(cSemian, rb_intern("SyscallError"));
+  rb_global_variable(&eSyscall);
 
   /* Document-class: Semian::TimeoutError
    *
    * Raised when a Semian operation timed out.
    */
   eTimeout = rb_const_get(cSemian, rb_intern("TimeoutError"));
+  rb_global_variable(&eTimeout);
 
   /* Document-class: Semian::InternalError
    *
@@ -40,6 +42,7 @@ void Init_semian()
    * the semaphore in this case.
    */
   eInternal = rb_const_get(cSemian, rb_intern("InternalError"));
+  rb_global_variable(&eInternal);
 
   rb_define_alloc_func(cResource, semian_resource_alloc);
   rb_define_method(cResource, "initialize_semaphore", semian_resource_initialize, 5);
