@@ -1,5 +1,7 @@
 #include "semian.h"
 
+VALUE eSyscall, eTimeout, eInternal;
+
 void Init_semian()
 {
   VALUE cSemian, cResource;
