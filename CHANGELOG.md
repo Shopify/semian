@@ -1,3 +1,7 @@
+# v0.10.5
+
+* Fix: Compatibility with GC.compact
+
 # v0.10.4
 
 * Fix: Revert the changes in v0.10.3. (#270)
