@@ -1,3 +1,7 @@
+# v0.10.6
+
+* Fix: Match whitelisted SQL queries when Marginalia is prepended (#276)
+
 # v0.10.5
 
 * Fix: Compatibility with GC.compact
