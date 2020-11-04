@@ -200,6 +200,16 @@ class TestMysql2 < Minitest::Test
     end
   end
 
+  def test_semian_allows_rollback_with_marginalia
+    client = connect_to_mysql!
+
+    client.query('START TRANSACTION;')
+
+    Semian[:mysql_testing].acquire do
+      client.query('/*foo:bar*/ ROLLBACK;')
+    end
+  end
+
   def test_semian_allows_commit
     client = connect_to_mysql!
 

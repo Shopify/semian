@@ -37,9 +37,9 @@ module Semian
     DEFAULT_PORT = 3306
 
     QUERY_WHITELIST = Regexp.union(
-      /\A\s*ROLLBACK/i,
-      /\A\s*COMMIT/i,
-      /\A\s*RELEASE\s+SAVEPOINT/i,
+      /\A(?:\/\*.*?\*\/)?\s*ROLLBACK/i,
+      /\A(?:\/\*.*?\*\/)?\s*COMMIT/i,
+      /\A(?:\/\*.*?\*\/)?\s*RELEASE\s+SAVEPOINT/i,
     )
 
     # The naked methods are exposed as `raw_query` and `raw_connect` for instrumentation purpose
