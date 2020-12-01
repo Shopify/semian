@@ -84,6 +84,42 @@ class TestResource < Minitest::Test
     assert_equal 0, resource.registered_workers
   end
 
+  def test_global_resource
+    Semian.register_global_worker
+
+    @workers = []
+    4.times do
+      @workers << fork do
+        Semian.register_global_worker
+        sleep
+      end
+    end
+
+    sleep 2
+
+    assert_equal 5, Semian.global_resource.registered_workers
+
+    res1 = Semian::Resource.new(:mysql_shard_0, quota: 0.5, is_global: true)
+    res2 = Semian::Resource.new(:mysql_shard_1, quota: 0.5, is_global: true)
+    assert_equal 3, res1.tickets
+    assert_equal 3, res2.tickets
+
+    res3 = Semian::Resource.new(:mysql_shard_2, quota: 0.5)
+    assert_equal 1, res3.tickets
+
+    signal_workers('TERM')
+    Process.waitall
+  end
+
+  def test_global_resource_raises_exception_if_global_worker_not_registered
+    assert_raises ArgumentError do
+      Semian::Resource.new(:mysql_shard_0, quota: 0.5, is_global: true)
+    end
+
+    Semian.register_global_worker
+    Semian::Resource.new(:mysql_shard_0, quota: 0.5, is_global: true)
+  end
+
   def test_exactly_one_register_with_quota
     r = Semian::Resource.instance(:testing, quota: 0.5)
 

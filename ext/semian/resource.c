@@ -12,6 +12,9 @@ check_quota_arg(VALUE quota);
 static int
 check_tickets_arg(VALUE tickets);
 
+static int
+check_is_global_arg(VALUE is_global);
+
 static long
 check_permissions_arg(VALUE permissions);
 
@@ -200,12 +203,13 @@ semian_resource_key(VALUE self)
 }
 
 VALUE
-semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE permissions, VALUE default_timeout)
+semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE permissions, VALUE default_timeout, VALUE is_global)
 {
   long c_permissions;
   double c_timeout;
   double c_quota;
   int c_tickets;
+  int c_is_global;
   semian_resource_t *res = NULL;
   const char *c_id_str = NULL;
 
@@ -213,6 +217,7 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VAL
   check_tickets_xor_quota_arg(tickets, quota);
   c_quota = check_quota_arg(quota);
   c_tickets = check_tickets_arg(tickets);
+  c_is_global = check_is_global_arg(is_global);
   c_permissions = check_permissions_arg(permissions);
   c_id_str = check_id_arg(id);
   c_timeout = check_default_timeout_arg(default_timeout);
@@ -227,7 +232,7 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VAL
   res->wait_time = -1;
 
   // Initialize the semaphore set
-  initialize_semaphore_set(res, c_id_str, c_permissions, c_tickets, c_quota);
+  initialize_semaphore_set(res, c_id_str, c_permissions, c_tickets, c_quota, c_is_global);
 
   return self;
 }
@@ -312,6 +317,12 @@ check_tickets_arg(VALUE tickets)
   }
 
   return c_tickets;
+}
+
+static int
+check_is_global_arg(VALUE is_global)
+{
+  return RTEST(is_global);
 }
 
 static const char*

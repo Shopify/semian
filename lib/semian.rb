@@ -177,6 +177,15 @@ module Semian
     self[name] || register(name, **args)
   end
 
+  attr_reader :global_resource
+
+  # create new global bulkhead
+  # it's ok to overwrite existing global_bulkhead
+  # as we use this only to track registered_workers count
+  def register_global_worker
+    @global_resource = create_bulkhead(:global, quota: 1)
+  end
+
   # Retrieves a resource by name.
   def [](name)
     resources[name]

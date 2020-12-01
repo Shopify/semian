@@ -5,7 +5,10 @@ static VALUE
 update_ticket_count(int sem_id, int count);
 
 static int
-calculate_quota_tickets(int sem_id, double quota);
+calculate_quota_tickets(int sem_id, double quota, int is_global);
+
+static int
+get_global_worker_count();
 
 // Must be called with the semaphore meta lock already acquired
 VALUE
@@ -14,7 +17,7 @@ configure_tickets(VALUE value)
   configure_tickets_args_t *args = (configure_tickets_args_t *)value;
 
   if (args->quota > 0) {
-    args->tickets = calculate_quota_tickets(args->sem_id, args->quota);
+    args->tickets = calculate_quota_tickets(args->sem_id, args->quota, args->is_global);
   }
 
   /*
@@ -68,9 +71,28 @@ update_ticket_count(int sem_id, int tickets)
 }
 
 static int
-calculate_quota_tickets (int sem_id, double quota)
+calculate_quota_tickets (int sem_id, double quota, int is_global)
 {
   int tickets = 0;
-  tickets = (int) ceil(get_sem_val(sem_id, SI_SEM_REGISTERED_WORKERS) * quota);
+  if (is_global) {
+    int global_worker_count = get_global_worker_count();
+    tickets = (int) ceil(global_worker_count * quota);
+  } else {
+    tickets = (int) ceil(get_sem_val(sem_id, SI_SEM_REGISTERED_WORKERS) * quota);
+  }
   return tickets;
+}
+
+static int
+get_global_worker_count() {
+  VALUE module_klass = rb_const_get(rb_cObject, rb_intern("Module"));
+  VALUE semian_klass = rb_const_get(module_klass, rb_intern("Semian"));
+  VALUE global_bulkhead = rb_funcall(semian_klass, rb_intern("global_resource"), 0);
+  if (TYPE(global_bulkhead) != T_NIL) {
+    VALUE worker_count = rb_funcall(global_bulkhead, rb_intern("registered_workers"), 0);
+    // TODO: global_bulkhead is not nil, can the registered_workers ever be 0??
+    return NUM2INT(worker_count);
+  } else {
+    rb_raise(rb_eArgError, "Semian.register_global_worker must be called before acquiring resource with is_global=true");
+  }
 }

@@ -21,7 +21,7 @@ int system_max_semaphore_count;
  * Creates a new Resource. Do not create resources directly. Use Semian.register.
  */
 VALUE
-semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE permissions, VALUE default_timeout);
+semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VALUE permissions, VALUE default_timeout, VALUE is_global);
 
 /*
  * call-seq:

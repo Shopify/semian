@@ -24,6 +24,7 @@ typedef struct {
   int sem_id;
   int tickets;
   double quota;
+  int is_global;
 } configure_tickets_args_t;
 
 // Internal semaphore structure
