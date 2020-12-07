@@ -9,7 +9,7 @@ module Semian
       end
     end
 
-    def initialize(name, tickets: nil, quota: nil, permissions: 0660, timeout: 0)
+    def initialize(name, tickets: nil, quota: nil, permissions: Semian.default_permissions, timeout: 0)
       if Semian.semaphores_enabled?
         initialize_semaphore(name, tickets, quota, permissions, timeout) if respond_to?(:initialize_semaphore)
       else

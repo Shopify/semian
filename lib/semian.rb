@@ -90,9 +90,10 @@ module Semian
   InternalError = Class.new(BaseError)
   OpenCircuitError = Class.new(BaseError)
 
-  attr_accessor :maximum_lru_size, :minimum_lru_time
+  attr_accessor :maximum_lru_size, :minimum_lru_time, :default_permissions
   self.maximum_lru_size = 500
   self.minimum_lru_time = 300
+  self.default_permissions = 0660
 
   def issue_disabled_semaphores_warning
     return if defined?(@warning_issued)
@@ -138,7 +139,7 @@ module Semian
   # Mutually exclusive with the 'ticket' argument.
   # but the resource must have been previously registered otherwise an error will be raised. (bulkhead)
   #
-  # +permissions+: Octal permissions of the resource. Default 0660. (bulkhead)
+  # +permissions+: Octal permissions of the resource. Default to +Semian.default_permissions+ (0660). (bulkhead)
   #
   # +timeout+: Default timeout in seconds. Default 0. (bulkhead)
   #
@@ -282,7 +283,7 @@ module Semian
     bulkhead = options.fetch(:bulkhead, true)
     return unless bulkhead
 
-    permissions = options[:permissions] || 0660
+    permissions = options[:permissions] || default_permissions
     timeout = options[:timeout] || 0
     Resource.new(name, tickets: options[:tickets], quota: options[:quota], permissions: permissions, timeout: timeout)
   end
