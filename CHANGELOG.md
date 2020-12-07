@@ -1,3 +1,7 @@
+# v0.11.0
+
+* Feature: Add `Semian.default_permissions` to globally change the default semaphore permissions. (#279)
+
 # v0.10.6
 
 * Fix: Match whitelisted SQL queries when Marginalia is prepended (#276)
