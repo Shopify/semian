@@ -90,7 +90,7 @@ module Semian
   InternalError = Class.new(BaseError)
   OpenCircuitError = Class.new(BaseError)
 
-  attr_accessor :maximum_lru_size, :minimum_lru_time, :default_permissions
+  attr_accessor :maximum_lru_size, :minimum_lru_time, :default_permissions, :namespace
   self.maximum_lru_size = 500
   self.minimum_lru_time = 300
   self.default_permissions = 0660

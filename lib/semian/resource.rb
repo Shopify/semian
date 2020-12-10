@@ -10,8 +10,14 @@ module Semian
     end
 
     def initialize(name, tickets: nil, quota: nil, permissions: Semian.default_permissions, timeout: 0)
+      unless name.is_a?(String) || name.is_a?(Symbol)
+        raise TypeError, "name must be a string or symbol, got: #{name.class}"
+      end
+
       if Semian.semaphores_enabled?
-        initialize_semaphore(name, tickets, quota, permissions, timeout) if respond_to?(:initialize_semaphore)
+        if respond_to?(:initialize_semaphore)
+          initialize_semaphore("#{Semian.namespace}#{name}", tickets, quota, permissions, timeout)
+        end
       else
         Semian.issue_disabled_semaphores_warning
       end

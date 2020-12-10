@@ -415,6 +415,26 @@ class TestResource < Minitest::Test
     end
   end
 
+  def test_namespace
+    previous_namespace = Semian.namespace
+
+    resource = create_resource :testing, permissions: 0o600, tickets: 1
+    key = resource.key
+    Semian.destroy(:testing)
+
+    resource = create_resource :testing, permissions: 0o600, tickets: 1
+    assert_equal key, resource.key
+    Semian.destroy(:testing)
+
+    Semian.namespace = "testing"
+
+    resource = create_resource :testing, permissions: 0o600, tickets: 1
+    refute_equal key, resource.key
+    Semian.destroy(:testing)
+  ensure
+    Semian.namespace = previous_namespace
+  end
+
   def test_resize_tickets_increase
     resource = create_resource :testing, tickets: 1
 
