@@ -1,3 +1,7 @@
+# v0.11.1
+
+* Feature: Add `Semian.namespace` to globally prefix all the semaphore names. (#280)
+
 # v0.11.0
 
 * Feature: Add `Semian.default_permissions` to globally change the default semaphore permissions. (#279)
