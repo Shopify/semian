@@ -1,0 +1,42 @@
+name: CI
+
+on: [push]
+
+jobs:
+  tests:
+    name: Semian tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        gemfile:
+          - gemfiles/hiredis-0-6.gemfile
+          - gemfiles/mysql2-0-4-10.gemfile
+          - gemfiles/mysql2-0-5-0.gemfile
+          - Gemfile
+
+    services:
+      mysql:
+        image: mysql:5.7
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'true'
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=5s
+          --health-timeout=2s
+          --health-retries=3
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      toxiproxy:
+        image: shopify/toxiproxy:latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Build image
+      run: docker build --build-arg BUNDLE_GEMFILE=${{ matrix.gemfile }} -f dockerfiles/semian-ci -t semian-ci:${GITHUB_SHA::8}-${{ hashFiles(matrix.gemfile) }} .
+    - name: Run tests
+      run: docker run --rm --network=${{ job.container.network }} --network-alias=semian semian-ci:${GITHUB_SHA::8}-${{ hashFiles(matrix.gemfile) }} ./scripts/run_tests.sh
