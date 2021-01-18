@@ -25,7 +25,6 @@ module Semian
       /MySQL server has gone away/i,
       /Too many connections/i,
       /closed MySQL connection/i,
-      /MySQL client is not connected/i,
       /Timeout waiting for a response/i,
     )
 
