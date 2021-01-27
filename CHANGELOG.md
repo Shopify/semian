@@ -1,3 +1,7 @@
+# v0.11.2
+
+* Fix: Remove `MySQL client is not connected` error from mysql2 adapter
+
 # v0.11.1
 
 * Feature: Add `Semian.namespace` to globally prefix all the semaphore names. (#280)
