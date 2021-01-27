@@ -441,7 +441,7 @@ all workers on a server.
 
 There are four configuration parameters for circuit breakers in Semian:
 
-* **error_threshold**. The amount of errors to encounter for the worker before
+* **error_threshold**. The amount of errors a worker encounters within error_timeout amount of time before
   opening the circuit, that is to start rejecting requests instantly.
 * **error_timeout**. The amount of time in seconds until trying to query the resource
   again.
