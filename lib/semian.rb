@@ -143,7 +143,8 @@ module Semian
   #
   # +timeout+: Default timeout in seconds. Default 0. (bulkhead)
   #
-  # +error_threshold+: The number of errors that will trigger the circuit opening. (circuit breaker required)
+  # +error_threshold+: The amount of errors that must happen within error_timeout amount of time to open
+  # the circuit. (circuit breaker required)
   #
   # +error_timeout+: The duration in seconds since the last error after which the error count is reset to 0.
   # (circuit breaker required)
