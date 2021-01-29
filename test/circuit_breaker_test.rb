@@ -29,6 +29,11 @@ class TestCircuitBreaker < Minitest::Test
     assert_match(/State transition from closed to open/, @strio.string)
   end
 
+  def test_last_error_message_is_logged_when_circuit_opens
+    open_circuit!
+    assert_match(/last_error_message="some error message"/, @strio.string)
+  end
+
   def test_after_error_threshold_the_circuit_is_open
     open_circuit!
     assert_circuit_opened

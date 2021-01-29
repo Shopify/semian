@@ -136,6 +136,10 @@ module Semian
       str << " success_count_threshold=#{@success_count_threshold} error_count_threshold=#{@error_count_threshold}"
       str << " error_timeout=#{@error_timeout} error_last_at=\"#{@errors.last}\""
       str << " name=\"#{@name}\""
+      if new_state == :open && @last_error
+        str << " last_error_message=#{@last_error.message.inspect}"
+      end
+
       Semian.logger.info(str)
     end
 
