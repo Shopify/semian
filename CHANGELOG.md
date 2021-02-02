@@ -1,3 +1,8 @@
+# v0.11.3
+
+* Feature: Log last error message on circuit breaker state transition (#285)
+* Fix: Update README and docs to resolve common misconception about error_threshold (#283)
+
 # v0.11.2
 
 * Fix: Remove `MySQL client is not connected` error from mysql2 adapter
