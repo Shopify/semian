@@ -1,5 +1,10 @@
 #include "resource.h"
 
+// Ruby variables
+ID id_wait_time;
+ID id_timeout;
+int system_max_semaphore_count;
+
 static VALUE
 cleanup_semian_resource_acquire(VALUE self);
 
