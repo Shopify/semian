@@ -1,3 +1,7 @@
+# v0.11.4
+
+* Fix: Add `extern` to global variable declarations for gcc 10 (#288)
+
 # v0.11.3
 
 * Feature: Log last error message on circuit breaker state transition (#285)
