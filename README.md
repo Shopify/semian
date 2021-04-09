@@ -643,16 +643,29 @@ Semian internals. For example to instrument just events with
 [`statsd-instrument`][statsd-instrument]:
 
 ```ruby
-# `event` is `success`, `busy`, `circuit_open`.
+# `event` is `:success`, `:busy`, `:circuit_open`, `:state_change`.
 # `resource` is the `Semian::Resource` object
-# `scope` is `connection` or `query` (others can be instrumented too from the adapter)
-# `adapter` is the name of the adapter (mysql2, redis, ..)
-Semian.subscribe do |event, resource, scope, adapter|
+# `scope` is `connection` or `query` (others can be instrumented too from the adapter). `nil` when `event == :state_change`
+# `adapter` is the name of the adapter (mysql2, redis, ..). `nil` when `event == :state_change`
+# `payload` contains a new state if `event == :state_change`: `{ state: (:open|:half_open|:closed) }`
+Semian.subscribe do |event, resource, scope, adapter, payload|
   StatsD.increment("semian.#{event}", 1, tags: {
     resource: resource.name,
     adapter: adapter,
     type: scope,
   })
+
+  if event == :state_change
+    new_state = payload[:state]
+
+    StatsD.event(
+      'Circuit Breaker State Changed',
+      "Resource: #{resource.name}\nNew state: #{new_state}",
+      alert_type: new_state == :closed ? 'success' : 'warning',
+      tags: ["resource:#{resource.name}"],
+      aggregation_key: 'circuit_breakers'
+    )
+  end
 end
 ```
 
