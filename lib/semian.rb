@@ -62,7 +62,7 @@ require 'semian/lru_hash'
 #
 # After 3 failures in the span of 10 seconds the circuit will be open.
 # After an additional 10 seconds it will transition to half-open.
-# And finally after 2 successulf acquisitions of the resource it will transition back to the closed state.
+# And finally after 2 successful acquisitions of the resource it will transition back to the closed state.
 #
 # ===== Using a resource
 #
