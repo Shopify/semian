@@ -46,7 +46,7 @@ require 'semian/lru_hash'
 # resource the time to recover. If `error_threshold` errors happen in the span of `error_timeout`
 # then the circuit will be opened and every attempt to acquire the resource will immediately fail.
 #
-# Once in open state, after `error_timeout` is elapsed, the ciruit will transition in the half-open state.
+# Once in open state, after `error_timeout` is elapsed, the circuit will transition in the half-open state.
 # In that state a single error will fully re-open the circuit, and the circuit will transition back to the closed
 # state only after the resource is acquired `success_threshold` consecutive times.
 #
