@@ -65,7 +65,19 @@ class TestSemian < Minitest::Test
         circuit_breaker: false,
       )
     end
-    assert_equal exception.message, "Must pass exactly one of ticket or quota"
+    assert_equal "Semian configuration require either the :ticket or :quota parameter, you provided neither", exception.message
+  end
+
+  def test_register_with_exclusive_options
+    exception = assert_raises ArgumentError do
+      Semian.register(
+        :testing,
+        tickets: 42,
+        quota: 42,
+        circuit_breaker: false,
+      )
+    end
+    assert_equal "Semian configuration require either the :ticket or :quota parameter, you provided both", exception.message
   end
 
   def test_unsuported_constants

@@ -272,8 +272,11 @@ check_permissions_arg(VALUE permissions)
 static void
 check_tickets_xor_quota_arg(VALUE tickets, VALUE quota)
 {
-  if ((TYPE(tickets) == T_NIL && TYPE(quota) == T_NIL) ||(TYPE(tickets) != T_NIL && TYPE(quota) != T_NIL)){
-    rb_raise(rb_eArgError, "Must pass exactly one of ticket or quota");
+  if (tickets == Qnil && quota == Qnil) {
+    rb_raise(rb_eArgError, "Semian configuration require either the :ticket or :quota parameter, you provided neither");
+  }
+  if (tickets != Qnil && quota != Qnil) {
+    rb_raise(rb_eArgError, "Semian configuration require either the :ticket or :quota parameter, you provided both");
   }
 }
 
