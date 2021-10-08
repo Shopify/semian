@@ -1,4 +1,5 @@
-## Semian [![Build Status](https://travis-ci.org/Shopify/semian.svg?branch=master)](https://travis-ci.org/Shopify/semian)
+## Semian ![Build Status](https://github.com/Shopify/semian/actions/workflows/main.yml/badge.svg)
+
 
 ![](http://i.imgur.com/7Vn2ibF.png)
 
