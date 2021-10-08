@@ -11,3 +11,12 @@ AllCops:
     - 'db/schema.rb'
     - 'test/jobs/*'
     - 'sorbet/**/*'
+
+Naming/InclusiveLanguage:
+  Enabled: false
+
+Layout/LineLength:
+  Max: 140
+
+Naming/FileName:
+  Enabled: false
