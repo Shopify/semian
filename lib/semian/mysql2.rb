@@ -1,5 +1,7 @@
-require 'semian/adapter'
-require 'mysql2'
+# frozen_string_literal: true
+
+require "semian/adapter"
+require "mysql2"
 
 module Mysql2
   Mysql2::Error.include(::Semian::AdapterError)
@@ -32,13 +34,13 @@ module Semian
     CircuitOpenError = ::Mysql2::CircuitOpenError
     PingFailure = Class.new(::Mysql2::Error)
 
-    DEFAULT_HOST = 'localhost'
+    DEFAULT_HOST = "localhost"
     DEFAULT_PORT = 3306
 
     QUERY_WHITELIST = Regexp.union(
-      /\A(?:\/\*.*?\*\/)?\s*ROLLBACK/i,
-      /\A(?:\/\*.*?\*\/)?\s*COMMIT/i,
-      /\A(?:\/\*.*?\*\/)?\s*RELEASE\s+SAVEPOINT/i,
+      %r{\A(?:/\*.*?\*/)?\s*ROLLBACK}i,
+      %r{\A(?:/\*.*?\*/)?\s*COMMIT}i,
+      %r{\A(?:/\*.*?\*/)?\s*RELEASE\s+SAVEPOINT}i,
     )
 
     # The naked methods are exposed as `raw_query` and `raw_connect` for instrumentation purpose
@@ -68,7 +70,7 @@ module Semian
       result = nil
       acquire_semian_resource(adapter: :mysql, scope: :ping) do
         result = raw_ping
-        raise PingFailure.new(result.to_s) unless result
+        raise PingFailure, result.to_s unless result
       end
       result
     rescue ResourceBusyError, CircuitOpenError, PingFailure
@@ -127,7 +129,7 @@ module Semian
 
     def raw_semian_options
       return query_options[:semian] if query_options.key?(:semian)
-      return query_options['semian'.freeze] if query_options.key?('semian'.freeze)
+      return query_options["semian"] if query_options.key?("semian")
     end
   end
 end

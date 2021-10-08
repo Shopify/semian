@@ -1,9 +1,11 @@
-require 'semian'
+# frozen_string_literal: true
+
+require "semian"
 
 module Semian
   module Adapter
     def semian_identifier
-      raise NotImplementedError.new("Semian adapters must implement a `semian_identifier` method")
+      raise NotImplementedError, "Semian adapters must implement a `semian_identifier` method"
     end
 
     def semian_resource
@@ -53,7 +55,7 @@ module Semian
     end
 
     def raw_semian_options
-      raise NotImplementedError.new("Semian adapters must implement a `raw_semian_options` method")
+      raise NotImplementedError, "Semian adapters must implement a `raw_semian_options` method"
     end
 
     def resource_exceptions

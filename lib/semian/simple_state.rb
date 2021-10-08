@@ -1,6 +1,8 @@
+# frozen_string_literal: true
+
 module Semian
   module Simple
-    class State #:nodoc:
+    class State # :nodoc:
       def initialize
         reset
       end

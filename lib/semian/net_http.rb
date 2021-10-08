@@ -1,5 +1,7 @@
-require 'semian/adapter'
-require 'net/http'
+# frozen_string_literal: true
+
+require "semian/adapter"
+require "net/http"
 
 module Net
   ProtocolError.include(::Semian::AdapterError)

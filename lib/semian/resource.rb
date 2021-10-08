@@ -1,5 +1,7 @@
+# frozen_string_literal: true
+
 module Semian
-  class Resource #:nodoc:
+  class Resource # :nodoc:
     attr_reader :tickets, :name
 
     class << Semian::Resource
@@ -55,7 +57,7 @@ module Semian
     end
 
     def key
-      '0x00000000'
+      "0x00000000"
     end
 
     def in_use?

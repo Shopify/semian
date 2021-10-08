@@ -1,6 +1,8 @@
-require 'bundler/gem_tasks'
+# frozen_string_literal: true
+
+require "bundler/gem_tasks"
 begin
-  require 'rubocop/rake_task'
+  require "rubocop/rake_task"
   RuboCop::RakeTask.new
 rescue LoadError
 end
@@ -9,9 +11,9 @@ end
 # Packaging
 # ==========================================================
 
-GEMSPEC = eval(File.read('semian.gemspec'))
+GEMSPEC = eval(File.read("semian.gemspec"))
 
-require 'rubygems/package_task'
+require "rubygems/package_task"
 Gem::PackageTask.new(GEMSPEC) do |_pkg|
 end
 
@@ -19,13 +21,13 @@ end
 # Ruby Extension
 # ==========================================================
 
-$LOAD_PATH.unshift File.expand_path("../lib", __FILE__)
-require 'semian/platform'
+$LOAD_PATH.unshift(File.expand_path("../lib", __FILE__))
+require "semian/platform"
 if Semian.sysv_semaphores_supported?
-  require 'rake/extensiontask'
-  Rake::ExtensionTask.new('semian', GEMSPEC) do |ext|
-    ext.ext_dir = 'ext/semian'
-    ext.lib_dir = 'lib/semian'
+  require "rake/extensiontask"
+  Rake::ExtensionTask.new("semian", GEMSPEC) do |ext|
+    ext.ext_dir = "ext/semian"
+    ext.lib_dir = "lib/semian"
   end
   task build: :compile
 else
@@ -37,9 +39,9 @@ end
 # Testing
 # ==========================================================
 
-require 'rake/testtask'
-Rake::TestTask.new 'test' do |t|
-  t.libs = %w(lib test)
+require "rake/testtask"
+Rake::TestTask.new("test") do |t|
+  t.libs = ["lib", "test"]
   t.pattern = "test/*_test.rb"
   t.verbose = false
   t.warning = false
@@ -48,7 +50,7 @@ end
 # ==========================================================
 # Documentation
 # ==========================================================
-require 'rdoc/task'
+require "rdoc/task"
 RDoc::Task.new do |rdoc|
   rdoc.rdoc_files.include("lib/*.rb", "ext/semian/*.c")
 end

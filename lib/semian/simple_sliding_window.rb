@@ -1,8 +1,10 @@
-require 'thread'
+# frozen_string_literal: true
+
+require "thread"
 
 module Semian
   module Simple
-    class SlidingWindow #:nodoc:
+    class SlidingWindow # :nodoc:
       extend Forwardable
 
       def_delegators :@window, :size, :last

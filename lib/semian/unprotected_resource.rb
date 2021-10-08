@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Semian
   # This class acts as a replacement for `ProtectedResource` when
   # the semian configuration of an `Adapter` is missing or explicitly disabled

@@ -1,4 +1,6 @@
-require 'test_helper'
+# frozen_string_literal: true
+
+require "test_helper"
 
 class TestSemianAdapter < Minitest::Test
   def setup
@@ -27,11 +29,11 @@ class TestSemianAdapter < Minitest::Test
     resource = Semian.register(:testing, tickets: 2, error_threshold: 0, error_timeout: 0, success_threshold: 0)
     assert_equal(Semian.resources[:testing], resource)
 
-    assert_equal 1, resource.registered_workers
+    assert_equal(1, resource.registered_workers)
 
     without_gc do
       Semian.unregister(:testing)
-      assert_equal 0, resource.registered_workers
+      assert_equal(0, resource.registered_workers)
 
       assert_empty(Semian.resources)
       assert_empty(Semian.consumers)
@@ -54,7 +56,7 @@ class TestSemianAdapter < Minitest::Test
       assert_equal(resource, client.semian_resource)
       Semian.unregister_all_resources
 
-      assert Semian.resources.empty?
+      assert(Semian.resources.empty?)
       assert_empty(Semian.consumers)
 
       # The first call to client.semian_resource after unregistering all resources,
@@ -76,9 +78,9 @@ class TestSemianAdapter < Minitest::Test
 
     GC.start(full_mark: true, immediate_sweep: true)
 
-    assert_nil weak_ref.weakref_alive?
+    assert_nil(weak_ref.weakref_alive?)
 
-    assert_raises WeakRef::RefError do
+    assert_raises(WeakRef::RefError) do
       weak_ref.any_method_call
     end
   end

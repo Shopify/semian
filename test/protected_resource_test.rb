@@ -1,5 +1,7 @@
-require 'test_helper'
-require 'securerandom'
+# frozen_string_literal: true
+
+require "test_helper"
+require "securerandom"
 
 class TestProtectedResource < Minitest::Test
   include CircuitBreakerHelper
@@ -32,9 +34,9 @@ class TestProtectedResource < Minitest::Test
         block_called = false
         @resource = Semian[:testing]
         @resource.acquire { block_called = true }
-        assert_equal true, block_called
-        assert_instance_of Semian::CircuitBreaker, @resource.circuit_breaker
-        assert_nil @resource.bulkhead
+        assert_equal(true, block_called)
+        assert_instance_of(Semian::CircuitBreaker, @resource.circuit_breaker)
+        assert_nil(@resource.bulkhead)
       end
     end
 
@@ -52,12 +54,12 @@ class TestProtectedResource < Minitest::Test
     @resource = Semian[:testing]
     @resource.acquire do
       acquired = true
-      assert_equal 1, @resource.count
-      assert_equal 2, @resource.tickets
+      assert_equal(1, @resource.count)
+      assert_equal(2, @resource.tickets)
     end
 
-    assert acquired
-    assert_nil @resource.circuit_breaker
+    assert(acquired)
+    assert_nil(@resource.circuit_breaker)
   end
 
   def test_acquire_bulkhead_with_circuit_breaker
@@ -75,17 +77,17 @@ class TestProtectedResource < Minitest::Test
     @resource = Semian[:testing]
     @resource.acquire do
       acquired = true
-      assert_equal 1, @resource.count
-      assert_equal 2, @resource.tickets
+      assert_equal(1, @resource.count)
+      assert_equal(2, @resource.tickets)
       half_open_cicuit!(@resource)
       assert_circuit_closed(@resource)
     end
 
-    assert acquired
+    assert(acquired)
   end
 
   def test_register_without_any_resource_fails
-    assert_raises ArgumentError do
+    assert_raises(ArgumentError) do
       Semian.register(
         :testing,
         circuit_breaker: false,
@@ -110,8 +112,8 @@ class TestProtectedResource < Minitest::Test
       circuit_breaker: false,
     )
 
-    assert_equal :no_bulkhead, Semian[:no_bulkhead].name
-    assert_equal :no_circuit_breaker, Semian[:no_circuit_breaker].name
+    assert_equal(:no_bulkhead, Semian[:no_bulkhead].name)
+    assert_equal(:no_circuit_breaker, Semian[:no_circuit_breaker].name)
   end
 
   def test_gracefully_fails_when_unable_to_decrement_ticket_count
@@ -148,8 +150,8 @@ class TestProtectedResource < Minitest::Test
 
     Semian.register(name, tickets: 1, **options)
   ensure
-    workers.each do |pid|
+    workers&.each do |pid|
       Process.kill("INT", pid)
-    end if workers
+    end
   end
 end

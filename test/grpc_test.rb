@@ -1,8 +1,10 @@
-require 'test_helper'
-require 'grpc'
-require 'minitest'
-require 'mocha/minitest'
-require 'echo_service'
+# frozen_string_literal: true
+
+require "test_helper"
+require "grpc"
+require "minitest"
+require "mocha/minitest"
+require "echo_service"
 
 class TestGRPC < Minitest::Test
   ERROR_THRESHOLD = 1
@@ -16,7 +18,7 @@ class TestGRPC < Minitest::Test
   }
 
   DEFAULT_SEMIAN_CONFIGURATION = proc do |host|
-    next nil if host == SemianConfig['toxiproxy_upstream_host'] && port == SemianConfig['toxiproxy_upstream_port'] # disable if toxiproxy
+    next nil if host == SemianConfig["toxiproxy_upstream_host"] && port == SemianConfig["toxiproxy_upstream_port"] # disable if toxiproxy
     SEMIAN_OPTIONS.merge(name: host)
   end
 
@@ -33,15 +35,15 @@ class TestGRPC < Minitest::Test
   end
 
   def test_semian_identifier
-    assert_equal @host, @stub.semian_identifier
+    assert_equal(@host, @stub.semian_identifier)
   end
 
   def test_errors_are_tagged_with_the_resource_identifier
     GRPC::ActiveCall.any_instance.stubs(:request_response).raises(::GRPC::Unavailable)
-    error = assert_raises ::GRPC::Unavailable do
+    error = assert_raises(::GRPC::Unavailable) do
       @stub.an_rpc(EchoMsg.new)
     end
-    assert_equal @host, error.semian_identifier
+    assert_equal(@host, error.semian_identifier)
   end
 
   def test_rpc_server
@@ -54,29 +56,30 @@ class TestGRPC < Minitest::Test
   def test_unavailable_server_opens_the_circuit
     GRPC::ActiveCall.any_instance.stubs(:request_response).raises(::GRPC::Unavailable)
     ERROR_THRESHOLD.times do
-      assert_raises ::GRPC::Unavailable do
+      assert_raises(::GRPC::Unavailable) do
         @stub.an_rpc(EchoMsg.new)
       end
     end
-    assert_raises GRPC::CircuitOpenError do
+    assert_raises(GRPC::CircuitOpenError) do
       @stub.an_rpc(EchoMsg.new)
     end
   end
 
   def test_timeout_opens_the_circuit
     skip if ENV["SKIP_FLAKY_TESTS"]
-    stub = build_insecure_stub(EchoStub, host: "#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['grpc_toxiproxy_port']}", opts: {timeout: 0.1})
+    stub = build_insecure_stub(EchoStub,
+      host: "#{SemianConfig["toxiproxy_upstream_host"]}:#{SemianConfig["grpc_toxiproxy_port"]}", opts: { timeout: 0.1 })
     run_services_on_server(@server, services: [EchoService]) do
-      Toxiproxy['semian_test_grpc'].downstream(:latency, latency: 1000).apply do
+      Toxiproxy["semian_test_grpc"].downstream(:latency, latency: 1000).apply do
         ERROR_THRESHOLD.times do
-          assert_raises GRPC::DeadlineExceeded do
+          assert_raises(GRPC::DeadlineExceeded) do
             stub.an_rpc(EchoMsg.new)
           end
         end
       end
 
-      Toxiproxy['semian_test_grpc'].downstream(:latency, latency: 1000).apply do
-        assert_raises GRPC::CircuitOpenError do
+      Toxiproxy["semian_test_grpc"].downstream(:latency, latency: 1000).apply do
+        assert_raises(GRPC::CircuitOpenError) do
           stub.an_rpc(EchoMsg.new)
         end
       end
@@ -89,9 +92,9 @@ class TestGRPC < Minitest::Test
       next if event != :success
 
       notified = true
-      assert_equal Semian[@host], resource
-      assert_equal :request_response, scope
-      assert_equal :grpc, adapter
+      assert_equal(Semian[@host], resource)
+      assert_equal(:request_response, scope)
+      assert_equal(:grpc, adapter)
     end
 
     run_services_on_server(@server, services: [EchoService]) do
@@ -99,7 +102,7 @@ class TestGRPC < Minitest::Test
       @stub.an_rpc(EchoMsg.new)
     end
 
-    assert notified, 'No notifications has been emitted'
+    assert(notified, "No notifications has been emitted")
   ensure
     Semian.unsubscribe(subscriber)
   end
@@ -109,7 +112,7 @@ class TestGRPC < Minitest::Test
     requests = [EchoMsg.new, EchoMsg.new]
     open_circuit!(stub, :a_client_streaming_rpc, requests)
 
-    assert_raises GRPC::CircuitOpenError do
+    assert_raises(GRPC::CircuitOpenError) do
       stub.a_client_streaming_rpc(requests)
     end
   end
@@ -119,7 +122,7 @@ class TestGRPC < Minitest::Test
     request = EchoMsg.new
     open_circuit!(stub, :a_server_streaming_rpc, request)
 
-    assert_raises GRPC::CircuitOpenError do
+    assert_raises(GRPC::CircuitOpenError) do
       stub.a_server_streaming_rpc(request)
     end
   end
@@ -129,7 +132,7 @@ class TestGRPC < Minitest::Test
     requests = [EchoMsg.new, EchoMsg.new]
     open_circuit!(stub, :a_bidi_rpc, requests)
 
-    assert_raises GRPC::CircuitOpenError do
+    assert_raises(GRPC::CircuitOpenError) do
       stub.a_bidi_rpc(requests)
     end
   end
@@ -141,7 +144,7 @@ class TestGRPC < Minitest::Test
         success_threshold: 1,
         error_threshold: 3,
         error_timeout: 10,
-        name: "#{host}",
+        name: host.to_s,
       }
     end
     Semian::GRPC.instance_variable_set(:@semian_configuration, nil)
@@ -153,7 +156,7 @@ class TestGRPC < Minitest::Test
       stub1.semian_resource.acquire do
         stub2 = build_insecure_stub(EchoStub, host: "0.0.0.1")
         stub2.semian_resource.acquire do
-          assert_raises GRPC::ResourceBusyError do
+          assert_raises(GRPC::ResourceBusyError) do
             stub2.an_rpc(EchoMsg.new)
           end
         end
@@ -165,7 +168,7 @@ class TestGRPC < Minitest::Test
 
   def open_circuit!(stub, method, args)
     ERROR_THRESHOLD.times do
-      assert_raises GRPC::Unavailable do
+      assert_raises(GRPC::Unavailable) do
         stub.send(method, args)
       end
     end
@@ -178,9 +181,9 @@ class TestGRPC < Minitest::Test
   end
 
   def build_rpc_server(server_opts: {}, client_opts: {})
-    @hostname = SemianConfig['grpc_host']
-    @server = new_rpc_server_for_testing({poll_period: 1}.merge(server_opts))
-    @port = @server.add_http2_port("#{@hostname}:#{SemianConfig['grpc_port']}", :this_port_is_insecure)
+    @hostname = SemianConfig["grpc_host"]
+    @server = new_rpc_server_for_testing({ poll_period: 1 }.merge(server_opts))
+    @port = @server.add_http2_port("#{@hostname}:#{SemianConfig["grpc_port"]}", :this_port_is_insecure)
     @host = "#{@hostname}:#{@port}"
     @client_opts = client_opts
     @server

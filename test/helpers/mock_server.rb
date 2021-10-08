@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'webrick'
+require "webrick"
 
 class MockServer
   class << self
@@ -41,10 +41,10 @@ class MockServer
         response_code = 200 if response_code == ""
 
         res.status = response_code
-        res.content_type = 'text/html'
+        res.content_type = "text/html"
       rescue WEBrick::HTTPStatus::EOFError, WEBrick::HTTPStatus::BadRequest
         res.status = 400
-        res.content_type = 'text/html'
+        res.content_type = "text/html"
       ensure
         res.send_response(sock)
       end

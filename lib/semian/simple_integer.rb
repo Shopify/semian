@@ -1,8 +1,10 @@
-require 'thread'
+# frozen_string_literal: true
+
+require "thread"
 
 module Semian
   module Simple
-    class Integer #:nodoc:
+    class Integer # :nodoc:
       attr_accessor :value
 
       def initialize

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module BackgroundHelper
   attr_writer :threads
 

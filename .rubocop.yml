@@ -1,5 +1,13 @@
-inherit_from:
-  - http://shopify.github.io/ruby-style-guide/rubocop.yml
+inherit_gem:
+  rubocop-shopify: rubocop.yml
 
 AllCops:
-  TargetRubyVersion: '2.6'
+  TargetRubyVersion: 3.0
+  UseCache: true
+  CacheRootDirectory: tmp/rubocop
+  Exclude:
+    - 'node_modules/**/*'
+    - 'vendor/**/*'
+    - 'db/schema.rb'
+    - 'test/jobs/*'
+    - 'sorbet/**/*'

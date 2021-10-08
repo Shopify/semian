@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module CircuitBreakerHelper
   SomeError = Class.new(StandardError)
 
@@ -21,7 +23,7 @@ module CircuitBreakerHelper
   def assert_circuit_closed(resource = @resource)
     block_called = false
     resource.acquire { block_called = true }
-    assert block_called, 'Expected the circuit to be closed, but it was open'
+    assert(block_called, "Expected the circuit to be closed, but it was open")
   end
 
   def assert_circuit_opened(resource = @resource)
@@ -31,6 +33,6 @@ module CircuitBreakerHelper
     rescue Semian::OpenCircuitError
       open = true
     end
-    assert open, 'Expected the circuit to be open, but it was closed'
+    assert(open, "Expected the circuit to be open, but it was closed")
   end
 end

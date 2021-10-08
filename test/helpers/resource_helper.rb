@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module ResourceHelper
   private
 
@@ -11,11 +13,9 @@ module ResourceHelper
   def destroy_resources
     return unless @resources
     @resources.each do |resource|
-      begin
-        resource.destroy
-      rescue
-        nil
-      end
+      resource.destroy
+    rescue
+      nil
     end
     @resources = []
   end

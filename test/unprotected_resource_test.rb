@@ -1,4 +1,6 @@
-require 'test_helper'
+# frozen_string_literal: true
+
+require "test_helper"
 
 class UnprotectedResourceTest < Minitest::Test
   def setup
@@ -7,11 +9,11 @@ class UnprotectedResourceTest < Minitest::Test
 
   def test_interface_is_the_same
     diff = Semian::ProtectedResource.public_instance_methods - Semian::UnprotectedResource.public_instance_methods
-    assert_equal [], diff
+    assert_equal([], diff)
   end
 
   def test_resource_name
-    assert_equal :foo, @resource.name
+    assert_equal(:foo, @resource.name)
   end
 
   def test_resource_tickets
@@ -19,11 +21,11 @@ class UnprotectedResourceTest < Minitest::Test
   end
 
   def test_resource_count
-    assert_equal 0, @resource.count
+    assert_equal(0, @resource.count)
   end
 
   def test_resource_semid
-    assert_equal 0, @resource.semid
+    assert_equal(0, @resource.semid)
   end
 
   def test_resource_reset
@@ -39,7 +41,7 @@ class UnprotectedResourceTest < Minitest::Test
     @resource.acquire do
       acquired = true
     end
-    assert acquired
+    assert(acquired)
   end
 
   def test_resource_acquire_with_timeout
@@ -47,11 +49,11 @@ class UnprotectedResourceTest < Minitest::Test
     @resource.acquire(timeout: 2) do
       acquired = true
     end
-    assert acquired
+    assert(acquired)
   end
 
   def test_request_is_allowed
-    assert @resource.request_allowed?
+    assert(@resource.request_allowed?)
   end
 
   def test_mark_failed
@@ -59,10 +61,10 @@ class UnprotectedResourceTest < Minitest::Test
   end
 
   def test_bulkhead
-    assert_nil @resource.bulkhead
+    assert_nil(@resource.bulkhead)
   end
 
   def test_circuit_breaker
-    assert_nil @resource.circuit_breaker
+    assert_nil(@resource.circuit_breaker)
   end
 end

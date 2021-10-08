@@ -1,19 +1,21 @@
-require 'forwardable'
-require 'logger'
-require 'weakref'
-require 'thread'
+# frozen_string_literal: true
 
-require 'semian/version'
-require 'semian/instrumentable'
-require 'semian/platform'
-require 'semian/resource'
-require 'semian/circuit_breaker'
-require 'semian/protected_resource'
-require 'semian/unprotected_resource'
-require 'semian/simple_sliding_window'
-require 'semian/simple_integer'
-require 'semian/simple_state'
-require 'semian/lru_hash'
+require "forwardable"
+require "logger"
+require "weakref"
+require "thread"
+
+require "semian/version"
+require "semian/instrumentable"
+require "semian/platform"
+require "semian/resource"
+require "semian/circuit_breaker"
+require "semian/protected_resource"
+require "semian/unprotected_resource"
+require "semian/simple_sliding_window"
+require "semian/simple_integer"
+require "semian/simple_state"
+require "semian/lru_hash"
 
 #
 # === Overview
@@ -91,6 +93,7 @@ module Semian
   OpenCircuitError = Class.new(BaseError)
 
   attr_accessor :maximum_lru_size, :minimum_lru_time, :default_permissions, :namespace
+
   self.maximum_lru_size = 500
   self.minimum_lru_time = 300
   self.default_permissions = 0660
@@ -161,7 +164,7 @@ module Semian
     bulkhead = create_bulkhead(name, **options)
 
     if circuit_breaker.nil? && bulkhead.nil?
-      raise ArgumentError, 'Both bulkhead and circuitbreaker cannot be disabled.'
+      raise ArgumentError, "Both bulkhead and circuitbreaker cannot be disabled."
     end
 
     resources[name] = ProtectedResource.new(name, bulkhead, circuit_breaker)
@@ -200,16 +203,14 @@ module Semian
   # in use by any semian adapters if the weak reference is still alive.
   def unregister(name)
     if resource = resources.delete(name)
-      resource.bulkhead.unregister_worker if resource.bulkhead
+      resource.bulkhead&.unregister_worker
       consumers_for_resource = consumers.delete(name) || []
       consumers_for_resource.each do |consumer|
-        begin
-          if consumer.weakref_alive?
-            consumer.clear_semian_resource
-          end
-        rescue WeakRef::RefError
-          next
+        if consumer.weakref_alive?
+          consumer.clear_semian_resource
         end
+      rescue WeakRef::RefError
+        next
       end
     end
   end
@@ -271,8 +272,8 @@ module Semian
     unless options[:thread_safety_disabled].nil?
       logger.info(
         "NOTE: thread_safety_disabled will be replaced by a global setting" \
-        "Semian is thread safe by default. It is possible" \
-        "to modify the value by using Semian.thread_safe=",
+          "Semian is thread safe by default. It is possible" \
+          "to modify the value by using Semian.thread_safe=",
       )
     end
 
@@ -298,13 +299,13 @@ module Semian
 end
 
 if Semian.semaphores_enabled?
-  require 'semian/semian'
+  require "semian/semian"
 else
   Semian::MAX_TICKETS = 0
 end
 
 if defined? ActiveSupport
-  ActiveSupport.on_load :active_record do
-    require 'semian/rails'
+  ActiveSupport.on_load(:active_record) do
+    require "semian/rails"
   end
 end

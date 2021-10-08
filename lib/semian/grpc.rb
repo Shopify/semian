@@ -1,5 +1,7 @@
-require 'semian/adapter'
-require 'grpc'
+# frozen_string_literal: true
+
+require "semian/adapter"
+require "grpc"
 
 module GRPC
   GRPC::Unavailable.include(::Semian::AdapterError)
@@ -23,6 +25,7 @@ end
 module Semian
   module GRPC
     attr_reader :raw_semian_options
+
     include Semian::Adapter
 
     ResourceBusyError = ::GRPC::ResourceBusyError
@@ -52,10 +55,10 @@ module Semian
       @raw_semian_options ||= begin
         # If the host is empty, it's possible that the adapter was initialized
         # with the channel. Therefore, we look into the channel to find the host
-        if @host.empty?
-          host = @ch.target
+        host = if @host.empty?
+          @ch.target
         else
-          host = @host
+          @host
         end
         @raw_semian_options = Semian::GRPC.retrieve_semian_configuration(host)
         @raw_semian_options = @raw_semian_options.dup unless @raw_semian_options.nil?

@@ -1,4 +1,6 @@
-require 'test_helper'
+# frozen_string_literal: true
+
+require "test_helper"
 
 class TestInstrumentation < Minitest::Test
   def setup
@@ -9,7 +11,7 @@ class TestInstrumentation < Minitest::Test
   def test_busy_instrumentation
     assert_notify(:success, :busy, :state_change) do
       Semian[:testing].acquire do
-        assert_raises Semian::TimeoutError do
+        assert_raises(Semian::TimeoutError) do
           Semian[:testing].acquire {}
         end
       end
@@ -19,14 +21,14 @@ class TestInstrumentation < Minitest::Test
   def test_circuit_open_instrumentation
     assert_notify(:success, :busy, :state_change) do
       Semian[:testing].acquire do
-        assert_raises Semian::TimeoutError do
+        assert_raises(Semian::TimeoutError) do
           Semian[:testing].acquire {}
         end
       end
     end
 
     assert_notify(:circuit_open) do
-      assert_raises Semian::OpenCircuitError do
+      assert_raises(Semian::OpenCircuitError) do
         Semian[:testing].acquire {}
       end
     end
@@ -59,7 +61,7 @@ class TestInstrumentation < Minitest::Test
 
   def test_success_instrumentation_when_unknown_exceptions_occur
     assert_notify(:success) do
-      assert_raises RuntimeError do
+      assert_raises(RuntimeError) do
         Semian[:testing].acquire { raise "Some error" }
       end
     end
@@ -73,7 +75,7 @@ class TestInstrumentation < Minitest::Test
       events << event
     end
     yield
-    assert_equal expected_events, events, "The timeline of events was not as expected"
+    assert_equal(expected_events, events, "The timeline of events was not as expected")
   ensure
     Semian.unsubscribe(subscription)
   end
