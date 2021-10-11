@@ -643,16 +643,21 @@ Semian internals. For example to instrument just events with
 [`statsd-instrument`][statsd-instrument]:
 
 ```ruby
-# `event` is `success`, `busy`, `circuit_open`.
-# `resource` is the `Semian::Resource` object
-# `scope` is `connection` or `query` (others can be instrumented too from the adapter)
-# `adapter` is the name of the adapter (mysql2, redis, ..)
+# `event` is `success`, `busy`, `circuit_open`, `state_change`, or `lru_hash_gc`.
+# `resource` is the `Semian::Resource` object (or a `LRUHash` object for `lru_hash_gc`).
+# `scope` is `connection` or `query` (others can be instrumented too from the adapter) (is nil for `lru_hash_gc`).
+# `adapter` is the name of the adapter (mysql2, redis, ..) (is a payload hash for `lru_hash_gc`)
 Semian.subscribe do |event, resource, scope, adapter|
-  StatsD.increment("semian.#{event}", 1, tags: {
-    resource: resource.name,
-    adapter: adapter,
-    type: scope,
-  })
+  case event
+  when :success, :busy, :circuit_open, :state_change
+    StatsD.increment("semian.#{event}", tags: {
+      resource: resource.name,
+      adapter: adapter,
+      type: scope,
+    })
+  else
+    StatsD.increment("semian.#{event}")
+  end
 end
 ```
 
