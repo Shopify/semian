@@ -96,6 +96,25 @@ class TestCircuitBreaker < Minitest::Test
     Semian.destroy(:three)
   end
 
+  def test_sparse_errors_open_circuit_when_disable_error_threshold_duration_is_true
+    resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5, success_threshold: 1, disable_error_threshold_duration: true)
+
+    Timecop.travel(-6) do
+      trigger_error!(resource)
+      assert_circuit_closed(resource)
+    end
+
+    Timecop.travel(-1) do
+      trigger_error!(resource)
+      assert_circuit_closed(resource)
+    end
+
+    trigger_error!(resource)
+    assert_circuit_opened(resource)
+  ensure
+    Semian.destroy(:three)
+  end
+
   def test_request_allowed_query_doesnt_trigger_transitions
     Timecop.travel(Time.now - 6) do
       open_circuit!

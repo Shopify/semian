@@ -7,15 +7,17 @@ module Semian
     attr_reader :name, :half_open_resource_timeout, :error_timeout, :state, :last_error
 
     def initialize(name, exceptions:, success_threshold:, error_threshold:,
-                         error_timeout:, implementation:, half_open_resource_timeout: nil)
+                         error_timeout:, implementation:, half_open_resource_timeout: nil, disable_error_threshold_duration: false)
       @name = name.to_sym
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
       @error_timeout = error_timeout
       @exceptions = exceptions
       @half_open_resource_timeout = half_open_resource_timeout
+      @disable_error_threshold_duration = disable_error_threshold_duration
 
-      @errors = implementation::SlidingWindow.new(max_size: @error_count_threshold)
+      @last_error_time = nil
+      @errors = @disable_error_threshold_duration ? implementation::Integer.new : implementation::SlidingWindow.new(max_size: @error_count_threshold)
       @successes = implementation::Integer.new
       @state = implementation::State.new
 
@@ -52,7 +54,7 @@ module Semian
 
     def mark_failed(error)
       push_error(error)
-      push_time(@errors)
+      increment_errors
       if closed?
         transition_to_open if error_threshold_reached?
       elsif half_open?
@@ -114,9 +116,8 @@ module Semian
     end
 
     def error_timeout_expired?
-      last_error_time = @errors.last
-      return false unless last_error_time
-      Time.at(last_error_time) + @error_timeout < Time.now
+      return false unless @last_error_time
+      Time.at(@last_error_time) + @error_timeout < Time.now
     end
 
     def push_error(error)
@@ -134,7 +135,7 @@ module Semian
       str = "[#{self.class.name}] State transition from #{@state.value} to #{new_state}."
       str << " success_count=#{@successes.value} error_count=#{@errors.size}"
       str << " success_count_threshold=#{@success_count_threshold} error_count_threshold=#{@error_count_threshold}"
-      str << " error_timeout=#{@error_timeout} error_last_at=\"#{@errors.last}\""
+      str << " error_timeout=#{@error_timeout} error_last_at=\"#{@last_error_time}\""
       str << " name=\"#{@name}\""
       if new_state == :open && @last_error
         str << " last_error_message=#{@last_error.message.inspect}"
@@ -162,6 +163,15 @@ module Semian
         end
 
       result
+    end
+
+    def increment_errors
+      @last_error_time = Time.now
+      if @disable_error_threshold_duration
+        @errors.increment
+      else
+        push_time(@errors, time: @last_error_time)
+      end
     end
   end
 end

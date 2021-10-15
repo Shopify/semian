@@ -146,6 +146,9 @@ module Semian
   # +error_threshold+: The amount of errors that must happen within error_timeout amount of time to open
   # the circuit. (circuit breaker required)
   #
+  # +disable_error_threshold_duration+: Disables the duration constraint where <error_threshold> amount of errors
+  # must happen within error_timeout amount of time to open the circuit. (circuit breaker required)
+  #
   # +error_timeout+: The duration in seconds since the last error after which the error count is reset to 0.
   # (circuit breaker required)
   #
@@ -261,6 +264,7 @@ module Semian
       exceptions: Array(exceptions) + [::Semian::BaseError],
       half_open_resource_timeout: options[:half_open_resource_timeout],
       implementation: implementation(**options),
+      disable_error_threshold_duration: options.fetch(:disable_error_threshold_duration, false),
     )
   end
 

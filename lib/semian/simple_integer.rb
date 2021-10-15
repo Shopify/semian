@@ -4,6 +4,7 @@ module Semian
   module Simple
     class Integer #:nodoc:
       attr_accessor :value
+      alias_method :size, :value
 
       def initialize
         reset
@@ -16,6 +17,7 @@ module Semian
       def reset
         @value = 0
       end
+      alias_method :clear, :reset
 
       def destroy
         reset
