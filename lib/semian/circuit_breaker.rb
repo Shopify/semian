@@ -7,10 +7,11 @@ module Semian
     attr_reader :name, :half_open_resource_timeout, :error_timeout, :state, :last_error
 
     def initialize(name, exceptions:, success_threshold:, error_threshold:,
-                         error_timeout:, implementation:, half_open_resource_timeout: nil)
+                         error_timeout:, implementation:, half_open_resource_timeout: nil, error_threshold_window: nil)
       @name = name.to_sym
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
+      @error_threshold_window = error_threshold_window ? error_threshold_window : error_timeout
       @error_timeout = error_timeout
       @exceptions = exceptions
       @half_open_resource_timeout = half_open_resource_timeout
@@ -124,7 +125,7 @@ module Semian
     end
 
     def push_time(window, time: Time.now)
-      window.reject! { |err_time| err_time + @error_timeout < time.to_i }
+      window.reject! { |err_time| err_time + @error_threshold_window < time.to_i }
       window << time.to_i
     end
 
