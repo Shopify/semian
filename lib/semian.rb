@@ -146,6 +146,9 @@ module Semian
   # +error_threshold+: The amount of errors that must happen within error_timeout amount of time to open
   # the circuit. (circuit breaker required)
   #
+  # +enable_consecutive_errors+: Optimization for reducing the time required to close circuits. If set to true, the
+  # circuit will also open after <error_threshold> consecutive errors, even if they are outside the error_timeout window.
+  #
   # +error_timeout+: The duration in seconds since the last error after which the error count is reset to 0.
   # (circuit breaker required)
   #
@@ -261,6 +264,7 @@ module Semian
       exceptions: Array(exceptions) + [::Semian::BaseError],
       half_open_resource_timeout: options[:half_open_resource_timeout],
       implementation: implementation(**options),
+      enable_consecutive_errors: options.fetch(:enable_consecutive_errors, false),
     )
   end
 

@@ -7,15 +7,18 @@ module Semian
     attr_reader :name, :half_open_resource_timeout, :error_timeout, :state, :last_error
 
     def initialize(name, exceptions:, success_threshold:, error_threshold:,
-                         error_timeout:, implementation:, half_open_resource_timeout: nil)
+                         error_timeout:, implementation:, half_open_resource_timeout: nil, enable_consecutive_errors: false)
       @name = name.to_sym
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
       @error_timeout = error_timeout
       @exceptions = exceptions
       @half_open_resource_timeout = half_open_resource_timeout
+      @enable_consecutive_errors = enable_consecutive_errors
 
       @errors = implementation::SlidingWindow.new(max_size: @error_count_threshold)
+      @consecutive_errors = implementation::Integer.new
+
       @successes = implementation::Integer.new
       @state = implementation::State.new
 
@@ -53,6 +56,7 @@ module Semian
     def mark_failed(error)
       push_error(error)
       push_time(@errors)
+      @consecutive_errors.increment if @enable_consecutive_errors
       if closed?
         transition_to_open if error_threshold_reached?
       elsif half_open?
@@ -61,6 +65,7 @@ module Semian
     end
 
     def mark_success
+      @consecutive_errors.reset if @enable_consecutive_errors
       return unless half_open?
       @successes.increment
       transition_to_close if success_threshold_reached?
@@ -68,12 +73,14 @@ module Semian
 
     def reset
       @errors.clear
+      @consecutive_errors.reset if @enable_consecutive_errors
       @successes.reset
       transition_to_close
     end
 
     def destroy
       @errors.destroy
+      @consecutive_errors.destroy if @enable_consecutive_errors
       @successes.destroy
       @state.destroy
     end
@@ -90,6 +97,7 @@ module Semian
       log_state_transition(:closed)
       @state.close!
       @errors.clear
+      @consecutive_errors.clear if @enable_consecutive_errors
     end
 
     def transition_to_open
@@ -110,7 +118,7 @@ module Semian
     end
 
     def error_threshold_reached?
-      @errors.size == @error_count_threshold
+      @consecutive_errors.value == @error_count_threshold || @errors.size == @error_count_threshold
     end
 
     def error_timeout_expired?
@@ -132,7 +140,7 @@ module Semian
       return if @state.nil? || new_state == @state.value
 
       str = "[#{self.class.name}] State transition from #{@state.value} to #{new_state}."
-      str << " success_count=#{@successes.value} error_count=#{@errors.size}"
+      str << " success_count=#{@successes.value} error_count=#{max(@errors.size, @consecutive_errors.value)}"
       str << " success_count_threshold=#{@success_count_threshold} error_count_threshold=#{@error_count_threshold}"
       str << " error_timeout=#{@error_timeout} error_last_at=\"#{@errors.last}\""
       str << " name=\"#{@name}\""
