@@ -136,8 +136,8 @@ class TestCircuitBreaker < Minitest::Test
     end
   end
 
-  def test_error_threshold_window_overrides_error_timeout_when_set_for_opening_circuits
-    resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5, success_threshold: 1, error_threshold_window: 10)
+  def test_error_error_threshold_timeout_overrides_error_timeout_when_set_for_opening_circuits
+    resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5, success_threshold: 1, error_threshold_timeout: 10)
 
     Timecop.travel(-6) do
       trigger_error!(resource)
@@ -155,7 +155,7 @@ class TestCircuitBreaker < Minitest::Test
     Semian.destroy(:three)
   end
 
-  def test_error_threshold_window_defaults_to_error_timeout_when_not_specified
+  def test_error_threshold_timeout_defaults_to_error_timeout_when_not_specified
     resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5, success_threshold: 1)
 
     Timecop.travel(-6) do
