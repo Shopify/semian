@@ -257,6 +257,7 @@ module Semian
       name,
       success_threshold: options[:success_threshold],
       error_threshold: options[:error_threshold],
+      error_window_timeout: options[:error_window_timeout],
       error_timeout: options[:error_timeout],
       exceptions: Array(exceptions) + [::Semian::BaseError],
       half_open_resource_timeout: options[:half_open_resource_timeout],

@@ -136,6 +136,44 @@ class TestCircuitBreaker < Minitest::Test
     end
   end
 
+  def test_error_error_window_timeout_overrides_error_timeout_when_set_for_opening_circuits
+    resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5, success_threshold: 1, error_window_timeout: 10)
+
+    Timecop.travel(-6) do
+      trigger_error!(resource)
+      assert_circuit_closed(resource)
+    end
+
+    Timecop.travel(-1) do
+      trigger_error!(resource)
+      assert_circuit_closed(resource)
+    end
+
+    trigger_error!(resource)
+    assert_circuit_opened(resource)
+  ensure
+    Semian.destroy(:three)
+  end
+
+  def test_error_window_timeout_defaults_to_error_timeout_when_not_specified
+    resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5, success_threshold: 1)
+
+    Timecop.travel(-6) do
+      trigger_error!(resource)
+      assert_circuit_closed(resource)
+    end
+
+    Timecop.travel(-1) do
+      trigger_error!(resource)
+      assert_circuit_closed(resource)
+    end
+
+    trigger_error!(resource)
+    assert_circuit_closed(resource)
+  ensure
+    Semian.destroy(:three)
+  end
+
   def test_env_var_disables_circuit_breaker
     ENV['SEMIAN_CIRCUIT_BREAKER_DISABLED'] = '1'
     open_circuit!
