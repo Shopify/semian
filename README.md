@@ -48,7 +48,7 @@ write automated resiliency tests.
 Install by adding the gem to your `Gemfile` and require the [adapters](#adapters) you need:
 
 ```ruby
-gem 'semian', require: %w(semian semian/mysql2 semian/redis)
+gem 'semian', require: %w(semian semian/typhoeus semian/redis)
 ```
 
 We recommend this pattern of requiring adapters directly from the `Gemfile`.
@@ -69,9 +69,8 @@ fallbacks.
 The following adapters are in Semian and tested heavily in production, the
 version is the version of the public gem with the same name:
 
-* [`semian/mysql2`][mysql-semian-adapter] (~> 0.3.16)
-* [`semian/redis`][redis-semian-adapter] (~> 3.2.1)
 * [`semian/net_http`][nethttp-semian-adapter]
+* [`semian/typhoeus`][typhoeus-adapter] (~> 0.11.4.1)
 
 ### Creating Adapters
 
@@ -211,13 +210,13 @@ In this case, we'd allow 50% of the workers on a particular host to connect to t
  - So, with one worker, there will always be a minimum of 1 ticket
 - Workers in different processes will automatically unregister when the process exits.
 
-#### Net::HTTP
-For the `Net::HTTP` specific Semian adapter, since many external libraries may create
+#### Typhoeus
+For the `Typhoeus` specific Semian adapter, since many external libraries may create
 HTTP connections on the user's behalf, the parameters are instead provided
-by associating callback functions with `Semian::NetHTTP`, perhaps in an initialization file.
+by associating callback functions with `Semian::Typhoeus`, perhaps in an initialization file.
 
 ##### Naming and Options
-To give Semian parameters, assign a `proc` to `Semian::NetHTTP.semian_configuration`
+To give Semian parameters, assign a `proc` to `Semian::Typhoeus.semian_configuration`
 that takes a two parameters, `host` and `port` like `127.0.0.1`,`443` or `github_com`,`80`,
 and returns a `Hash` with configuration parameters as follows. The `proc` is used as a
 callback to initialize the configuration options, similar to other adapters.
@@ -227,7 +226,7 @@ SEMIAN_PARAMETERS = { tickets: 1,
                       success_threshold: 1,
                       error_threshold: 3,
                       error_timeout: 10 }
-Semian::NetHTTP.semian_configuration = proc do |host, port|
+Semian::Typhoeus.semian_configuration = proc do |host, port|
   # Let's make it only active for github.com
   if host == "github.com" && port == "80"
     SEMIAN_PARAMETERS.merge(name: "github.com_80")
@@ -266,14 +265,14 @@ Since we envision this particular adapter can be used in combination with many
 external libraries, that can raise additional exceptions, we added functionality to
 expand the Exceptions that can be tracked as part of Semian's circuit breaker.
 This may be necessary for libraries that introduce new exceptions or re-raise them.
-Add exceptions and reset to the [`default`][nethttp-default-errors] list using the following:
+Add exceptions and reset to the [`default`] list using the following:
 
 ```ruby
-# assert_equal(Semian::NetHTTP.exceptions, Semian::NetHTTP::DEFAULT_ERRORS)
-Semian::NetHTTP.exceptions += [::OpenSSL::SSL::SSLError]
+# assert_equal(Semian::Typhoeus.exceptions, Semian::Typhoeus::DEFAULT_ERRORS)
+Semian::Typhoeus.exceptions += [::OpenSSL::SSL::SSLError]
 
-Semian::NetHTTP.reset_exceptions
-# assert_equal(Semian::NetHTTP.exceptions, Semian::NetHTTP::DEFAULT_ERRORS)
+Semian::Typhoeus.reset_exceptions
+# assert_equal(Semian::Typhoeus.exceptions, Semian::Typhoeus::DEFAULT_ERRORS)
 ```
 ##### Mark Unsuccessful Responses as Failures
 Unsuccessful responses (e.g. 5xx responses) do not raise exceptions, and as such are not marked as failures by default. The `open_circuit_server_errors` Semian configuration parameter may be set to enable this behaviour, to mark unsuccessful responses as failures as seen below:
@@ -761,6 +760,7 @@ $ cd semian
 [redis-semian-adapter]: lib/semian/redis.rb
 [semian-adapter]: lib/semian/adapter.rb
 [nethttp-semian-adapter]: lib/semian/net_http.rb
+[typhoeus-adapter]: lib/semian/typhoeus.rb
 [nethttp-default-errors]: lib/semian/net_http.rb#L35-L45
 [semian-instrumentable]: lib/semian/instrumentable.rb
 [statsd-instrument]: http://github.com/shopify/statsd-instrument

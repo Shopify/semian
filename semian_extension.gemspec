@@ -4,16 +4,16 @@ require 'semian/version'
 require 'semian/platform'
 
 Gem::Specification.new do |s|
-  s.name = 'semian'
+  s.name = 'semian_extension'
   s.version = Semian::VERSION
   s.summary = 'Bulkheading for Ruby with SysV semaphores'
   s.description = <<-DOC
     A Ruby C extention that is used to control access to shared resources
     across process boundaries with SysV semaphores.
   DOC
-  s.homepage = 'https://github.com/shopify/semian'
-  s.authors = ['Scott Francis', 'Simon Eskildsen', 'Dale Hamel']
-  s.email = 'scott.francis@shopify.com'
+  s.homepage = 'https://github.com/1mgOfficial/semian'
+  s.authors = ['Scott Francis', 'Simon Eskildsen', 'Dale Hamel', 'Sajan Gupta']
+  s.email = 'root@1mg.com'
   s.license = 'MIT'
 
   s.metadata['allowed_push_host'] = 'https://rubygems.org'
