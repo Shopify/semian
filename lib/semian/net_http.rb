@@ -44,7 +44,7 @@ module Semian
     ].freeze # Net::HTTP can throw many different errors, this tries to capture most of them
 
     class << self
-      attr_accessor :exceptions, :disable_semian
+      attr_accessor :exceptions
       attr_reader :semian_configuration
 
       def semian_configuration=(configuration)
@@ -54,12 +54,6 @@ module Semian
 
       def retrieve_semian_configuration(host, port)
         @semian_configuration.call(host, port) if @semian_configuration.respond_to?(:call)
-      end
-
-      def force_disable
-        @disable_semian = true
-        yield
-        @disable_semian = false
       end
 
       def reset_exceptions
@@ -78,6 +72,12 @@ module Semian
 
     def resource_exceptions
       Semian::NetHTTP.exceptions
+    end
+
+    def with_semian_disabled
+      @disable_semian = true
+      yield
+      @disable_semian = false
     end
 
     def disabled?
@@ -108,6 +108,8 @@ module Semian
         self.open_timeout = prev_open_timeout
       end
     end
+
+    attr_accessor :disable_semian
 
     private
 
