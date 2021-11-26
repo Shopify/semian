@@ -20,5 +20,4 @@ gemspec
 
 group :development, :test do
   gem 'rubocop'
-  gem 'pry-byebug'
 end

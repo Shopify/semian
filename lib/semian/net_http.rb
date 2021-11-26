@@ -61,9 +61,9 @@ module Semian
       end
     end
 
-    def initialize(*args, semian_enabled: true)
+    def initialize(*args, semian: true)
       super(*args)
-      @semian_enabled = semian_enabled
+      @semian_enabled = semian
     end
 
     Semian::NetHTTP.reset_exceptions
@@ -80,7 +80,7 @@ module Semian
     end
 
     def disabled?
-      raw_semian_options.nil? || semian_enabled == false
+      raw_semian_options.nil? || @semian_enabled == false
     end
 
     def connect
@@ -107,8 +107,6 @@ module Semian
         self.open_timeout = prev_open_timeout
       end
     end
-
-    attr_accessor :semian_enabled
 
     private
 
