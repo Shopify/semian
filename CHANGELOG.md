@@ -1,3 +1,7 @@
+# v0.11.5
+
+* Feature: Add disable flag to http adapter (#301)
+
 # v0.11.4
 
 * Fix: Add `extern` to global variable declarations for gcc 10 (#288)
