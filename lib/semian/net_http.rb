@@ -61,6 +61,11 @@ module Semian
       end
     end
 
+    def initialize(*args, semian: true)
+      super(*args)
+      @semian_enabled = semian
+    end
+
     Semian::NetHTTP.reset_exceptions
 
     def raw_semian_options
@@ -75,7 +80,7 @@ module Semian
     end
 
     def disabled?
-      raw_semian_options.nil?
+      raw_semian_options.nil? || @semian_enabled == false
     end
 
     def connect
