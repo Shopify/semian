@@ -55,12 +55,6 @@ module Semian
       attr_accessor :exceptions
       attr_reader :semian_configuration
 
-      def prepended(base)
-        class << base
-          prepend ClassMethods
-        end
-      end
-
       def semian_configuration=(configuration)
         raise Semian::NetHTTP::SemianConfigurationChangedError unless @semian_configuration.nil?
         @semian_configuration = configuration
@@ -129,3 +123,4 @@ module Semian
 end
 
 Net::HTTP.prepend(Semian::NetHTTP)
+Net::HTTP.singleton_class.prepend(Semian::NetHTTP::ClassMethods)
