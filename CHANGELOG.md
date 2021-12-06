@@ -1,3 +1,7 @@
+# v0.11.6
+
+* Fix: pass disable flag by patching new singleton method (#303)
+
 # v0.11.5
 
 * Feature: Add disable flag to http adapter (#301)
