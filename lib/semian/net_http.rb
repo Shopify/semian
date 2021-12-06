@@ -43,6 +43,14 @@ module Semian
       ::SystemCallError, # includes ::Errno::EINVAL, ::Errno::ECONNRESET, ::Errno::ECONNREFUSED, ::Errno::ETIMEDOUT, and more
     ].freeze # Net::HTTP can throw many different errors, this tries to capture most of them
 
+    module ClassMethods 
+      def new(*args, semian: true)
+        http = super(*args)
+        http.instance_variable_set(:@semian_enabled, semian)
+        http
+      end
+    end
+
     class << self
       attr_accessor :exceptions
       attr_reader :semian_configuration
@@ -59,11 +67,6 @@ module Semian
       def reset_exceptions
         self.exceptions = Semian::NetHTTP::DEFAULT_ERRORS.dup
       end
-    end
-
-    def initialize(*args, semian: true)
-      super(*args)
-      @semian_enabled = semian
     end
 
     Semian::NetHTTP.reset_exceptions
@@ -120,3 +123,4 @@ module Semian
 end
 
 Net::HTTP.prepend(Semian::NetHTTP)
+Net::HTTP.singleton_class.prepend(Semian::NetHTTP::ClassMethods)
