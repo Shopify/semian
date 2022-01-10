@@ -69,6 +69,22 @@ class TestRedis < Minitest::Test
     end
   end
 
+  def test_connection_reset_does_not_open_the_circuit
+    client = connect_to_redis!
+
+    @proxy.downstream(:reset_peer).apply do
+      ERROR_THRESHOLD.times do
+        assert_raises ::Redis::ConnectionError do
+          client.get('foo')
+        end
+      end
+
+      assert_raises ::Redis::ConnectionError do
+        client.get('foo')
+      end
+    end
+  end
+
   def test_command_errors_does_not_open_the_circuit
     client = connect_to_redis!
     client.hset('my_hash', 'foo', 'bar')

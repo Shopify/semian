@@ -16,6 +16,14 @@ class Redis
     include ::Semian::AdapterError
   end
 
+  class ConnectionError < Redis::BaseConnectionError
+    # A Connection Reset is a fast failure and we don't want to track these errors in 
+    # semian
+    def marks_semian_circuits?
+      message != "Connection lost (ECONNRESET)"
+    end
+  end
+
   ResourceBusyError = Class.new(SemianError)
   CircuitOpenError = Class.new(SemianError)
   ResolveError = Class.new(SemianError)
