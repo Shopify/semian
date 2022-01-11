@@ -1,3 +1,7 @@
+# v0.11.7
+
+* Feature: Add error_threshold_timeout configuration parameter (#299)
+
 # v0.11.6
 
 * Fix: pass disable flag by patching new singleton method (#303)
