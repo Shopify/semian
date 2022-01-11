@@ -32,7 +32,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       toxiproxy:
-        image: shopify/toxiproxy:latest
+        image: ghcr.io/shopify/toxiproxy:2.3.0
 
     steps:
     - uses: actions/checkout@v1

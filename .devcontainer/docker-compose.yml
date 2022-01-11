@@ -31,7 +31,7 @@ services:
         sleep infinity
 
   toxiproxy:
-    image: shopify/toxiproxy:latest
+    image: ghcr.io/shopify/toxiproxy:2.3.0
     container_name: toxiproxy-dev
     depends_on: 
     - redis
