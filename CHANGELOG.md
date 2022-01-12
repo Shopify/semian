@@ -1,3 +1,7 @@
+# v0.11.8
+
+* Feature: Add error_threshold_timeout configuration parameter (#299)
+
 # v0.11.7
 
 * Fix: ECONNRESET won't trigger circuit open for redis (#306)
