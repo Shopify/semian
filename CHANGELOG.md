@@ -1,3 +1,7 @@
+# v0.11.7
+
+* Fix: ECONNRESET won't trigger circuit open for redis (#306)
+
 # v0.11.6
 
 * Fix: pass disable flag by patching new singleton method (#303)
