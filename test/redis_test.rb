@@ -1,15 +1,7 @@
 require 'test_helper'
 require 'benchmark'
 
-begin
-  require "hiredis"
-  require "redis/connection/hiredis"
-  puts "running tests with hiredis driver"
-rescue LoadError
-  puts "running test with default redis driver"
-end
-
-class TestRedis < Minitest::Test
+module RedisTests
   REDIS_TIMEOUT = 0.5
   ERROR_TIMEOUT = 5
   ERROR_THRESHOLD = 1
@@ -48,7 +40,7 @@ class TestRedis < Minitest::Test
 
   def test_semian_resource_in_pipeline
     redis = connect_to_redis!
-    redis.pipelined do
+    redis.pipelined do |_pipeline|
       assert_instance_of Semian::ProtectedResource, redis.semian_resource
     end
   end
@@ -435,6 +427,7 @@ class TestRedis < Minitest::Test
       db: 1,
       timeout: REDIS_TIMEOUT,
       semian: semian_options,
+      driver: redis_driver
     }.merge(options))
   end
 
@@ -472,5 +465,25 @@ class TestRedis < Minitest::Test
       end
     end
     assert_in_delta bench.real, expected_timeout, delta
+  end
+end
+
+class TestRedis < Minitest::Test
+  include RedisTests
+
+  private
+
+  def redis_driver
+    :ruby
+  end
+end
+
+class TestHiredis < Minitest::Test
+  include RedisTests
+
+  private
+
+  def redis_driver
+    :hiredis
   end
 end
