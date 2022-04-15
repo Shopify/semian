@@ -31,8 +31,9 @@ jobs:
         image: ghcr.io/shopify/toxiproxy:2.3.0
 
     steps:
-    - uses: actions/checkout@v1
-    - name: Build image
-      run: docker build --build-arg RUBY_VERSION=${{ matrix.ruby }} -f dockerfiles/semian-ci -t semian-ci:${GITHUB_SHA::8}-${{ hashFiles(matrix.gemfile) }} .
-    - name: Run tests
-      run: docker run --rm --network=${{ job.container.network }} --network-alias=semian semian-ci:${GITHUB_SHA::8}-${{ hashFiles(matrix.gemfile) }} ./scripts/run_tests.sh
+      - uses: actions/checkout@v2
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true # runs 'bundle install' and caches installed gems automatically
+      - run: ./scripts/run_tests.sh
