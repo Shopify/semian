@@ -1,9 +1,0 @@
-source 'https://rubygems.org'
-
-gemspec path: '..'
-
-gem 'mysql2', '~> 0.4.10'
-
-group :development, :test do
-  gem 'rubocop'
-end

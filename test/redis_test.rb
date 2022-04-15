@@ -48,7 +48,7 @@ class TestRedis < Minitest::Test
 
   def test_semian_resource_in_pipeline
     redis = connect_to_redis!
-    redis.pipelined do
+    redis.pipelined do |_pipeline|
       assert_instance_of Semian::ProtectedResource, redis.semian_resource
     end
   end

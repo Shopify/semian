@@ -3,6 +3,7 @@ source 'https://rubygems.org'
 gemspec path: '..'
 
 gem 'hiredis', '~> 0.6'
+gem "mysql2", "~> 0.5", github: "brianmario/mysql2"
 
 group :development, :test do
   gem 'rubocop'
