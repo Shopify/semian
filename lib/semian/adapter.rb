@@ -57,7 +57,7 @@ module Semian
     end
 
     def resource_exceptions
-      []
+      raise NotImplementedError.new("Semian adapters must implement a `resource_exceptions` method")
     end
 
     def resource_already_acquired?

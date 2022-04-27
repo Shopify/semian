@@ -10,6 +10,7 @@ module BackgroundHelper
 
   def background(&block)
     thread = Thread.new(&block)
+    thread.report_on_exception = false
     threads << thread
     thread.join(0.1)
     thread

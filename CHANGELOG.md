@@ -1,3 +1,5 @@
+* Feature: Add support for the `redis-client` gem (#314)
+
 # v0.11.8
 
 * Feature: Add error_threshold_timeout configuration parameter (#299)
