@@ -175,6 +175,8 @@ class TestGRPC < Minitest::Test
   def build_insecure_stub(klass, host: nil, opts: nil)
     host ||= @host
     opts ||= @client_opts
+    opts ||= {}
+    opts[:timeout] ||= 1
     klass.new(host, :this_channel_is_insecure, **opts)
   end
 
