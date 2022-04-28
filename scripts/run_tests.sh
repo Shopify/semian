@@ -1,4 +1,5 @@
 #!/bin/bash
+export CI="true"
 
 echo "Running bundle install"
 if ! bundle install --jobs=3 --retry=3 2>&1; then
