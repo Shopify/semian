@@ -101,6 +101,11 @@ module Semian
 
     private
 
+    EXCEPTIONS = [].freeze
+    def resource_exceptions
+      EXCEPTIONS
+    end
+
     def query_whitelisted?(sql, *)
       QUERY_WHITELIST =~ sql
     rescue ArgumentError

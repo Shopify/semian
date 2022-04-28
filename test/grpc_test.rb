@@ -1,5 +1,6 @@
 require 'test_helper'
 require 'grpc'
+require 'semian/grpc'
 require 'minitest'
 require 'mocha/minitest'
 require 'echo_service'

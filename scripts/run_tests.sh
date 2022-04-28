@@ -28,7 +28,7 @@ echo "Running Tests"
 attempts=0
 while ! bundle exec rake test 2>&1; do
   attempts=$((attempts + 1))
-  if (( attempts > 5 )); then
+  if (( attempts > 2 )); then
     echo "Running Tests failed"
     exit 1
   fi

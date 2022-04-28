@@ -27,6 +27,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'pry-byebug'
   s.add_development_dependency 'mysql2'
   s.add_development_dependency 'redis'
+  s.add_development_dependency 'redis-client', '>= 0.2.0'
   s.add_development_dependency 'webrick'
   s.add_development_dependency 'toxiproxy', '~> 1.0.0'
   s.add_development_dependency 'grpc'
