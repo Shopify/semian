@@ -190,6 +190,11 @@ module Semian
     end
   end
 
+  def destroy_all_resources
+    resources.values.each(&:destroy)
+    resources.clear
+  end
+
   # Unregister will not destroy the semian resource, but it will
   # remove it from the hash of registered resources, and decrease
   # the number of registered workers.
