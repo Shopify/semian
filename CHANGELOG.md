@@ -1,3 +1,5 @@
+# v0.12.0
+
 * Feature: Add support for the `redis-client` gem (#314)
 
 # v0.11.8
