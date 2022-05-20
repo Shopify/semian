@@ -52,15 +52,15 @@ class MockServer
   end
 
   def poll_until_ready(time_to_wait: 1)
-    start_time = Time.now.to_i
-    begin
-      TCPSocket.new(@hostname, @port).close
-    rescue Errno::ECONNREFUSED, Errno::ECONNRESET
-      if Time.now.to_i > start_time + time_to_wait
-        raise "Couldn't reach the service on hostname #{@hostname} port #{@port} after #{time_to_wait}s"
-      else
-        retry
-      end
+    timer_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+    TCPSocket.new(@hostname, @port).close
+  rescue Errno::ECONNREFUSED, Errno::ECONNRESET
+    elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - timer_start
+    if elapsed > time_to_wait
+      raise "Couldn't reach the service on hostname #{@hostname} port #{@port} after #{time_to_wait}s"
     end
+
+    retry
   end
 end
