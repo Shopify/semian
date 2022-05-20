@@ -1,10 +1,11 @@
 version: "3.7"
 services:
-  semian:
-    container_name: semian-dev
+  semian: &base
+    container_name: semian
     build:
-      dockerfile: Dockerfile
-      context: .
+      dockerfile: .devcontainer/Dockerfile
+      context: ..
+      target: base
     working_dir: /workspace
     volumes:
       # This is where VS Code should expect to find your project's source code
@@ -17,9 +18,9 @@ services:
     security_opt:
       - seccomp:unconfined
     depends_on:
-    - redis
-    - mysql
-    - toxiproxy
+      - redis
+      - mysql
+      - toxiproxy
     command:
       - /bin/bash
       - -c
@@ -27,20 +28,34 @@ services:
         bundle install
         sleep infinity
 
+  test:
+    <<: *base
+    container_name: semian-tests
+    build:
+      context: ../
+      dockerfile: dockerfiles/semian-ci
+    command:
+      - bash
+      - -c
+      - |-
+        ./scripts/run_tests.sh
+    profiles:
+      - test
+
   toxiproxy:
     image: ghcr.io/shopify/toxiproxy:2.4.0
-    container_name: toxiproxy-dev
+    container_name: toxiproxy
     depends_on:
-    - redis
-    - mysql
+      - redis
+      - mysql
 
   redis:
     image: redis:latest
-    container_name: redis-dev
+    container_name: redis
     command: redis-server
 
   mysql:
-    container_name: mysql-dev
+    container_name: mysql
     image: mysql
     command: --default-authentication-plugin=mysql_native_password
     environment:

@@ -107,7 +107,7 @@ There are some global configuration options that can be set for Semian:
 
 ```ruby
 # Maximum size of the LRU cache (default: 500)
-# Note: Setting this to 0 enables aggressive garbage collection. 
+# Note: Setting this to 0 enables aggressive garbage collection.
 Semian.maximum_lru_size = 0
 
 # Minimum time a resource should be resident in the LRU cache (default: 300s)
@@ -730,7 +730,7 @@ $ cd semian
   - Open semian in vscode
   - Install recommended extensions (one off requirement)
   - Click `reopen in container` (first boot might take about a minute)
-  
+
   See https://code.visualstudio.com/docs/remote/containers for more details
 
 
@@ -743,14 +743,20 @@ $ cd semian
   - `$ bundle exec rake` Run with `SKIP_FLAKY_TESTS=true` to skip flaky tests (CI runs all tests)
 
 ## Everything else
-  - `$ docker-compose -f .devcontainer/docker-compose.yml up -d`
-  - `$ docker exec -it semian-dev bash`
 
+  Test semian in containers:
+  - `$ docker-compose -f .devcontainer/docker-compose.yml up -d`
+  - `$ docker exec -it semian bash`
 
   If you make any changes to `.devcontainer/` you'd need to recreate the containers:
 
-  - `$ docker-compose -f .devcontainer/docker-compose.yml up -d --force-recreate` 
+  - `$ docker-compose -f .devcontainer/docker-compose.yml up -d --force-recreate`
 
+  Run tests in containers:
+
+  ```shell
+  $ docker-compose -f ./.devcontainer/docker-compose.yml run --rm test
+  ```
 
   Running Tests:
   - `$ bundle exec rake` Run with `SKIP_FLAKY_TESTS=true` to skip flaky tests (CI runs all tests)
