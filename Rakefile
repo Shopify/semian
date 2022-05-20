@@ -51,6 +51,42 @@ Rake::TestTask.new("test") do |t|
   end
 end
 
+namespace :test do
+  desc "Parallel tests. Use TEST_WORKERS and TEST_WORKER_NUM. TEST_WORKER_NUM in range from 1..TEST_WORKERS"
+  task :parallel do
+    workers = ENV.fetch("TEST_WORKERS", 1).to_i
+    worker = ENV.fetch("TEST_WORKER_NUM", 1).to_i
+    buckets = Array.new(workers) { [] }
+
+    # Fill the buckets
+    i = 0
+    files = Dir["test/*_test.rb"].entries.sort { |f| File.size(f) }
+    files.each do |f|
+      i = 0 if buckets.size == i
+      buckets[i] << f
+      i += 1
+    end
+
+    if worker < 1 || worker > workers
+      raise "TEST_WORKER_NUM is not correct: #{worker}. " \
+        "Check that it greater or equal 1 and less or equal TEST_WORKERS: #{workers}"
+    end
+
+    files = buckets[worker - 1].join(" ")
+    args = "-Ilib:test -r 'rake/rake_test_loader.rb' #{files} -v #{ENV.fetch("TESTOPTS", "")}"
+    ruby args do |ok, status|
+      if !ok && status.respond_to?(:signaled?) && status.signaled?
+        raise SignalException, status.termsig
+      elsif !ok
+        status  = "Command failed with status (#{status.exitstatus})"
+        details = ": [ruby #{args}]"
+        message = status + details
+        raise message
+      end
+    end
+  end
+end
+
 # ==========================================================
 # Documentation
 # ==========================================================

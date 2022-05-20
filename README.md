@@ -809,6 +809,15 @@ $ cd semian
   Running Tests:
   - `$ bundle exec rake` Run with `SKIP_FLAKY_TESTS=true` to skip flaky tests (CI runs all tests)
 
+### Running tests in batches
+
+* *TEST_WORKERS* - Total number of workers or batches.
+  It uses to identify a total number of batches, that would be run in parallel. *Default: 1*
+* *TEST_WORKER_NUM* - Specify which batch to run. The value is between 1 and *TEST_WORKERS*. *Default: 1*
+
+```shell
+$ bundle exec rake test:parallel TEST_WORKERS=5 TEST_WORKER_NUM=1
+```
 
 [hystrix]: https://github.com/Netflix/Hystrix
 [release-it]: https://pragprog.com/titles/mnee2/release-it-second-edition/
