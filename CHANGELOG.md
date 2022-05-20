@@ -1,3 +1,7 @@
+# Unreleased
+
+* Refactor: Replace Time.now with CLOCK_MONOTONIC in MockServer (#318)
+
 # v0.12.0
 
 * Feature: Add support for the `redis-client` gem (#314)
