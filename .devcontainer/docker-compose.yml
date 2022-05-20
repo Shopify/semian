@@ -19,7 +19,7 @@ services:
       - SYS_PTRACE
     security_opt:
       - seccomp:unconfined
-    depends_on: 
+    depends_on:
     - redis
     - mysql
     - toxiproxy
@@ -31,9 +31,9 @@ services:
         sleep infinity
 
   toxiproxy:
-    image: ghcr.io/shopify/toxiproxy:2.3.0
+    image: ghcr.io/shopify/toxiproxy:2.4.0
     container_name: toxiproxy-dev
-    depends_on: 
+    depends_on:
     - redis
     - mysql
 
