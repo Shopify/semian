@@ -1,4 +1,7 @@
 #!/bin/bash
+
+set -e
+
 export CI="true"
 
 echo "Running bundle install"
