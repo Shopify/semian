@@ -2,20 +2,20 @@ version: "3.7"
 services:
   semian:
     image: shopify/semian-ci:latest
-    depends_on: 
-    - redis
-    - mysql
-    - toxiproxy
+    depends_on:
+      - redis
+      - mysql
+      - toxiproxy
     command: ./scripts/run_tests.sh
-      
+
   toxiproxy:
-    image: shopify/toxiproxy:latest
+    image: ghcr.io/shopify/toxiproxy:2.4.0
     logging:
       driver: none
     container_name: toxiproxy
-    depends_on: 
-    - redis
-    - mysql
+    depends_on:
+      - redis
+      - mysql
 
   redis:
     image: redis:latest

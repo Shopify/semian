@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        ruby: 
+        ruby:
           # - "3.1" # grpc is causing issues with Ruby 3.1
           - "3.0"
           - "2.7"
@@ -30,11 +30,11 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       toxiproxy:
-        image: ghcr.io/shopify/toxiproxy:2.3.0
+        image: ghcr.io/shopify/toxiproxy:2.4.0
 
     steps:
-    - uses: actions/checkout@v1
-    - name: Build image
-      run: docker build --build-arg RUBY_VERSION=${{ matrix.ruby }} -f dockerfiles/semian-ci -t semian-ci:${GITHUB_SHA::8}-${{ hashFiles(matrix.gemfile) }} .
-    - name: Run tests
-      run: docker run --rm --network=${{ job.container.network }} --network-alias=semian semian-ci:${GITHUB_SHA::8}-${{ hashFiles(matrix.gemfile) }} ./scripts/run_tests.sh
+      - uses: actions/checkout@v1
+      - name: Build image
+        run: docker build --build-arg RUBY_VERSION=${{ matrix.ruby }} -f dockerfiles/semian-ci -t semian-ci:${GITHUB_SHA::8}-${{ hashFiles(matrix.gemfile) }} .
+      - name: Run tests
+        run: docker run --rm --network=${{ job.container.network }} --network-alias=semian semian-ci:${GITHUB_SHA::8}-${{ hashFiles(matrix.gemfile) }} ./scripts/run_tests.sh
