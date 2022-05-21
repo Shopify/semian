@@ -8,9 +8,11 @@ require 'semian/instrumentable'
 require 'semian/platform'
 require 'semian/resource'
 require 'semian/circuit_breaker'
+require 'semian/error_rate_circuit_breaker'
 require 'semian/protected_resource'
 require 'semian/unprotected_resource'
 require 'semian/simple_sliding_window'
+require 'semian/time_sliding_window'
 require 'semian/simple_integer'
 require 'semian/simple_state'
 require 'semian/lru_hash'
@@ -127,6 +129,9 @@ module Semian
   #
   # +circuit_breaker+: The boolean if you want a circuit breaker acquired for your resource. Default true.
   #
+  # +circuit_breaker_type+: The string representing the type of circuit breaker, one of :normal or :error_rate
+  # Default normal (optional)
+  #
   # +bulkhead+: The boolean if you want a bulkhead to be acquired for your resource. Default true.
   #
   # +tickets+: Number of tickets. If this value is 0, the ticket count will not be set,
@@ -154,6 +159,18 @@ module Semian
   #
   # +exceptions+: An array of exception classes that should be accounted as resource errors. Default [].
   # (circuit breaker)
+  #
+  # +error_percent_threshold+: The percentage of time spent making calls that ultimately ended in error
+  # that will trigger the circuit opening (error_rate circuit breaker required)
+  #
+  # +minimum_request_volume+: The number of calls that must happen within the time_window before the circuit
+  # will consider opening based on error_percent_threshold. For example, if the value is 20, then if only 19 requests
+  # are received in the rolling window the circuit will not trip open even if all 19 failed.
+  # Without this the circuit would open if the first request was an error (100% failure rate).
+  # (error_rate circuit breaker required)
+  #
+  # +time_window+: The time window in seconds over which the error rate will be calculated
+  # (error_rate circuit breaker required)
   #
   # Returns the registered resource.
   def register(name, **options)
@@ -252,9 +269,33 @@ module Semian
 
   private
 
+  def create_error_rate_circuit_breaker(name, **options)
+    require_keys!([:success_threshold, :error_percent_threshold, :error_timeout,
+                   :minimum_request_volume, :time_window], options)
+
+    exceptions = options[:exceptions] || []
+    ErrorRateCircuitBreaker.new(name,
+                                success_threshold: options[:success_threshold],
+                                error_percent_threshold: options[:error_percent_threshold],
+                                error_timeout: options[:error_timeout],
+                                exceptions: Array(exceptions) + [::Semian::BaseError],
+                                half_open_resource_timeout: options[:half_open_resource_timeout],
+                                minimum_request_volume: options[:minimum_request_volume],
+                                time_window: options[:time_window],
+                                implementation: implementation(**options))
+  end
+
   def create_circuit_breaker(name, **options)
     circuit_breaker = options.fetch(:circuit_breaker, true)
     return unless circuit_breaker
+
+    type = options.fetch(:circuit_breaker_type, :normal)
+    unless [:normal, :error_rate].include?(type)
+      raise ArgumentError, "Unknown 'circuit_breaker_type': #{type}, should be :normal or :error_rate"
+    end
+
+    return create_error_rate_circuit_breaker(name, **options) if type == :error_rate
+
     require_keys!([:success_threshold, :error_threshold, :error_timeout], options)
 
     exceptions = options[:exceptions] || []

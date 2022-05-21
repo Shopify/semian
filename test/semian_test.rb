@@ -80,6 +80,25 @@ class TestSemian < Minitest::Test
     assert_equal "Semian configuration require either the :ticket or :quota parameter, you provided both", exception.message
   end
 
+  def test_register_with_error_rate_circuitbreaker
+    resource = Semian.register(
+        :testing_error_rate,
+        circuit_breaker_type: :error_rate,
+        success_threshold: 1,
+        error_percent_threshold: 0.2,
+        minimum_request_volume: 1,
+        time_window: 10,
+        error_timeout: 5,
+        circuit_breaker: true,
+        bulkhead: false,
+        thread_safety_disabled: false,
+        )
+
+    assert resource, Semian[:testing_error_rate]
+    assert resource.circuit_breaker.state.instance_of?(Semian::ThreadSafe::State)
+    assert resource.circuit_breaker.instance_of?(Semian::ErrorRateCircuitBreaker)
+  end
+
   def test_unsuported_constants
     assert defined?(Semian::BaseError)
     assert defined?(Semian::SyscallError)
