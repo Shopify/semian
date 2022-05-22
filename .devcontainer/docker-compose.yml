@@ -10,9 +10,6 @@ services:
       # This is where VS Code should expect to find your project's source code
       # and the value of "workspaceFolder" in .devcontainer/devcontainer.json
       - ..:/workspace
-      - ../.vscode-server:/root/.vscode-server
-      # This lets you avoid setting up Git again in the container
-      - ~/.gitconfig:/root/.gitconfig
     # Required for ptrace-based debuggers like C++, Go, and Rust
     privileged: true
     cap_add:
