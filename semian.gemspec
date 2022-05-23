@@ -16,14 +16,13 @@ Gem::Specification.new do |s|
   s.email = 'scott.francis@shopify.com'
   s.license = 'MIT'
 
-  s.metadata['allowed_push_host'] = 'https://rubygems.org'
-
   s.files = Dir['{lib,ext}/**/**/*.{rb,h,c}']
   s.extensions = ['ext/semian/extconf.rb']
 
   s.metadata = {
-    'changelog_uri' => 'https://github.com/Shopify/semian/blob/master/CHANGELOG.md',
+    'allowed_push_host' => 'https://rubygems.org',
     'bug_tracker_uri' => 'https://github.com/Shopify/semian/issues',
+    'changelog_uri' => 'https://github.com/Shopify/semian/blob/master/CHANGELOG.md',
     'source_code_uri' => 'https://github.com/Shopify/semian',
   }
 end
