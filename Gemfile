@@ -14,7 +14,7 @@ gem 'redis-client', '0.2.0'
 gem 'redis'
 gem 'rubocop'
 gem 'timecop'
-gem 'toxiproxy', '~> 1.0.0'
+gem 'toxiproxy'
 gem 'webrick'
 
 gemspec

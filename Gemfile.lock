@@ -64,7 +64,7 @@ GEM
       parser (>= 3.1.1.0)
     ruby-progressbar (1.11.0)
     timecop (0.9.5)
-    toxiproxy (1.0.3)
+    toxiproxy (2.0.1)
     unicode-display_width (2.1.0)
     webrick (1.7.0)
 
@@ -88,7 +88,7 @@ DEPENDENCIES
   rubocop
   semian!
   timecop
-  toxiproxy (~> 1.0.0)
+  toxiproxy
   webrick
 
 BUNDLED WITH
