@@ -181,7 +181,7 @@ class TestGRPC < Minitest::Test
   def build_rpc_server(server_opts: {}, client_opts: {})
     @hostname = SemianConfig['grpc_host']
     @server = new_rpc_server_for_testing({poll_period: 1}.merge(server_opts))
-    @port = @server.add_http2_port("#{@hostname}:#{SemianConfig['grpc_port']}", :this_port_is_insecure)
+    @port = @server.add_http2_port("0.0.0.0:#{SemianConfig['grpc_port']}", :this_port_is_insecure)
     @host = "#{@hostname}:#{@port}"
     @client_opts = client_opts
     @server

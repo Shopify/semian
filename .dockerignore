@@ -1,0 +1,9 @@
+*
+!ext
+!lib
+!scripts
+!test
+!.rubocop.yml
+!Gemfile*
+!Rakefile
+!semian.gemspec

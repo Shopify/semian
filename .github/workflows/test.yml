@@ -1,0 +1,108 @@
+name: Test
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+concurrency:
+  group: ${{ github.ref }}-test
+  cancel-in-progress: true
+
+jobs:
+  bundle:
+    name: Install dependency
+    runs-on: ubuntu-latest
+    # https://docs.github.com/en/actions/using-jobs/running-jobs-in-a-container
+    container: ruby:${{ matrix.ruby }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby:
+          # - "3.1" # grpc is causing issues with Ruby 3.1
+          - "3.0"
+          - "2.7"
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v2
+      -
+        name: Cache
+        uses: actions/cache@v2
+        with:
+          path: vendor/bundle
+          key: ${{ runner.os }}-ruby-${{ matrix.ruby }}-gems-${{ hashFiles('**/Gemfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-ruby-${{ matrix.ruby }}-gems-
+      -
+        name: Bundle
+        if: steps.cache-primes.outputs.cache-hit != 'true'
+        run: |
+          bundle config path vendor/bundle
+          bundle install
+  test:
+    name: Ruby tests
+    runs-on: ubuntu-latest
+    needs: bundle
+    container:
+      image: ruby:${{ matrix.ruby }}
+      ports:
+        - 31150:31050
+        - 31050:31050
+      # NOTE: Container required be accessed by hostname semian,
+      #       because upstream to toxiproxy should have access
+      #       to the same container
+      options: "--hostname semian"
+
+    env:
+      CI: "1"
+    strategy:
+      fail-fast: true
+      matrix:
+        ruby:
+          # - "3.1" # grpc is causing issues with Ruby 3.1
+          - "3.0"
+          - "2.7"
+    services:
+      mysql:
+        image: mysql:5.7
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'true'
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=5s
+          --health-timeout=2s
+          --health-retries=3
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      toxiproxy:
+        image: ghcr.io/shopify/toxiproxy:2.4.0
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v2
+      -
+        name: Cache
+        uses: actions/cache@v2
+        with:
+          path: vendor/bundle
+          key: ${{ runner.os }}-ruby-${{ matrix.ruby }}-gems-${{ hashFiles('**/Gemfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-ruby-${{ matrix.ruby }}-gems-
+      -
+        name: Bundle
+        run: |
+          bundle config path vendor/bundle
+      -
+        name: Build C extension
+        run: bundle exec rake build
+      -
+        name: Test
+        run: bundle exec rake test

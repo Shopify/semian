@@ -1,4 +1,8 @@
+require 'rubygems'
+require 'bundler/setup'
+
 require 'minitest/autorun'
+require 'mysql2'
 require 'semian'
 require 'semian/mysql2'
 require 'semian/redis'

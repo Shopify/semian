@@ -560,9 +560,13 @@ class TestResource < Minitest::Test
             exit! 100
           end
           sleep
-        rescue => e
-          puts "Unhandled exception occurred in worker"
-          puts e
+        rescue StandardError => e
+          puts "[ERROR] Unhandled exception occurred in worker"
+          puts "Class: #{e.class}"
+          puts "Message: #{e}"
+          puts "---Backtrace---"
+          puts e.backtrace.join("\n")
+          puts "---------------"
           exit! 2
         end
       end

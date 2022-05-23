@@ -340,7 +340,7 @@ class TestNetHTTP < Minitest::Test
           http = Net::HTTP.new(SemianConfig['toxiproxy_upstream_host'], SemianConfig['http_toxiproxy_port'])
           http.use_ssl = true
           http.raw_semian_options[:error_threshold].times do
-            assert_raises ::OpenSSL::SSL::SSLError do
+            assert_raises ::OpenSSL::SSL::SSLError, "for HTTP request to #{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['http_toxiproxy_port']}" do
               http.get("/200")
             end
           end
@@ -490,7 +490,7 @@ class TestNetHTTP < Minitest::Test
         # Cause error error_threshold times so circuit opens
         Toxiproxy[toxic_name].downstream(:latency, latency: 500).apply do
           request = Net::HTTP::Get.new(uri)
-          assert_raises Net::ReadTimeout do
+          assert_raises Net::ReadTimeout, "for HTTP request to #{uri}" do
             http.request(request)
           end
         end
