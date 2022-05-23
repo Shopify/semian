@@ -504,7 +504,7 @@ class TestNetHTTP < Minitest::Test
     # Cause successes success_threshold times so circuit closes
     http.raw_semian_options[:success_threshold].times do
       response = http.get("/200")
-      assert(200, response.code)
+      assert_equal(200, response.code.to_i)
     end
   end
 
