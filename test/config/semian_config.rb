@@ -1,7 +1,9 @@
-require 'yaml'
+# frozen_string_literal: true
+
+require "yaml"
 
 class SemianConfig
-  CONFIG_FILE = File.expand_path('../hosts.yml', __FILE__)
+  CONFIG_FILE = File.expand_path("../hosts.yml", __FILE__)
 
   class << self
     def [](service)

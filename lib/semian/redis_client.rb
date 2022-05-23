@@ -1,5 +1,7 @@
-require 'semian/adapter'
-require 'redis-client'
+# frozen_string_literal: true
+
+require "semian/adapter"
+require "redis-client"
 
 class RedisClient
   ConnectionError.include(::Semian::AdapterError)
@@ -104,7 +106,7 @@ module Semian
     include RedisClientCommon
     define_method(:semian_resource, Semian::Adapter.instance_method(:semian_resource))
     define_method(:clear_semian_resource, Semian::Adapter.instance_method(:clear_semian_resource))
-    end
+  end
 end
 
 RedisClient.prepend(Semian::RedisClient)

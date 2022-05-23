@@ -1,6 +1,8 @@
+# frozen_string_literal: true
+
 module Semian
-  class Resource #:nodoc:
-    attr_reader :tickets, :name
+  class Resource # :nodoc:
+    attr_reader :name
 
     class << Semian::Resource
       # Ensure that there can only be one resource of a given type
@@ -55,7 +57,7 @@ module Semian
     end
 
     def key
-      '0x00000000'
+      "0x00000000"
     end
 
     def in_use?

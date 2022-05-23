@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Semian
   module Instrumentable
     def subscribe(name = rand, &block)

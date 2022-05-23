@@ -1,5 +1,7 @@
-require 'semian/adapter'
-require 'redis'
+# frozen_string_literal: true
+
+require "semian/adapter"
+require "redis"
 
 class Redis
   Redis::BaseConnectionError.include(::Semian::AdapterError)
@@ -17,7 +19,7 @@ class Redis
   end
 
   class ConnectionError < Redis::BaseConnectionError
-    # A Connection Reset is a fast failure and we don't want to track these errors in 
+    # A Connection Reset is a fast failure and we don't want to track these errors in
     # semian
     def marks_semian_circuits?
       message != "Connection lost (ECONNRESET)"
@@ -90,12 +92,11 @@ module Semian
 
     def connect
       acquire_semian_resource(adapter: :redis, scope: :connection) do
-        begin
-          raw_connect
-        rescue SocketError, RuntimeError => e
-          raise ResolveError.new(semian_identifier) if dns_resolve_failure?(e.cause || e)
-          raise
-        end
+        raw_connect
+      rescue SocketError, RuntimeError => e
+        raise ResolveError, semian_identifier if dns_resolve_failure?(e.cause || e)
+
+        raise
       end
     end
 
@@ -107,7 +108,7 @@ module Semian
 
       begin
         connection.timeout = temp_timeout if connected?
-        options[:timeout] = Float(temp_timeout),
+        options[:timeout] = Float(temp_timeout)
         options[:connect_timeout] = Float(temp_timeout)
         options[:read_timeout] = Float(temp_timeout)
         options[:write_timeout] = Float(temp_timeout)
@@ -133,17 +134,18 @@ module Semian
 
     def raw_semian_options
       return options[:semian] if options.key?(:semian)
-      return options['semian'.freeze] if options.key?('semian'.freeze)
+      return options["semian"] if options.key?("semian")
     end
 
     def raise_if_out_of_memory(reply)
       return unless reply.is_a?(::Redis::CommandError)
       return unless reply.message.start_with?("OOM ")
-      raise ::Redis::OutOfMemoryError.new(reply.message)
+
+      raise ::Redis::OutOfMemoryError, reply.message
     end
 
     def dns_resolve_failure?(e)
-      e.to_s.match?(/(can't resolve)|(name or service not known)|(nodename nor servname provided, or not known)|(failure in name resolution)/i)
+      e.to_s.match?(/(can't resolve)|(name or service not known)|(nodename nor servname provided, or not known)|(failure in name resolution)/i) # rubocop:disable Layout/LineLength
     end
   end
 end

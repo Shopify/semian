@@ -1,5 +1,7 @@
-require 'semian/adapter'
-require 'net/http'
+# frozen_string_literal: true
+
+require "semian/adapter"
+require "net/http"
 
 module Net
   ProtocolError.include(::Semian::AdapterError)
@@ -40,10 +42,11 @@ module Semian
       ::Net::ProtocolError,
       ::EOFError,
       ::IOError,
-      ::SystemCallError, # includes ::Errno::EINVAL, ::Errno::ECONNRESET, ::Errno::ECONNREFUSED, ::Errno::ETIMEDOUT, and more
+      ::SystemCallError, # includes ::Errno::EINVAL, ::Errno::ECONNRESET,
+      # ::Errno::ECONNREFUSED, ::Errno::ETIMEDOUT, and more
     ].freeze # Net::HTTP can throw many different errors, this tries to capture most of them
 
-    module ClassMethods 
+    module ClassMethods
       def new(*args, semian: true)
         http = super(*args)
         http.instance_variable_set(:@semian_enabled, semian)
@@ -57,6 +60,7 @@ module Semian
 
       def semian_configuration=(configuration)
         raise Semian::NetHTTP::SemianConfigurationChangedError unless @semian_configuration.nil?
+
         @semian_configuration = configuration
       end
 
@@ -88,11 +92,13 @@ module Semian
 
     def connect
       return super if disabled?
+
       acquire_semian_resource(adapter: :http, scope: :connection) { super }
     end
 
     def transport_request(*)
       return super if disabled?
+
       acquire_semian_resource(adapter: :http, scope: :query) do
         handle_error_responses(super)
       end

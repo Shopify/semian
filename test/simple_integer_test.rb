@@ -1,4 +1,6 @@
-require 'test_helper'
+# frozen_string_literal: true
+
+require "test_helper"
 
 class TestSimpleInteger < Minitest::Test
   def setup
@@ -14,7 +16,7 @@ class TestSimpleInteger < Minitest::Test
       assert_equal(0, @integer.value)
       @integer.value = 99
       assert_equal(99, @integer.value)
-      time_now = (Time.now).to_i
+      time_now = Time.now.to_i
       @integer.value = time_now
       assert_equal(time_now, @integer.value)
       @integer.value = 6

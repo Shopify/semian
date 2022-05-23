@@ -1,5 +1,6 @@
 {
-	"recommendations": [
-		"ms-vscode-remote.vscode-remote-extensionpack"
-	],
+  "recommendations": [
+    "ms-vscode-remote.vscode-remote-extensionpack",
+    "EditorConfig.EditorConfig"
+  ]
 }

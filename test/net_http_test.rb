@@ -1,5 +1,7 @@
-require 'test_helper'
-require 'semian/net_http'
+# frozen_string_literal: true
+
+require "test_helper"
+require "semian/net_http"
 
 class TestNetHTTP < Minitest::Test
   DEFAULT_SEMIAN_OPTIONS = {
@@ -9,22 +11,27 @@ class TestNetHTTP < Minitest::Test
     error_timeout: 10,
   }.freeze
   DEFAULT_SEMIAN_CONFIGURATION = proc do |host, port|
-    next nil if host == SemianConfig['toxiproxy_upstream_host'] && port == SemianConfig['toxiproxy_upstream_port'] # disable if toxiproxy
+    if host == SemianConfig["toxiproxy_upstream_host"] && \
+        port == SemianConfig["toxiproxy_upstream_port"] # disable if toxiproxy
+      next nil
+    end
+
     DEFAULT_SEMIAN_OPTIONS.merge(name: "#{host}_#{port}")
   end
 
   def test_semian_identifier
     with_server do
       with_semian_configuration do
-        Net::HTTP.start(SemianConfig['toxiproxy_upstream_host'], SemianConfig['http_toxiproxy_port']) do |http|
-          assert_equal "nethttp_#{SemianConfig['toxiproxy_upstream_host']}_#{SemianConfig['http_toxiproxy_port']}", http.semian_identifier
+        Net::HTTP.start(SemianConfig["toxiproxy_upstream_host"], SemianConfig["http_toxiproxy_port"]) do |http|
+          assert_equal("nethttp_#{SemianConfig["toxiproxy_upstream_host"]}_#{SemianConfig["http_toxiproxy_port"]}",
+            http.semian_identifier)
         end
       end
     end
   end
 
   def test_changes_timeout_when_half_open_and_configured
-    http = Net::HTTP.new(SemianConfig['toxiproxy_upstream_host'], SemianConfig['http_toxiproxy_port'])
+    http = Net::HTTP.new(SemianConfig["toxiproxy_upstream_host"], SemianConfig["http_toxiproxy_port"])
     expected_read_timeout = http.read_timeout
     expected_open_timeout = http.open_timeout
     options = proc do |host, port|
@@ -41,22 +48,22 @@ class TestNetHTTP < Minitest::Test
 
     with_semian_configuration(options) do
       with_server do
-        Toxiproxy['semian_test_net_http'].downstream(:latency, latency: 2000).apply do
-          http.get('/200')
+        Toxiproxy["semian_test_net_http"].downstream(:latency, latency: 2000).apply do
+          http.get("/200")
         end
 
         half_open_cicuit!
 
-        Toxiproxy['semian_test_net_http'].downstream(:latency, latency: 2000).apply do
-          assert_raises Net::ReadTimeout do
-            http.get('/200')
+        Toxiproxy["semian_test_net_http"].downstream(:latency, latency: 2000).apply do
+          assert_raises(Net::ReadTimeout) do
+            http.get("/200")
           end
         end
       end
     end
 
-    assert_equal expected_read_timeout, http.read_timeout
-    assert_equal expected_open_timeout, http.open_timeout
+    assert_equal(expected_read_timeout, http.read_timeout)
+    assert_equal(expected_open_timeout, http.open_timeout)
   end
 
   def test_trigger_open
@@ -64,11 +71,11 @@ class TestNetHTTP < Minitest::Test
       with_server do
         open_circuit!
 
-        uri = URI("http://#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['http_toxiproxy_port']}/200")
-        exception = assert_raises Net::CircuitOpenError do
+        uri = URI("http://#{SemianConfig["toxiproxy_upstream_host"]}:#{SemianConfig["http_toxiproxy_port"]}/200")
+        exception = assert_raises(Net::CircuitOpenError) do
           Net::HTTP.get(uri)
         end
-        assert_equal "Net::ReadTimeout", exception.cause.to_s
+        assert_equal("Net::ReadTimeout", exception.cause.to_s)
       end
     end
   end
@@ -94,12 +101,12 @@ class TestNetHTTP < Minitest::Test
     end
     with_semian_configuration(options) do
       with_server do
-        http_1 = Net::HTTP.new(SemianConfig['toxiproxy_upstream_host'], SemianConfig['http_toxiproxy_port'])
+        http_1 = Net::HTTP.new(SemianConfig["toxiproxy_upstream_host"], SemianConfig["http_toxiproxy_port"])
         http_1.semian_resource.acquire do
-          http_2 = Net::HTTP.new(SemianConfig['toxiproxy_upstream_host'], SemianConfig['http_toxiproxy_port'])
+          http_2 = Net::HTTP.new(SemianConfig["toxiproxy_upstream_host"], SemianConfig["http_toxiproxy_port"])
           http_2.semian_resource.acquire do
-            assert_raises Net::ResourceBusyError do
-              Net::HTTP.get(URI("http://#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['http_toxiproxy_port']}/"))
+            assert_raises(Net::ResourceBusyError) do
+              Net::HTTP.get(URI("http://#{SemianConfig["toxiproxy_upstream_host"]}:#{SemianConfig["http_toxiproxy_port"]}/"))
             end
           end
         end
@@ -111,8 +118,8 @@ class TestNetHTTP < Minitest::Test
     with_semian_configuration do
       with_server do
         open_circuit!
-        assert_raises Net::CircuitOpenError do
-          Net::HTTP.get(URI("http://#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['http_toxiproxy_port']}/200"))
+        assert_raises(Net::CircuitOpenError) do
+          Net::HTTP.get(URI("http://#{SemianConfig["toxiproxy_upstream_host"]}:#{SemianConfig["http_toxiproxy_port"]}/200"))
         end
       end
     end
@@ -123,8 +130,8 @@ class TestNetHTTP < Minitest::Test
       with_server do
         open_circuit!
 
-        assert_raises Net::CircuitOpenError do
-          http = Net::HTTP.new(SemianConfig['toxiproxy_upstream_host'], SemianConfig['http_toxiproxy_port'])
+        assert_raises(Net::CircuitOpenError) do
+          http = Net::HTTP.new(SemianConfig["toxiproxy_upstream_host"], SemianConfig["http_toxiproxy_port"])
           http.get("/")
         end
       end
@@ -136,8 +143,8 @@ class TestNetHTTP < Minitest::Test
       with_server do
         open_circuit!
 
-        assert_raises Net::CircuitOpenError do
-          uri = URI("http://#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['http_toxiproxy_port']}/200")
+        assert_raises(Net::CircuitOpenError) do
+          uri = URI("http://#{SemianConfig["toxiproxy_upstream_host"]}:#{SemianConfig["http_toxiproxy_port"]}/200")
           Net::HTTP.get_response(uri)
         end
       end
@@ -149,9 +156,9 @@ class TestNetHTTP < Minitest::Test
       with_server do
         open_circuit!
 
-        assert_raises Net::CircuitOpenError do
-          uri = URI("http://#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['http_toxiproxy_port']}/200")
-          Net::HTTP.post_form(uri, 'q' => 'ruby', 'max' => '50')
+        assert_raises(Net::CircuitOpenError) do
+          uri = URI("http://#{SemianConfig["toxiproxy_upstream_host"]}:#{SemianConfig["http_toxiproxy_port"]}/200")
+          Net::HTTP.post_form(uri, "q" => "ruby", "max" => "50")
         end
       end
     end
@@ -162,8 +169,8 @@ class TestNetHTTP < Minitest::Test
       with_server do
         open_circuit!
 
-        uri = URI("http://#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['http_toxiproxy_port']}/200")
-        assert_raises Net::CircuitOpenError do
+        uri = URI("http://#{SemianConfig["toxiproxy_upstream_host"]}:#{SemianConfig["http_toxiproxy_port"]}/200")
+        assert_raises(Net::CircuitOpenError) do
           Net::HTTP.start(uri.host, uri.port) {}
         end
         close_circuit!
@@ -174,12 +181,12 @@ class TestNetHTTP < Minitest::Test
   def test_http_action_request_inside_start_methods_are_protected
     with_semian_configuration do
       with_server do
-        uri = URI("http://#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['http_toxiproxy_port']}/200")
+        uri = URI("http://#{SemianConfig["toxiproxy_upstream_host"]}:#{SemianConfig["http_toxiproxy_port"]}/200")
         Net::HTTP.start(uri.host, uri.port) do |http|
           open_circuit!
           get_subclasses(Net::HTTPRequest).each do |action|
             assert_raises(Net::CircuitOpenError, "#{action.name} did not raise a Net::CircuitOpenError") do
-              request = action.new uri
+              request = action.new(uri)
               http.request(request)
             end
           end
@@ -190,8 +197,8 @@ class TestNetHTTP < Minitest::Test
 
   def test_custom_raw_semian_options_work_with_lookup
     with_server do
-      toxiproxy_upstream_host = SemianConfig['toxiproxy_upstream_host']
-      http_toxiproxy_port = SemianConfig['http_toxiproxy_port']
+      toxiproxy_upstream_host = SemianConfig["toxiproxy_upstream_host"]
+      http_toxiproxy_port = SemianConfig["http_toxiproxy_port"]
 
       semian_config = {}
       semian_config["development"] = {}
@@ -205,8 +212,8 @@ class TestNetHTTP < Minitest::Test
 
       with_semian_configuration(semian_configuration_proc) do
         Net::HTTP.start(toxiproxy_upstream_host, http_toxiproxy_port) do |http|
-          assert_equal semian_config["development"][http.semian_identifier],
-                       http.raw_semian_options.dup.tap { |o| o.delete(:name) }
+          assert_equal(semian_config["development"][http.semian_identifier],
+            http.raw_semian_options.dup.tap { |o| o.delete(:name) })
         end
       end
     end
@@ -235,12 +242,12 @@ class TestNetHTTP < Minitest::Test
         semian_identifier = "nethttp_default" unless semian_config[sample_env].key?(semian_identifier)
         semian_config[sample_env][semian_identifier].merge(name: "default")
       end
-      Semian["nethttp_default"].reset if Semian["nethttp_default"]
+      Semian["nethttp_default"]&.reset
       Semian.destroy("nethttp_default")
       with_semian_configuration(semian_configuration_proc) do
-        Net::HTTP.start(SemianConfig['http_host'], SemianConfig['http_port_service_a']) do |http|
+        Net::HTTP.start(SemianConfig["http_host"], SemianConfig["http_port_service_a"]) do |http|
           expected_config = semian_config["development"]["nethttp_default"].dup
-          assert_equal expected_config, http.raw_semian_options.dup.tap { |o| o.delete(:name) }
+          assert_equal(expected_config, http.raw_semian_options.dup.tap { |o| o.delete(:name) })
         end
       end
     end
@@ -250,16 +257,17 @@ class TestNetHTTP < Minitest::Test
     with_server do
       semian_configuration_proc = proc { nil }
       with_semian_configuration(semian_configuration_proc) do
-        http = Net::HTTP.new(SemianConfig['toxiproxy_upstream_host'], SemianConfig['http_toxiproxy_port'])
-        assert_equal true, http.disabled?
+        http = Net::HTTP.new(SemianConfig["toxiproxy_upstream_host"], SemianConfig["http_toxiproxy_port"])
+        assert_predicate(http, :disabled?)
       end
     end
   end
+
   def test_disable_semian_should_be_false
     with_server do
       with_semian_configuration do
-        http = Net::HTTP.new(SemianConfig['toxiproxy_upstream_host'], SemianConfig['http_toxiproxy_port'])
-        assert_equal false, http.disabled?
+        http = Net::HTTP.new(SemianConfig["toxiproxy_upstream_host"], SemianConfig["http_toxiproxy_port"])
+        refute_predicate(http, :disabled?)
       end
     end
   end
@@ -267,8 +275,9 @@ class TestNetHTTP < Minitest::Test
   def test_disable_semian_for_all_http_requests_with_flag
     with_server do
       with_semian_configuration do
-        http = Net::HTTP.new(SemianConfig['toxiproxy_upstream_host'], SemianConfig['http_toxiproxy_port'], semian: false)
-        assert_equal true, http.disabled?
+        http = Net::HTTP.new(SemianConfig["toxiproxy_upstream_host"], SemianConfig["http_toxiproxy_port"],
+          semian: false)
+        assert_predicate(http, :disabled?)
       end
     end
   end
@@ -280,20 +289,25 @@ class TestNetHTTP < Minitest::Test
     sample_env = "development"
 
     semian_configuration_proc = proc do |host, port|
-      next nil if host == SemianConfig['toxiproxy_upstream_host'] && port == SemianConfig['toxiproxy_upstream_port'] # disable if toxiproxy
+      if host == SemianConfig["toxiproxy_upstream_host"] && \
+          port == SemianConfig["toxiproxy_upstream_port"] # disable if toxiproxy
+        next nil
+      end
+
       semian_identifier = "nethttp_default"
       semian_config[sample_env][semian_identifier].merge(name: "default")
     end
 
     with_semian_configuration(semian_configuration_proc) do
-      Semian["nethttp_default"].reset if Semian["nethttp_default"]
+      Semian["nethttp_default"]&.reset
       Semian.destroy("nethttp_default")
       with_server do
         open_circuit!
       end
-      with_server(ports: [SemianConfig['http_port_service_a'], SemianConfig['http_port_service_b']], reset_semian_state: false) do
-        assert_raises Net::CircuitOpenError do
-          Net::HTTP.get(URI("http://#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['http_toxiproxy_port']}/200"))
+      with_server(ports: [SemianConfig["http_port_service_a"], SemianConfig["http_port_service_b"]],
+        reset_semian_state: false) do
+        assert_raises(Net::CircuitOpenError) do
+          Net::HTTP.get(URI("http://#{SemianConfig["toxiproxy_upstream_host"]}:#{SemianConfig["http_toxiproxy_port"]}/200"))
         end
       end
     end
@@ -301,8 +315,8 @@ class TestNetHTTP < Minitest::Test
 
   def test_custom_raw_semian_options_can_disable_with_invalid_key
     with_server do
-      toxiproxy_upstream_host = SemianConfig['toxiproxy_upstream_host']
-      http_toxiproxy_port = SemianConfig['http_toxiproxy_port']
+      toxiproxy_upstream_host = SemianConfig["toxiproxy_upstream_host"]
+      http_toxiproxy_port = SemianConfig["http_toxiproxy_port"]
 
       semian_config = {}
       semian_config["development"] = {}
@@ -315,10 +329,10 @@ class TestNetHTTP < Minitest::Test
       end
       with_semian_configuration(semian_configuration_proc) do
         http = Net::HTTP.new(toxiproxy_upstream_host, http_toxiproxy_port)
-        assert_equal false, http.disabled?
+        refute_predicate(http, :disabled?)
 
         http = Net::HTTP.new(toxiproxy_upstream_host, http_toxiproxy_port + 100)
-        assert_equal true, http.disabled?
+        assert_predicate(http, :disabled?)
       end
     end
   end
@@ -337,14 +351,16 @@ class TestNetHTTP < Minitest::Test
     with_semian_configuration do
       with_custom_errors([::OpenSSL::SSL::SSLError]) do
         with_server do
-          http = Net::HTTP.new(SemianConfig['toxiproxy_upstream_host'], SemianConfig['http_toxiproxy_port'])
+          http = Net::HTTP.new(SemianConfig["toxiproxy_upstream_host"], SemianConfig["http_toxiproxy_port"])
           http.use_ssl = true
           http.raw_semian_options[:error_threshold].times do
-            assert_raises ::OpenSSL::SSL::SSLError, "for HTTP request to #{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['http_toxiproxy_port']}" do
+            assert_msg = "for HTTP request to #{SemianConfig["toxiproxy_upstream_host"]}:" \
+              "#{SemianConfig["http_toxiproxy_port"]}"
+            assert_raises(::OpenSSL::SSL::SSLError, assert_msg) do
               http.get("/200")
             end
           end
-          assert_raises Net::CircuitOpenError do
+          assert_raises(Net::CircuitOpenError) do
             http.get("/200")
           end
         end
@@ -366,11 +382,11 @@ class TestNetHTTP < Minitest::Test
 
     with_semian_configuration(options) do
       with_server do
-        http = Net::HTTP.new(SemianConfig['http_host'], SemianConfig['http_port_service_a'])
+        http = Net::HTTP.new(SemianConfig["http_host"], SemianConfig["http_port_service_a"])
         http.raw_semian_options[:error_threshold].times do
           http.get("/500")
         end
-        assert_raises Net::CircuitOpenError do
+        assert_raises(Net::CircuitOpenError) do
           http.get("/500")
         end
       end
@@ -381,7 +397,7 @@ class TestNetHTTP < Minitest::Test
     skip if ENV["SKIP_FLAKY_TESTS"]
     with_semian_configuration do
       with_server do
-        http = Net::HTTP.new(SemianConfig['http_host'], SemianConfig['http_port_service_a'])
+        http = Net::HTTP.new(SemianConfig["http_host"], SemianConfig["http_port_service_a"])
         http.raw_semian_options[:error_threshold].times do
           http.get("/500")
         end
@@ -392,38 +408,38 @@ class TestNetHTTP < Minitest::Test
 
   def test_multiple_different_endpoints_and_ports_are_tracked_differently
     with_semian_configuration do
-      ports = [SemianConfig['http_port_service_a'], SemianConfig['http_port_service_b']]
+      ports = [SemianConfig["http_port_service_a"], SemianConfig["http_port_service_b"]]
       ports.each do |port|
         reset_semian_resource(port: port.to_i)
       end
 
       with_server(ports: ports, reset_semian_state: false) do |host, port|
-        with_toxic(hostname: host, upstream_port: SemianConfig['http_port_service_a'], toxic_port: port + 1) do |name|
+        with_toxic(hostname: host, upstream_port: SemianConfig["http_port_service_a"], toxic_port: port + 1) do |name|
           Net::HTTP.get(URI("http://#{host}:#{port + 1}/"))
           open_circuit!(hostname: host, toxic_port: port + 1, toxic_name: name)
-          assert_raises Net::CircuitOpenError do
+          assert_raises(Net::CircuitOpenError) do
             Net::HTTP.get(URI("http://#{host}:#{port + 1}/"))
           end
         end
       end
-      with_server(ports: [SemianConfig['http_port_service_a']], reset_semian_state: false) do
+      with_server(ports: [SemianConfig["http_port_service_a"]], reset_semian_state: false) do
         # different endpoint, should not raise errors even though localhost == 127.0.0.1
-        Net::HTTP.get(URI("http://#{SemianConfig['toxiproxy_upstream_host']}:#{SemianConfig['http_toxiproxy_port']}/"))
+        Net::HTTP.get(URI("http://#{SemianConfig["toxiproxy_upstream_host"]}:#{SemianConfig["http_toxiproxy_port"]}/"))
       end
     end
   end
 
   def test_persistent_state_after_server_restart
     with_semian_configuration do
-      with_server(ports: [SemianConfig['http_port_service_b']]) do |_, port|
-        with_toxic(hostname: SemianConfig['http_host'], upstream_port: port, toxic_port: port + 1) do |name|
-          open_circuit!(hostname: SemianConfig['toxiproxy_upstream_host'], toxic_port: port + 1, toxic_name: name)
+      with_server(ports: [SemianConfig["http_port_service_b"]]) do |_, port|
+        with_toxic(hostname: SemianConfig["http_host"], upstream_port: port, toxic_port: port + 1) do |name|
+          open_circuit!(hostname: SemianConfig["toxiproxy_upstream_host"], toxic_port: port + 1, toxic_name: name)
         end
       end
-      with_server(ports: [SemianConfig['http_port_service_b']], reset_semian_state: false) do |_, port|
-        with_toxic(hostname: SemianConfig['http_host'], upstream_port: port, toxic_port: port + 1) do |_|
-          assert_raises Net::CircuitOpenError do
-            Net::HTTP.get(URI("http://#{SemianConfig['toxiproxy_upstream_host']}:#{port + 1}/200"))
+      with_server(ports: [SemianConfig["http_port_service_b"]], reset_semian_state: false) do |_, port|
+        with_toxic(hostname: SemianConfig["http_host"], upstream_port: port, toxic_port: port + 1) do |_|
+          assert_raises(Net::CircuitOpenError) do
+            Net::HTTP.get(URI("http://#{SemianConfig["toxiproxy_upstream_host"]}:#{port + 1}/200"))
           end
         end
       end
@@ -480,8 +496,8 @@ class TestNetHTTP < Minitest::Test
   end
 
   def open_circuit!(hostname: nil, toxic_port: nil, toxic_name: "semian_test_net_http")
-    hostname ||= SemianConfig['toxiproxy_upstream_host']
-    toxic_port ||= SemianConfig['http_toxiproxy_port']
+    hostname ||= SemianConfig["toxiproxy_upstream_host"]
+    toxic_port ||= SemianConfig["http_toxiproxy_port"]
 
     Net::HTTP.start(hostname, toxic_port) do |http|
       http.read_timeout = 0.1
@@ -490,7 +506,7 @@ class TestNetHTTP < Minitest::Test
         # Cause error error_threshold times so circuit opens
         Toxiproxy[toxic_name].downstream(:latency, latency: 500).apply do
           request = Net::HTTP::Get.new(uri)
-          assert_raises Net::ReadTimeout, "for HTTP request to #{uri}" do
+          assert_raises(Net::ReadTimeout, "for HTTP request to #{uri}") do
             http.request(request)
           end
         end
@@ -498,7 +514,7 @@ class TestNetHTTP < Minitest::Test
     end
   end
 
-  def close_circuit!(hostname: SemianConfig['toxiproxy_upstream_host'], toxic_port: SemianConfig['http_toxiproxy_port'])
+  def close_circuit!(hostname: SemianConfig["toxiproxy_upstream_host"], toxic_port: SemianConfig["http_toxiproxy_port"])
     http = Net::HTTP.new(hostname, toxic_port)
     Timecop.travel(http.raw_semian_options[:error_timeout])
     # Cause successes success_threshold times so circuit closes
@@ -508,7 +524,7 @@ class TestNetHTTP < Minitest::Test
     end
   end
 
-  def with_server(ports: [SemianConfig['http_port_service_a']], reset_semian_state: true)
+  def with_server(ports: [SemianConfig["http_port_service_a"]], reset_semian_state: true)
     ports.each do |port|
       reset_semian_resource(port: port) if reset_semian_state
       @proxy = Toxiproxy[:semian_test_net_http]
@@ -516,21 +532,25 @@ class TestNetHTTP < Minitest::Test
     end
   end
 
-  def reset_semian_resource(hostname: SemianConfig['toxiproxy_upstream_host'], port:)
-    Semian["nethttp_#{hostname}_#{port}"].reset if Semian["nethttp_#{hostname}_#{port}"]
-    Semian["nethttp_#{hostname}_#{port.to_i + 1}"].reset if Semian["nethttp_#{hostname}_#{port.to_i + 1}"]
+  def reset_semian_resource(hostname: SemianConfig["toxiproxy_upstream_host"], port:)
+    Semian["nethttp_#{hostname}_#{port}"]&.reset
+    Semian["nethttp_#{hostname}_#{port.to_i + 1}"]&.reset
     Semian.destroy("nethttp_#{hostname}_#{port}")
     Semian.destroy("nethttp_#{hostname}_#{port.to_i + 1}")
   end
 
-  def with_toxic(hostname: SemianConfig['http_host'], upstream_port: SemianConfig['http_port_service_a'], toxic_port: upstream_port + 1)
+  def with_toxic(
+    hostname: SemianConfig["http_host"],
+    upstream_port: SemianConfig["http_port_service_a"],
+    toxic_port: upstream_port + 1
+  )
     old_proxy = @proxy
     name = "semian_test_net_http_#{hostname}_#{upstream_port}<-#{toxic_port}"
     Toxiproxy.populate([
       {
         name: name,
         upstream: "#{hostname}:#{upstream_port}",
-        listen: "#{SemianConfig['toxiproxy_upstream_host']}:#{toxic_port}",
+        listen: "#{SemianConfig["toxiproxy_upstream_host"]}:#{toxic_port}",
       },
     ])
     @proxy = Toxiproxy[name]

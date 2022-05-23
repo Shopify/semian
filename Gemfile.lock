@@ -62,6 +62,12 @@ GEM
       unicode-display_width (>= 1.4.0, < 3.0)
     rubocop-ast (1.18.0)
       parser (>= 3.1.1.0)
+    rubocop-minitest (0.19.1)
+      rubocop (>= 0.90, < 2.0)
+    rubocop-rake (0.6.0)
+      rubocop (~> 1.0)
+    rubocop-shopify (2.6.0)
+      rubocop (~> 1.29)
     ruby-progressbar (1.11.0)
     timecop (0.9.5)
     toxiproxy (2.0.1)
@@ -86,6 +92,9 @@ DEPENDENCIES
   redis
   redis-client (= 0.2.0)
   rubocop
+  rubocop-minitest
+  rubocop-rake
+  rubocop-shopify
   semian!
   timecop
   toxiproxy

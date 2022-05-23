@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class LRUHash
   # This LRU (Least Recently Used) hash will allow
   # the cleaning of resources as time goes on.
@@ -120,10 +122,10 @@ class LRUHash
 
   def clear_unused_resources
     payload = {
-        size: @table.size,
-        examined: 0,
-        cleared: 0,
-        elapsed: nil,
+      size: @table.size,
+      examined: 0,
+      cleared: 0,
+      elapsed: nil,
     }
     timer_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
@@ -155,20 +157,19 @@ class LRUHash
     end
   end
 
-  EXCEPTION_NEVER = {Exception => :never}.freeze
-  EXCEPTION_IMMEDIATE = {Exception => :immediate}.freeze
+  EXCEPTION_NEVER = { Exception => :never }.freeze
+  EXCEPTION_IMMEDIATE = { Exception => :immediate }.freeze
   private_constant :EXCEPTION_NEVER
   private_constant :EXCEPTION_IMMEDIATE
 
-  def try_synchronize
+  def try_synchronize(&block)
     Thread.handle_interrupt(EXCEPTION_NEVER) do
-      begin
-        return false unless @lock.try_lock
-        Thread.handle_interrupt(EXCEPTION_IMMEDIATE) { yield }
-        true
-      ensure
-        @lock.unlock if @lock.owned?
-      end
+      return false unless @lock.try_lock
+
+      Thread.handle_interrupt(EXCEPTION_IMMEDIATE, &block)
+      true
+    ensure
+      @lock.unlock if @lock.owned?
     end
   end
 end

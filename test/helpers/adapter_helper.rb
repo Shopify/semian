@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Semian
   module AdapterTest
     include Semian::Adapter
@@ -20,8 +22,8 @@ module Semian
 
     def initialize(**args)
       @client_options = args.merge(success_threshold: 1,
-                                   error_threshold: 1,
-                                   error_timeout: 1)
+        error_threshold: 1,
+        error_timeout: 1)
     end
 
     def ==(other)

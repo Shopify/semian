@@ -26,7 +26,6 @@ Gem::Specification.new do |s|
   }
 
   s.files = ::Dir["{lib,ext}/**/**/*.{rb,h,c}"] +
-            ::Dir.glob('*.md')
-
+    ::Dir.glob("*.md")
   s.extensions = ["ext/semian/extconf.rb"]
 end

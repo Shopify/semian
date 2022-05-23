@@ -1,5 +1,7 @@
-require 'semian/adapter'
-require 'grpc'
+# frozen_string_literal: true
+
+require "semian/adapter"
+require "grpc"
 
 module GRPC
   GRPC::Unavailable.include(::Semian::AdapterError)
@@ -22,7 +24,6 @@ end
 
 module Semian
   module GRPC
-    attr_reader :raw_semian_options
     include Semian::Adapter
 
     ResourceBusyError = ::GRPC::ResourceBusyError
@@ -40,6 +41,7 @@ module Semian
 
       def semian_configuration=(configuration)
         raise Semian::GRPC::SemianConfigurationChangedError unless @semian_configuration.nil?
+
         @semian_configuration = configuration
       end
 
@@ -52,10 +54,10 @@ module Semian
       @raw_semian_options ||= begin
         # If the host is empty, it's possible that the adapter was initialized
         # with the channel. Therefore, we look into the channel to find the host
-        if @host.empty?
-          host = @ch.target
+        host = if @host.empty?
+          @ch.target
         else
-          host = @host
+          @host
         end
         @raw_semian_options = Semian::GRPC.retrieve_semian_configuration(host)
         @raw_semian_options = @raw_semian_options.dup unless @raw_semian_options.nil?
@@ -81,21 +83,25 @@ module Semian
 
     def request_response(*, **)
       return super if disabled?
+
       acquire_semian_resource(adapter: :grpc, scope: :request_response) { super }
     end
 
     def client_streamer(*, **)
       return super if disabled?
+
       acquire_semian_resource(adapter: :grpc, scope: :client_streamer) { super }
     end
 
     def server_streamer(*, **)
       return super if disabled?
+
       acquire_semian_resource(adapter: :grpc, scope: :server_streamer) { super }
     end
 
     def bidi_streamer(*, **)
       return super if disabled?
+
       acquire_semian_resource(adapter: :grpc, scope: :bidi_streamer) { super }
     end
   end

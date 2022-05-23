@@ -1,7 +1,9 @@
+# frozen_string_literal: true
+
 # A test service with an echo implementation.
 class EchoMsg
   def self.marshal(_o)
-    ''
+    ""
   end
 
   def self.unmarshal(_o)
@@ -23,7 +25,7 @@ class EchoService
   end
 
   def an_rpc(req, call)
-    GRPC.logger.info('echo service received a request')
+    GRPC.logger.info("echo service received a request")
     call.output_metadata.update(@trailing_metadata)
     @received_md << call.metadata unless call.metadata.nil?
     req

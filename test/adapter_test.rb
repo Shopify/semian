@@ -1,4 +1,6 @@
-require 'test_helper'
+# frozen_string_literal: true
+
+require "test_helper"
 
 class TestSemianAdapter < Minitest::Test
   def setup
@@ -24,14 +26,18 @@ class TestSemianAdapter < Minitest::Test
     skip if ENV["SKIP_FLAKY_TESTS"]
     client = Semian::AdapterTestClient.new(quota: 0.5)
     assert_nil(Semian.resources[:testing_unregister])
-    resource = Semian.register(:testing_unregister, tickets: 2, error_threshold: 0, error_timeout: 0, success_threshold: 0)
+    resource = Semian.register(:testing_unregister,
+      tickets: 2,
+      error_threshold: 0,
+      error_timeout: 0,
+      success_threshold: 0)
     assert_equal(Semian.resources[:testing_unregister], resource)
 
-    assert_equal 1, resource.registered_workers
+    assert_equal(1, resource.registered_workers)
 
     without_gc do
       Semian.unregister(:testing_unregister)
-      assert_equal 0, resource.registered_workers
+      assert_equal(0, resource.registered_workers)
 
       assert_empty(Semian.resources)
       assert_empty(Semian.consumers)
@@ -54,7 +60,7 @@ class TestSemianAdapter < Minitest::Test
       assert_equal(resource, client.semian_resource)
       Semian.unregister_all_resources
 
-      assert Semian.resources.empty?
+      assert_empty(Semian.resources)
       assert_empty(Semian.consumers)
 
       # The first call to client.semian_resource after unregistering all resources,
@@ -70,15 +76,15 @@ class TestSemianAdapter < Minitest::Test
 
     # Release the only strong reference to the client object
     # so that it will be cleared on the forced GC run below
-    client = nil
+    client = nil # rubocop:disable Lint/UselessAssignment
     weak_ref = Semian.consumers[identifier].first
-    assert_equal(true, weak_ref.weakref_alive?)
+    assert_predicate(weak_ref, :weakref_alive?)
 
     GC.start(full_mark: true, immediate_sweep: true)
 
-    assert_nil weak_ref.weakref_alive?
+    assert_nil(weak_ref.weakref_alive?)
 
-    assert_raises WeakRef::RefError do
+    assert_raises(WeakRef::RefError) do
       weak_ref.any_method_call
     end
   end

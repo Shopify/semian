@@ -1,19 +1,21 @@
-require 'forwardable'
-require 'logger'
-require 'weakref'
-require 'thread'
+# frozen_string_literal: true
 
-require 'semian/version'
-require 'semian/instrumentable'
-require 'semian/platform'
-require 'semian/resource'
-require 'semian/circuit_breaker'
-require 'semian/protected_resource'
-require 'semian/unprotected_resource'
-require 'semian/simple_sliding_window'
-require 'semian/simple_integer'
-require 'semian/simple_state'
-require 'semian/lru_hash'
+require "forwardable"
+require "logger"
+require "weakref"
+require "thread"
+
+require "semian/version"
+require "semian/instrumentable"
+require "semian/platform"
+require "semian/resource"
+require "semian/circuit_breaker"
+require "semian/protected_resource"
+require "semian/unprotected_resource"
+require "semian/simple_sliding_window"
+require "semian/simple_integer"
+require "semian/simple_state"
+require "semian/lru_hash"
 
 #
 # === Overview
@@ -56,9 +58,17 @@ require 'semian/lru_hash'
 #
 # ===== Registering a resource
 #
-#    Semian.register(:mysql_shard0, tickets: 10, timeout: 0.5, error_threshold: 3, error_timeout: 10, success_threshold: 2)
+#    Semian.register(
+#      :mysql_shard0,
+#      tickets: 10,
+#      timeout: 0.5,
+#      error_threshold: 3,
+#      error_timeout: 10,
+#      success_threshold: 2,
+#    )
 #
-# This registers a new resource called <code>:mysql_shard0</code> that has 10 tickets and a default timeout of 500 milliseconds.
+# This registers a new resource called <code>:mysql_shard0</code> that has 10 tickets and
+# a default timeout of 500 milliseconds.
 #
 # After 3 failures in the span of 10 seconds the circuit will be open.
 # After an additional 10 seconds it will transition to half-open.
@@ -70,8 +80,8 @@ require 'semian/lru_hash'
 #      # Perform a MySQL query here
 #    end
 #
-# This acquires a ticket for the <code>:mysql_shard0</code> resource. If we use the example above, the ticket count would
-# be lowered to 9 when block is executed, then raised to 10 when the block completes.
+# This acquires a ticket for the <code>:mysql_shard0</code> resource. If we use the example above,
+# the ticket count would be lowered to 9 when block is executed, then raised to 10 when the block completes.
 #
 # ===== Overriding the default timeout
 #
@@ -79,7 +89,8 @@ require 'semian/lru_hash'
 #      # Perform a MySQL query here
 #    end
 #
-# This is the same as the previous example, but overrides the timeout from the default value of 500 milliseconds to 1 second.
+# This is the same as the previous example, but overrides the timeout
+# from the default value of 500 milliseconds to 1 second.
 module Semian
   extend self
   extend Instrumentable
@@ -91,12 +102,14 @@ module Semian
   OpenCircuitError = Class.new(BaseError)
 
   attr_accessor :maximum_lru_size, :minimum_lru_time, :default_permissions, :namespace
+
   self.maximum_lru_size = 500
   self.minimum_lru_time = 300
   self.default_permissions = 0660
 
   def issue_disabled_semaphores_warning
     return if defined?(@warning_issued)
+
     @warning_issued = true
     if !sysv_semaphores_supported?
       logger.info("Semian sysv semaphores are not supported on #{RUBY_PLATFORM} - all operations will no-op")
@@ -119,7 +132,7 @@ module Semian
 
   attr_accessor :logger
 
-  self.logger = Logger.new(STDERR)
+  self.logger = Logger.new($stderr)
 
   # Registers a resource.
   #
@@ -161,7 +174,7 @@ module Semian
     bulkhead = create_bulkhead(name, **options)
 
     if circuit_breaker.nil? && bulkhead.nil?
-      raise ArgumentError, 'Both bulkhead and circuitbreaker cannot be disabled.'
+      raise ArgumentError, "Both bulkhead and circuitbreaker cannot be disabled."
     end
 
     resources[name] = ProtectedResource.new(name, bulkhead, circuit_breaker)
@@ -170,11 +183,10 @@ module Semian
   def retrieve_or_register(name, **args)
     # If consumer who retrieved / registered by a Semian::Adapter, keep track
     # of who the consumer was so that we can clear the resource reference if needed.
-    if consumer = args.delete(:consumer)
-      if consumer.class.include?(Semian::Adapter)
-        consumers[name] ||= []
-        consumers[name] << WeakRef.new(consumer)
-      end
+    consumer = args.delete(:consumer)
+    if consumer&.class&.include?(Semian::Adapter)
+      consumers[name] ||= []
+      consumers[name] << WeakRef.new(consumer)
     end
     self[name] || register(name, **args)
   end
@@ -185,9 +197,8 @@ module Semian
   end
 
   def destroy(name)
-    if resource = resources.delete(name)
-      resource.destroy
-    end
+    resource = resources.delete(name)
+    resource&.destroy
   end
 
   def destroy_all_resources
@@ -204,17 +215,16 @@ module Semian
   # Also clears any semian_resources
   # in use by any semian adapters if the weak reference is still alive.
   def unregister(name)
-    if resource = resources.delete(name)
-      resource.bulkhead.unregister_worker if resource.bulkhead
+    resource = resources.delete(name)
+    if resource
+      resource.bulkhead&.unregister_worker
       consumers_for_resource = consumers.delete(name) || []
       consumers_for_resource.each do |consumer|
-        begin
-          if consumer.weakref_alive?
-            consumer.clear_semian_resource
-          end
-        rescue WeakRef::RefError
-          next
+        if consumer.weakref_alive?
+          consumer.clear_semian_resource
         end
+      rescue WeakRef::RefError
+        next
       end
     end
   end
@@ -243,6 +253,7 @@ module Semian
 
   def thread_safe?
     return @thread_safe if defined?(@thread_safe)
+
     @thread_safe = true
   end
 
@@ -255,6 +266,7 @@ module Semian
   def create_circuit_breaker(name, **options)
     circuit_breaker = options.fetch(:circuit_breaker, true)
     return unless circuit_breaker
+
     require_keys!([:success_threshold, :error_threshold, :error_timeout], options)
 
     exceptions = options[:exceptions] || []
@@ -277,8 +289,8 @@ module Semian
     unless options[:thread_safety_disabled].nil?
       logger.info(
         "NOTE: thread_safety_disabled will be replaced by a global setting" \
-        "Semian is thread safe by default. It is possible" \
-        "to modify the value by using Semian.thread_safe=",
+          "Semian is thread safe by default. It is possible" \
+          "to modify the value by using Semian.thread_safe=",
       )
     end
 
@@ -292,7 +304,11 @@ module Semian
 
     permissions = options[:permissions] || default_permissions
     timeout = options[:timeout] || 0
-    ::Semian::Resource.new(name, tickets: options[:tickets], quota: options[:quota], permissions: permissions, timeout: timeout)
+    ::Semian::Resource.new(name,
+      tickets: options[:tickets],
+      quota: options[:quota],
+      permissions: permissions,
+      timeout: timeout)
   end
 
   def require_keys!(required, options)
@@ -304,13 +320,13 @@ module Semian
 end
 
 if Semian.semaphores_enabled?
-  require 'semian/semian'
+  require "semian/semian"
 else
   Semian::MAX_TICKETS = 0
 end
 
 if defined? ActiveSupport
-  ActiveSupport.on_load :active_record do
-    require 'semian/rails'
+  ActiveSupport.on_load(:active_record) do
+    require "semian/rails"
   end
 end

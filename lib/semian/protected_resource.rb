@@ -1,10 +1,12 @@
+# frozen_string_literal: true
+
 module Semian
   class ProtectedResource
     extend Forwardable
 
     def_delegators :@bulkhead, :destroy, :count, :semid, :tickets, :registered_workers
     def_delegators :@circuit_breaker, :reset, :mark_failed, :mark_success, :request_allowed?,
-                   :open?, :closed?, :half_open?
+      :open?, :closed?, :half_open?
 
     attr_reader :bulkhead, :circuit_breaker, :name
     attr_accessor :updated_at
@@ -17,8 +19,8 @@ module Semian
     end
 
     def destroy
-      @bulkhead.destroy unless @bulkhead.nil?
-      @circuit_breaker.destroy unless @circuit_breaker.nil?
+      @bulkhead&.destroy
+      @circuit_breaker&.destroy
     end
 
     def acquire(timeout: nil, scope: nil, adapter: nil, resource: nil)

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Semian
   extend self
 
@@ -11,6 +13,6 @@ module Semian
   end
 
   def disabled?
-    ENV['SEMIAN_SEMAPHORES_DISABLED'] || ENV['SEMIAN_DISABLED']
+    ENV["SEMIAN_SEMAPHORES_DISABLED"] || ENV["SEMIAN_DISABLED"]
   end
 end

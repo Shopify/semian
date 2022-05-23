@@ -1,4 +1,6 @@
-require 'test_helper'
+# frozen_string_literal: true
+
+require "test_helper"
 
 class TestSimpleSlidingWindow < Minitest::Test
   def setup
@@ -25,8 +27,8 @@ class TestSimpleSlidingWindow < Minitest::Test
   end
 
   def resize_to_less_than_1_raises
-    assert_raises ArgumentError do
-      @sliding_window.resize_to 0
+    assert_raises(ArgumentError) do
+      @sliding_window.resize_to(0)
     end
   end
 
