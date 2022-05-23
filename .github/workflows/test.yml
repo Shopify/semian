@@ -10,6 +10,9 @@ concurrency:
   group: ${{ github.ref }}-test
   cancel-in-progress: true
 
+env:
+  SEED: 58485
+
 jobs:
   bundle:
     name: Install dependency
@@ -105,4 +108,7 @@ jobs:
         run: bundle exec rake build
       -
         name: Test
-        run: bundle exec rake test
+        run: |
+          bundle exec rake test ||
+          (echo "===== Retry Attempt: 2 ====" && bundle exec rake test) || \
+          (echo "===== Retry Attempt: 3 ====" && bundle exec rake test)

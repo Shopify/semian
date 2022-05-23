@@ -25,7 +25,7 @@ require 'config/semian_config'
 
 BIND_ADDRESS = '0.0.0.0'
 
-Semian.logger = Logger.new(nil)
+Semian.logger = Logger.new(nil, Logger::FATAL)
 
 Toxiproxy.host = URI::HTTP.build(
   host: SemianConfig['toxiproxy_upstream_host'],
