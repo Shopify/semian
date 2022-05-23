@@ -148,6 +148,7 @@ class TestResource < Minitest::Test
   end
 
   def test_acquire_timeout_override
+    skip("Never tested correctly")
     fork_workers(count: 1, tickets: 1, timeout: 0.5, wait_for_timeout: true) do
       sleep 0.6
     end
@@ -157,7 +158,7 @@ class TestResource < Minitest::Test
     signal_workers('TERM')
 
     timeouts = count_worker_timeouts
-    assert 0, timeouts
+    assert_equal 0, timeouts
   end
 
   def test_acquire_with_fork

@@ -156,7 +156,6 @@ class TestLRUHash < Minitest::Test
     assert_monotonic = lambda do
       previous_timestamp = start_time
       @lru_hash.keys.zip(@lru_hash.values).each do |key, val|
-        val = 
         assert val.updated_at > previous_timestamp, "Timestamp for #{key} was not monotonically increasing"
       end
     end
