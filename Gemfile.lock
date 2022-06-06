@@ -47,7 +47,7 @@ GEM
     rake-compiler (1.2.0)
       rake
     redis (4.6.0)
-    redis-client (0.2.0)
+    redis-client (0.5.1)
       connection_pool
     regexp_parser (2.5.0)
     rexml (3.2.5)
@@ -90,7 +90,7 @@ DEPENDENCIES
   rake
   rake-compiler
   redis
-  redis-client (= 0.2.0)
+  redis-client (= 0.5.1)
   rubocop
   rubocop-minitest
   rubocop-rake
