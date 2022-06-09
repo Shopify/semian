@@ -9,7 +9,7 @@ group :test do
   gem "memory_profiler"
   gem "minitest"
   gem "mocha"
-  gem "mysql2", "~> 0.5", github: "brianmario/mysql2"
+  gem "mysql2", "~> 0.5"
   gem "pry-byebug", require: false
   gem "rake-compiler"
   gem "rake"
