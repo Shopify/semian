@@ -14,40 +14,9 @@ env:
   SEED: 58485
 
 jobs:
-  bundle:
-    name: Install dependency
-    runs-on: ubuntu-latest
-    # https://docs.github.com/en/actions/using-jobs/running-jobs-in-a-container
-    container: ruby:${{ matrix.ruby }}
-    strategy:
-      fail-fast: false
-      matrix:
-        ruby:
-          # - "3.1" # grpc is causing issues with Ruby 3.1
-          - "3.0"
-          - "2.7"
-    steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v2
-      -
-        name: Cache
-        uses: actions/cache@v3
-        with:
-          path: vendor/bundle
-          key: ${{ runner.os }}-ruby-${{ matrix.ruby }}-gems-${{ hashFiles('**/Gemfile.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-ruby-${{ matrix.ruby }}-gems-
-      -
-        name: Bundle
-        if: steps.cache-primes.outputs.cache-hit != 'true'
-        run: |
-          bundle config path vendor/bundle
-          bundle install
   test:
     name: Ruby tests
     runs-on: ubuntu-latest
-    needs: bundle
     container:
       image: ruby:${{ matrix.ruby }}
       ports:
@@ -106,6 +75,7 @@ jobs:
         name: Bundle
         run: |
           bundle config path vendor/bundle
+          bundle install
       -
         name: Build C extension
         run: bundle exec rake build
