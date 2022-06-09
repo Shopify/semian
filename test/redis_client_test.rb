@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "hiredis-client"
 require "benchmark"
 
 module RedisClientTests

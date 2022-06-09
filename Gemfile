@@ -13,7 +13,7 @@ group :test do
   gem "pry-byebug", require: false
   gem "rake-compiler"
   gem "rake"
-  gem "redis-client", "0.2.0"
+  gem "hiredis-client"
   gem "redis"
   gem "timecop"
   gem "toxiproxy"
