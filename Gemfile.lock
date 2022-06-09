@@ -29,6 +29,8 @@ GEM
       google-protobuf (~> 3.19)
       googleapis-common-protos-types (~> 1.0)
     hiredis (0.6.3)
+    hiredis-client (0.5.1)
+      redis-client (= 0.5.1)
     memory_profiler (1.0.0)
     method_source (1.0.0)
     minitest (5.15.0)
@@ -82,6 +84,7 @@ DEPENDENCIES
   benchmark-memory
   grpc
   hiredis (~> 0.6)
+  hiredis-client
   memory_profiler
   minitest
   mocha
@@ -90,7 +93,6 @@ DEPENDENCIES
   rake
   rake-compiler
   redis
-  redis-client (= 0.5.1)
   rubocop
   rubocop-minitest
   rubocop-rake
