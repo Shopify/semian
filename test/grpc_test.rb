@@ -174,7 +174,7 @@ class TestGRPC < Minitest::Test
 
   def open_circuit!(stub, method, args)
     ERROR_THRESHOLD.times do
-      assert_raises(GRPC::Unavailable) do
+      assert_raises(GRPC::DeadlineExceeded) do
         stub.send(method, args)
       end
     end
