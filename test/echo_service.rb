@@ -57,9 +57,10 @@ end
 EchoStub = EchoService.rpc_stub_class
 
 class EchoStubReturnOp < EchoStub
-  def initialize(**kw)
+  # https://github.com/grpc/grpc/blob/v1.46.3/src/ruby/lib/grpc/generic/service.rb#L157-L159
+  def initialize(host, creds, **kw)
     @default_metadata = {return_op: true}
-    super(**kw)
+    super(host, creds, **kw)
   end
 
   # https://github.com/grpc/grpc/blob/v1.46.3/src/ruby/lib/grpc/generic/service.rb#L168-L188
