@@ -32,6 +32,7 @@ class TestGRPC < Minitest::Test
     build_rpc_server
     Semian::GRPC.semian_configuration = DEFAULT_SEMIAN_CONFIGURATION
     @stub = build_insecure_stub(EchoStub)
+    @stub_return_op = build_insecure_stub(EchoStubReturnOp)
   end
 
   def teardown
@@ -51,10 +52,12 @@ class TestGRPC < Minitest::Test
     assert_equal(@host, error.semian_identifier)
   end
 
-  def test_rpc_server
+  def test_rpc_server_success
     run_services_on_server(@server, services: [EchoService]) do
-      GRPC::ActiveCall.any_instance.expects(:request_response)
       @stub.an_rpc(EchoMsg.new)
+      
+      operation = @stub_return_op.an_rpc(EchoMsg.new)
+      operation.execute
     end
   end
 
@@ -142,6 +145,36 @@ class TestGRPC < Minitest::Test
     end
   end
 
+  def test_circuit_breaker_on_client_streamer_return_op
+    stub = build_insecure_stub(EchoStubReturnOp, host: "0.0.0.1:0")
+    requests = [EchoMsg.new, EchoMsg.new]
+    open_circuit!(stub, :a_client_streaming_rpc, requests, return_op: true)
+
+    assert_raises(GRPC::CircuitOpenError) do
+      stub.a_client_streaming_rpc(requests).execute
+    end
+  end
+
+  def test_circuit_breaker_on_server_streamer_return_op
+    stub = build_insecure_stub(EchoStubReturnOp, host: "0.0.0.1:0")
+    request = EchoMsg.new
+    open_circuit!(stub, :a_server_streaming_rpc, request, return_op: true)
+
+    assert_raises(GRPC::CircuitOpenError) do
+      stub.a_server_streaming_rpc(request).execute
+    end
+  end
+
+  def test_circuit_breaker_on_bidi_streamer_return_op
+    stub = build_insecure_stub(EchoStubReturnOp, host: "0.0.0.1:0")
+    requests = [EchoMsg.new, EchoMsg.new]
+    open_circuit!(stub, :a_bidi_rpc, requests, return_op: true)
+
+    assert_raises(GRPC::CircuitOpenError) do
+      stub.a_bidi_rpc(requests).execute
+    end
+  end
+
   def test_bulkheads_tickets_are_working
     options = proc do |host|
       {
@@ -171,10 +204,10 @@ class TestGRPC < Minitest::Test
 
   private
 
-  def open_circuit!(stub, method, args)
+  def open_circuit!(stub, method, args, return_op: false)
     ERROR_THRESHOLD.times do
       assert_raises(GRPC::Unavailable) do
-        stub.send(method, args)
+        return_op ? stub.send(method, args).execute : stub.send(method, args)
       end
     end
   end
