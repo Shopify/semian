@@ -84,25 +84,55 @@ module Semian
     def request_response(*, **)
       return super if disabled?
 
-      acquire_semian_resource(adapter: :grpc, scope: :request_response) { super }
+      scope = :request_response
+      acquire_semian_resource(adapter: :grpc, scope: scope) do
+        result = super
+        handle_operation(result, scope)
+        result
+      end
     end
 
     def client_streamer(*, **)
       return super if disabled?
 
-      acquire_semian_resource(adapter: :grpc, scope: :client_streamer) { super }
+      scope = :client_streamer
+      acquire_semian_resource(adapter: :grpc, scope: scope) do
+        result = super
+        handle_operation(result, scope)
+        result
+      end
     end
 
     def server_streamer(*, **)
       return super if disabled?
 
-      acquire_semian_resource(adapter: :grpc, scope: :server_streamer) { super }
+      scope = :server_streamer
+      acquire_semian_resource(adapter: :grpc, scope: scope) do
+        result = super
+        handle_operation(result, scope)
+        result
+      end
     end
 
     def bidi_streamer(*, **)
       return super if disabled?
 
-      acquire_semian_resource(adapter: :grpc, scope: :bidi_streamer) { super }
+      scope =:bidi_streamer
+      acquire_semian_resource(adapter: :grpc, scope: scope) do
+        result = super
+        handle_operation(result, scope)
+        result
+      end
+    end
+
+    def handle_operation(result, scope)
+      return unless result.is_a?(::GRPC::ActiveCall::Operation)
+
+      execute = result.singleton_method(:execute)
+      result.instance_variable_set(:@semian, self)
+      result.define_singleton_method(:execute) do
+        @semian.send(:acquire_semian_resource, **{adapter: :grpc, scope: scope}) { execute.call }
+      end
     end
   end
 end
