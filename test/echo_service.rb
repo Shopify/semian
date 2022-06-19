@@ -55,3 +55,27 @@ class EchoService
 end
 
 EchoStub = EchoService.rpc_stub_class
+
+class EchoStubReturnOp < EchoStub
+  def initialize(**kw)
+    @default_metadata = {return_op: true}
+    super(**kw)
+  end
+
+  # https://github.com/grpc/grpc/blob/v1.46.3/src/ruby/lib/grpc/generic/service.rb#L168-L188
+  def an_rpc(req, metadata = {})
+    super(req, @default_metadata.merge(metadata))
+  end
+  
+  def a_client_streaming_rpc(reqs, metadata = {})
+    super(reqs, @default_metadata.merge(metadata))
+  end
+  
+  def a_server_streaming_rpc(req, metadata = {}, &blk)
+    super(req, @default_metadata.merge(metadata), &blk)
+  end
+  
+  def a_bidi_rpc(reqs, metadata = {}, &blk)
+    super(reqs, @default_metadata.merge(metadata), &blk)
+  end
+end
