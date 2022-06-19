@@ -52,8 +52,9 @@ class TestGRPC < Minitest::Test
     assert_equal(@host, error.semian_identifier)
   end
 
-  def test_rpc_server_success
+  def test_rpc_server
     run_services_on_server(@server, services: [EchoService]) do
+      GRPC::ActiveCall.any_instance.expects(:request_response).twice
       @stub.an_rpc(EchoMsg.new)
       
       operation = @stub_return_op.an_rpc(EchoMsg.new)
