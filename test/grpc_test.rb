@@ -8,6 +8,7 @@ require "mocha/minitest"
 require "echo_service"
 
 class TestGRPC < Minitest::Test
+  DEFAULT_CLIENT_TIMEOUT_IN_SECONDS = 3
   ERROR_THRESHOLD = 1
   SEMIAN_OPTIONS = {
     name: :testing,
@@ -173,7 +174,7 @@ class TestGRPC < Minitest::Test
 
   def open_circuit!(stub, method, args)
     ERROR_THRESHOLD.times do
-      assert_raises(GRPC::Unavailable) do
+      assert_raises(GRPC::DeadlineExceeded) do
         stub.send(method, args)
       end
     end
@@ -190,7 +191,7 @@ class TestGRPC < Minitest::Test
     @server = new_rpc_server_for_testing({ poll_period: 1 }.merge(server_opts))
     @port = @server.add_http2_port("0.0.0.0:#{SemianConfig["grpc_port"]}", :this_port_is_insecure)
     @host = "#{@hostname}:#{@port}"
-    @client_opts = client_opts
+    @client_opts = { timeout: DEFAULT_CLIENT_TIMEOUT_IN_SECONDS }.merge(client_opts)
     @server
   end
 
