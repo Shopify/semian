@@ -87,7 +87,7 @@ module Semian
       scope = :request_response
       acquire_semian_resource(adapter: :grpc, scope: scope) do
         result = super
-        handle_operation(result, scope)
+        handle_operation(result, scope) if result.is_a?(::GRPC::ActiveCall::Operation)
         result
       end
     end
@@ -98,7 +98,7 @@ module Semian
       scope = :client_streamer
       acquire_semian_resource(adapter: :grpc, scope: scope) do
         result = super
-        handle_operation(result, scope)
+        handle_operation(result, scope) if result.is_a?(::GRPC::ActiveCall::Operation)
         result
       end
     end
@@ -109,7 +109,7 @@ module Semian
       scope = :server_streamer
       acquire_semian_resource(adapter: :grpc, scope: scope) do
         result = super
-        handle_operation(result, scope)
+        handle_operation(result, scope) if result.is_a?(::GRPC::ActiveCall::Operation)
         result
       end
     end
@@ -117,21 +117,19 @@ module Semian
     def bidi_streamer(*, **)
       return super if disabled?
 
-      scope =:bidi_streamer
+      scope = :bidi_streamer
       acquire_semian_resource(adapter: :grpc, scope: scope) do
         result = super
-        handle_operation(result, scope)
+        handle_operation(result, scope) if result.is_a?(::GRPC::ActiveCall::Operation)
         result
       end
     end
 
-    def handle_operation(result, scope)
-      return unless result.is_a?(::GRPC::ActiveCall::Operation)
-
-      execute = result.singleton_method(:execute)
-      result.instance_variable_set(:@semian, self)
-      result.define_singleton_method(:execute) do
-        @semian.send(:acquire_semian_resource, **{adapter: :grpc, scope: scope}) { execute.call }
+    def handle_operation(operation, scope)
+      execute = operation.singleton_method(:execute)
+      operation.instance_variable_set(:@semian, self)
+      operation.define_singleton_method(:execute) do
+        @semian.send(:acquire_semian_resource, **{ adapter: :grpc, scope: scope }) { execute.call }
       end
     end
   end
