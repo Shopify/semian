@@ -32,7 +32,6 @@ class TestGRPC < Minitest::Test
     build_rpc_server
     Semian::GRPC.semian_configuration = DEFAULT_SEMIAN_CONFIGURATION
     @stub = build_insecure_stub(EchoStub)
-    @stub_return_op = build_insecure_stub(EchoStubReturnOp)
   end
 
   def teardown
@@ -54,10 +53,17 @@ class TestGRPC < Minitest::Test
 
   def test_rpc_server
     run_services_on_server(@server, services: [EchoService]) do
-      GRPC::ActiveCall.any_instance.expects(:request_response).twice
+      GRPC::ActiveCall.any_instance.expects(:request_response)
       @stub.an_rpc(EchoMsg.new)
-      
-      operation = @stub_return_op.an_rpc(EchoMsg.new)
+    end
+  end
+
+  def test_rpc_server_with_operation
+    run_services_on_server(@server, services: [EchoService]) do
+      stub_return_op = build_insecure_stub(EchoStubReturnOp)
+      GRPC::ActiveCall.any_instance.expects(:request_response)
+
+      operation = stub_return_op.an_rpc(EchoMsg.new)
       operation.execute
     end
   end
