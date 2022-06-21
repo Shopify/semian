@@ -84,42 +84,30 @@ module Semian
     def request_response(*, **)
       return super if disabled?
 
-      scope = :request_response
-      acquire_semian_resource(adapter: :grpc, scope: scope) do
-        result = super
-        handle_operation(result, scope) if result.is_a?(::GRPC::ActiveCall::Operation)
-        result
-      end
+      acquire_semian_resource_grpc(scope: :request_response) { super }
     end
 
     def client_streamer(*, **)
       return super if disabled?
 
-      scope = :client_streamer
-      acquire_semian_resource(adapter: :grpc, scope: scope) do
-        result = super
-        handle_operation(result, scope) if result.is_a?(::GRPC::ActiveCall::Operation)
-        result
-      end
+      acquire_semian_resource_grpc(scope: :client_streamer) { super }
     end
 
     def server_streamer(*, **)
       return super if disabled?
 
-      scope = :server_streamer
-      acquire_semian_resource(adapter: :grpc, scope: scope) do
-        result = super
-        handle_operation(result, scope) if result.is_a?(::GRPC::ActiveCall::Operation)
-        result
-      end
+      acquire_semian_resource_grpc(scope: :server_streamer) { super }
     end
 
     def bidi_streamer(*, **)
       return super if disabled?
 
-      scope = :bidi_streamer
+      acquire_semian_resource_grpc(scope: :bidi_streamer) { super }
+    end
+
+    def acquire_semian_resource_grpc(scope:)
       acquire_semian_resource(adapter: :grpc, scope: scope) do
-        result = super
+        result = yield
         handle_operation(result, scope) if result.is_a?(::GRPC::ActiveCall::Operation)
         result
       end
