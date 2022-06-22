@@ -264,7 +264,7 @@ module Semian
 
   def create_error_rate_circuit_breaker(name, **options)
     require_keys!([:success_threshold, :error_percent_threshold, :error_timeout,
-                   :minimum_request_volume, :time_window], options)
+                   :minimum_request_volume, :time_window], **options)
 
     exceptions = options[:exceptions] || []
     ErrorRateCircuitBreaker.new(name,
@@ -289,7 +289,7 @@ module Semian
 
     return create_error_rate_circuit_breaker(name, **options) if type == :error_rate
 
-    require_keys!([:success_threshold, :error_threshold, :error_timeout], options)
+    require_keys!([:success_threshold, :error_threshold, :error_timeout], **options)
 
     exceptions = options[:exceptions] || []
     CircuitBreaker.new(
