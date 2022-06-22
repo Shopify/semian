@@ -73,12 +73,9 @@ module Semian
         @lock = Mutex.new
       end
 
-      # #size, #last, and #clear are not wrapped in a mutex. For the first two,
-      # the worst-case is a thread-switch at a timing where they'd receive an
+      # #size, #last are not wrapped in a mutex. The worst-case is a
+      # thread-switch at a timing where they'd receive an
       # out-of-date value--which could happen with a mutex as well.
-      #
-      # As for clear, it's an all or nothing operation. Doesn't matter if we
-      # have the lock or not.
 
       def count(*)
         @lock.synchronize { super }
@@ -89,6 +86,10 @@ module Semian
       end
 
       def push(*)
+        @lock.synchronize { super }
+      end
+
+      def clear
         @lock.synchronize { super }
       end
     end
