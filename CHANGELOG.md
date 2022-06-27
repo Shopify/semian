@@ -1,5 +1,7 @@
 # Unreleased
 
+# v0.13.0
+
 * Refactor: Replace Time.now with CLOCK_MONOTONIC in MockServer (#318)
 * Fix: Circuit not open for GRPC::ActiveCall::Operation failures (#348)
 
