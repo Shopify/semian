@@ -63,12 +63,12 @@ GEM
       rubocop (>= 0.90, < 2.0)
     rubocop-rake (0.6.0)
       rubocop (~> 1.0)
-    rubocop-shopify (2.7.0)
+    rubocop-shopify (2.7.1)
       rubocop (~> 1.30)
     ruby-progressbar (1.11.0)
     timecop (0.9.5)
     toxiproxy (2.0.1)
-    unicode-display_width (2.1.0)
+    unicode-display_width (2.2.0)
     webrick (1.7.0)
 
 PLATFORMS
