@@ -43,7 +43,7 @@ GEM
     rake (13.0.6)
     rake-compiler (1.2.0)
       rake
-    redis (4.6.0)
+    redis (4.7.1)
     redis-client (0.5.1)
       connection_pool
     regexp_parser (2.5.0)
