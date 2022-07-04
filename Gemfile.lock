@@ -25,6 +25,7 @@ GEM
     hiredis (0.6.3)
     hiredis-client (0.5.1)
       redis-client (= 0.5.1)
+    json (2.6.2)
     memory_profiler (1.0.0)
     method_source (1.0.0)
     minitest (5.16.1)
@@ -48,7 +49,8 @@ GEM
       connection_pool
     regexp_parser (2.5.0)
     rexml (3.2.5)
-    rubocop (1.31.0)
+    rubocop (1.31.1)
+      json (~> 2.3)
       parallel (~> 1.10)
       parser (>= 3.1.0.0)
       rainbow (>= 2.2.2, < 4.0)
