@@ -49,7 +49,7 @@ GEM
       connection_pool
     regexp_parser (2.5.0)
     rexml (3.2.5)
-    rubocop (1.31.1)
+    rubocop (1.31.2)
       json (~> 2.3)
       parallel (~> 1.10)
       parser (>= 3.1.0.0)
@@ -59,7 +59,7 @@ GEM
       rubocop-ast (>= 1.18.0, < 2.0)
       ruby-progressbar (~> 1.7)
       unicode-display_width (>= 1.4.0, < 3.0)
-    rubocop-ast (1.18.0)
+    rubocop-ast (1.19.1)
       parser (>= 3.1.1.0)
     rubocop-minitest (0.20.1)
       rubocop (>= 0.90, < 2.0)
