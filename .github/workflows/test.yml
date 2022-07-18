@@ -1,3 +1,5 @@
+---
+
 name: Test
 
 on:
@@ -25,7 +27,7 @@ jobs:
       # NOTE: Container required be accessed by hostname semian,
       #       because upstream to toxiproxy should have access
       #       to the same container
-      options: "--hostname semian"
+      options: --hostname semian
     env:
       TEST_WORKERS: 3
       CI: "1"
@@ -44,7 +46,7 @@ jobs:
       mysql:
         image: mysql:5.7
         env:
-          MYSQL_ALLOW_EMPTY_PASSWORD: 'true'
+          MYSQL_ALLOW_EMPTY_PASSWORD: "true"
         options: >-
           --health-cmd="mysqladmin ping"
           --health-interval=5s

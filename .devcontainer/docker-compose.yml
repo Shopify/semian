@@ -1,3 +1,5 @@
+---
+
 version: "3.7"
 services:
   semian: &base
@@ -25,8 +27,8 @@ services:
       - /bin/bash
       - -c
       - |
-        bundle install
-        sleep infinity
+          bundle install
+          sleep infinity
 
   test:
     <<: *base
@@ -38,7 +40,7 @@ services:
       - bash
       - -c
       - |-
-        ./scripts/run_tests.sh
+          ./scripts/run_tests.sh
     profiles:
       - test
 
@@ -59,5 +61,5 @@ services:
     image: mysql
     command: --default-authentication-plugin=mysql_native_password
     environment:
-      MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
-      MYSQL_ROOT_HOST: '%'
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_ROOT_HOST: "%"

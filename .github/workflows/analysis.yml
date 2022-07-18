@@ -1,3 +1,5 @@
+---
+
 name: Analysis
 
 on:
@@ -17,7 +19,7 @@ jobs:
     env:
       BUNDLE_WITHOUT: test
 
-    name: Ruby linter
+    name: Linter
     runs-on: ubuntu-latest
     steps:
       -
@@ -26,9 +28,13 @@ jobs:
       -
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.1'
+          ruby-version: "3.1"
           bundler-cache: true
       -
-        name: Linting
+        name: Ruby Linting
         run: bundle exec rubocop
-
+      -
+        name: Yaml Linting
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          config_file: .yamllint.yml
