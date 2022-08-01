@@ -18,6 +18,7 @@ group :test do
   gem "timecop"
   gem "toxiproxy"
   gem "webrick"
+  gem "activerecord", ">= 7.0.3"
 end
 
 group :lint do
