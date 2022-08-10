@@ -139,7 +139,7 @@ module Semian
 
     def raise_if_out_of_memory(reply)
       return unless reply.is_a?(::Redis::CommandError)
-      return unless reply.message.start_with?("OOM ")
+      return unless reply.message =~ /OOM command not allowed when used memory > 'maxmemory'/
 
       raise ::Redis::OutOfMemoryError, reply.message
     end
