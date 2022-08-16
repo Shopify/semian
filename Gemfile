@@ -4,7 +4,7 @@ source "https://rubygems.org"
 
 group :test do
   gem "benchmark-memory"
-  gem "grpc"
+  gem "grpc", "1.46.3"
   gem "hiredis", "~> 0.6"
   gem "memory_profiler"
   gem "minitest"
