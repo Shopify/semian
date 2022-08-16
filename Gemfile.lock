@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    semian (0.13.0)
+    semian (0.13.1)
 
 GEM
   remote: https://rubygems.org/

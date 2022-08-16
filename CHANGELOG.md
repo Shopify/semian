@@ -1,5 +1,7 @@
 # Unreleased
 
+# v0.13.1
+
 * Fix: Raise `Redis::OutOfMemoryError` for messages that match `OOM command not allowed when used memory > 'maxmemory'` rather than checking `start_with?("OOM ")`. (#367)
 
 # v0.13.0
