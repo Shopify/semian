@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    semian (0.13.0)
+    semian (0.13.1)
 
 GEM
   remote: https://rubygems.org/
@@ -23,14 +23,14 @@ GEM
     coderay (1.1.3)
     concurrent-ruby (1.1.10)
     connection_pool (2.2.5)
-    google-protobuf (3.21.2)
-    google-protobuf (3.21.2-x86_64-darwin)
+    google-protobuf (3.21.5)
+    google-protobuf (3.21.5-x86_64-darwin)
     googleapis-common-protos-types (1.3.2)
       google-protobuf (~> 3.14)
-    grpc (1.47.0)
+    grpc (1.46.3)
       google-protobuf (~> 3.19)
       googleapis-common-protos-types (~> 1.0)
-    grpc (1.47.0-x86_64-darwin)
+    grpc (1.46.3-x86_64-darwin)
       google-protobuf (~> 3.19)
       googleapis-common-protos-types (~> 1.0)
     hiredis (0.6.3)
@@ -95,7 +95,7 @@ PLATFORMS
 DEPENDENCIES
   activerecord (>= 7.0.3)
   benchmark-memory
-  grpc
+  grpc (= 1.46.3)
   hiredis (~> 0.6)
   hiredis-client
   memory_profiler
