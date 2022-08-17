@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix: Update AbstractAdapter patch to accomodate recent Rails changes. (#364)
+
 # v0.13.1
 
 * Fix: Raise `Redis::OutOfMemoryError` for messages that match `OOM command not allowed when used memory > 'maxmemory'` rather than checking `start_with?("OOM ")`. (#367)
