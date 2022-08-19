@@ -1,5 +1,7 @@
 # Unreleased
 
+# v0.13.2
+
 * Fix: Update AbstractAdapter patch to accomodate recent Rails changes. (#364)
 
 # v0.13.1
