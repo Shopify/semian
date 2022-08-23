@@ -57,12 +57,12 @@ GEM
     rake (13.0.6)
     rake-compiler (1.2.0)
       rake
-    redis (4.7.1)
+    redis (4.8.0)
     redis-client (0.5.1)
       connection_pool
     regexp_parser (2.5.0)
     rexml (3.2.5)
-    rubocop (1.35.0)
+    rubocop (1.35.1)
       json (~> 2.3)
       parallel (~> 1.10)
       parser (>= 3.1.2.1)
