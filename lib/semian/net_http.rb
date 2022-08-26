@@ -78,8 +78,17 @@ module Semian
     def raw_semian_options
       @raw_semian_options ||= begin
         @raw_semian_options = Semian::NetHTTP.retrieve_semian_configuration(address, port)
-        @raw_semian_options = @raw_semian_options.dup unless @raw_semian_options.nil?
+        unless @raw_semian_options.nil?
+          @raw_semian_options = @raw_semian_options.dup
+          calculate_error_timeout if @raw_semian_options[:capacity] && !@raw_semian_options[:error_timeout]
+        end
       end
+    end
+
+    def calculate_error_timeout
+      capacity = @raw_semian_options[:capacity]
+      error_timeout = (read_timeout * capacity) / (1 - capacity)
+      @raw_semian_options.merge!({ error_timeout: error_timeout})
     end
 
     def resource_exceptions
