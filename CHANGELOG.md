@@ -1,5 +1,9 @@
 # Unreleased
 
+# v0.13.3
+
+* Bump redis from 4.7.1 to 4.8.0
+
 # v0.13.2
 
 * Fix: Update AbstractAdapter patch to accomodate recent Rails changes. (#364)
