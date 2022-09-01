@@ -43,16 +43,18 @@ module Semian
       %r{\A(?:/\*.*?\*/)?\s*RELEASE\s+SAVEPOINT}i,
     )
 
-    # The naked methods are exposed as `raw_query` and `raw_connect` for instrumentation purpose
-    def self.included(base)
-      base.send(:alias_method, :raw_query, :query)
-      base.send(:remove_method, :query)
+    class << self
+      # The naked methods are exposed as `raw_query` and `raw_connect` for instrumentation purpose
+      def included(base)
+        base.send(:alias_method, :raw_query, :query)
+        base.send(:remove_method, :query)
 
-      base.send(:alias_method, :raw_connect, :connect)
-      base.send(:remove_method, :connect)
+        base.send(:alias_method, :raw_connect, :connect)
+        base.send(:remove_method, :connect)
 
-      base.send(:alias_method, :raw_ping, :ping)
-      base.send(:remove_method, :ping)
+        base.send(:alias_method, :raw_ping, :ping)
+        base.send(:remove_method, :ping)
+      end
     end
 
     def semian_identifier

@@ -2,12 +2,14 @@
 
 # A test service with an echo implementation.
 class EchoMsg
-  def self.marshal(_o)
-    ""
-  end
+  class << self
+    def marshal(_o)
+      ""
+    end
 
-  def self.unmarshal(_o)
-    EchoMsg.new
+    def unmarshal(_o)
+      EchoMsg.new
+    end
   end
 end
 
