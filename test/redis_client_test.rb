@@ -125,7 +125,7 @@ module RedisClientTests
   def test_redis_connection_errors_are_tagged_with_the_resource_identifier
     @proxy.downstream(:latency, latency: 600).apply do
       error = assert_raises(RedisClient::TimeoutError) do
-        redis = connect_to_redis!
+        connect_to_redis!
       end
       assert_equal(:redis_testing, error.semian_identifier)
     end
