@@ -130,8 +130,8 @@ class TestNetHTTP < Minitest::Test
       with_server do
         open_circuit!
 
+        http = Net::HTTP.new(SemianConfig["toxiproxy_upstream_host"], SemianConfig["http_toxiproxy_port"])
         assert_raises(Net::CircuitOpenError) do
-          http = Net::HTTP.new(SemianConfig["toxiproxy_upstream_host"], SemianConfig["http_toxiproxy_port"])
           http.get("/")
         end
       end
@@ -143,8 +143,8 @@ class TestNetHTTP < Minitest::Test
       with_server do
         open_circuit!
 
+        uri = URI("http://#{SemianConfig["toxiproxy_upstream_host"]}:#{SemianConfig["http_toxiproxy_port"]}/200")
         assert_raises(Net::CircuitOpenError) do
-          uri = URI("http://#{SemianConfig["toxiproxy_upstream_host"]}:#{SemianConfig["http_toxiproxy_port"]}/200")
           Net::HTTP.get_response(uri)
         end
       end
@@ -156,8 +156,8 @@ class TestNetHTTP < Minitest::Test
       with_server do
         open_circuit!
 
+        uri = URI("http://#{SemianConfig["toxiproxy_upstream_host"]}:#{SemianConfig["http_toxiproxy_port"]}/200")
         assert_raises(Net::CircuitOpenError) do
-          uri = URI("http://#{SemianConfig["toxiproxy_upstream_host"]}:#{SemianConfig["http_toxiproxy_port"]}/200")
           Net::HTTP.post_form(uri, "q" => "ruby", "max" => "50")
         end
       end
@@ -185,8 +185,8 @@ class TestNetHTTP < Minitest::Test
         Net::HTTP.start(uri.host, uri.port) do |http|
           open_circuit!
           get_subclasses(Net::HTTPRequest).each do |action|
+            request = action.new(uri)
             assert_raises(Net::CircuitOpenError, "#{action.name} did not raise a Net::CircuitOpenError") do
-              request = action.new(uri)
               http.request(request)
             end
           end
