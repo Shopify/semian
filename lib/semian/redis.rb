@@ -65,13 +65,15 @@ module Semian
     CircuitOpenError = ::Redis::CircuitOpenError
     ResolveError = ::Redis::ResolveError
 
-    # The naked methods are exposed as `raw_query` and `raw_connect` for instrumentation purpose
-    def self.included(base)
-      base.send(:alias_method, :raw_io, :io)
-      base.send(:remove_method, :io)
+    class << self
+      # The naked methods are exposed as `raw_query` and `raw_connect` for instrumentation purpose
+      def included(base)
+        base.send(:alias_method, :raw_io, :io)
+        base.send(:remove_method, :io)
 
-      base.send(:alias_method, :raw_connect, :connect)
-      base.send(:remove_method, :connect)
+        base.send(:alias_method, :raw_connect, :connect)
+        base.send(:remove_method, :connect)
+      end
     end
 
     def semian_identifier
