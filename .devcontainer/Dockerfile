@@ -4,7 +4,8 @@ FROM ruby:${RUBY_VERSION} as base
 # Avoid warnings by switching to noninteractive
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install --no-install-recommends -y \
+RUN apt-get -o Acquire::Max-FutureTime=86400 update \
+ && apt-get install --no-install-recommends -y \
       apt-utils \
       build-essential \
       clang \

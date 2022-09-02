@@ -25,7 +25,7 @@ GEM
     connection_pool (2.2.5)
     google-protobuf (3.21.5)
     google-protobuf (3.21.5-x86_64-darwin)
-    googleapis-common-protos-types (1.3.2)
+    googleapis-common-protos-types (1.4.0)
       google-protobuf (~> 3.14)
     grpc (1.46.3)
       google-protobuf (~> 3.19)
@@ -105,7 +105,7 @@ DEPENDENCIES
   pry-byebug
   rake
   rake-compiler
-  redis
+  redis (~> 4.8)
   rubocop
   rubocop-minitest
   rubocop-rake

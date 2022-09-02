@@ -3,6 +3,11 @@
 require "semian/adapter"
 require "redis"
 
+if Redis::VERSION >= "5.0.0"
+  Semian.logger.warn("NOTE: Semian is not compatible with Redis 5.x")
+  return
+end
+
 class Redis
   Redis::BaseConnectionError.include(::Semian::AdapterError)
   ::Errno::EINVAL.include(::Semian::AdapterError)
