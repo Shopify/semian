@@ -2,6 +2,8 @@
 
 source "https://rubygems.org"
 
+gem "rake"
+
 group :test do
   gem "benchmark-memory"
   gem "grpc", "1.46.3"
@@ -12,7 +14,6 @@ group :test do
   gem "mysql2", "~> 0.5"
   gem "pry-byebug", require: false
   gem "rake-compiler"
-  gem "rake"
   gem "hiredis-client"
   gem "redis", "~> 4.8"
   gem "timecop"

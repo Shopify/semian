@@ -22,12 +22,15 @@ Gem::Specification.new do |s|
     "allowed_push_host" => "https://rubygems.org",
     "bug_tracker_uri" => "https://github.com/Shopify/semian/issues",
     "changelog_uri" => "https://github.com/Shopify/semian/blob/master/CHANGELOG.md",
+    "documentation_uri" => "https://github.com/Shopify/semian",
+    "homepage_uri" => "https://github.com/Shopify/semian",
     "source_code_uri" => "https://github.com/Shopify/semian",
   }
 
-  s.files = ::Dir["{lib,ext}/**/**/*.{rb,h,c}"] +
-    ::Dir.glob("*.md")
+  s.files = ::Dir["{lib,ext}/**/**/*.{rb,h,c}"]
+  s.files += ["LICENSE.md", "README.md"]
   s.extensions = ["ext/semian/extconf.rb"]
+  s.require_paths = ["lib"]
 
   s.post_install_message = <<~MSG
 

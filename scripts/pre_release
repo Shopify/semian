@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+tag=$(git tag --contains HEAD | wc -l)
+
+if [ $tag == "0" ] ; then
+  echo "No tag attached!"
+  exit 1
+fi
