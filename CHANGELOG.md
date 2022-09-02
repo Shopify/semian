@@ -1,5 +1,9 @@
 # Unreleased
 
+# v0.13.3
+
+* Add a warning message about redis 5.x. (#386)
+
 # v0.13.2
 
 * Fix: Update AbstractAdapter patch to accomodate recent Rails changes. (#364)
