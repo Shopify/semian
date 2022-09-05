@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "hiredis-client"
 require "benchmark"
 
 module RedisTests
@@ -71,12 +72,12 @@ module RedisTests
 
     @proxy.downstream(:reset_peer).apply do
       ERROR_THRESHOLD.times do
-        assert_raises(::Redis::ConnectionError) do
+        assert_raises(::Redis::BaseConnectionError) do
           client.get("foo")
         end
       end
 
-      assert_raises(::Redis::ConnectionError) do
+      assert_raises(::Redis::BaseConnectionError) do
         client.get("foo")
       end
     end
@@ -132,11 +133,16 @@ module RedisTests
     notified = false
     subscriber = Semian.subscribe do |event, resource, scope, adapter|
       next unless event == :success
+      next if scope == :query
 
       notified = true
       assert_equal(Semian[:redis_testing], resource)
       assert_equal(:connection, scope)
-      assert_equal(:redis, adapter)
+      if ::Redis::VERSION >= "5"
+        assert_equal(:redis_client, adapter)
+      else
+        assert_equal(:redis, adapter)
+      end
     end
 
     connect_to_redis!
@@ -159,7 +165,7 @@ module RedisTests
 
   def test_redis_connection_errors_are_tagged_with_the_resource_identifier
     @proxy.downstream(:latency, latency: 600).apply do
-      error = assert_raises(::Redis::TimeoutError) do
+      error = assert_raises(::Redis::BaseConnectionError) do
         connect_to_redis!
       end
       assert_equal(:redis_testing, error.semian_identifier)
@@ -187,7 +193,7 @@ module RedisTests
 
   def test_dns_resolution_failures_open_circuit
     ERROR_THRESHOLD.times do
-      assert_raises(Redis::ResolveError) do
+      assert_resolve_error do
         connect_to_redis!(host: "thisdoesnotresolve")
       end
     end
@@ -209,21 +215,26 @@ module RedisTests
   ].each do |message|
     test_suffix = message.gsub(/\W/, "_").downcase
     define_method(:"test_dns_resolution_failure_#{test_suffix}") do
-      Redis::Client.any_instance.expects(:raw_connect).raises(message)
+      if ::Redis::VERSION >= "5"
+        Redis::Client.any_instance.expects(:connect).raises(RedisClient::CannotConnectError.new(message))
+      else
+        Redis::Client.any_instance.expects(:raw_connect).raises(message)
+      end
 
-      assert_raises Redis::ResolveError do
+      assert_resolve_error do
         connect_to_redis!(host: "example.com")
       end
     end
   end
 
   def test_circuit_breaker_on_connect
-    @proxy.downstream(:latency, latency: redis_timeout_ms).apply do
-      background { connect_to_redis! }
+    background_redis = connect_to_redis!(timeout: 5, reconnect_attempts: 0)
+    @proxy.downstream(:latency, latency: 3_000).apply do
+      background { background_redis.ping }
 
       ERROR_THRESHOLD.times do
         assert_raises(Redis::ResourceBusyError) do
-          connect_to_redis!
+          connect_to_redis!(reconnect_attempts: 0)
         end
       end
     end
@@ -248,7 +259,11 @@ module RedisTests
       assert_equal(:success, event)
       assert_equal(Semian[:redis_testing], resource)
       assert_equal(:query, scope)
-      assert_equal(:redis, adapter)
+      if ::Redis::VERSION >= "5"
+        assert_equal(:redis_client, adapter)
+      else
+        assert_equal(:redis, adapter)
+      end
     end
 
     client.get("foo")
@@ -260,7 +275,7 @@ module RedisTests
 
   def test_timeout_changes_when_half_open_and_configured_with_reads
     half_open_resource_timeout = 0.1
-    client = connect_to_redis!(half_open_resource_timeout: half_open_resource_timeout)
+    client = connect_to_redis!(semian: { half_open_resource_timeout: half_open_resource_timeout })
 
     Timecop.freeze(0) do
       @proxy.downstream(:latency, latency: redis_timeout_ms + 200).apply do
@@ -293,16 +308,12 @@ module RedisTests
       end
     end
 
-    assert_equal(REDIS_TIMEOUT, client.instance_variable_get(:@client).options[:timeout])
-    assert_equal(REDIS_TIMEOUT, client.instance_variable_get(:@client).options[:connect_timeout])
-    assert_equal(REDIS_TIMEOUT, client.instance_variable_get(:@client).options[:read_timeout])
-    assert_equal(REDIS_TIMEOUT, client.instance_variable_get(:@client).options[:write_timeout])
-    assert_equal(REDIS_TIMEOUT, client.instance_variable_get(:@client).timeout)
+    assert_default_timeouts(client)
   end
 
   def test_timeout_changes_when_half_open_and_configured_with_writes_and_disconnects
     half_open_resource_timeout = 0.1
-    client = connect_to_redis!(half_open_resource_timeout: half_open_resource_timeout)
+    client = connect_to_redis!(semian: { half_open_resource_timeout: half_open_resource_timeout })
 
     Timecop.freeze(0) do
       @proxy.downstream(:latency, latency: redis_timeout_ms + 200).apply do
@@ -338,11 +349,7 @@ module RedisTests
       end
     end
 
-    assert_equal(REDIS_TIMEOUT, client.instance_variable_get(:@client).options[:timeout])
-    assert_equal(REDIS_TIMEOUT, client.instance_variable_get(:@client).options[:connect_timeout])
-    assert_equal(REDIS_TIMEOUT, client.instance_variable_get(:@client).options[:read_timeout])
-    assert_equal(REDIS_TIMEOUT, client.instance_variable_get(:@client).options[:write_timeout])
-    assert_equal(REDIS_TIMEOUT, client.instance_variable_get(:@client).timeout)
+    assert_default_timeouts(client)
   end
 
   def test_timeout_doesnt_change_when_half_open_but_not_configured
@@ -435,15 +442,22 @@ module RedisTests
     }.merge(options))
   end
 
-  def connect_to_redis!(semian_options = {})
-    host = semian_options.delete(:host)
-    redis = new_redis(host: host, semian: semian_options)
-    redis._client.connect
-    redis
+  if Redis::VERSION >= "5"
+    def connect_to_redis!(options = {})
+      redis = new_redis(**options)
+      redis.ping
+      redis
+    end
+  else
+    def connect_to_redis!(options = {})
+      redis = new_redis(**options)
+      redis._client.connect
+      redis
+    end
   end
 
   def with_maxmemory(bytes)
-    client = connect_to_redis!(name: "maxmemory")
+    client = connect_to_redis!(semian: { name: "maxmemory" })
 
     _, old = client.config("get", "maxmemory")
     begin
@@ -462,11 +476,35 @@ module RedisTests
     latency = ((expected_timeout + 2 * delta) * 1000).to_i
 
     bench = Benchmark.measure do
-      assert_raises(Redis::TimeoutError) do
+      assert_raises(Redis::BaseConnectionError) do
         @proxy.downstream(:latency, latency: latency).apply(&block)
       end
     end
     assert_in_delta(bench.real, expected_timeout, delta)
+  end
+
+  if ::Redis::VERSION >= "5"
+    def assert_default_timeouts(client)
+      assert_equal(REDIS_TIMEOUT, client._client.timeout)
+      assert_equal(REDIS_TIMEOUT, client._client.connect_timeout)
+      assert_equal(REDIS_TIMEOUT, client._client.read_timeout)
+      assert_equal(REDIS_TIMEOUT, client._client.write_timeout)
+    end
+
+    def assert_resolve_error(&block)
+      assert_raises(Redis::CannotConnectError, &block)
+    end
+  else
+    def assert_default_timeouts(client)
+      assert_equal(REDIS_TIMEOUT, client.instance_variable_get(:@client).options[:timeout])
+      assert_equal(REDIS_TIMEOUT, client.instance_variable_get(:@client).options[:connect_timeout])
+      assert_equal(REDIS_TIMEOUT, client.instance_variable_get(:@client).options[:read_timeout])
+      assert_equal(REDIS_TIMEOUT, client.instance_variable_get(:@client).options[:write_timeout])
+    end
+
+    def assert_resolve_error(&block)
+      assert_raises(Redis::ResolveError, &block)
+    end
   end
 end
 

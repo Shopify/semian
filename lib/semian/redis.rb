@@ -3,8 +3,8 @@
 require "semian/adapter"
 require "redis"
 
-if Redis::VERSION >= "5.0.0"
-  Semian.logger.warn("NOTE: Semian is not compatible with Redis 5.x")
+if Redis::VERSION >= "5"
+  require "semian/redis/v5"
   return
 end
 
@@ -63,7 +63,7 @@ class Redis
 end
 
 module Semian
-  module Redis
+  module RedisV4
     include Semian::Adapter
 
     ResourceBusyError = ::Redis::ResourceBusyError
@@ -157,4 +157,4 @@ module Semian
   end
 end
 
-::Redis::Client.include(Semian::Redis)
+::Redis::Client.include(Semian::RedisV4)
