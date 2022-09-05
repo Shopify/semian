@@ -17,3 +17,10 @@ updates:
     registries: "*"
     schedule:
       interval: weekly
+  - package-ecosystem: bundler
+    directory: /gemfiles
+    open-pull-requests-limit: 5
+    insecure-external-code-execution: allow
+    registries: "*"
+    schedule:
+      interval: weekly

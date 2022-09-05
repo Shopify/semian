@@ -3,9 +3,7 @@
 require "test_helper"
 require "grpc"
 require "semian/grpc"
-require "minitest"
-require "mocha/minitest"
-require "echo_service"
+require_relative "grpc/echo_service"
 
 class TestGRPC < Minitest::Test
   DEFAULT_CLIENT_TIMEOUT_IN_SECONDS = 3

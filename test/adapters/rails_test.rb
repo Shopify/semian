@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "active_record"
+require "semian/mysql2"
+require "semian/rails"
 
 class TestRails < Minitest::Test
   SUCCESS_THRESHOLD = 2

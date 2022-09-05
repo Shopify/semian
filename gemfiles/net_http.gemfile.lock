@@ -1,0 +1,47 @@
+GIT
+  remote: https://github.com/redis-rb/redis-client.git
+  revision: 5dc39f533f96fb94ebd6ef6cf7776b43f6243791
+  specs:
+    hiredis-client (0.7.3)
+      redis-client (= 0.7.3)
+    redis-client (0.7.3)
+      connection_pool
+
+PATH
+  remote: ..
+  specs:
+    semian (0.13.3)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    connection_pool (2.2.5)
+    hiredis (0.6.3)
+    minitest (5.16.3)
+    mocha (1.14.0)
+    rake (13.0.6)
+    rake-compiler (1.2.0)
+      rake
+    redis (4.8.0)
+    timecop (0.9.5)
+    toxiproxy (2.0.2)
+    webrick (1.7.0)
+
+PLATFORMS
+  aarch64-linux
+
+DEPENDENCIES
+  hiredis (~> 0.6)
+  hiredis-client!
+  minitest
+  mocha
+  rake
+  rake-compiler
+  redis (~> 4.8)
+  semian!
+  timecop
+  toxiproxy
+  webrick
+
+BUNDLED WITH
+   2.3.21

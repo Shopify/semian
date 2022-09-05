@@ -13,5 +13,5 @@
 Lint/SuppressedException:
   Exclude:
     - test/helpers/circuit_breaker_helper.rb
-    - test/net_http_test.rb
+    - test/adapters/net_http_test.rb
     - test/protected_resource_test.rb

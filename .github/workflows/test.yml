@@ -12,12 +12,9 @@ concurrency:
   group: ${{ github.ref }}-test
   cancel-in-progress: true
 
-env:
-  SEED: 58485
-
 jobs:
-  test:
-    name: Ruby tests
+  semian:
+    name: Ruby ${{ matrix.ruby }} / semian
     runs-on: ubuntu-latest
     container:
       image: ruby:${{ matrix.ruby }}
@@ -29,8 +26,8 @@ jobs:
       #       to the same container
       options: --hostname semian
     env:
-      TEST_WORKERS: 3
       CI: "1"
+      BUNDLE_GEMFILE: Gemfile
     strategy:
       fail-fast: true
       matrix:
@@ -38,10 +35,6 @@ jobs:
           - "3.1"
           - "3.0"
           - "2.7"
-        worker_num:
-          - 1
-          - 2
-          - 3
     services:
       mysql:
         image: mysql:5.7
@@ -49,28 +42,28 @@ jobs:
           MYSQL_ALLOW_EMPTY_PASSWORD: "true"
         options: >-
           --health-cmd="mysqladmin ping"
-          --health-interval=5s
-          --health-timeout=2s
-          --health-retries=3
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
       redis:
         image: redis
         options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
       toxiproxy:
         image: ghcr.io/shopify/toxiproxy:2.4.0
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       -
         name: Cache
         uses: actions/cache@v3
         with:
           path: vendor/bundle
-          key: ${{ runner.os }}-ruby-${{ matrix.ruby }}-gems-${{ hashFiles('**/Gemfile.lock') }}
+          key: ${{ runner.os }}-ruby-${{ matrix.ruby }}-gems-${{ hashFiles( format('{0}.lock', env.BUNDLE_GEMFILE) ) }}
           restore-keys: |
             ${{ runner.os }}-ruby-${{ matrix.ruby }}-gems-
       -
@@ -82,11 +75,104 @@ jobs:
         name: Build C extension
         run: bundle exec rake build
       -
-        name: Parallel tests
-        env:
-          TEST_WORKER_NUM: ${{ matrix.worker_num }}
+        name: Tests
         run: |
-          bundle exec rake test:parallel ||
-          (echo "===== Retry Attempt: 2 ====" && bundle exec rake test:parallel) || \
-          (echo "===== Retry Attempt: 3 ====" && bundle exec rake test:parallel)
+          bundle exec rake test:semian ||
+          (echo "===== Retry Attempt: 2 ====" && bundle exec rake test:semian) || \
+          (echo "===== Retry Attempt: 3 ====" && bundle exec rake test:semian)
+  adapters:
+    name: Ruby ${{ matrix.ruby }} / ${{ matrix.gemfile }}
+    runs-on: ubuntu-latest
+    container:
+      image: ruby:${{ matrix.ruby }}
+      ports:
+        - 31150:31050
+        - 31050:31050
+      # NOTE: Container required be accessed by hostname semian,
+      #       because upstream to toxiproxy should have access
+      #       to the same container
+      options: --hostname semian
+    env:
+      CI: "1"
+      SEED: 58485
+      BUNDLE_GEMFILE: gemfiles/${{ matrix.gemfile }}.gemfile
+    # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstrategy
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby:
+          - "3.1"
+          - "3.0"
+          - "2.7"
+        gemfile:
+          - grpc
+          - mysql2
+          - net_http
+          - rails
+          - redis_4
+          - redis_5
+          - redis_client
+        include:
+          - gemfile: grpc
+            adapter: grpc
+          - gemfile: mysql2
+            adapter: mysql2
+          - gemfile: net_http
+            adapter: net_http
+          - gemfile: rails
+            adapter: rails
+          - gemfile: redis_4
+            adapter: redis
+          - gemfile: redis_5
+            adapter: redis
+          - gemfile: redis_client
+            adapter: redis_client
+    services:
+      mysql:
+        image: mysql:5.7
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: "true"
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      redis:
+        image: redis
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      toxiproxy:
+        image: ghcr.io/shopify/toxiproxy:2.4.0
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Cache
+        uses: actions/cache@v3
+        with:
+          path: vendor/bundle
+          key: ${{ runner.os }}-ruby-${{ matrix.ruby }}-adapter-${{ matrix.gemfile }}-gems-${{ hashFiles( format('{0}.lock', env.BUNDLE_GEMFILE) ) }}
+          restore-keys: |
+            ${{ runner.os }}-ruby-${{ matrix.ruby }}-adapter-${{ matrix.gemfile }}-gems-
+      -
+        name: Bundle
+        run: |
+          bundle config path vendor/bundle
+          bundle install
+      -
+        name: Build C extension
+        env:
+          BUNDLE_GEMFILE: Gemfile
+        run: |
+          bundle config path vendor/bundle
+          bundle install --without test,lint
+          bundle exec rake build
+      -
+        name: Tests
+        run: |
+          bundle exec rake test TEST=test/adapters/${{ matrix.adapter }}_test.rb
 

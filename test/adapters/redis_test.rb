@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "redis"
+require "hiredis"
 require "hiredis-client"
 require "benchmark"
+require "semian/redis"
 
 module RedisTests
   REDIS_TIMEOUT = 0.5

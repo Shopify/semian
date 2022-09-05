@@ -1,1 +1,2 @@
-Gemfile.lock linguist-generated
+Gemfile.lock linguist-generated=true
+*.gemfile.lock linguist-generated=true linguist-language=ruby

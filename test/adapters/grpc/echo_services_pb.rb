@@ -19,7 +19,7 @@
 #
 
 require "grpc"
-require "echo_pb"
+require_relative "echo_pb"
 
 module Echo
   module EchoServer
