@@ -1,11 +1,6 @@
 # frozen_string_literal: true
 
 require "bundler/gem_tasks"
-require "rubocop/rake_task"
-RuboCop::RakeTask.new do |task|
-  task.requires << "rubocop-minitest"
-  task.requires << "rubocop-rake"
-end
 
 # ==========================================================
 # Packaging
@@ -44,7 +39,7 @@ end
 require "rake/testtask"
 Rake::TestTask.new("test") do |t|
   t.libs = ["lib", "test"]
-  t.pattern = "test/*_test.rb"
+  t.pattern = "test/**/*_test.rb"
   t.warning = false
   if ENV["CI"] || ENV["VERBOSE"]
     t.options = "-v"
@@ -52,6 +47,16 @@ Rake::TestTask.new("test") do |t|
 end
 
 namespace :test do
+  Rake::TestTask.new("semian") do |t|
+    t.description = "Run common library tests without adapters"
+    t.libs = ["lib", "test"]
+    t.pattern = "test/*_test.rb"
+    t.warning = false
+    if ENV["CI"] || ENV["VERBOSE"]
+      t.options = "-v"
+    end
+  end
+
   desc "Parallel tests. Use TEST_WORKERS and TEST_WORKER_NUM. TEST_WORKER_NUM in range from 1..TEST_WORKERS"
   task :parallel do
     workers = ENV.fetch("TEST_WORKERS", 1).to_i

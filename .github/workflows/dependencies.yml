@@ -1,0 +1,58 @@
+---
+
+name: Refresh dependencies
+
+on:
+  schedule:
+    - cron: 0 3 * * 1
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bundler:
+    name: Update gems for all Gemfiles
+    runs-on: ubuntu-latest
+    container:
+      image: ruby:3.1
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Cache
+        uses: actions/cache@v3
+        with:
+          path: vendor/bundle
+          key: ${{ runner.os }}-ruby-3.1-gems-${{ hashFiles('Gemfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-ruby-3.1-gems-
+      -
+        name: Bundle update common
+        run: |
+          gem install bundler
+          bundle config path vendor/bundle
+          bundle update
+      -
+        name: Bundle update adapters
+        run: |
+          for gemfile_path in gemfiles/*.gemfile; do
+            BUNDLE_GEMFILE="${gemfile_path}" bundle update
+          done
+      -
+        name: Create Pull Request
+        id: cpr
+        uses: peter-evans/create-pull-request@v4
+        with:
+          title: Bump gems
+          labels: ruby,dependencies
+          add-paths: |
+            Gemfile.lock
+            gemfiles/*.lock
+      -
+        name: Check outputs
+        if: ${{ steps.cpr.outputs.pull-request-number }}
+        run: |
+          echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}"
+          echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}"

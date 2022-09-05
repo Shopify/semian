@@ -1,0 +1,16 @@
+# frozen_string_literal: true
+
+source "https://rubygems.org"
+
+gem "rake"
+gem "rake-compiler"
+gem "minitest"
+gem "mocha"
+gem "timecop"
+gem "toxiproxy"
+gem "webrick"
+
+gem "mysql2", "~> 0.5"
+gem "activerecord", ">= 7.0.3"
+
+gemspec path: "../"

@@ -1,0 +1,51 @@
+PATH
+  remote: ..
+  specs:
+    semian (0.13.3)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    activemodel (7.0.3.1)
+      activesupport (= 7.0.3.1)
+    activerecord (7.0.3.1)
+      activemodel (= 7.0.3.1)
+      activesupport (= 7.0.3.1)
+    activesupport (7.0.3.1)
+      concurrent-ruby (~> 1.0, >= 1.0.2)
+      i18n (>= 1.6, < 2)
+      minitest (>= 5.1)
+      tzinfo (~> 2.0)
+    concurrent-ruby (1.1.10)
+    i18n (1.12.0)
+      concurrent-ruby (~> 1.0)
+    minitest (5.16.3)
+    mocha (1.14.0)
+    mysql2 (0.5.4)
+    rake (13.0.6)
+    rake-compiler (1.2.0)
+      rake
+    timecop (0.9.5)
+    toxiproxy (2.0.2)
+    tzinfo (2.0.5)
+      concurrent-ruby (~> 1.0)
+    webrick (1.7.0)
+
+PLATFORMS
+  aarch64-linux
+  arm64-darwin-21
+
+DEPENDENCIES
+  activerecord (>= 7.0.3)
+  minitest
+  mocha
+  mysql2 (~> 0.5)
+  rake
+  rake-compiler
+  semian!
+  timecop
+  toxiproxy
+  webrick
+
+BUNDLED WITH
+   2.3.21

@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "mysql2"
+require "semian/mysql2"
 
 class TestMysql2 < Minitest::Test
   ERROR_TIMEOUT = 5
@@ -225,7 +227,7 @@ class TestMysql2 < Minitest::Test
   end
 
   def test_query_whitelisted_returns_false_for_binary_sql
-    binary_query = File.read(File.expand_path("../fixtures/binary.sql", __FILE__))
+    binary_query = File.read(File.expand_path("../../fixtures/binary.sql", __FILE__))
     client = connect_to_mysql!
     refute(client.send(:query_whitelisted?, binary_query))
   end

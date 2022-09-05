@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "semian/adapter"
+
 module Semian
   module AdapterTest
     include Semian::Adapter
