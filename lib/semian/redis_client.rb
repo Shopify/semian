@@ -5,6 +5,14 @@ require "redis-client"
 
 class RedisClient
   ConnectionError.include(::Semian::AdapterError)
+  ConnectionError.class_eval do
+    # A Connection Reset is a fast failure and we don't want to track these errors in semian
+    def marks_semian_circuits?
+      !message.include?("Connection reset by peer")
+    end
+  end
+
+  OutOfMemoryError.include(::Semian::AdapterError)
 
   class SemianError < ConnectionError
     def initialize(semian_identifier, *args)
@@ -72,7 +80,7 @@ module Semian
   end
 
   module RedisClient
-    EXCEPTIONS = [::RedisClient::ConnectionError]
+    EXCEPTIONS = [::RedisClient::ConnectionError, ::RedisClient::OutOfMemoryError]
 
     include Semian::Adapter
     include RedisClientCommon
@@ -110,4 +118,4 @@ module Semian
 end
 
 RedisClient.prepend(Semian::RedisClient)
-RedisClient::Pooled.prepend(Semian::RedisClient)
+RedisClient::Pooled.prepend(Semian::RedisClientPool)

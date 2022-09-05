@@ -1,3 +1,19 @@
+GIT
+  remote: https://github.com/redis-rb/redis-client.git
+  revision: 5dc39f533f96fb94ebd6ef6cf7776b43f6243791
+  specs:
+    hiredis-client (0.7.3)
+      redis-client (= 0.7.3)
+    redis-client (0.7.3)
+      connection_pool
+
+GIT
+  remote: https://github.com/redis/redis-rb.git
+  revision: a06bed18e8beb5099b655fb792b93d66309ed39c
+  specs:
+    redis (5.0.2)
+      redis-client (~> 0.7)
+
 PATH
   remote: .
   specs:
@@ -34,8 +50,6 @@ GEM
       google-protobuf (~> 3.19)
       googleapis-common-protos-types (~> 1.0)
     hiredis (0.6.3)
-    hiredis-client (0.7.1)
-      redis-client (= 0.7.1)
     i18n (1.12.0)
       concurrent-ruby (~> 1.0)
     json (2.6.2)
@@ -57,9 +71,6 @@ GEM
     rake (13.0.6)
     rake-compiler (1.2.0)
       rake
-    redis (4.8.0)
-    redis-client (0.7.1)
-      connection_pool
     regexp_parser (2.5.0)
     rexml (3.2.5)
     rubocop (1.36.0)
@@ -97,7 +108,7 @@ DEPENDENCIES
   benchmark-memory
   grpc (= 1.46.3)
   hiredis (~> 0.6)
-  hiredis-client
+  hiredis-client!
   memory_profiler
   minitest
   mocha
@@ -105,7 +116,7 @@ DEPENDENCIES
   pry-byebug
   rake
   rake-compiler
-  redis (~> 4.8)
+  redis!
   rubocop
   rubocop-minitest
   rubocop-rake
