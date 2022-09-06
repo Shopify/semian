@@ -3,6 +3,9 @@
 name: Update Gemfiles dependencies
 
 on:
+  push:
+    branches: [ 389-appraisals ]
+
   schedule:
     - cron: '0 3 * * 1'
 
