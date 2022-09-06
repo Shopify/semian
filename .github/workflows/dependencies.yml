@@ -1,0 +1,40 @@
+---
+
+name: Update Gemfiles dependencies
+
+on:
+  schedule:
+    - cron: '0 3 * * 1'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bundler:
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Bundle update common
+        run: |
+          bundle config path vendor/bundle
+          bundle update
+      -
+        name: Bundle update adapters
+        run: |
+          for gemfile_path in gemfiles/*.gemfile
+          do
+            BUNDLE_GEMFILE="${gemfile_path}" bundle update
+          done
+      -
+        name: Create Pull Request
+        id: cpr
+        uses: peter-evans/create-pull-request@v4
+      -
+        name: Check outputs
+        if: ${{ steps.cpr.outputs.pull-request-number }}
+        run: |
+          echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}"
+          echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}"

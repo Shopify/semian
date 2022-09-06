@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/redis-rb/redis-client.git
-  revision: 5dc39f533f96fb94ebd6ef6cf7776b43f6243791
+  revision: 5aa1b105cbc80828034c425f21e9b0a9952a571f
   specs:
     hiredis-client (0.7.3)
       redis-client (= 0.7.3)
@@ -35,6 +35,7 @@ GEM
 
 PLATFORMS
   aarch64-linux
+  arm64-darwin-21
 
 DEPENDENCIES
   hiredis (~> 0.6)
