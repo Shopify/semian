@@ -1,18 +1,18 @@
 GIT
   remote: https://github.com/redis-rb/redis-client.git
-  revision: 5aa1b105cbc80828034c425f21e9b0a9952a571f
+  revision: a03107a80516f053b1909cde04a6d8f6ef5805e8
   specs:
-    hiredis-client (0.7.3)
-      redis-client (= 0.7.3)
-    redis-client (0.7.3)
+    hiredis-client (0.7.4)
+      redis-client (= 0.7.4)
+    redis-client (0.7.4)
       connection_pool
 
 GIT
   remote: https://github.com/redis/redis-rb.git
-  revision: a06bed18e8beb5099b655fb792b93d66309ed39c
+  revision: 2e9ab3834caf661a449b4b8376deb65713ee4fcf
   specs:
-    redis (5.0.2)
-      redis-client (~> 0.7)
+    redis (5.0.3)
+      redis-client (>= 0.7.4)
 
 PATH
   remote: .
@@ -93,7 +93,7 @@ GEM
       rubocop (~> 1.33)
     ruby-progressbar (1.11.0)
     timecop (0.9.5)
-    toxiproxy (2.0.1)
+    toxiproxy (2.0.2)
     tzinfo (2.0.5)
       concurrent-ruby (~> 1.0)
     unicode-display_width (2.2.0)
@@ -127,4 +127,4 @@ DEPENDENCIES
   webrick
 
 BUNDLED WITH
-   2.3.14
+   2.3.7
