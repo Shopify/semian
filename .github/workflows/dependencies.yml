@@ -15,6 +15,8 @@ permissions:
 
 jobs:
   bundler:
+    name: Update gems for all Gemfiles
+    runs-on: ubuntu-latest
     steps:
       -
         name: Checkout
