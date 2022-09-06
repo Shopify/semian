@@ -14,8 +14,8 @@ group :test do
   gem "mysql2", "~> 0.5"
   gem "pry-byebug", require: false
   gem "rake-compiler"
-  gem "hiredis-client", github: "redis-rb/redis-client"
-  gem "redis", github: "redis/redis-rb"
+  gem "hiredis-client"
+  gem "redis"
   gem "timecop"
   gem "toxiproxy"
   gem "webrick"

@@ -3,12 +3,10 @@
 require "semian/redis_client"
 
 class Redis
-  Redis::BaseConnectionError.include(::Semian::AdapterError)
-  class OutOfMemoryError < Redis::CommandError
-    include ::Semian::AdapterError
-  end
+  BaseConnectionError.include(::Semian::AdapterError)
+  OutOfMemoryError.include(::Semian::AdapterError)
 
-  class SemianError < Redis::BaseConnectionError
+  class SemianError < BaseConnectionError
     def initialize(semian_identifier, *args)
       super(*args)
       @semian_identifier = semian_identifier
