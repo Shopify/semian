@@ -17,6 +17,9 @@ jobs:
   bundler:
     name: Update gems for all Gemfiles
     runs-on: ubuntu-latest
+    container:
+      image: ruby
+
     steps:
       -
         name: Checkout
