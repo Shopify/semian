@@ -31,17 +31,4 @@ Gem::Specification.new do |s|
   s.files += ["LICENSE.md", "README.md"]
   s.extensions = ["ext/semian/extconf.rb"]
   s.require_paths = ["lib"]
-
-  s.post_install_message = <<~MSG
-
-    ==============================================================================
-
-    semians is not compatible with redis 5.x.
-    Update Gemfile to use older redis version:
-
-        gem "redis", "~> 4.8"
-
-    ==============================================================================
-
-  MSG
 end
