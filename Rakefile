@@ -50,7 +50,7 @@ namespace :test do
   Rake::TestTask.new("semian") do |t|
     t.description = "Run common library tests without adapters"
     t.libs = ["lib", "test"]
-    t.pattern = "test/**/*_test.rb"
+    t.pattern = "test/*_test.rb"
     t.warning = false
     if ENV["CI"] || ENV["VERBOSE"]
       t.options = "-v"
