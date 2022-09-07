@@ -3,6 +3,7 @@
 source "https://rubygems.org"
 
 gem "rake"
+gem "rake-compiler"
 
 group :test do
   gem "benchmark-memory"
@@ -10,7 +11,6 @@ group :test do
   gem "minitest"
   gem "mocha"
   gem "pry-byebug", require: false
-  gem "rake-compiler"
   gem "timecop"
   gem "toxiproxy"
   gem "webrick"

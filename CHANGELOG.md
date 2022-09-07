@@ -1,5 +1,9 @@
 # Unreleased
 
+# v0.14.0
+
+* Compatible with Redis 5 (#388, #392)
+
 # v0.13.3
 
 * Add a warning message about redis 5.x. (#386)
