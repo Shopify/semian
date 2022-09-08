@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix: Patch `new_client` for Rails apps so that the OpenCircuitError makes it through.
+
 # v0.14.0
 
 * Compatible with Redis 5 (#388, #392)
