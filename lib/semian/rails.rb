@@ -4,6 +4,23 @@ require "active_record/connection_adapters/abstract_adapter"
 
 module Semian
   module Rails
+    extend ActiveSupport::Concern
+
+    module ClassMethods
+      # Translate ConnectionNotEstablished errors to their original
+      # cause if applicable. When we have a CircuitOpenErorr we don't
+      # want the Active Record error, but rather the original cause.
+      def new_client(config)
+        super
+      rescue ActiveRecord::ConnectionNotEstablished => e
+        if e.cause.is_a?(Mysql2::CircuitOpenError)
+          raise e.cause
+        else
+          raise
+        end
+      end
+    end
+
     def semian_resource
       @semian_resource ||= client_connection.semian_resource
     end
