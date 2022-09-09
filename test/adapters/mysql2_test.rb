@@ -310,7 +310,7 @@ class TestMysql2 < Minitest::Test
     client.close
 
     (ERROR_THRESHOLD * 2).times do
-      refute(client.ping)
+      assert_equal(false, client.ping)
     end
   end
 
@@ -328,7 +328,7 @@ class TestMysql2 < Minitest::Test
         client.ping
       end
 
-      refute(client.ping)
+      assert_equal(false, client.ping)
     end
 
     assert_equal(ERROR_THRESHOLD, client.instance_variable_get(:@real_pings))
