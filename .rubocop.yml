@@ -19,3 +19,6 @@ Naming/InclusiveLanguage:
 Style/GlobalVars:
   Exclude:
     - ext/semian/extconf.rb
+
+Minitest/RefuteFalse:
+  Enabled: false
