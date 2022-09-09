@@ -531,7 +531,7 @@ provides an easy way to get the semaphore key:
 
 ```
 irb> require 'semian'
-irb> puts Semian::Resource.new(:your_resource_name, tickets:1).key # do this from a dev machine
+irb> puts Semian::Resource.new(:your_resource_name, tickets: 42).key # do this from a dev machine
 "0x48af51ea"
 ```
 
@@ -553,8 +553,8 @@ otime = Thu Mar 30 15:06:16 2017
 ctime = Mon Mar 13 20:25:36 2017
 semnum     value      ncount     zcount     pid
 0          1          0          0          48
-1          25         0          0          48
-2          25         0          0          27
+1          42         0          0          48
+2          42         0          0          27
 3          31         0          0          48
 ```
 
