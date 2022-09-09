@@ -70,6 +70,8 @@ module Semian
     end
 
     def ping
+      return false if closed?
+
       result = nil
       acquire_semian_resource(adapter: :mysql, scope: :ping) do
         result = raw_ping

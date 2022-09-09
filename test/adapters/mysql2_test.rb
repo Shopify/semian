@@ -305,6 +305,15 @@ class TestMysql2 < Minitest::Test
     assert_equal(2, client.query("SELECT 1 + 1 as sum;").to_a.first["sum"])
   end
 
+  def test_ping_on_closed_connection_dont_break_the_circuit
+    client = connect_to_mysql!
+    client.close
+
+    (ERROR_THRESHOLD * 2).times do
+      refute(client.ping)
+    end
+  end
+
   def test_pings_are_circuit_broken
     client = connect_to_mysql!
 
