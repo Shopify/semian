@@ -18,8 +18,7 @@ $ git pull origin master
 
 Update version in [`lib/semian/version.rb`](./lib/semian/version.rb).
 Check if there is required changes in [`README.md`](./README.md).
-Add line after `## [Unreleased]` in [`CHANGELOG.md`][./CHANGELOG.md] with new version
-and update links to commits compare in the bottom of the document.
+Add line after `## [Unreleased]` in [`CHANGELOG.md`][./CHANGELOG.md] with new version.
 
 ### Run Tests
 

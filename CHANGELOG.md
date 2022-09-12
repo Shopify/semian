@@ -1,5 +1,7 @@
 # Unreleased
 
+# v0.15.0
+
 * Pinging a closed connection shouldn't be considered a failure. (#396)
 * Fix: Patch `new_client` for Rails apps so that the OpenCircuitError makes it through. (#395)
 
