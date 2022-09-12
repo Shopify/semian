@@ -1,23 +1,23 @@
 GIT
   remote: https://github.com/redis-rb/redis-client.git
-  revision: a03107a80516f053b1909cde04a6d8f6ef5805e8
+  revision: d32b4b4fbe743254945c61e92b2363514d207a7c
   specs:
-    hiredis-client (0.7.4)
-      redis-client (= 0.7.4)
-    redis-client (0.7.4)
+    hiredis-client (0.8.0)
+      redis-client (= 0.8.0)
+    redis-client (0.8.0)
       connection_pool
 
 GIT
   remote: https://github.com/redis/redis-rb.git
-  revision: 2e9ab3834caf661a449b4b8376deb65713ee4fcf
+  revision: 07cccee67d3b8ddc3c63222a52e0e58f695cdaa2
   specs:
-    redis (5.0.3)
+    redis (5.0.4)
       redis-client (>= 0.7.4)
 
 PATH
   remote: ..
   specs:
-    semian (0.13.3)
+    semian (0.14.0)
 
 GEM
   remote: https://rubygems.org/
@@ -36,6 +36,7 @@ GEM
 PLATFORMS
   aarch64-linux
   arm64-darwin-21
+  x86_64-linux
 
 DEPENDENCIES
   hiredis (~> 0.6)
@@ -51,4 +52,4 @@ DEPENDENCIES
   webrick
 
 BUNDLED WITH
-   2.3.21
+   2.3.22
