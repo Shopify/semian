@@ -33,6 +33,7 @@ jobs:
         run: |
           gem install bundler
           bundle config path vendor/bundle
+          bundle exec rake build
           bundle update
       -
         name: Bundle update adapters

@@ -1,15 +1,19 @@
 PATH
   remote: ..
   specs:
-    semian (0.13.3)
+    semian (0.15.0)
 
 GEM
   remote: https://rubygems.org/
   specs:
     google-protobuf (3.21.5)
+    google-protobuf (3.21.5-x86_64-darwin)
     googleapis-common-protos-types (1.4.0)
       google-protobuf (~> 3.14)
     grpc (1.46.3)
+      google-protobuf (~> 3.19)
+      googleapis-common-protos-types (~> 1.0)
+    grpc (1.46.3-x86_64-darwin)
       google-protobuf (~> 3.19)
       googleapis-common-protos-types (~> 1.0)
     minitest (5.16.3)
@@ -24,6 +28,7 @@ GEM
 PLATFORMS
   aarch64-linux
   arm64-darwin-21
+  x86_64-darwin-20
 
 DEPENDENCIES
   grpc (= 1.46.3)
@@ -37,4 +42,4 @@ DEPENDENCIES
   webrick
 
 BUNDLED WITH
-   2.3.21
+   2.3.22
