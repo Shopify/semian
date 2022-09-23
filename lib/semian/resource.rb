@@ -63,5 +63,9 @@ module Semian
     def in_use?
       false
     end
+
+    def to_s
+      "#<#{self.class} name: #{@name}>"
+    end
   end
 end

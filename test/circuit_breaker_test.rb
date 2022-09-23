@@ -13,9 +13,34 @@ class TestCircuitBreaker < Minitest::Test
     rescue
       nil
     end
-    Semian.register(:testing, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5,
+    Semian.register(:testing,
+      tickets: 1,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
       success_threshold: 1)
     @resource = Semian[:testing]
+  end
+
+  def test_to_s
+    expected = "#<Semian::CircuitBreaker name: testing, half_open_resource_timeout: , " \
+      "error_timeout: 5, closed?: true, open?: false, half_open?: false, " \
+      "implementation: ThreadSafe, last_error: >"
+    assert_equal(expected, @resource.circuit_breaker.to_s)
+  end
+
+  def test_to_s_with_disabled_thread_safe
+    subject = Semian.register(:foo,
+      tickets: 1,
+      exceptions: [SomeError],
+      thread_safety_disabled: true,
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1)
+    expected = "#<Semian::CircuitBreaker name: foo, half_open_resource_timeout: , " \
+      "error_timeout: 5, closed?: true, open?: false, half_open?: false, " \
+      "implementation: Simple, last_error: >"
+    assert_equal(expected, subject.circuit_breaker.to_s)
   end
 
   def test_acquire_yield_when_the_circuit_is_closed

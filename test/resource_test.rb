@@ -20,6 +20,11 @@ class TestResource < Minitest::Test
     Process.waitall
   end
 
+  def test_to_s
+    subject = Semian::Resource.new(:testing, tickets: 1)
+    assert_equal("#<Semian::Resource name: testing>", subject.to_s)
+  end
+
   def test_initialize_invalid_args
     assert_raises(TypeError) do
       create_resource(123, tickets: 2)

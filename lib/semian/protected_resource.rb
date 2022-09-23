@@ -36,6 +36,11 @@ module Semian
       circuit_breaker&.in_use? || bulkhead&.in_use?
     end
 
+    def to_s
+      bulkhead_str = @bulkhead.nil? ? "" : ", bulkhead: #{@bulkhead}"
+      "\#<#{self.class} name: #{@name}, circuit_breaker: #{@circuit_breaker}#{bulkhead_str}>"
+    end
+
     private
 
     def acquire_circuit_breaker(scope, adapter, resource)

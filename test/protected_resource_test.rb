@@ -154,4 +154,37 @@ class TestProtectedResource < Minitest::Test
       Process.kill("INT", pid)
     end
   end
+
+  def test_to_s
+    subject = Semian.register(
+      :expected_inspect_test_name,
+      error_threshold: 1,
+      error_timeout: 1,
+      success_threshold: 1,
+      bulkhead: true,
+      tickets: 1,
+    )
+
+    expected =
+      "#<Semian::ProtectedResource name: expected_inspect_test_name, " \
+        "circuit_breaker: .*, bulkhead: .*>"
+    assert_match(
+      Regexp.new(expected),
+      subject.to_s,
+    )
+  end
+
+  def test_to_s_without_bulkhead
+    subject = Semian.register(
+      :expected_inspect_test_name,
+      error_threshold: 1,
+      error_timeout: 1,
+      success_threshold: 1,
+      bulkhead: false,
+    )
+    assert_match(
+      /#<Semian::ProtectedResource name: expected_inspect_test_name, circuit_breaker: .*>/,
+      subject.to_s,
+    )
+  end
 end

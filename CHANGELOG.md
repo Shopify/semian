@@ -1,5 +1,8 @@
 # Unreleased
 
+* Provide more informaion for string represintation of `Semian:ProtectedResource`,
+  `Semian:Resource`, and `Semian:CircuitBreaker` instances. (#411)
+
 # v0.15.0
 
 * Pinging a closed connection shouldn't be considered a failure. (#396)

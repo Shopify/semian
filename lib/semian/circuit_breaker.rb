@@ -89,6 +89,17 @@ module Semian
       !error_timeout_expired? && !@errors.empty?
     end
 
+    def to_s
+      "\#<#{self.class} name: #{@name}, " \
+        "half_open_resource_timeout: #{@half_open_resource_timeout}, " \
+        "error_timeout: #{@error_timeout}, " \
+        "closed?: #{@state.closed?}, " \
+        "open?: #{@state.open?}, " \
+        "half_open?: #{@state.half_open?}, " \
+        "implementation: #{@state.class.to_s.split("::")[-2]}, " \
+        "last_error: #{@last_error}>"
+    end
+
     private
 
     def transition_to_close
