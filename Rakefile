@@ -95,10 +95,36 @@ end
 # ==========================================================
 # Documentation
 # ==========================================================
+
 require "rdoc/task"
 RDoc::Task.new do |rdoc|
   rdoc.rdoc_files.include("lib/*.rb", "ext/semian/*.c")
 end
+
+# ==========================================================
+# Examples
+# ==========================================================
+
+namespace :examples do
+  desc "Run examples for net_http"
+  task :net_http do
+    Dir["examples/net_http/*.rb"].entries.each do |f|
+      ruby f do |ok, status|
+        if !ok && status.respond_to?(:signaled?) && status.signaled?
+          raise SignalException, status.termsig
+        elsif !ok
+          status  = "Command failed with status (#{status.exitstatus})"
+          details = ": [ruby #{f}]"
+          message = status + details
+          raise message
+        end
+      end
+    end
+  end
+end
+
+desc "Run examples"
+task examples: ["examples:net_http"]
 
 task default: :build
 task default: :test # rubocop:disable Rake/DuplicateTask

@@ -13,6 +13,20 @@ AllCops:
   TargetRubyVersion: 2.7
   NewCops: enable
 
+Layout/LineLength:
+  Exclude:
+    - examples/**/*.rb
+
+Lint/SuppressedException:
+  Exclude:
+    - test/helpers/circuit_breaker_helper.rb
+    - test/adapters/net_http_test.rb
+    - test/protected_resource_test.rb
+    - examples/**/*.rb
+
+Minitest/RefuteFalse:
+  Enabled: false
+
 Naming/InclusiveLanguage:
   Enabled: false
 
@@ -20,5 +34,5 @@ Style/GlobalVars:
   Exclude:
     - ext/semian/extconf.rb
 
-Minitest/RefuteFalse:
+Style/SingleLineMethods:
   Enabled: false

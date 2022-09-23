@@ -80,6 +80,11 @@ jobs:
           bundle exec rake test:semian ||
           (echo "===== Retry Attempt: 2 ====" && bundle exec rake test:semian) || \
           (echo "===== Retry Attempt: 3 ====" && bundle exec rake test:semian)
+      -
+        name: Examples
+        run: |
+          bundle exec rake examples
+
   adapters:
     name: Ruby ${{ matrix.ruby }} / ${{ matrix.gemfile }}
     runs-on: ubuntu-latest
