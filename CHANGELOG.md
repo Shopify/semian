@@ -1,5 +1,7 @@
 # Unreleased
 
+* Typo in error message for missing option `:tickets`. (#412)
+
 # v0.15.0
 
 * Pinging a closed connection shouldn't be considered a failure. (#396)

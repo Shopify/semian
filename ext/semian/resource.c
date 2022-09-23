@@ -273,10 +273,10 @@ static void
 check_tickets_xor_quota_arg(VALUE tickets, VALUE quota)
 {
   if (tickets == Qnil && quota == Qnil) {
-    rb_raise(rb_eArgError, "Semian configuration require either the :ticket or :quota parameter, you provided neither");
+    rb_raise(rb_eArgError, "Semian configuration require either the :tickets or :quota parameter, you provided neither");
   }
   if (tickets != Qnil && quota != Qnil) {
-    rb_raise(rb_eArgError, "Semian configuration require either the :ticket or :quota parameter, you provided both");
+    rb_raise(rb_eArgError, "Semian configuration require either the :tickets or :quota parameter, you provided both");
   }
 }
 

@@ -65,7 +65,7 @@ class TestSemian < Minitest::Test
         circuit_breaker: false,
       )
     end
-    assert_equal("Semian configuration require either the :ticket or :quota parameter, you provided neither",
+    assert_equal("Semian configuration require either the :tickets or :quota parameter, you provided neither",
       exception.message)
   end
 
@@ -78,7 +78,7 @@ class TestSemian < Minitest::Test
         circuit_breaker: false,
       )
     end
-    assert_equal("Semian configuration require either the :ticket or :quota parameter, you provided both",
+    assert_equal("Semian configuration require either the :tickets or :quota parameter, you provided both",
       exception.message)
   end
 
