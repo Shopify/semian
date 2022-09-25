@@ -53,14 +53,14 @@ $ git push origin master --follow-tags
 
 - Create a new gem
     ```shell
-    $ bundle exec rake build
+    $ bundle exec rake build build:checksum
     ```
 - Create github release. Choose either `hub` or `gh`.
   * Github CLi [gh_release_create](https://cli.github.com/manual/gh_release_create) :
     ```
-    $ gh release create v<version> pkg/semian-<version>.gem
+    $ gh release create v<version> pkg/semian-<version>.gem checksum/semian-<version>.gem.sha512
     ```
   * Hub:
     ```
-    $ hub release create -a pkg/semian-<version>.gem v<version>
+    $ hub release create -a pkg/semian-<version>.gem -a checksum/semian-<version>.gem.sha512 v<version>
     ```
