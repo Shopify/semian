@@ -32,7 +32,7 @@ class TestMysql2 < Minitest::Test
     resource = Mysql2::Client.new(
       host: SemianConfig["toxiproxy_upstream_host"],
       port: SemianConfig["mysql_toxiproxy_port"],
-      semian: false
+      semian: false,
     ).semian_resource
 
     assert_instance_of(Semian::UnprotectedResource, resource)
