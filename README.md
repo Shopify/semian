@@ -211,7 +211,7 @@ calculate and adjust ticket counts.
 
 **Note**:
 
-- You must pass **exactly** one of ticket or quota.
+- You must pass **exactly** one of options: `tickets` or `quota`.
 - Tickets available will be the ceiling of the quota ratio to the number of workers
  - So, with one worker, there will always be a minimum of 1 ticket
 - Workers in different processes will automatically unregister when the process exits.
@@ -236,7 +236,7 @@ SEMIAN_PARAMETERS = { tickets: 1,
                       error_timeout: 10 }
 Semian::NetHTTP.semian_configuration = proc do |host, port|
   # Let's make it only active for github.com
-  if host == "github.com" && port == "80"
+  if host == "github.com" && port.to_i == 80
     SEMIAN_PARAMETERS.merge(name: "github.com_80")
   else
     nil
@@ -282,18 +282,21 @@ Semian::NetHTTP.exceptions += [::OpenSSL::SSL::SSLError]
 Semian::NetHTTP.reset_exceptions
 # assert_equal(Semian::NetHTTP.exceptions, Semian::NetHTTP::DEFAULT_ERRORS)
 ```
+
 ##### Mark Unsuccessful Responses as Failures
-Unsuccessful responses (e.g. 5xx responses) do not raise exceptions, and as such are not marked as failures by default. The `open_circuit_server_errors` Semian configuration parameter may be set to enable this behaviour, to mark unsuccessful responses as failures as seen below:
+
+Unsuccessful responses (e.g. 5xx responses) do not raise exceptions,
+and as such are not marked as failures by default.
+The `open_circuit_server_errors` Semian configuration parameter may be set to enable this behaviour,
+to mark unsuccessful responses as failures as seen below:
 
 ```ruby
 SEMIAN_PARAMETERS = { tickets: 1,
                       success_threshold: 1,
                       error_threshold: 3,
                       error_timeout: 10,
-                      open_circuit_server_errors: true}
+                      open_circuit_server_errors: true }
 ```
-
-
 
 # Understanding Semian
 
@@ -415,7 +418,7 @@ response time. This is the problem Semian solves by failing fast.
 
 ## How does Semian work?
 
-Semian consists of two parts: circuit breaker and bulkheading. To understand
+Semian consists of two parts: **Circuit breaker** and **Bulkheading**. To understand
 Semian, and especially how to configure it, we must understand these patterns
 and their implementation.
 
@@ -754,9 +757,10 @@ non-IO.
 
 # Developing Semian
 
-Semian requires a Linux environment.  We provide a [docker-compose](https://docs.docker.com/compose/) file
-that runs MySQL, Redis, Toxiproxy and Ruby in containers.  Use
-the steps below to work on Semian from a Mac OS environment.
+Semian requires a Linux environment for **Bulkheading**.
+We provide a [docker-compose](https://docs.docker.com/compose/) file
+that runs MySQL, Redis, Toxiproxy and Ruby in containers.
+Use the steps below to work on Semian from a Mac OS environment.
 
 ## Prerequisites :
 ```bash
@@ -817,6 +821,17 @@ $ cd semian
 
 ```shell
 $ bundle exec rake test:parallel TEST_WORKERS=5 TEST_WORKER_NUM=1
+```
+
+### Debug
+
+Build a semian native extension with debug information.
+
+```shell
+$ bundle exec rake clean --trace
+$ export DEBUG=1
+$ bundle exec rake build
+$ bundle install
 ```
 
 [hystrix]: https://github.com/Netflix/Hystrix

@@ -4,6 +4,8 @@ version: "3.7"
 services:
   semian: &base
     container_name: semian
+    environment:
+      DEBUG: "1"
     build:
       dockerfile: .devcontainer/Dockerfile
       context: ..
