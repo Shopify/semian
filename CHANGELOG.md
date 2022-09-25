@@ -1,6 +1,7 @@
 # Unreleased
 
 * Typo in error message for missing option `:tickets`. (#412)
+* Add process id in DEBUG message for bulkheading/resource. (#416)
 
 # v0.15.0
 

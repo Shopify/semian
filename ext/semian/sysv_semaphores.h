@@ -10,6 +10,9 @@ and functions associated directly weth semops.
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef DEBUG
+#include <unistd.h>
+#endif
 
 #include <openssl/sha.h>
 #include <ruby.h>
@@ -110,7 +113,8 @@ acquire_semaphore_without_gvl(void *p);
 static inline void
 print_sem_vals(int sem_id)
 {
-  printf("lock %d, tickets: %d configured: %d, registered workers %d\n",
+  printf("[pid=%d][semian] semaphore values lock: %d, tickets: %d configured: %d, registered workers: %d\n",
+   getpid(),
    get_sem_val(sem_id, SI_SEM_LOCK),
    get_sem_val(sem_id, SI_SEM_TICKETS),
    get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS),
