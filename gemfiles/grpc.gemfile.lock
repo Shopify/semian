@@ -21,7 +21,7 @@ GEM
       google-protobuf (~> 3.19)
       googleapis-common-protos-types (~> 1.0)
     minitest (5.16.3)
-    mocha (1.14.0)
+    mocha (1.15.0)
     rake (13.0.6)
     rake-compiler (1.2.0)
       rake

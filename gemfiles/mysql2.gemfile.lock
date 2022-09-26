@@ -7,7 +7,7 @@ GEM
   remote: https://rubygems.org/
   specs:
     minitest (5.16.3)
-    mocha (1.14.0)
+    mocha (1.15.0)
     mysql2 (0.5.4)
     rake (13.0.6)
     rake-compiler (1.2.0)
