@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "forwardable"
@@ -192,9 +193,9 @@ module Semian
   end
 
   # Retrieves a resource by name.
-  def [](name)
-    resources[name]
-  end
+    def [](name)
+      resources[name]
+    end
 
   def destroy(name)
     resource = resources.delete(name)
