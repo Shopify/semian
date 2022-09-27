@@ -13,8 +13,14 @@ class TestCircuitBreaker < Minitest::Test
     rescue
       nil
     end
-    Semian.register(:testing, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5,
-      success_threshold: 1)
+    Semian.register(
+      :testing,
+      tickets: 1,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+    )
     @resource = Semian[:testing]
   end
 
@@ -63,6 +69,26 @@ class TestCircuitBreaker < Minitest::Test
     assert_circuit_opened
   end
 
+  def test_once_success_threshold_is_reached_only_error_threshold_will_open_the_circuit_again_without_timeout
+    resource = Semian.register(
+      :three,
+      tickets: 1,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+      use_timeout: false,
+    )
+    half_open_cicuit!(resource)
+    assert_circuit_closed(resource)
+    trigger_error!(resource)
+    assert_circuit_closed(resource)
+    trigger_error!(resource)
+    assert_circuit_opened(resource)
+  ensure
+    Semian.destroy(:three)
+  end
+
   def test_reset_allow_to_close_the_circuit_and_forget_errors
     open_circuit!
     @resource.reset
@@ -78,6 +104,26 @@ class TestCircuitBreaker < Minitest::Test
 
     trigger_error!
     assert_circuit_closed
+  end
+
+  def test_sparse_errors_open_circuit_when_without_timeout
+    resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5,
+      success_threshold: 1, use_timeout: false)
+
+    Timecop.travel(-6) do
+      trigger_error!(resource)
+      assert_circuit_closed(resource)
+    end
+
+    Timecop.travel(-1) do
+      trigger_error!(resource)
+      assert_circuit_closed(resource)
+    end
+
+    trigger_error!(resource)
+    assert_circuit_opened(resource)
+  ensure
+    Semian.destroy(:three)
   end
 
   def test_sparse_errors_dont_open_circuit
@@ -141,9 +187,58 @@ class TestCircuitBreaker < Minitest::Test
     end
   end
 
+  def test_open_close_open_cycle_when_without_timeout
+    resource = Semian.register(:open_close, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5,
+      success_threshold: 2, use_timeout: false)
+
+    open_circuit!(resource)
+    assert_circuit_opened(resource)
+
+    Timecop.travel(resource.circuit_breaker.error_timeout + 1) do
+      assert_circuit_closed(resource)
+
+      assert_predicate(resource, :half_open?)
+      assert_circuit_closed(resource)
+
+      assert_predicate(resource, :closed?)
+
+      open_circuit!(resource)
+      assert_circuit_opened(resource)
+
+      Timecop.travel(resource.circuit_breaker.error_timeout + 1) do
+        assert_circuit_closed(resource)
+
+        assert_predicate(resource, :half_open?)
+        assert_circuit_closed(resource)
+
+        assert_predicate(resource, :closed?)
+      end
+    end
+  end
+
   def test_error_error_threshold_timeout_overrides_error_timeout_when_set_for_opening_circuits
     resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5,
       success_threshold: 1, error_threshold_timeout: 10)
+
+    Timecop.travel(-6) do
+      trigger_error!(resource)
+      assert_circuit_closed(resource)
+    end
+
+    Timecop.travel(-1) do
+      trigger_error!(resource)
+      assert_circuit_closed(resource)
+    end
+
+    trigger_error!(resource)
+    assert_circuit_opened(resource)
+  ensure
+    Semian.destroy(:three)
+  end
+
+  def test_circuit_still_opens_when_passed_error_threshold_timeout_when_also_not_using_timeout
+    resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5,
+      success_threshold: 1, error_threshold_timeout: 10, use_timeout: false)
 
     Timecop.travel(-6) do
       trigger_error!(resource)
@@ -177,6 +272,46 @@ class TestCircuitBreaker < Minitest::Test
 
     trigger_error!(resource)
     assert_circuit_closed(resource)
+  ensure
+    Semian.destroy(:three)
+  end
+
+  def test_error_uses_defaults_when_using_timeout
+    resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5,
+      success_threshold: 1, use_timeoout: true)
+
+    Timecop.travel(-6) do
+      trigger_error!(resource)
+      assert_circuit_closed(resource)
+    end
+
+    Timecop.travel(-1) do
+      trigger_error!(resource)
+      assert_circuit_closed(resource)
+    end
+
+    trigger_error!(resource)
+    assert_circuit_closed(resource)
+  ensure
+    Semian.destroy(:three)
+  end
+
+  def test_error_threshold_timeout_is_skipped_when_not_using_error_threshold_and_not_using_timeout
+    resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5,
+      success_threshold: 1, use_timeout: false)
+
+    Timecop.travel(-6) do
+      trigger_error!(resource)
+      assert_circuit_closed(resource)
+    end
+
+    Timecop.travel(-1) do
+      trigger_error!(resource)
+      assert_circuit_closed(resource)
+    end
+
+    trigger_error!(resource)
+    assert_circuit_opened(resource)
   ensure
     Semian.destroy(:three)
   end
