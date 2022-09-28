@@ -72,7 +72,7 @@ class TestCircuitBreaker < Minitest::Test
   def test_once_success_threshold_is_reached_only_error_threshold_will_open_the_circuit_again_without_timeout
     resource = Semian.register(
       :three,
-      tickets: 1,
+      bulkhead: false,
       exceptions: [SomeError],
       error_threshold: 2,
       error_timeout: 5,
