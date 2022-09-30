@@ -77,7 +77,7 @@ class TestCircuitBreaker < Minitest::Test
       error_threshold: 2,
       error_timeout: 5,
       success_threshold: 1,
-      use_timeout: false,
+      error_threshold_timeout_enabled: false,
     )
     half_open_cicuit!(resource)
     assert_circuit_closed(resource)
@@ -108,7 +108,7 @@ class TestCircuitBreaker < Minitest::Test
 
   def test_sparse_errors_open_circuit_when_without_timeout
     resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5,
-      success_threshold: 1, use_timeout: false)
+      success_threshold: 1, error_threshold_timeout_enabled: false)
 
     Timecop.travel(-6) do
       trigger_error!(resource)
@@ -189,7 +189,7 @@ class TestCircuitBreaker < Minitest::Test
 
   def test_open_close_open_cycle_when_without_timeout
     resource = Semian.register(:open_close, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5,
-      success_threshold: 2, use_timeout: false)
+      success_threshold: 2, error_threshold_timeout_enabled: false)
 
     open_circuit!(resource)
     assert_circuit_opened(resource)
@@ -238,7 +238,7 @@ class TestCircuitBreaker < Minitest::Test
 
   def test_circuit_still_opens_when_passed_error_threshold_timeout_when_also_not_using_timeout
     resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5,
-      success_threshold: 1, error_threshold_timeout: 10, use_timeout: false)
+      success_threshold: 1, error_threshold_timeout: 10, error_threshold_timeout_enabled: false)
 
     Timecop.travel(-6) do
       trigger_error!(resource)
@@ -298,7 +298,7 @@ class TestCircuitBreaker < Minitest::Test
 
   def test_error_threshold_timeout_is_skipped_when_not_using_error_threshold_and_not_using_timeout
     resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5,
-      success_threshold: 1, use_timeout: false)
+      success_threshold: 1, error_threshold_timeout_enabled: false)
 
     Timecop.travel(-6) do
       trigger_error!(resource)

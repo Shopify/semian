@@ -276,7 +276,11 @@ module Semian
       error_threshold: options[:error_threshold],
       error_threshold_timeout: options[:error_threshold_timeout],
       error_timeout: options[:error_timeout],
-      use_timeout: options[:use_timeout].nil? ? true : options[:use_timeout],
+      error_threshold_timeout_enabled: if options[:error_threshold_timeout_enabled].nil?
+                                         true
+                                       else
+                                         options[:error_threshold_timeout_enabled]
+                                       end,
       exceptions: Array(exceptions) + [::Semian::BaseError],
       half_open_resource_timeout: options[:half_open_resource_timeout],
       implementation: implementation(**options),

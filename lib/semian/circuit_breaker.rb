@@ -12,18 +12,18 @@ module Semian
       :error_timeout,
       :state,
       :last_error,
-      :use_timeout,
+      :error_threshold_timeout_enabled,
     )
 
     def initialize(name, exceptions:, success_threshold:, error_threshold:,
       error_timeout:, implementation:, half_open_resource_timeout: nil,
-      error_threshold_timeout: nil, use_timeout: true)
+      error_threshold_timeout: nil, error_threshold_timeout_enabled: true)
 
       @name = name.to_sym
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
       @error_threshold_timeout = error_threshold_timeout || error_timeout
-      @use_timeout = use_timeout.nil? ? true : use_timeout
+      @error_threshold_timeout_enabled = error_threshold_timeout_enabled.nil? ? true : error_threshold_timeout_enabled
       @error_timeout = error_timeout
       @exceptions = exceptions
       @half_open_resource_timeout = half_open_resource_timeout
@@ -139,7 +139,7 @@ module Semian
     end
 
     def push_time(window, time: Time.now)
-      if use_timeout
+      if error_threshold_timeout_enabled
         window.reject! { |err_time| err_time + @error_threshold_timeout < time.to_i }
       end
 
