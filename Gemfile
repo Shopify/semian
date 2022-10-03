@@ -17,6 +17,7 @@ group :test do
 
   gem "grpc", "1.46.3"
   gem "mysql2", "~> 0.5"
+  gem "trilogy"
   gem "activerecord", ">= 7.0.3"
   gem "hiredis", "~> 0.6"
   gem "hiredis-client"

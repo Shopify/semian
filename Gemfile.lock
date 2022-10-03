@@ -84,6 +84,7 @@ GEM
     ruby-progressbar (1.11.0)
     timecop (0.9.5)
     toxiproxy (2.0.2)
+    trilogy (2.1.1)
     tzinfo (2.0.5)
       concurrent-ruby (~> 1.0)
     unicode-display_width (2.3.0)
@@ -114,6 +115,7 @@ DEPENDENCIES
   semian!
   timecop
   toxiproxy
+  trilogy
   webrick
 
 BUNDLED WITH
