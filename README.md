@@ -456,6 +456,8 @@ There are four configuration parameters for circuit breakers in Semian:
 * **error_threshold_timeout**. The amount of time in seconds that error_threshold errors must occur to open the circuit. Defaults to error_timeout seconds if not set.
 * **error_timeout**. The amount of time in seconds until trying to query the resource
   again.
+* **error_threshold_timeout_enabled**. If set to false it will disable the time window for evicting old exceptions. `error_timeout` is still used and will reset
+  the circuit. Defaults to `true` if not set.
 * **success_threshold**. The amount of successes on the circuit until closing it
   again, that is to start accepting all requests to the circuit.
 * **half_open_resource_timeout**. Timeout for the resource in seconds when the circuit is half-open (supported for MySQL, Net::HTTP and Redis).
@@ -763,6 +765,7 @@ that runs MySQL, Redis, Toxiproxy and Ruby in containers.
 Use the steps below to work on Semian from a Mac OS environment.
 
 ## Prerequisites :
+
 ```bash
 # install docker-for-desktop
 $ brew cask install docker
