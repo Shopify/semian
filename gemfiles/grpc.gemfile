@@ -10,6 +10,7 @@ gem "timecop"
 gem "toxiproxy"
 gem "webrick"
 
-gem "grpc", "1.46.3"
+# gem "grpc", "1.46.3"
+gem "grpc", "1.49.1"
 
 gemspec path: "../"
