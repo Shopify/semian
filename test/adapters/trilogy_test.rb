@@ -8,7 +8,6 @@ class TestTrilogy < Minitest::Test
   ERROR_TIMEOUT = 5
   ERROR_THRESHOLD = 1
   SEMIAN_OPTIONS = {
-    name: :testing,
     tickets: 1,
     timeout: 0,
     error_threshold: ERROR_THRESHOLD,
@@ -22,10 +21,24 @@ class TestTrilogy < Minitest::Test
   end
 
   def test_semian_identifier
-    assert_equal(:mysql_foo, FakeTrilogy.new(semian: { name: "foo" }).semian_identifier)
-    assert_equal(:"mysql_localhost:3306", FakeTrilogy.new.semian_identifier)
-    assert_equal(:"mysql_127.0.0.1:3306", FakeTrilogy.new(host: "127.0.0.1").semian_identifier)
-    assert_equal(:"mysql_example.com:42", FakeTrilogy.new(host: "example.com", port: 42).semian_identifier)
+    client = connect_to_mysql!
+    assert_equal(:"mysql_toxiproxy:13306", client.semian_identifier)
+
+    client = connect_to_mysql!(semian_options: { name: "foo" })
+    assert_equal(:mysql_foo, client.semian_identifier)
+
+    # I don't think there's any way to test with custom host and port options
+    #
+    # We actually connect to the MySQL server in #initialize, and this
+    # fails unless we're using the configured host / port
+    #
+    # Commenting out for now
+
+    # client = connect_to_mysql!(host: "127.0.0.1")
+    # assert_equal(:"mysql_127.0.0.1:3306", client.semian_identifier)
+
+    # client = connect_to_mysql!(host: "example.com", port: 42)
+    # assert_equal(:"mysql_example.com:42", client.semian_identifier)
   end
 
   def test_semian_can_be_disabled
@@ -378,22 +391,17 @@ class TestTrilogy < Minitest::Test
 
   private
 
-  def connect_to_mysql!(semian_options = {})
-    Trilogy.new(
+  def connect_to_mysql!(options = {})
+    semian_options = SEMIAN_OPTIONS.merge(options.delete(:semian_options) || {})
+    default_options = {
       connect_timeout: 2,
       read_timeout: 2,
       write_timeout: 2,
       reconnect: true,
       host: SemianConfig["toxiproxy_upstream_host"],
       port: SemianConfig["mysql_toxiproxy_port"],
-      semian: SEMIAN_OPTIONS.merge(semian_options),
-    )
-  end
-
-  class FakeTrilogy < Trilogy
-    private
-
-    def connect(*)
-    end
+      semian: semian_options,
+    }
+    Trilogy.new(default_options.merge(options))
   end
 end
