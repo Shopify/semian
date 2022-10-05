@@ -58,9 +58,9 @@ $ git push origin master --follow-tags
 - Create github release. Choose either `hub` or `gh`.
   * Github CLi [gh_release_create](https://cli.github.com/manual/gh_release_create) :
     ```
-    $ gh release create v<version> pkg/semian-<version>.gem checksum/semian-<version>.gem.sha512
+    $ gh release create v$RELEASE_VERSION pkg/semian-$RELEASE_VERSION.gem checksums/semian-$RELEASE_VERSION.gem.sha512
     ```
   * Hub:
     ```
-    $ hub release create -a pkg/semian-<version>.gem -a checksum/semian-<version>.gem.sha512 v<version>
+    $ hub release create -a pkg/semian-$RELEASE_VERSION.gem -a checksums/semian-$RELEASE_VERSION.gem.sha512 v$RELEASE_VERSION
     ```
