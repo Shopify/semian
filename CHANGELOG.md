@@ -1,5 +1,7 @@
 # Unreleased
 
+# v0.16.0
+
 * Typo in error message for missing option `:tickets`. (#412)
 * Add process id in DEBUG message for bulkheading/resource. (#416)
 * Feature: Add ability to turn off window based circuit eviction (#418)
