@@ -51,10 +51,10 @@ class TestTrilogy < Minitest::Test
     assert_instance_of(Semian::UnprotectedResource, resource)
   end
 
-  def test_connection_errors_open_the_circuit
+  def test_connection_errors_opens_the_circuit
     @proxy.downstream(:latency, latency: 2200).apply do
       ERROR_THRESHOLD.times do
-        assert_raises(::Trilogy::Error) do
+        assert_raises(::Errno::ETIMEDOUT) do
           connect_to_mysql!
         end
       end
@@ -74,14 +74,11 @@ class TestTrilogy < Minitest::Test
     end
   end
 
-  def test_read_timeout_error_open_the_circuit
+  def test_read_timeout_error_opens_the_circuit
     client = connect_to_mysql!
 
     ERROR_THRESHOLD.times do
       assert_raises(::Errno::ETIMEDOUT) do
-        # Should raise an exception like -
-        # Trilogy::Error Exception: [mysql_testing] Timeout waiting for a response
-        # from the last query. (waited 2 seconds)
         client.query("SELECT sleep(5)")
       end
     end
@@ -90,15 +87,7 @@ class TestTrilogy < Minitest::Test
       client.query("SELECT sleep(5)")
     end
 
-    # After Trilogy::CircuitOpenError check regular queries are working fine.
-    query_string = "1 + 1"
-    result = nil
-    client = connect_to_mysql! # Reconnect because trilogy closed the connection
-    Timecop.travel(ERROR_TIMEOUT + 1) do
-      result = client.query("SELECT #{query_string};")
-    end
-
-    assert_equal(2, result.first[0])
+    # Trilogy closes the connection at this point
   end
 
   def test_connect_instrumentation
@@ -109,22 +98,22 @@ class TestTrilogy < Minitest::Test
       notified = true
       assert_equal(Semian[:mysql_testing], resource)
       assert_equal(:connection, scope)
-      assert_equal(:mysql, adapter)
+      assert_equal(:trilogy, adapter)
     end
 
-    connect_to_mysql!
+    connect_to_mysql!(semian_options: { name: "testing" })
 
-    assert(notified, "No notifications has been emitted")
+    assert(notified, "No notifications have been emitted")
   ensure
     Semian.unsubscribe(subscriber)
   end
 
   def test_resource_acquisition_for_connect
-    connect_to_mysql!
+    connect_to_mysql!(semian_options: { name: "testing" })
 
     Semian[:mysql_testing].acquire do
       error = assert_raises(Trilogy::ResourceBusyError) do
-        connect_to_mysql!
+        connect_to_mysql!(semian_options: { name: "testing" })
       end
       assert_equal(:mysql_testing, error.semian_identifier)
     end

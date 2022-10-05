@@ -41,7 +41,7 @@ module Semian
         :"mysql_#{name}"
       end
 
-      acquire_semian_resource(adapter: :trilogy, scope: :connect) do
+      acquire_semian_resource(adapter: :trilogy, scope: :connection) do
         super
       end
     end
