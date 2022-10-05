@@ -64,12 +64,24 @@ module Semian
       end
     end
 
+    private
+
     def resource_exceptions
       [
         ::Errno::ETIMEDOUT,
         ::Errno::ECONNREFUSED,
-        ::Trilogy::Error,
       ]
+    end
+
+    def acquire_semian_resource(**)
+      super
+    rescue ::Trilogy::Error => error
+      # Need to make sure we don't re-raise Semian errors that are raised in #super
+      if error.message.match?(/TRILOGY_CLOSED_CONNECTION/)
+        semian_resource.mark_failed(error)
+        error.semian_identifier = semian_identifier
+      end
+      raise
     end
 
     # TODO: share this with Mysql2
