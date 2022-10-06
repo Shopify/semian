@@ -8,6 +8,7 @@ class TestTrilogy < Minitest::Test
   ERROR_TIMEOUT = 5
   ERROR_THRESHOLD = 1
   SEMIAN_OPTIONS = {
+    name: "testing",
     tickets: 1,
     timeout: 0,
     error_threshold: ERROR_THRESHOLD,
@@ -22,10 +23,7 @@ class TestTrilogy < Minitest::Test
 
   def test_semian_identifier
     client = connect_to_mysql!
-    assert_equal(:"mysql_toxiproxy:13306", client.semian_identifier)
-
-    client = connect_to_mysql!(semian_options: { name: "foo" })
-    assert_equal(:mysql_foo, client.semian_identifier)
+    assert_equal(:"mysql_testing", client.semian_identifier)
 
     # I don't think there's any way to test with custom host and port options
     #
@@ -108,7 +106,7 @@ class TestTrilogy < Minitest::Test
       assert_equal(:trilogy, adapter)
     end
 
-    connect_to_mysql!(semian_options: { name: "testing" })
+    connect_to_mysql!
 
     assert(notified, "No notifications have been emitted")
   ensure
@@ -116,11 +114,11 @@ class TestTrilogy < Minitest::Test
   end
 
   def test_resource_acquisition_for_connect
-    connect_to_mysql!(semian_options: { name: "testing" })
+    connect_to_mysql!
 
     Semian[:mysql_testing].acquire do
       error = assert_raises(Trilogy::ResourceBusyError) do
-        connect_to_mysql!(semian_options: { name: "testing" })
+        connect_to_mysql!
       end
       assert_equal(:mysql_testing, error.semian_identifier)
     end
@@ -174,7 +172,7 @@ class TestTrilogy < Minitest::Test
   end
 
   def test_query_instrumentation
-    client = connect_to_mysql!(semian_options: { name: "testing" })
+    client = connect_to_mysql!
 
     notified = false
     subscriber = Semian.subscribe do |event, resource, scope, adapter|
@@ -193,7 +191,7 @@ class TestTrilogy < Minitest::Test
   end
 
   def test_resource_acquisition_for_query
-    client = connect_to_mysql!(semian_options: { name: "testing" })
+    client = connect_to_mysql!
 
     Semian[:mysql_testing].acquire do
       assert_raises(Trilogy::ResourceBusyError) do
@@ -203,7 +201,7 @@ class TestTrilogy < Minitest::Test
   end
 
   def test_semian_allows_rollback
-    client = connect_to_mysql!(semian_options: { name: "testing" })
+    client = connect_to_mysql!
 
     client.query("START TRANSACTION;")
 
@@ -213,7 +211,7 @@ class TestTrilogy < Minitest::Test
   end
 
   def test_semian_allows_rollback_with_marginalia
-    client = connect_to_mysql!(semian_options: { name: "testing" })
+    client = connect_to_mysql!
 
     client.query("START TRANSACTION;")
 
@@ -223,7 +221,7 @@ class TestTrilogy < Minitest::Test
   end
 
   def test_semian_allows_commit
-    client = connect_to_mysql!(semian_options: { name: "testing" })
+    client = connect_to_mysql!
 
     client.query("START TRANSACTION;")
 
@@ -239,7 +237,7 @@ class TestTrilogy < Minitest::Test
   end
 
   def test_semian_allows_rollback_to_safepoint
-    client = connect_to_mysql!(semian_options: { name: "testing" })
+    client = connect_to_mysql!
 
     client.query("START TRANSACTION;")
     client.query("SAVEPOINT foobar;")
@@ -252,7 +250,7 @@ class TestTrilogy < Minitest::Test
   end
 
   def test_semian_allows_release_savepoint
-    client = connect_to_mysql!(semian_options: { name: "testing" })
+    client = connect_to_mysql!
 
     client.query("START TRANSACTION;")
     client.query("SAVEPOINT foobar;")
@@ -338,7 +336,7 @@ class TestTrilogy < Minitest::Test
   end
 
   def test_changes_timeout_when_half_open_and_configured
-    client = connect_to_mysql!(semian_options: { half_open_resource_timeout: 0.5 })
+    client = connect_to_mysql!(half_open_resource_timeout: 0.5)
 
     # Timeout is 2 seconds, this causes circuit to open
     @proxy.downstream(:latency, latency: 3000).apply do
@@ -383,28 +381,29 @@ class TestTrilogy < Minitest::Test
 
   def test_circuit_open_errors_do_not_trigger_the_circuit_breaker
     @proxy.down do
-      3.times do
-        assert_raises(Trilogy::Error) do
-          connect_to_mysql!
+      assert_raises(Errno::ECONNREFUSED) do
+        connect_to_mysql!(semian_options: { name: "testing" })
+      end
+      2.times do
+        assert_raises(Trilogy::CircuitOpenError) do
+          connect_to_mysql!(semian_options: { name: "testing" })
         end
-        assert_equal(Trilogy::Error, Semian[:mysql_testing].circuit_breaker.last_error.class)
+        assert_equal(Errno::ECONNREFUSED, Semian[:mysql_testing].circuit_breaker.last_error.class)
       end
     end
   end
 
   private
 
-  def connect_to_mysql!(options = {})
-    semian_options = SEMIAN_OPTIONS.merge(options.delete(:semian_options) || {})
-    default_options = {
+  def connect_to_mysql!(semian_options = {})
+    Trilogy.new(
       connect_timeout: 2,
       read_timeout: 2,
       write_timeout: 2,
       reconnect: true,
       host: SemianConfig["toxiproxy_upstream_host"],
       port: SemianConfig["mysql_toxiproxy_port"],
-      semian: semian_options,
-    }
-    Trilogy.new(default_options.merge(options))
+      semian: SEMIAN_OPTIONS.merge(semian_options),
+    )
   end
 end
