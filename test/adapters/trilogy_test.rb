@@ -232,10 +232,10 @@ class TestTrilogy < Minitest::Test
     end
   end
 
-  def test_query_whitelisted_returns_false_for_binary_sql
+  def test_query_allowlisted_returns_false_for_binary_sql
     binary_query = File.read(File.expand_path("../../fixtures/binary.sql", __FILE__))
     client = connect_to_mysql!
-    refute(client.send(:query_whitelisted?, binary_query))
+    refute(client.send(:query_allowlisted?, binary_query))
   end
 
   def test_semian_allows_rollback_to_safepoint

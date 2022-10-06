@@ -55,7 +55,7 @@ module Semian
     end
 
     def query(sql, *)
-      if query_whitelisted?(sql)
+      if query_allowlisted?(sql)
         super
       else
         acquire_semian_resource(adapter: :trilogy, scope: :query) do
@@ -85,14 +85,14 @@ module Semian
     end
 
     # TODO: share this with Mysql2
-    QUERY_WHITELIST = Regexp.union(
+    QUERY_ALLOWLIST = Regexp.union(
       %r{\A(?:/\*.*?\*/)?\s*ROLLBACK}i,
       %r{\A(?:/\*.*?\*/)?\s*COMMIT}i,
       %r{\A(?:/\*.*?\*/)?\s*RELEASE\s+SAVEPOINT}i,
     )
 
-    def query_whitelisted?(sql, *)
-      QUERY_WHITELIST.match?(sql)
+    def query_allowlisted?(sql, *)
+      QUERY_ALLOWLIST.match?(sql)
     rescue ArgumentError
       # The above regexp match can fail if the input SQL string contains binary
       # data that is not recognized as a valid encoding, in which case we just
