@@ -64,7 +64,24 @@ module Semian
       end
     end
 
+    def with_resource_timeout(temp_timeout)
+      # yield if closed?
+      # This way, we can still acquire a new connection via Trilogy.new
+      # if the old one was closed without running into problems
+      prev_read_timeout = read_timeout
+      self.read_timeout = temp_timeout
+      yield
+    # For now, let's rescue IOError and yield anyways to mimic eventually checking if the conn is closed
+    rescue IOError => error
+      raise unless error.message.match?(/connection closed/)
+      yield
+    ensure
+      self.read_timeout = prev_read_timeout unless prev_read_timeout.nil?
+    end
+
     private
+
+    # Not sure: should we also rescue Errno::ECONNRESET, IOError?
 
     def resource_exceptions
       [
