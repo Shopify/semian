@@ -74,6 +74,7 @@ module Semian
     # For now, let's rescue IOError and yield anyways to mimic eventually checking if the conn is closed
     rescue IOError => error
       raise unless error.message.match?(/connection closed/)
+
       yield
     ensure
       self.read_timeout = prev_read_timeout unless prev_read_timeout.nil?

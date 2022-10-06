@@ -23,7 +23,7 @@ class TestTrilogy < Minitest::Test
 
   def test_semian_identifier
     client = connect_to_mysql!
-    assert_equal(:"mysql_testing", client.semian_identifier)
+    assert_equal(:mysql_testing, client.semian_identifier)
 
     # I don't think there's any way to test with custom host and port options
     #
@@ -310,7 +310,7 @@ class TestTrilogy < Minitest::Test
   end
 
   def test_ping_on_closed_connection_does_not_break_the_circuit
-    skip "Need to be able to ask Trilogy if conn is closed"
+    skip("Need to be able to ask Trilogy if conn is closed")
     client = connect_to_mysql!
     client.close
 
