@@ -89,6 +89,20 @@ class TestSemianAdapter < Minitest::Test
     end
   end
 
+  class MyAdapterError < StandardError
+    include Semian::AdapterError
+  end
+
+  def test_adapter_error_message
+    error = MyAdapterError.new("[ServiceClass] Different prefixes")
+    error.semian_identifier = :my_service
+    assert_equal("[my_service] [ServiceClass] Different prefixes", error.message)
+
+    error = MyAdapterError.new("[my_service] Same Prefix")
+    error.semian_identifier = :my_service
+    assert_equal("[my_service] Same Prefix", error.message)
+  end
+
   def without_gc
     GC.disable
     yield
