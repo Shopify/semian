@@ -65,6 +65,7 @@ module Semian
     end
 
     def with_resource_timeout(temp_timeout)
+      # TODO: Check if conn is closed here using Trilogy#closed? instead of rescuing IOError
       # yield if closed?
       # This way, we can still acquire a new connection via Trilogy.new
       # if the old one was closed without running into problems
@@ -83,7 +84,8 @@ module Semian
     private
 
     # Not sure: should we also rescue Errno::ECONNRESET, IOError?
-
+    # I suspect we don't want to trigger circuit breaker logic for Errno::ECONNRESET bc this is a "fast failure"
+    # I also think IOError is not relevant for now (only expecting this if the conn to the server has explicitly been closed)
     def resource_exceptions
       [
         ::Errno::ETIMEDOUT,
@@ -94,6 +96,12 @@ module Semian
     def acquire_semian_resource(**)
       super
     rescue ::Trilogy::Error => error
+      # Network errors show up as Trilogy::Error <TRILOGY_CLOSED_CONNECTION>
+      # What's the difference between <trilogy_query_send: TRILOGY_CLOSED_CONNECTION>
+      # and <Connection reset by peer - trilogy_query_send> ?
+      # Sometimes it seems like we'll see TRILOGY_CLOSED_CONNECTION because too much
+      # time elapsed before making a query...? I don't think we want
+      # to open the circuit in that case
       if error.message.match?(/TRILOGY_CLOSED_CONNECTION/)
         semian_resource.mark_failed(error)
         error.semian_identifier = semian_identifier

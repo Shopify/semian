@@ -309,6 +309,7 @@ class TestTrilogy < Minitest::Test
     assert_equal(2, client.query("SELECT 1 + 1;").to_a.flatten.first)
   end
 
+  # TODO: fill in this test now that Trilogy#closed? is implemented
   def test_ping_on_closed_connection_does_not_break_the_circuit
     skip("Need to be able to ask Trilogy if conn is closed")
     client = connect_to_mysql!
