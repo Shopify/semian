@@ -1,5 +1,8 @@
 # Unreleased
 
+* Avoid prepending the same prefix twice to errors messages. (#423)
+  This mostly happens with the `redis-rb 5+` gem as it translate `redis-client` errors.
+
 # v0.16.0
 
 * Typo in error message for missing option `:tickets`. (#412)

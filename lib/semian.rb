@@ -122,11 +122,16 @@ module Semian
     attr_accessor :semian_identifier
 
     def to_s
+      message = super
       if @semian_identifier
-        "[#{@semian_identifier}] #{super}"
-      else
-        super
+        prefix = "[#{@semian_identifier}] "
+        # When an error is created from another error's message it might
+        # already have a semian identifier in their message
+        unless message.start_with?(prefix)
+          message = "#{prefix}#{message}"
+        end
       end
+      message
     end
   end
 
