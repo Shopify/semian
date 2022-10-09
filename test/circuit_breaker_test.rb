@@ -7,77 +7,139 @@ class TestCircuitBreaker < Minitest::Test
   include TimeHelper
 
   def setup
-    @strio = StringIO.new
-    Semian.logger = Logger.new(@strio)
     destroy_all_semian_resources
-    Semian.register(
-      :testing,
-      tickets: 1,
+  end
+
+  def test_acquire_yield_when_the_circuit_is_closed
+    resource = Semian.register(
+      :circuit_is_closed,
+      bulkhead: false,
       exceptions: [SomeError],
       error_threshold: 2,
       error_timeout: 5,
       success_threshold: 1,
     )
-    @resource = Semian[:testing]
-  end
 
-  def test_acquire_yield_when_the_circuit_is_closed
-    block_called = false
-    @resource.acquire { block_called = true }
-
-    assert(block_called)
+    assert_circuit_closed(resource)
   end
 
   def test_acquire_raises_circuit_open_error_when_the_circuit_is_open
-    open_circuit!
+    resource = Semian.register(
+      :circuit_is_open_raise_error,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+    )
+    open_circuit!(resource)
     assert_raises(Semian::OpenCircuitError) do
-      @resource.acquire { 1 + 1 }
+      resource.acquire { 1 + 1 }
     end
+  end
 
-    assert_match(/State transition from closed to open/, @strio.string)
+  def test_acquire_log_message_when_the_circuit_is_open
+    resource = Semian.register(
+      :circuit_is_open_log_message,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 1,
+      error_timeout: 5,
+      success_threshold: 1,
+    )
+    assert_log_message_match(/State transition from closed to open/, level: :info) do
+      open_circuit!(resource, error_count: 3)
+    rescue Semian::OpenCircuitError
+    end
   end
 
   def test_last_error_message_is_logged_when_circuit_opens
-    open_circuit!
-
-    assert_match(/last_error_message="some error message"/, @strio.string)
+    resource = Semian.register(
+      :circuit_is_open_last_error,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 1,
+      error_timeout: 5,
+      success_threshold: 1,
+    )
+    assert_log_message_match(/last_error_message="some error message 0"/, level: :info) do
+      3.times do |i|
+        resource.acquire { raise SomeError, "some error message #{i}" }
+      rescue SomeError
+      end
+    rescue Semian::OpenCircuitError
+    end
   end
 
   def test_after_error_threshold_the_circuit_is_open
-    open_circuit!
+    resource = Semian.register(
+      :circuit_is_open_after_error_threshold,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 3,
+      error_timeout: 5,
+      success_threshold: 1,
+    )
+    open_circuit!(resource, error_count: 3)
 
-    assert_circuit_opened
+    assert_circuit_opened(resource)
   end
 
   def test_after_error_timeout_is_elapsed_requests_are_attempted_again
-    half_open_cicuit!
+    resource = Semian.register(
+      :circuit_is_open_after_error_timeout_try_again,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 3,
+      error_timeout: 5,
+      success_threshold: 1,
+    )
+    half_open_cicuit!(resource, error_count: 3, backwards_time_travel: 10)
 
-    assert_circuit_closed
+    assert_circuit_closed(resource)
   end
 
   def test_until_success_threshold_is_reached_a_single_error_will_reopen_the_circuit
-    half_open_cicuit!
-    trigger_error!
+    resource = Semian.register(
+      :circuit_is_open_success_single_error,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 3,
+      error_timeout: 5,
+      success_threshold: 1,
+    )
+    half_open_cicuit!(resource, error_count: 3, backwards_time_travel: 10)
+    expected = /State transition from open to half_open.*State transition from half_open to open/m
+    assert_log_message_match(expected) do
+      trigger_error!(resource)
+    end
 
-    assert_circuit_opened
-    assert_match(/State transition from open to half_open/, @strio.string)
+    assert_circuit_opened(resource)
   end
 
   def test_once_success_threshold_is_reached_only_error_threshold_will_open_the_circuit_again
-    half_open_cicuit!
+    resource = Semian.register(
+      :circuit_once_success_threshold_is_reached_only_error_threshold_will_open_the_circuit_again,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 3,
+      error_timeout: 5,
+      success_threshold: 1,
+    )
+    half_open_cicuit!(resource, error_count: 3, backwards_time_travel: 10)
 
-    assert_circuit_closed
-    trigger_error!
+    assert_circuit_closed(resource)
+    trigger_error!(resource)
 
-    assert_circuit_closed
-    trigger_error!
+    assert_circuit_closed(resource)
+    trigger_error!(resource)
 
-    assert_circuit_opened
+    assert_circuit_closed(resource)
   end
 
   def test_once_success_threshold_is_reached_only_error_threshold_will_open_the_circuit_again_without_timeout
     resource = Semian.register(
-      :three,
+      :error_threshold_timeout_enabled,
       bulkhead: false,
       exceptions: [SomeError],
       error_threshold: 2,
@@ -95,27 +157,88 @@ class TestCircuitBreaker < Minitest::Test
 
     assert_circuit_opened(resource)
   ensure
-    Semian.destroy(:three)
+    Semian.destroy(:error_threshold_timeout_enabled)
+  end
+
+  def test_disabled_error_threshold_to_ignore_error_timeout
+    resource = Semian.register(
+      :errors_more_than_duration_apart_doesnt_open_circuit,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+      error_threshold_timeout_enabled: false,
+    )
+
+    time_travel(-10) do
+      trigger_error!(resource)          # > @errors.size == 1
+
+      assert_circuit_closed(resource)
+    end
+
+    trigger_error!(resource)            # > @errors.size == 2 and error_timeout < Time.now - @errors.first
+
+    assert_circuit_opened(resource)
+  end
+
+  def test_reset_errors_after_success_event_without_timeout
+    resource = Semian.register(
+      :error_threshold_timeout_enabled,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+      error_threshold_timeout_enabled: false,
+    )
+    time_travel(-10) do
+      open_circuit!(resource, error_count: 2)
+
+      assert_circuit_opened(resource)
+    end
+
+    assert_circuit_closed(resource)
+    trigger_error!(resource)
+
+    assert_circuit_closed(resource)
   end
 
   def test_reset_allow_to_close_the_circuit_and_forget_errors
-    open_circuit!
-    @resource.reset
+    resource = Semian.register(
+      :reset_allow_to_close_the_circuit_and_forget_errors,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+    )
+    open_circuit!(resource)
+    assert_log_message_match(/State transition from open to closed/) do
+      resource.reset
+    end
 
-    assert_match(/State transition from open to closed/, @strio.string)
-    assert_circuit_closed
+    assert_circuit_closed(resource)
   end
 
   def test_errors_more_than_duration_apart_doesnt_open_circuit
+    resource = Semian.register(
+      :errors_more_than_duration_apart_doesnt_open_circuit,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+    )
+
     time_travel(-6) do
-      trigger_error!
+      trigger_error!(resource)
 
-      assert_circuit_closed
+      assert_circuit_closed(resource)
     end
+    trigger_error!(resource)
 
-    trigger_error!
-
-    assert_circuit_closed
+    assert_circuit_closed(resource)
   end
 
   def test_sparse_errors_open_circuit_when_without_timeout
@@ -130,18 +253,18 @@ class TestCircuitBreaker < Minitest::Test
     )
 
     time_travel(-6) do
-      trigger_error!(resource)
+      trigger_error!(resource)           # > @errors.size == 1
 
       assert_circuit_closed(resource)
     end
 
     time_travel(-1) do
-      trigger_error!(resource)
+      trigger_error!(resource)           # > @errors.size == 2
 
       assert_circuit_closed(resource)
     end
 
-    trigger_error!(resource)
+    trigger_error!(resource)             # > @errors.size == 3 and error_timeout < time_window - @errors.first
 
     assert_circuit_opened(resource)
   ensure
@@ -150,7 +273,7 @@ class TestCircuitBreaker < Minitest::Test
 
   def test_sparse_errors_dont_open_circuit
     resource = Semian.register(
-      :sparse_errors_dont_open_circuit,
+      :circuit_sparse_errors_dont_open_circuit,
       bulkhead: false,
       exceptions: [SomeError],
       error_threshold: 3,
@@ -159,28 +282,26 @@ class TestCircuitBreaker < Minitest::Test
     )
 
     time_travel(-6) do
-      trigger_error!(resource)
+      trigger_error!(resource)           # > @errors.size == 1
 
       assert_circuit_closed(resource)
     end
 
     time_travel(-1) do
-      trigger_error!(resource)
+      trigger_error!(resource)           # > @errors.size == 1
 
       assert_circuit_closed(resource)
     end
 
-    trigger_error!(resource)
+    trigger_error!(resource)             # > @errors.size == 2
 
     assert_circuit_closed(resource)
-  ensure
-    Semian.destroy(:sparse_errors_dont_open_circuit)
   end
 
   def test_request_allowed_query_doesnt_trigger_transitions
     resource = Semian.register(
-      :testing,
-      tickets: 1,
+      :circuit_request_allowed_query_doesnt_trigger_transitions,
+      bulkhead: false,
       exceptions: [SomeError],
       error_threshold: 2,
       error_timeout: 2,
@@ -201,14 +322,14 @@ class TestCircuitBreaker < Minitest::Test
   def test_open_close_open_cycle
     resource = Semian.register(
       :open_close,
-      tickets: 1,
+      bulkhead: false,
       exceptions: [SomeError],
       error_threshold: 2,
       error_timeout: 5,
       success_threshold: 2,
     )
 
-    open_circuit!(resource)
+    open_circuit!(resource, error_count: 2)
 
     assert_circuit_opened(resource)
 
@@ -237,8 +358,8 @@ class TestCircuitBreaker < Minitest::Test
 
   def test_open_close_open_cycle_when_without_timeout
     resource = Semian.register(
-      :open_close,
-      tickets: 1,
+      :open_close_without_timeout,
+      bulkhead: false,
       exceptions: [SomeError],
       error_threshold: 2,
       error_timeout: 5,
@@ -246,7 +367,7 @@ class TestCircuitBreaker < Minitest::Test
       error_threshold_timeout_enabled: false,
     )
 
-    open_circuit!(resource)
+    open_circuit!(resource, error_count: 2)
 
     assert_circuit_opened(resource)
 
@@ -258,7 +379,7 @@ class TestCircuitBreaker < Minitest::Test
 
       assert_predicate(resource, :closed?)
 
-      open_circuit!(resource)
+      open_circuit!(resource, error_count: 2)
 
       assert_circuit_opened(resource)
     end
@@ -275,8 +396,8 @@ class TestCircuitBreaker < Minitest::Test
 
   def test_error_error_threshold_timeout_overrides_error_timeout_when_set_for_opening_circuits
     resource = Semian.register(
-      :three,
-      tickets: 1,
+      :error_threshold_timeout_overrides_error_timeout_when_set_for_opening_circuits,
+      bulkhead: false,
       exceptions: [SomeError],
       error_threshold: 3,
       error_timeout: 5,
@@ -285,28 +406,28 @@ class TestCircuitBreaker < Minitest::Test
     )
 
     time_travel(-6) do
-      trigger_error!(resource)
+      trigger_error!(resource)           # > @errors.size == 1
 
       assert_circuit_closed(resource)
     end
 
     time_travel(-1) do
-      trigger_error!(resource)
+      trigger_error!(resource)           # > @errors.size == 2
 
       assert_circuit_closed(resource)
     end
 
-    trigger_error!(resource)
+    trigger_error!(resource)             # > @errors.size == 3
 
     assert_circuit_opened(resource)
   ensure
-    Semian.destroy(:three)
+    Semian.destroy(:error_threshold_timeout_overrides_error_timeout_when_set_for_opening_circuits)
   end
 
   def test_circuit_still_opens_when_passed_error_threshold_timeout_when_also_not_using_timeout
     resource = Semian.register(
-      :three,
-      tickets: 1,
+      :circuit_still_opens_when_passed_error_threshold_timeout_when_also_not_using_timeout,
+      bulkhead: false,
       exceptions: [SomeError],
       error_threshold: 3,
       error_timeout: 5,
@@ -316,28 +437,26 @@ class TestCircuitBreaker < Minitest::Test
     )
 
     time_travel(-6) do
-      trigger_error!(resource)
+      trigger_error!(resource)           # > @errors.size == 1
 
       assert_circuit_closed(resource)
     end
 
     time_travel(-1) do
-      trigger_error!(resource)
+      trigger_error!(resource)           # > @errors.size == 2
 
       assert_circuit_closed(resource)
     end
 
-    trigger_error!(resource)
+    trigger_error!(resource)             # > @errors.size == 3
 
     assert_circuit_opened(resource)
-  ensure
-    Semian.destroy(:three)
   end
 
   def test_error_threshold_timeout_defaults_to_error_timeout_when_not_specified
     resource = Semian.register(
       :error_threshold_timeout_defaults_to_error_timeout_when_not_specified,
-      tickets: 1,
+      bulkhead: false,
       exceptions: [SomeError],
       error_threshold: 3,
       error_timeout: 5,
@@ -345,18 +464,18 @@ class TestCircuitBreaker < Minitest::Test
     )
 
     time_travel(-6) do
-      trigger_error!(resource)
+      trigger_error!(resource)           # > @errors.size == 1
 
       assert_circuit_closed(resource)
     end
 
     time_travel(-1) do
-      trigger_error!(resource)
+      trigger_error!(resource)           # > @errors.size == 2
 
       assert_circuit_closed(resource)
     end
 
-    trigger_error!(resource)
+    trigger_error!(resource)             # > @errors.size == 2
 
     assert_circuit_closed(resource)
   ensure
@@ -365,28 +484,28 @@ class TestCircuitBreaker < Minitest::Test
 
   def test_error_uses_defaults_when_using_timeout
     resource = Semian.register(
-      :test_error_uses_defaults_when_using_timeout,
-      tickets: 1,
+      :error_uses_defaults_when_using_timeout,
+      bulkhead: false,
       exceptions: [SomeError],
       error_threshold: 3,
       error_timeout: 5,
       success_threshold: 1,
-      use_timeoout: true,
+      error_threshold_timeout_enabled: true,
     )
 
     time_travel(-6) do
-      trigger_error!(resource)
+      trigger_error!(resource)             # > @errors.size == 1
 
       assert_circuit_closed(resource)
     end
 
     time_travel(-1) do
-      trigger_error!(resource)
+      trigger_error!(resource)             # > @errors.size == 2
 
       assert_circuit_closed(resource)
     end
 
-    trigger_error!(resource)
+    trigger_error!(resource)               # > @errors.size == 2
 
     assert_circuit_closed(resource)
   ensure
@@ -394,26 +513,33 @@ class TestCircuitBreaker < Minitest::Test
   end
 
   def test_error_threshold_timeout_is_skipped_when_not_using_error_threshold_and_not_using_timeout
-    resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5,
-      success_threshold: 1, error_threshold_timeout_enabled: false)
+    resource = Semian.register(
+      :error_thresshold_skip_when_not_using_threshold,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 3,
+      error_timeout: 5,
+      success_threshold: 1,
+      error_threshold_timeout_enabled: false,
+    )
 
     time_travel(-6) do
-      trigger_error!(resource)
+      trigger_error!(resource)             # > @errors.size == 1
 
       assert_circuit_closed(resource)
     end
 
     time_travel(-1) do
-      trigger_error!(resource)
+      trigger_error!(resource)             # > @errors.size == 2
 
       assert_circuit_closed(resource)
     end
 
-    trigger_error!(resource)
+    trigger_error!(resource)               # > @errors.size == 3
 
     assert_circuit_opened(resource)
   ensure
-    Semian.destroy(:three)
+    Semian.destroy(:error_thresshold_skip_when_not_using_threshold)
   end
 
   def test_env_var_disables_circuit_breaker
@@ -447,11 +573,15 @@ class TestCircuitBreaker < Minitest::Test
   end
 
   def test_changes_resource_timeout_when_configured
-    Semian.register(:resource_timeout, tickets: 1, exceptions: [SomeError],
-      error_threshold: 2, error_timeout: 5, success_threshold: 1,
-      half_open_resource_timeout: 0.123)
-    resource = Semian[:resource_timeout]
-
+    resource = Semian.register(
+      :resource_timeout,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+      half_open_resource_timeout: 0.123,
+    )
     half_open_cicuit!(resource)
 
     raw_resource = RawResource.new
@@ -468,10 +598,15 @@ class TestCircuitBreaker < Minitest::Test
   end
 
   def test_doesnt_change_resource_timeout_when_closed
-    Semian.register(:resource_timeout, tickets: 1, exceptions: [SomeError],
-      error_threshold: 2, error_timeout: 5, success_threshold: 1,
-      half_open_resource_timeout: 0.123)
-    resource = Semian[:resource_timeout]
+    resource = Semian.register(
+      :resource_timeout,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+      half_open_resource_timeout: 0.123,
+    )
 
     raw_resource = RawResource.new
 
@@ -487,10 +622,15 @@ class TestCircuitBreaker < Minitest::Test
   end
 
   def test_doesnt_blow_up_when_configured_half_open_timeout_but_adapter_doesnt_support
-    Semian.register(:resource_timeout, tickets: 1, exceptions: [SomeError],
-      error_threshold: 2, error_timeout: 5, success_threshold: 1,
-      half_open_resource_timeout: 0.123)
-    resource = Semian[:resource_timeout]
+    resource = Semian.register(
+      :resource_timeout,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+      half_open_resource_timeout: 0.123,
+    )
 
     raw_resource = Object.new
 
@@ -515,20 +655,34 @@ class TestCircuitBreaker < Minitest::Test
   end
 
   def test_opens_circuit_when_error_has_marks_semian_circuits_equal_to_true
-    2.times { trigger_error!(@resource, SomeErrorThatMarksCircuits) }
+    resource = Semian.register(
+      :opens_circuit_when_error_has_marks_semian_circuits_equal_to_true,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+    )
+    2.times { trigger_error!(resource, error: SomeErrorThatMarksCircuits) }
 
-    assert_circuit_opened
+    assert_circuit_opened(resource)
   end
 
   def test_does_not_open_circuit_when_error_has_marks_semian_circuits_equal_to_false
-    2.times { trigger_error!(@resource, SomeSubErrorThatDoesNotMarkCircuits) }
+    resource = Semian.register(
+      :opens_circuit_when_error_has_marks_semian_circuits_equal_to_true,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+    )
+    2.times { trigger_error!(resource, error: SomeSubErrorThatDoesNotMarkCircuits) }
 
-    assert_circuit_closed
+    assert_circuit_closed(resource)
   end
 
   def test_notify_state_transition
-    name = :test_notify_state_transition
-
     events = []
     Semian.subscribe(:test_notify_state_transition) do |event, resource, _scope, _adapter, payload|
       if event == :state_change
@@ -538,8 +692,8 @@ class TestCircuitBreaker < Minitest::Test
 
     # Creating a resource should generate a :closed notification.
     resource = Semian.register(
-      name,
-      tickets: 1,
+      :test_notify_state_transition,
+      bulkhead: false,
       exceptions: [StandardError],
       error_threshold: 2,
       error_timeout: 1,
@@ -547,7 +701,7 @@ class TestCircuitBreaker < Minitest::Test
     )
 
     assert_equal(1, events.length)
-    assert_equal(name, events[0][:name])
+    assert_equal(:test_notify_state_transition, events[0][:name])
     assert_equal(:closed, events[0][:state])
 
     # Acquiring a resource doesn't generate a transition.
@@ -559,7 +713,7 @@ class TestCircuitBreaker < Minitest::Test
     2.times { trigger_error!(resource) }
 
     assert_equal(2, events.length)
-    assert_equal(name, events[1][:name])
+    assert_equal(:test_notify_state_transition, events[1][:name])
     assert_equal(:open, events[1][:state])
 
     time_travel(3600) do
