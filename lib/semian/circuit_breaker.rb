@@ -151,7 +151,8 @@ module Semian
 
       str = "[#{self.class.name}] State transition from #{@state.value} to #{new_state}."
       str += " success_count=#{@successes.value} error_count=#{@errors.size}"
-      str += " success_count_threshold=#{@success_count_threshold} error_count_threshold=#{@error_count_threshold}"
+      str += " success_count_threshold=#{@success_count_threshold}"
+      str += " error_count_threshold=#{@error_count_threshold}"
       str += " error_timeout=#{@error_timeout} error_last_at=\"#{@errors.last}\""
       str += " name=\"#{@name}\""
       if new_state == :open && @last_error
@@ -170,16 +171,13 @@ module Semian
     end
 
     def maybe_with_half_open_resource_timeout(resource, &block)
-      result =
-        if half_open? && @half_open_resource_timeout && resource.respond_to?(:with_resource_timeout)
-          resource.with_resource_timeout(@half_open_resource_timeout) do
-            block.call
-          end
-        else
+      if half_open? && @half_open_resource_timeout && resource.respond_to?(:with_resource_timeout)
+        resource.with_resource_timeout(@half_open_resource_timeout) do
           block.call
         end
-
-      result
+      else
+        block.call
+      end
     end
   end
 end
