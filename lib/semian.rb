@@ -161,11 +161,17 @@ module Semian
   #
   # +timeout+: Default timeout in seconds. Default 0. (bulkhead)
   #
+  # +error_timeout+: The duration in seconds since the last error after which the error count is reset to 0.
+  # (circuit breaker required)
+  #
   # +error_threshold+: The amount of errors that must happen within error_timeout amount of time to open
   # the circuit. (circuit breaker required)
   #
-  # +error_timeout+: The duration in seconds since the last error after which the error count is reset to 0.
-  # (circuit breaker required)
+  # +error_threshold_timeout+: The duration in seconds to examine number of errors to compare with error_threshold.
+  # Default same as error_timeout. (circuit breaker)
+  #
+  # +error_threshold_timeout_enabled+: flag to enable/disable filter time window based error eviction
+  # (error_threshold_timeout). Default true. (circuit breaker)
   #
   # +success_threshold+: The number of consecutive success after which an half-open circuit will be fully closed.
   # (circuit breaker required)
