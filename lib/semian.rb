@@ -181,6 +181,8 @@ module Semian
   #
   # Returns the registered resource.
   def register(name, **options)
+    return UnprotectedResource.new(name) if ENV.key?("SEMIAN_DISABLED")
+
     circuit_breaker = create_circuit_breaker(name, **options)
     bulkhead = create_bulkhead(name, **options)
 
@@ -275,8 +277,8 @@ module Semian
   private
 
   def create_circuit_breaker(name, **options)
-    circuit_breaker = options.fetch(:circuit_breaker, true)
-    return unless circuit_breaker
+    return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED")
+    return unless options.fetch(:circuit_breaker, true)
 
     require_keys!([:success_threshold, :error_threshold, :error_timeout], options)
 
@@ -315,8 +317,8 @@ module Semian
   end
 
   def create_bulkhead(name, **options)
-    bulkhead = options.fetch(:bulkhead, true)
-    return unless bulkhead
+    return if ENV.key?("SEMIAN_BULKHEAD_DISABLED")
+    return unless options.fetch(:bulkhead, true)
 
     permissions = options[:permissions] || default_permissions
     timeout = options[:timeout] || 0

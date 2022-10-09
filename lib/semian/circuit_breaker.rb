@@ -36,8 +36,6 @@ module Semian
     end
 
     def acquire(resource = nil, &block)
-      return yield if disabled?
-
       transition_to_half_open if transition_to_half_open?
 
       raise OpenCircuitError unless request_allowed?
@@ -164,10 +162,6 @@ module Semian
 
     def notify_state_transition(new_state)
       Semian.notify(:state_change, self, nil, nil, state: new_state)
-    end
-
-    def disabled?
-      ENV["SEMIAN_CIRCUIT_BREAKER_DISABLED"] || ENV["SEMIAN_DISABLED"]
     end
 
     def maybe_with_half_open_resource_timeout(resource, &block)

@@ -513,7 +513,7 @@ class TestResource < Minitest::Test
     # This is sort of racey, because it's waiting on enough workers to quit
     # So that it has room to adjust the ticket count to the desired value.
     # This must happen in less than 5 seconds, or an internal timeout occurs.
-    resource = create_resource(:testing, tickets: (tickets / 2).floor)
+    resource = create_resource(:test_resize_tickets_decrease_with_fork, tickets: (tickets / 2).floor)
 
     # Immediately on the above call returning, the tickets should be correct
     assert_equal((tickets / 2).floor, resource.tickets)

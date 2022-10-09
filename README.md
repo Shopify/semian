@@ -419,9 +419,11 @@ response time. This is the problem Semian solves by failing fast.
 
 ## How does Semian work?
 
-Semian consists of two parts: **Circuit breaker** and **Bulkheading**. To understand
-Semian, and especially how to configure it, we must understand these patterns
-and their implementation.
+Semian consists of two parts: **Circuit Breaker** and **Bulkheading**.
+To understand Semian, and especially how to configure it,
+we must understand these patterns and their implementation.
+
+Disable Semian via environment variable `SEMIAN_DISABLED=1`.
 
 ### Circuit Breaker
 
@@ -452,18 +454,28 @@ all workers on a server.
 
 There are four configuration parameters for circuit breakers in Semian:
 
-* **error_threshold**. The amount of errors a worker encounters within error_threshold_timeout amount of time before
-  opening the circuit, that is to start rejecting requests instantly.
-* **error_threshold_timeout**. The amount of time in seconds that error_threshold errors must occur to open the circuit. Defaults to error_timeout seconds if not set.
+* **circuit_breaker**. Enable or Disable Circuit Breaker. Defaults to `true` if not set.
+* **error_threshold**. The amount of errors a worker encounters within `error_threshold_timeout`
+  amount of time before opening the circuit,
+  that is to start rejecting requests instantly.
+* **error_threshold_timeout**. The amount of time in seconds that `error_threshold`
+  errors must occur to open the circuit.
+  Defaults to `error_timeout` seconds if not set.
 * **error_timeout**. The amount of time in seconds until trying to query the resource
   again.
-* **error_threshold_timeout_enabled**. If set to false it will disable the time window for evicting old exceptions. `error_timeout` is still used and will reset
-  the circuit. Defaults to `true` if not set.
+* **error_threshold_timeout_enabled**. If set to false it will disable
+  the time window for evicting old exceptions. `error_timeout` is still used and
+  will reset the circuit. Defaults to `true` if not set.
 * **success_threshold**. The amount of successes on the circuit until closing it
   again, that is to start accepting all requests to the circuit.
-* **half_open_resource_timeout**. Timeout for the resource in seconds when the circuit is half-open (supported for MySQL, Net::HTTP and Redis).
+* **half_open_resource_timeout**. Timeout for the resource in seconds when
+  the circuit is half-open (supported for MySQL, Net::HTTP and Redis).
 
-For more information about configuring these parameters, please read [this post](https://engineering.shopify.com/blogs/engineering/circuit-breaker-misconfigured).
+It is possible to disable Circuit Breaker with environment variable
+`SEMIAN_CIRCUIT_BREAKER_DISABLED=1`.
+
+For more information about configuring these parameters, please read
+[this post](https://engineering.shopify.com/blogs/engineering/circuit-breaker-misconfigured).
 
 ### Bulkheading
 
@@ -516,10 +528,14 @@ still experimenting with ways to figure out optimal ticket numbers. Generally
 something below half the number of workers on the server for endpoints that are
 queried frequently has worked well for us.
 
+* **bulkhead**. Enable or Disable Bulkhead. Defaults to `true` if not set.
 * **tickets**. Number of workers that can concurrently access a resource.
 * **timeout**. Time to wait in seconds to acquire a ticket if there are no tickets left.
   We recommend this to be `0` unless you have very few workers running (i.e.
   less than ~5).
+
+It is possible to disable Bulkhead with environment variable
+`SEMIAN_BULKHEAD_DISABLED=1`.
 
 Note that there are system-wide limitations on how many tickets can be allocated
 on a system. `cat /proc/sys/kernel/sem` will tell you.
@@ -550,7 +566,6 @@ ipcs -si $(ipcs -s | grep 0x48af51ea | awk '{print $2}')
 Which should output something like:
 
 ```
-
 Semaphore Array semid=5570729
 uid=8192         gid=8192        cuid=8192       cgid=8192
 mode=0660, access_perms=0660

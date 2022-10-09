@@ -3,12 +3,6 @@
 require "test_helper"
 
 class TestSemian < Minitest::Test
-  def setup
-    Semian.destroy(:testing)
-  rescue
-    nil
-  end
-
   def test_unsupported_acquire_yields
     acquired = false
     Semian.register(:testing, tickets: 1, error_threshold: 1, error_timeout: 2, success_threshold: 1)
@@ -108,5 +102,114 @@ class TestSemian < Minitest::Test
     refute_predicate(Semian, :semaphores_enabled?)
   ensure
     ENV.delete("SEMIAN_DISABLED")
+  end
+
+  def test_disabled_both_bulkheading_and_circuit_breaker
+    exception = assert_raises(ArgumentError) do
+      Semian.register(
+        :disabled_bulkhead_and_circuit_breaker,
+        bulkhead: false,
+        circuit_breaker: false,
+      )
+    end
+
+    assert_equal("Both bulkhead and circuitbreaker cannot be disabled.",
+      exception.message)
+  end
+
+  def test_disabled_bulkheading
+    resource = Semian.register(
+      :disabled_bulkhead,
+      bulkhead: false,
+      success_threshold: 1,
+      error_threshold: 1,
+      error_timeout: 1,
+    )
+
+    assert_nil(resource.bulkhead)
+  end
+
+  def test_disabled_bulkhead_via_env
+    ENV["SEMIAN_BULKHEAD_DISABLED"] = "1"
+
+    resource = Semian.register(
+      :disabled_bulkhead_via_env,
+      success_threshold: 1,
+      error_threshold: 1,
+      error_timeout: 1,
+    )
+
+    assert_nil(resource.bulkhead)
+  ensure
+    ENV.delete("SEMIAN_BULKHEAD_DISABLED")
+  end
+
+  def test_disabled_bulkhead_via_env_with_option_enabled
+    ENV["SEMIAN_BULKHEAD_DISABLED"] = "1"
+
+    resource = Semian.register(
+      :disabled_bulkhead_via_env,
+      bulkhead: true,
+      tickets: 1,
+      success_threshold: 1,
+      error_threshold: 1,
+      error_timeout: 1,
+    )
+
+    assert_nil(resource.bulkhead)
+  ensure
+    ENV.delete("SEMIAN_BULKHEAD_DISABLED")
+  end
+
+  def test_disabled_circuit_breaker
+    resource = Semian.register(
+      :disabled_circuit_breaker,
+      tickets: 1,
+      circuit_breaker: false,
+    )
+
+    assert_nil(resource.circuit_breaker)
+  end
+
+  def test_disabled_circuit_breaker_via_env
+    ENV["SEMIAN_CIRCUIT_BREAKER_DISABLED"] = "1"
+
+    resource = Semian.register(
+      :disabled_circuit_breaker_via_env,
+      tickets: 1,
+    )
+
+    assert_nil(resource.circuit_breaker)
+  ensure
+    ENV.delete("SEMIAN_CIRCUIT_BREAKER_DISABLED")
+  end
+
+  def test_disabled_circuit_breaker_via_semian_env
+    ENV["SEMIAN_DISABLED"] = "1"
+
+    resource = Semian.register(:disabled_semina_via_env)
+
+    assert_nil(resource.circuit_breaker)
+    assert_nil(resource.bulkhead)
+  ensure
+    ENV.delete("SEMIAN_DISABLED")
+  end
+
+  def test_enabled_circuit_breaker_by_options_but_disabled_by_env
+    ENV["SEMIAN_CIRCUIT_BREAKER_DISABLED"] = "1"
+
+    resource = Semian.register(
+      :disabled_circuit_breaker_conflict,
+      bulkhead: true,
+      tickets: 1,
+      circuit_breaker: true,
+      success_threshold: 1,
+      error_threshold: 1,
+      error_timeout: 1,
+    )
+
+    assert_nil(resource.circuit_breaker)
+  ensure
+    ENV.delete("SEMIAN_CIRCUIT_BREAKER_DISABLED")
   end
 end

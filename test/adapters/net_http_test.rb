@@ -279,8 +279,11 @@ class TestNetHTTP < Minitest::Test
   def test_disable_semian_for_all_http_requests_with_flag
     with_server do
       with_semian_configuration do
-        http = Net::HTTP.new(SemianConfig["toxiproxy_upstream_host"], SemianConfig["http_toxiproxy_port"],
-          semian: false)
+        http = Net::HTTP.new(
+          SemianConfig["toxiproxy_upstream_host"],
+          SemianConfig["http_toxiproxy_port"],
+          semian: false,
+        )
 
         assert_predicate(http, :disabled?)
       end
@@ -453,6 +456,19 @@ class TestNetHTTP < Minitest::Test
         end
       end
     end
+  end
+
+  def test_semian_disabled_env
+    ENV["SEMIAN_DISABLED"] = "1"
+    with_server do
+      with_semian_configuration do
+        http = Net::HTTP.new("example.com", 80)
+
+        assert_equal("nethttp_example.com_80", http.semian_identifier)
+      end
+    end
+  ensure
+    ENV.delete("SEMIAN_DISABLED")
   end
 
   private

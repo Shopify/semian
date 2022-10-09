@@ -13,6 +13,6 @@ module Semian
   end
 
   def disabled?
-    ENV["SEMIAN_SEMAPHORES_DISABLED"] || ENV["SEMIAN_DISABLED"]
+    ENV.key?("SEMIAN_SEMAPHORES_DISABLED") || ENV.key?("SEMIAN_DISABLED")
   end
 end
