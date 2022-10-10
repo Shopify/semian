@@ -38,8 +38,8 @@ GEM
       google-protobuf (~> 3.21)
       googleapis-common-protos-types (~> 1.0)
     hiredis (0.6.3)
-    hiredis-client (0.9.0)
-      redis-client (= 0.9.0)
+    hiredis-client (0.10.0)
+      redis-client (= 0.10.0)
     i18n (1.12.0)
       concurrent-ruby (~> 1.0)
     json (2.6.2)
@@ -63,7 +63,7 @@ GEM
       rake
     redis (5.0.5)
       redis-client (>= 0.9.0)
-    redis-client (0.9.0)
+    redis-client (0.10.0)
       connection_pool
     regexp_parser (2.6.0)
     rexml (3.2.5)
