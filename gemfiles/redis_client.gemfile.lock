@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/redis-rb/redis-client.git
-  revision: 9fb715fb1a3e1caf91d9b7fa921532085d47c707
+  revision: d306193cf377d1419ea670edf30ad5053e457958
   specs:
     hiredis-client (0.9.0)
       redis-client (= 0.9.0)
@@ -17,7 +17,7 @@ GIT
 PATH
   remote: ..
   specs:
-    semian (0.15.0)
+    semian (0.16.0)
 
 GEM
   remote: https://rubygems.org/
@@ -54,4 +54,4 @@ DEPENDENCIES
   webrick
 
 BUNDLED WITH
-   2.3.22
+   2.3.23
