@@ -269,3 +269,19 @@ diff_timespec_ms(struct timespec *end, struct timespec *begin)
   long begin_ms = (begin->tv_sec * 1e3) + (begin->tv_nsec / 1e6);
   return end_ms - begin_ms;
 }
+
+#ifdef DEBUG
+VALUE
+print_sem_vals_without_rescue(VALUE v_sem_id)
+{
+  int sem_id = rb_to_int(v_sem_id);
+  printf("[pid=%d][semian] semaphore values lock: %d, tickets: %d configured: %d, registered workers: %d\n",
+   getpid(),
+   get_sem_val(sem_id, SI_SEM_LOCK),
+   get_sem_val(sem_id, SI_SEM_TICKETS),
+   get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS),
+   get_sem_val(sem_id, SI_SEM_REGISTERED_WORKERS)
+  );
+  return (VALUE)0;
+}
+#endif

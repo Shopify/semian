@@ -2,6 +2,7 @@
 
 * Avoid prepending the same prefix twice to errors messages. (#423)
   This mostly happens with the `redis-rb 5+` gem as it translate `redis-client` errors.
+* Fix running tests in DEBUG mode to test missing semaphores resources. (#430)
 
 # v0.16.0
 

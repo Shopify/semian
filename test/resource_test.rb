@@ -390,9 +390,10 @@ class TestResource < Minitest::Test
   def test_destroy
     resource = create_resource(:testing, tickets: 1)
     resource.destroy
-    assert_raises(Semian::SyscallError) do
+    exception = assert_raises(Semian::SyscallError) do
       resource.acquire {}
     end
+    assert_equal("semop() failed, errno: 22 (Invalid argument)", exception.message)
   end
 
   def test_destroy_already_destroyed

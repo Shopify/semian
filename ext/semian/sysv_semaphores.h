@@ -110,16 +110,14 @@ void *
 acquire_semaphore_without_gvl(void *p);
 
 #ifdef DEBUG
+VALUE
+print_sem_vals_without_rescue(VALUE v_sem_id);
+
 static inline void
 print_sem_vals(int sem_id)
 {
-  printf("[pid=%d][semian] semaphore values lock: %d, tickets: %d configured: %d, registered workers: %d\n",
-   getpid(),
-   get_sem_val(sem_id, SI_SEM_LOCK),
-   get_sem_val(sem_id, SI_SEM_TICKETS),
-   get_sem_val(sem_id, SI_SEM_CONFIGURED_TICKETS),
-   get_sem_val(sem_id, SI_SEM_REGISTERED_WORKERS)
-  );
+  int state;
+  rb_protect(print_sem_vals_without_rescue, INT2NUM(sem_id), &state);
 }
 #endif
 
