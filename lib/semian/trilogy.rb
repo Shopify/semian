@@ -47,8 +47,8 @@ module Semian
     end
 
     def ping
-      # TODO: make sure calling ping on a closed connection doesn't raise.
-      # See: https://github.com/Shopify/semian/pull/396
+      return false if closed?
+
       acquire_semian_resource(adapter: :trilogy, scope: :ping) do
         super
       end
