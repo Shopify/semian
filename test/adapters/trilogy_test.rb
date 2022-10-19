@@ -334,50 +334,6 @@ class TestTrilogy < Minitest::Test
     end
   end
 
-  def test_changes_timeout_when_half_open_and_configured
-    client = connect_to_mysql!(half_open_resource_timeout: 0.5)
-
-    # Timeout is 2 seconds, this causes circuit to open
-    @proxy.downstream(:latency, latency: 3000).apply do
-      ERROR_THRESHOLD.times do
-        assert_raises(Errno::ETIMEDOUT) do
-          client.query("SELECT 1 + 1;")
-        end
-      end
-    end
-
-    assert_raises(Trilogy::CircuitOpenError) do
-      client.query("SELECT 1 + 1;")
-    end
-
-    client = Timecop.travel(ERROR_TIMEOUT + 1) do
-      # Trilogy has reset the connection request at this point, so need to reconnect
-      # Circuit breaker is only created once with half_open_resource_timeout, so
-      # no need to pass that through again
-      connect_to_mysql!
-    end
-
-    @proxy.downstream(:latency, latency: 750).apply do
-      assert_raises(Errno::ETIMEDOUT) do
-        client.query("SELECT 1 + 1;")
-      end
-    end
-
-    Timecop.travel(ERROR_TIMEOUT + 1) do
-      # Need to reconnect again because Trilogy reset conn request
-      client = connect_to_mysql!
-      client.query("SELECT 1 + 1;")
-
-      # Timeout has reset to the normal 2 seconds now that circuit is closed
-      @proxy.downstream(:latency, latency: 1500).apply do
-        client.query("SELECT 1 + 1;")
-      end
-    end
-
-    assert_equal(2, client.read_timeout)
-    assert_equal(2, client.write_timeout)
-  end
-
   def test_circuit_open_errors_do_not_trigger_the_circuit_breaker
     @proxy.down do
       assert_raises(Errno::ECONNREFUSED) do
