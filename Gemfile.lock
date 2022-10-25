@@ -1,3 +1,20 @@
+GIT
+  remote: https://github.com/rails/rails.git
+  revision: 73388a2350060045328fdd409fa2282b4764b90f
+  branch: main
+  specs:
+    activemodel (7.1.0.alpha)
+      activesupport (= 7.1.0.alpha)
+    activerecord (7.1.0.alpha)
+      activemodel (= 7.1.0.alpha)
+      activesupport (= 7.1.0.alpha)
+    activesupport (7.1.0.alpha)
+      concurrent-ruby (~> 1.0, >= 1.0.2)
+      connection_pool (>= 2.2.5)
+      i18n (>= 1.6, < 2)
+      minitest (>= 5.1)
+      tzinfo (~> 2.0)
+
 PATH
   remote: .
   specs:
@@ -16,6 +33,9 @@ GEM
       i18n (>= 1.6, < 2)
       minitest (>= 5.1)
       tzinfo (~> 2.0)
+    activerecord-trilogy-adapter (2.1.0)
+      activerecord (~> 7.1.a)
+      trilogy (>= 2.1.1)
     ast (2.4.2)
     benchmark-memory (0.2.0)
       memory_profiler (~> 1)
@@ -81,6 +101,7 @@ GEM
     ruby-progressbar (1.11.0)
     ruby2_keywords (0.0.5)
     toxiproxy (2.0.2)
+    trilogy (2.2.0)
     tzinfo (2.0.5)
       concurrent-ruby (~> 1.0)
     unicode-display_width (2.4.2)
@@ -94,7 +115,8 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
-  activerecord (>= 7.0.3)
+  activerecord!
+  activerecord-trilogy-adapter
   benchmark-memory
   grpc (= 1.47.0)
   hiredis (~> 0.6)
