@@ -33,6 +33,10 @@ module ActiveRecord
         @adapter = trilogy_adapter
       end
 
+      def teardown
+        @adapter.disconnect!
+      end
+
       def test_semian_identifier
         assert_equal(:"trilogy_adapter_testing", @adapter.semian_identifier)
 
@@ -96,6 +100,60 @@ module ActiveRecord
         end
 
         assert_equal(2, result.first[0])
+      end
+
+      def test_connect_instrumentation
+        notified = false
+        subscriber = Semian.subscribe do |event, resource, scope, adapter|
+          next unless event == :success
+
+          notified = true
+
+          assert_equal(Semian[:trilogy_adapter_testing], resource)
+          assert_equal(:connection, scope)
+          assert_equal(:trilogy_adapter, adapter)
+        end
+
+        @adapter.connect!
+
+        assert(notified, "No notifications have been emitted")
+      ensure
+        Semian.unsubscribe(subscriber)
+      end
+
+      def test_query_instrumentation
+        @adapter.connect!
+
+        notified = false
+        subscriber = Semian.subscribe do |event, resource, scope, adapter|
+          notified = true
+          assert_equal(:success, event)
+          assert_equal(Semian[:trilogy_adapter_testing], resource)
+          assert_equal(:execute, scope)
+          assert_equal(:trilogy_adapter, adapter)
+        end
+
+        @adapter.execute("SELECT 1;")
+
+        assert(notified, "No notifications has been emitted")
+      ensure
+        Semian.unsubscribe(subscriber)
+      end
+
+      def test_network_errors_are_tagged_with_the_resource_identifier
+        @proxy.down do
+          error = assert_raises(ActiveRecord::StatementInvalid) do
+            @adapter.execute("SELECT 1 + 1;")
+          end
+          assert_equal(@adapter.semian_identifier, error.semian_identifier)
+        end
+      end
+
+      def test_other_mysql_errors_are_not_tagged_with_the_resource_identifier
+        error = assert_raises(ActiveRecord::StatementInvalid) do
+          @adapter.execute("SYNTAX ERROR!")
+        end
+        assert_nil(error.semian_identifier)
       end
 
       private

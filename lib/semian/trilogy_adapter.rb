@@ -61,7 +61,7 @@ module Semian
     def acquire_semian_resource(**)
       super
     rescue ::ActiveRecord::StatementInvalid => error
-      if error.cause.is_a?(Errno::ETIMEDOUT)
+      if error.cause.is_a?(Errno::ETIMEDOUT) || error.cause.is_a?(Errno::ECONNREFUSED)
         semian_resource.mark_failed(error)
         error.semian_identifier = semian_identifier
       end
