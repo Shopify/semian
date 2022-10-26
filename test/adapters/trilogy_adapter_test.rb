@@ -24,6 +24,9 @@ class TrilogyAdapterTest < Minitest::Test
       username: "root",
       host: SemianConfig["toxiproxy_upstream_host"],
       port: SemianConfig["mysql_toxiproxy_port"],
+      read_timeout: 2,
+      write_timeout: 2,
+      semian: SEMIAN_OPTIONS,
     }
     @adapter = trilogy_adapter
   end
@@ -46,6 +49,20 @@ class TrilogyAdapterTest < Minitest::Test
     ).semian_resource
 
     assert_instance_of(Semian::UnprotectedResource, resource)
+  end
+
+  def test_connection_errors_open_the_circuit
+    @proxy.downstream(:latency, latency: 2200).apply do
+      ERROR_THRESHOLD.times do
+        assert_raises(ActiveRecord::StatementInvalid) do
+          @adapter.execute("SELECT 1;")
+        end
+      end
+
+      assert_raises(ActiveRecord::ConnectionAdapters::TrilogyAdapter::CircuitOpenError) do
+        @adapter.execute("SELECT 1;")
+      end
+    end
   end
 
   private

@@ -55,7 +55,7 @@ module Semian
     private
 
     def resource_exceptions
-      []
+      [ActiveRecord::StatementInvalid]
     end
 
     # TODO: share this with Mysql2
