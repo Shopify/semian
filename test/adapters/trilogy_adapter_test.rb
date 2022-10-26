@@ -79,6 +79,25 @@ module ActiveRecord
         refute_kind_of(TrilogyAdapter::CircuitOpenError, err)
       end
 
+      def test_read_timeout_error_opens_the_circuit
+        ERROR_THRESHOLD.times do
+          assert_raises(ActiveRecord::StatementInvalid) do
+            @adapter.execute("SELECT sleep(5)")
+          end
+        end
+
+        assert_raises(TrilogyAdapter::CircuitOpenError) do
+          @adapter.execute("SELECT sleep(5)")
+        end
+
+        # After TrilogyAdapter::CircuitOpenError check regular queries are working fine.
+        result = Timecop.travel(ERROR_TIMEOUT + 1) do
+          @adapter.execute("SELECT 1 + 1;")
+        end
+
+        assert_equal(2, result.first[0])
+      end
+
       private
 
       def trilogy_adapter(**config_overrides)
