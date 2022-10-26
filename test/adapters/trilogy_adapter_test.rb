@@ -65,6 +65,18 @@ class TrilogyAdapterTest < Minitest::Test
     end
   end
 
+  def test_query_errors_do_not_open_the_circuit
+    (ERROR_THRESHOLD).times do
+      assert_raises(ActiveRecord::StatementInvalid) do
+        @adapter.execute("ERROR!")
+      end
+    end
+    err = assert_raises(ActiveRecord::StatementInvalid) do
+      @adapter.execute("ERROR!")
+    end
+    refute_kind_of(ActiveRecord::ConnectionAdapters::TrilogyAdapter::CircuitOpenError, err)
+  end
+
   private
 
   def trilogy_adapter(**config_overrides)

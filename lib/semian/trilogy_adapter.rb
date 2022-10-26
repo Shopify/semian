@@ -55,7 +55,17 @@ module Semian
     private
 
     def resource_exceptions
-      [ActiveRecord::StatementInvalid]
+      []
+    end
+
+    def acquire_semian_resource(**)
+      super
+    rescue ::ActiveRecord::StatementInvalid => error
+      if error.cause.is_a?(Errno::ETIMEDOUT)
+        semian_resource.mark_failed(error)
+        error.semian_identifier = semian_identifier
+      end
+      raise
     end
 
     # TODO: share this with Mysql2
