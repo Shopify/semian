@@ -156,6 +156,29 @@ module ActiveRecord
         assert_nil(error.semian_identifier)
       end
 
+      def test_resource_acquisition_for_connect
+        @adapter.connect!
+        Semian[:trilogy_adapter_testing].acquire do
+          error = assert_raises(TrilogyAdapter::ResourceBusyError) do
+            @adapter.reconnect!
+          end
+          assert_equal(:trilogy_adapter_testing, error.semian_identifier)
+        end
+      end
+
+      def test_resource_acquisition_for_query
+        @adapter.connect!
+
+        Semian[:trilogy_adapter_testing].acquire do
+          assert_raises(TrilogyAdapter::ResourceBusyError) do
+            @adapter.execute("SELECT 1;")
+          end
+        end
+      end
+          end
+        end
+      end
+
       private
 
       def trilogy_adapter(**config_overrides)
