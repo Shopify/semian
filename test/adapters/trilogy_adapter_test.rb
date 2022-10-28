@@ -158,9 +158,10 @@ module ActiveRecord
 
       def test_resource_acquisition_for_connect
         @adapter.connect!
+
         Semian[:trilogy_adapter_testing].acquire do
           error = assert_raises(TrilogyAdapter::ResourceBusyError) do
-            @adapter.reconnect!
+            trilogy_adapter.connect!
           end
           assert_equal(:trilogy_adapter_testing, error.semian_identifier)
         end
@@ -175,7 +176,72 @@ module ActiveRecord
           end
         end
       end
+
+      def test_resource_timeout_on_connect
+        @proxy.downstream(:latency, latency: 500).apply do
+          background { @adapter.connect! }
+
+          assert_raises(TrilogyAdapter::ResourceBusyError) do
+            trilogy_adapter.connect!
           end
+        end
+      end
+
+      def test_circuit_breaker_on_connect
+        @proxy.downstream(:latency, latency: 500).apply do
+          background { @adapter.connect! }
+
+          ERROR_THRESHOLD.times do
+            assert_raises(TrilogyAdapter::ResourceBusyError) do
+              trilogy_adapter.connect!
+            end
+          end
+        end
+
+        yield_to_background
+
+        assert_raises(TrilogyAdapter::CircuitOpenError) do
+          trilogy_adapter.connect!
+        end
+
+        Timecop.travel(ERROR_TIMEOUT + 1) do
+          trilogy_adapter.connect!
+        end
+      end
+
+      def test_resource_timeout_on_query
+        adapter2 = trilogy_adapter
+
+        @proxy.downstream(:latency, latency: 500).apply do
+          background { adapter2.execute("SELECT 1 + 1;") }
+
+          assert_raises(TrilogyAdapter::ResourceBusyError) do
+            @adapter.query("SELECT 1 + 1;")
+          end
+        end
+      end
+
+      def test_circuit_breaker_on_query
+        adapter2 = trilogy_adapter
+
+        @proxy.downstream(:latency, latency: 2200).apply do
+          background { trilogy_adapter.execute("SELECT 1 + 1;") }
+
+          ERROR_THRESHOLD.times do
+            assert_raises(TrilogyAdapter::ResourceBusyError) do
+              @adapter.query("SELECT 1 + 1;")
+            end
+          end
+        end
+
+        yield_to_background
+
+        assert_raises(TrilogyAdapter::CircuitOpenError) do
+          @adapter.execute("SELECT 1 + 1;")
+        end
+
+        Timecop.travel(ERROR_TIMEOUT + 1) do
+          assert_equal(2, @adapter.execute("SELECT 1 + 1;").to_a.flatten.first)
         end
       end
 
