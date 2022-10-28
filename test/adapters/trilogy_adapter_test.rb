@@ -245,6 +245,57 @@ module ActiveRecord
         end
       end
 
+      def test_semian_allows_rollback
+        @adapter.execute("START TRANSACTION;")
+
+        Semian[:trilogy_adapter_testing].acquire do
+          @adapter.execute("ROLLBACK;")
+        end
+      end
+
+      def test_semian_allows_rollback_with_marginalia
+        @adapter.execute("START TRANSACTION;")
+
+        Semian[:trilogy_adapter_testing].acquire do
+          @adapter.execute("/*foo:bar*/ ROLLBACK;")
+        end
+      end
+
+      def test_semian_allows_commit
+        @adapter.execute("START TRANSACTION;")
+
+        Semian[:trilogy_adapter_testing].acquire do
+          @adapter.execute("COMMIT;")
+        end
+      end
+
+      def test_query_allowlisted_returns_false_for_binary_sql
+        binary_query = File.read(File.expand_path("../../fixtures/binary.sql", __FILE__))
+        refute(@adapter.send(:query_allowlisted?, binary_query))
+      end
+
+      def test_semian_allows_rollback_to_safepoint
+        @adapter.execute("START TRANSACTION;")
+        @adapter.execute("SAVEPOINT foobar;")
+
+        Semian[:trilogy_adapter_testing].acquire do
+          @adapter.execute("ROLLBACK TO foobar;")
+        end
+
+        @adapter.execute("ROLLBACK;")
+      end
+
+      def test_semian_allows_release_savepoint
+        @adapter.execute("START TRANSACTION;")
+        @adapter.execute("SAVEPOINT foobar;")
+
+        Semian[:trilogy_adapter_testing].acquire do
+          @adapter.execute("RELEASE SAVEPOINT foobar;")
+        end
+
+        @adapter.execute("ROLLBACK;")
+      end
+
       private
 
       def trilogy_adapter(**config_overrides)
