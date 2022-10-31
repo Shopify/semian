@@ -74,7 +74,15 @@ module Semian
 
     def acquire_semian_resource(**)
       super
-    rescue ::ActiveRecord::StatementInvalid => error
+    # We're going to need to rescue ConnectionNotEstablished here
+    # and fix this upstream in the Trilogy adapter -- right now, #new_client raises
+    # raw ECONNREFUSED errors
+    # Also, we shouldn't be wrapping TIMEDOUT and ECONNREFUSED in StatementInvalid => use
+    # more appropriate error classes
+    # We see ECONNREFUSED wrapped as an AR::StatementInvalid exception instead of the
+    # raw one when we go through #execute, because it gets translated in #with_raw_connection
+    # I think #new_client should just be more nuanced
+    rescue ActiveRecord::StatementInvalid => error
       if error.cause.is_a?(Errno::ETIMEDOUT) || error.cause.is_a?(Errno::ECONNREFUSED)
         semian_resource.mark_failed(error)
         error.semian_identifier = semian_identifier
