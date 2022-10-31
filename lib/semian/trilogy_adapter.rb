@@ -52,6 +52,20 @@ module Semian
       end
     end
 
+    def with_resource_timeout(temp_timeout)
+      if connection.nil?
+        prev_read_timeout = @config[:read_timeout] || 0 # We're assuming defaulting the timeout to 0 won't change in Trilogy
+        @config.merge!(read_timeout: temp_timeout) # Create new client with config
+      else
+        prev_read_timeout = connection.read_timeout
+        connection.read_timeout = temp_timeout
+      end
+      yield
+    ensure
+      @config.merge!(read_timeout: prev_read_timeout)
+      connection&.read_timeout = prev_read_timeout
+    end
+
     private
 
     def resource_exceptions

@@ -305,6 +305,44 @@ module ActiveRecord
         @adapter.execute("ROLLBACK;")
       end
 
+      def test_changes_timeout_when_half_open_and_configured
+        adapter = trilogy_adapter(semian: SEMIAN_OPTIONS.merge(half_open_resource_timeout: 1))
+
+        @proxy.downstream(:latency, latency: 3000).apply do
+          (ERROR_THRESHOLD * 2).times do
+            assert_raises(ActiveRecord::StatementInvalid) do
+              adapter.execute("SELECT 1 + 1;")
+            end
+          end
+        end
+
+        assert_raises(TrilogyAdapter::CircuitOpenError) do
+          adapter.execute("SELECT 1 + 1;")
+        end
+
+        Timecop.travel(ERROR_TIMEOUT + 1) do
+          @proxy.downstream(:latency, latency: 1500).apply do
+            assert_raises(ActiveRecord::StatementInvalid) do
+              adapter.execute("SELECT 1 + 1;")
+            end
+          end
+        end
+
+        Timecop.travel(ERROR_TIMEOUT * 2 + 1) do
+          adapter.execute("SELECT 1 + 1;")
+          adapter.execute("SELECT 1 + 1;")
+
+          # Timeout has reset to the normal 2 seconds now that Circuit is closed
+          @proxy.downstream(:latency, latency: 1500).apply do
+            adapter.execute("SELECT 1 + 1;")
+          end
+        end
+
+        raw_connection = adapter.send(:connection)
+        assert_equal(2, raw_connection.read_timeout)
+        assert_equal(2, raw_connection.write_timeout)
+      end
+
       private
 
       def trilogy_adapter(**config_overrides)
