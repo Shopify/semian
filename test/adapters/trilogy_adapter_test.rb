@@ -57,6 +57,15 @@ module ActiveRecord
         assert_instance_of(Semian::UnprotectedResource, resource)
       end
 
+      def test_unconfigured
+        adapter = trilogy_adapter(
+          host: SemianConfig["toxiproxy_upstream_host"],
+          port: SemianConfig["mysql_toxiproxy_port"],
+        )
+
+        assert_equal(2, adapter.execute("SELECT 1 + 1;").to_a.flatten.first)
+      end
+
       def test_connection_errors_open_the_circuit
         @proxy.downstream(:latency, latency: 2200).apply do
           ERROR_THRESHOLD.times do
