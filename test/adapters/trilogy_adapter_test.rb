@@ -343,6 +343,22 @@ module ActiveRecord
         assert_equal(2, raw_connection.write_timeout)
       end
 
+      def test_circuit_open_errors_do_not_trigger_the_circuit_breaker
+        @proxy.down do
+          err = assert_raises(ActiveRecord::StatementInvalid) do
+            @adapter.execute("SELECT 1;")
+          end
+          2.times do
+            assert_raises(TrilogyAdapter::CircuitOpenError) do
+              @adapter.execute("SELECT 1;")
+            end
+            error = Semian[:trilogy_adapter_testing].circuit_breaker.last_error
+            assert_equal(ActiveRecord::StatementInvalid, error.class)
+            assert_equal(Errno::ECONNREFUSED, error.cause.class)
+          end
+        end
+      end
+
       private
 
       def trilogy_adapter(**config_overrides)
