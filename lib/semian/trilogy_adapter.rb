@@ -28,13 +28,14 @@ module Semian
 
     attr_reader :raw_semian_options, :semian_identifier
 
-    def initialize(options)
-      @raw_semian_options = options.delete(:semian)
+    def initialize(*options)
+      *, config = options
+      @raw_semian_options = config.delete(:semian)
       @semian_identifier = begin
         name = semian_options && semian_options[:name]
         unless name
-          host = options[:host] || "localhost"
-          port = options[:port] || 3306
+          host = config[:host] || "localhost"
+          port = config[:port] || 3306
           name = "#{host}:#{port}"
         end
         :"trilogy_adapter_#{name}"
@@ -42,12 +43,12 @@ module Semian
       super
     end
 
-    def execute(sql, *)
+    def execute(sql, name = nil, async: false)
       if query_allowlisted?(sql)
-        super
+        super(sql, name, async: async)
       else
         acquire_semian_resource(adapter: :trilogy_adapter, scope: :execute) do
-          super
+          super(sql, name, async: async)
         end
       end
     end
@@ -55,14 +56,14 @@ module Semian
     def with_resource_timeout(temp_timeout)
       if connection.nil?
         prev_read_timeout = @config[:read_timeout] || 0 # We're assuming defaulting the timeout to 0 won't change in Trilogy
-        @config.merge!(read_timeout: temp_timeout) # Create new client with config
+        @config[:read_timeout] = temp_timeout # Create new client with config
       else
         prev_read_timeout = connection.read_timeout
         connection.read_timeout = temp_timeout
       end
       yield
     ensure
-      @config.merge!(read_timeout: prev_read_timeout)
+      @config[:read_timeout] = prev_read_timeout
       connection&.read_timeout = prev_read_timeout
     end
 
