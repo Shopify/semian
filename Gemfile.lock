@@ -46,7 +46,7 @@ GEM
     memory_profiler (1.0.1)
     method_source (1.0.0)
     minitest (5.16.3)
-    mocha (1.15.0)
+    mocha (1.16.0)
     mysql2 (0.5.4)
     parallel (1.22.1)
     parser (3.1.2.1)
