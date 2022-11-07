@@ -75,6 +75,7 @@ class TestNetHTTP < Minitest::Test
         exception = assert_raises(Net::CircuitOpenError) do
           Net::HTTP.get(uri)
         end
+
         assert_equal("Net::ReadTimeout", exception.cause.to_s)
       end
     end
@@ -247,6 +248,7 @@ class TestNetHTTP < Minitest::Test
       with_semian_configuration(semian_configuration_proc) do
         Net::HTTP.start(SemianConfig["http_host"], SemianConfig["http_port_service_a"]) do |http|
           expected_config = semian_config["development"]["nethttp_default"].dup
+
           assert_equal(expected_config, http.raw_semian_options.dup.tap { |o| o.delete(:name) })
         end
       end
@@ -258,6 +260,7 @@ class TestNetHTTP < Minitest::Test
       semian_configuration_proc = proc { nil }
       with_semian_configuration(semian_configuration_proc) do
         http = Net::HTTP.new(SemianConfig["toxiproxy_upstream_host"], SemianConfig["http_toxiproxy_port"])
+
         assert_predicate(http, :disabled?)
       end
     end
@@ -267,6 +270,7 @@ class TestNetHTTP < Minitest::Test
     with_server do
       with_semian_configuration do
         http = Net::HTTP.new(SemianConfig["toxiproxy_upstream_host"], SemianConfig["http_toxiproxy_port"])
+
         refute_predicate(http, :disabled?)
       end
     end
@@ -277,6 +281,7 @@ class TestNetHTTP < Minitest::Test
       with_semian_configuration do
         http = Net::HTTP.new(SemianConfig["toxiproxy_upstream_host"], SemianConfig["http_toxiproxy_port"],
           semian: false)
+
         assert_predicate(http, :disabled?)
       end
     end
@@ -329,9 +334,11 @@ class TestNetHTTP < Minitest::Test
       end
       with_semian_configuration(semian_configuration_proc) do
         http = Net::HTTP.new(toxiproxy_upstream_host, http_toxiproxy_port)
+
         refute_predicate(http, :disabled?)
 
         http = Net::HTTP.new(toxiproxy_upstream_host, http_toxiproxy_port + 100)
+
         assert_predicate(http, :disabled?)
       end
     end
@@ -340,8 +347,10 @@ class TestNetHTTP < Minitest::Test
   def test_adding_extra_errors_and_resetting_affects_exceptions_list
     orig_errors = Semian::NetHTTP.exceptions.dup
     Semian::NetHTTP.exceptions += [::OpenSSL::SSL::SSLError]
+
     assert_equal(orig_errors + [::OpenSSL::SSL::SSLError], Semian::NetHTTP.exceptions)
     Semian::NetHTTP.reset_exceptions
+
     assert_equal(Semian::NetHTTP::DEFAULT_ERRORS, Semian::NetHTTP.exceptions)
   ensure
     Semian::NetHTTP.exceptions = orig_errors
@@ -520,6 +529,7 @@ class TestNetHTTP < Minitest::Test
     # Cause successes success_threshold times so circuit closes
     http.raw_semian_options[:success_threshold].times do
       response = http.get("/200")
+
       assert_equal(200, response.code.to_i)
     end
   end

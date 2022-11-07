@@ -47,6 +47,7 @@ class TestGRPC < Minitest::Test
     error = assert_raises(::GRPC::Unavailable) do
       @stub.an_rpc(EchoMsg.new)
     end
+
     assert_equal(@host, error.semian_identifier)
   end
 
@@ -106,6 +107,7 @@ class TestGRPC < Minitest::Test
       next if event != :success
 
       notified = true
+
       assert_equal(Semian[@host], resource)
       assert_equal(:request_response, scope)
       assert_equal(:grpc, adapter)

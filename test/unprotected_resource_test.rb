@@ -9,6 +9,7 @@ class UnprotectedResourceTest < Minitest::Test
 
   def test_interface_is_the_same
     diff = Semian::ProtectedResource.public_instance_methods - Semian::UnprotectedResource.public_instance_methods
+
     assert_empty(diff)
   end
 
@@ -41,6 +42,7 @@ class UnprotectedResourceTest < Minitest::Test
     @resource.acquire do
       acquired = true
     end
+
     assert(acquired)
   end
 
@@ -49,6 +51,7 @@ class UnprotectedResourceTest < Minitest::Test
     @resource.acquire(timeout: 2) do
       acquired = true
     end
+
     assert(acquired)
   end
 

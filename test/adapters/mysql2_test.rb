@@ -93,6 +93,7 @@ class TestMysql2 < Minitest::Test
       next unless event == :success
 
       notified = true
+
       assert_equal(Semian[:mysql_testing], resource)
       assert_equal(:connection, scope)
       assert_equal(:mysql, adapter)
@@ -112,6 +113,7 @@ class TestMysql2 < Minitest::Test
       error = assert_raises(Mysql2::ResourceBusyError) do
         connect_to_mysql!
       end
+
       assert_equal(:mysql_testing, error.semian_identifier)
     end
   end
@@ -122,6 +124,7 @@ class TestMysql2 < Minitest::Test
       error = assert_raises(::Mysql2::Error) do
         client.query("SELECT 1 + 1;")
       end
+
       assert_equal(client.semian_identifier, error.semian_identifier)
     end
   end
@@ -132,6 +135,7 @@ class TestMysql2 < Minitest::Test
     error = assert_raises(Mysql2::Error) do
       client.query("SYNTAX ERROR!")
     end
+
     assert_nil(error.semian_identifier)
   end
 
@@ -173,6 +177,7 @@ class TestMysql2 < Minitest::Test
     notified = false
     subscriber = Semian.subscribe do |event, resource, scope, adapter|
       notified = true
+
       assert_equal(:success, event)
       assert_equal(Semian[:mysql_testing], resource)
       assert_equal(:query, scope)
@@ -229,6 +234,7 @@ class TestMysql2 < Minitest::Test
   def test_query_whitelisted_returns_false_for_binary_sql
     binary_query = File.read(File.expand_path("../../fixtures/binary.sql", __FILE__))
     client = connect_to_mysql!
+
     refute(client.send(:query_whitelisted?, binary_query))
   end
 
@@ -379,6 +385,7 @@ class TestMysql2 < Minitest::Test
         assert_raises(Mysql2::Error) do
           connect_to_mysql!
         end
+
         assert_equal(mysql_connection_error, Semian[:mysql_testing].circuit_breaker.last_error.class)
       end
     end

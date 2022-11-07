@@ -13,6 +13,7 @@ class TestSemian < Minitest::Test
     acquired = false
     Semian.register(:testing, tickets: 1, error_threshold: 1, error_timeout: 2, success_threshold: 1)
     Semian[:testing].acquire { acquired = true }
+
     assert(acquired)
   end
 
@@ -25,6 +26,7 @@ class TestSemian < Minitest::Test
         bulkhead: false,
       )
     end
+
     assert_equal("Missing required arguments for Semian: [:success_threshold]", exception.message)
   end
 
@@ -65,6 +67,7 @@ class TestSemian < Minitest::Test
         circuit_breaker: false,
       )
     end
+
     assert_equal("Semian configuration require either the :tickets or :quota parameter, you provided neither",
       exception.message)
   end
@@ -78,6 +81,7 @@ class TestSemian < Minitest::Test
         circuit_breaker: false,
       )
     end
+
     assert_equal("Semian configuration require either the :tickets or :quota parameter, you provided both",
       exception.message)
   end

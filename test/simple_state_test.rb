@@ -18,24 +18,28 @@ class TestSimpleEnum < Minitest::Test
 
     def test_open
       @state.open!
+
       assert_predicate(@state, :open?)
       assert_equal(:open, @state.value)
     end
 
     def test_close
       @state.close!
+
       assert_predicate(@state, :closed?)
       assert_equal(:closed, @state.value)
     end
 
     def test_half_open
       @state.half_open!
+
       assert_predicate(@state, :half_open?)
       assert_equal(:half_open, @state.value)
     end
 
     def test_reset
       @state.reset
+
       assert_predicate(@state, :closed?)
       assert_equal(:closed, @state.value)
     end

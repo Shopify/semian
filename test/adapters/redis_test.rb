@@ -38,17 +38,20 @@ module RedisTests
 
   def test_client_alias
     redis = connect_to_redis!
+
     assert_equal(redis._client.semian_resource, redis.semian_resource)
     assert_equal(redis._client.semian_identifier, redis.semian_identifier)
   end
 
   def test_semian_can_be_disabled
     resource = Redis.new(semian: false)._client.semian_resource
+
     assert_instance_of(Semian::UnprotectedResource, resource)
   end
 
   def test_semian_resource_in_pipeline
     redis = connect_to_redis!
+
     redis.pipelined do |_pipeline|
       assert_instance_of(Semian::ProtectedResource, redis.semian_resource)
     end
@@ -139,6 +142,7 @@ module RedisTests
       next if scope == :query
 
       notified = true
+
       assert_equal(Semian[:redis_testing], resource)
       assert_equal(:connection, scope)
       if ::Redis::VERSION >= "5"
@@ -162,6 +166,7 @@ module RedisTests
       error = assert_raises(Redis::ResourceBusyError) do
         connect_to_redis!
       end
+
       assert_equal(:redis_testing, error.semian_identifier)
     end
   end
@@ -171,6 +176,7 @@ module RedisTests
       error = assert_raises(::Redis::BaseConnectionError) do
         connect_to_redis!
       end
+
       assert_equal(:redis_testing, error.semian_identifier)
     end
   end
@@ -181,6 +187,7 @@ module RedisTests
     error = assert_raises(::Redis::CommandError) do
       client.hget("foo", "bar")
     end
+
     refute_respond_to(error, :semian_identifier)
   end
 
@@ -259,6 +266,7 @@ module RedisTests
     notified = false
     subscriber = Semian.subscribe do |event, resource, scope, adapter|
       notified = true
+
       assert_equal(:success, event)
       assert_equal(Semian[:redis_testing], resource)
       assert_equal(:query, scope)
@@ -483,6 +491,7 @@ module RedisTests
         @proxy.downstream(:latency, latency: latency).apply(&block)
       end
     end
+
     assert_in_delta(bench.real, expected_timeout, delta)
   end
 

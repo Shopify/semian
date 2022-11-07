@@ -11,6 +11,7 @@ class TestLRUHash < Minitest::Test
   def test_set_get_item
     circuit_breaker = create_circuit_breaker("a")
     @lru_hash.set("key", circuit_breaker)
+
     assert_equal(circuit_breaker, @lru_hash.get("key"))
   end
 
@@ -19,12 +20,14 @@ class TestLRUHash < Minitest::Test
     @lru_hash = LRUHash.new
     circuit_breaker = create_circuit_breaker("a")
     @lru_hash.set("key", circuit_breaker)
+
     assert_equal(circuit_breaker, @lru_hash.get("key"))
   end
 
   def test_set_get_item_with_thread_safe_enabled
     circuit_breaker = create_circuit_breaker("a")
     @lru_hash.set("key", circuit_breaker)
+
     assert_equal(circuit_breaker, @lru_hash.get("key"))
   end
 
@@ -36,6 +39,7 @@ class TestLRUHash < Minitest::Test
     assert_equal(3, @lru_hash.count)
 
     @lru_hash.delete("b")
+
     assert_equal(2, @lru_hash.size)
     assert_equal(@lru_hash.values.last, @lru_hash.get("c"))
     assert_equal(@lru_hash.values.first, @lru_hash.get("a"))
@@ -48,6 +52,7 @@ class TestLRUHash < Minitest::Test
 
     assert_equal(3, @lru_hash.size)
     @lru_hash.get("a") # Reading the value will move the resource at the tail position
+
     assert_equal(@lru_hash.values.last, @lru_hash.get("a"))
     assert_equal(@lru_hash.values.first, @lru_hash.get("b"))
   end
@@ -57,6 +62,7 @@ class TestLRUHash < Minitest::Test
 
     Timecop.travel(2000) do
       @lru_hash.set("d", create_circuit_breaker("d"))
+
       assert_equal(1, @lru_hash.size)
     end
   end
@@ -66,6 +72,7 @@ class TestLRUHash < Minitest::Test
 
     Timecop.travel(600) do
       @lru_hash.set("d", create_circuit_breaker("d"))
+
       assert_equal(2, @lru_hash.size)
     end
   end
@@ -77,6 +84,7 @@ class TestLRUHash < Minitest::Test
 
     Timecop.travel(600) do
       @lru_hash.set("d", create_circuit_breaker("d"))
+
       assert_equal(2, @lru_hash.size)
     end
   end
@@ -91,20 +99,24 @@ class TestLRUHash < Minitest::Test
 
   def test_keys
     @lru_hash.set("a", create_circuit_breaker("a"))
+
     assert_equal(["a"], @lru_hash.keys)
   end
 
   def test_delete
     @lru_hash.set("a", create_circuit_breaker("a"))
+
     assert(@lru_hash.get("a"))
 
     @lru_hash.delete("a")
+
     assert_nil(@lru_hash.get("a"))
   end
 
   def test_clear
     @lru_hash.set("a", create_circuit_breaker("a"))
     @lru_hash.clear
+
     assert_empty(@lru_hash)
   end
 
@@ -118,6 +130,7 @@ class TestLRUHash < Minitest::Test
       next unless event == :lru_hash_gc
 
       notified = true
+
       assert_equal(@lru_hash, resource)
       assert_nil(scope)
       assert_nil(adapter)
@@ -158,6 +171,7 @@ class TestLRUHash < Minitest::Test
 
     assert_monotonic = lambda do
       previous_timestamp = start_time
+
       @lru_hash.keys.zip(@lru_hash.values).each do |key, val|
         assert(val.updated_at > previous_timestamp, "Timestamp for #{key} was not monotonically increasing")
       end
@@ -196,11 +210,13 @@ class TestLRUHash < Minitest::Test
     lru_hash.set("a", create_circuit_breaker("a"))
     lru_hash.set("b", create_circuit_breaker("b"))
     lru_hash.set("c", create_circuit_breaker("c"))
+
     assert_equal(3, lru_hash.size)
 
     Timecop.travel(Semian.minimum_lru_time) do
       # [a, b, c] are older than the min_time, so they get garbage collected.
       lru_hash.set("d", create_circuit_breaker("d"))
+
       assert_equal(1, lru_hash.size)
     end
   end
@@ -209,18 +225,21 @@ class TestLRUHash < Minitest::Test
     lru_hash = LRUHash.new(max_size: 3)
     lru_hash.set("a", create_circuit_breaker("a"))
     lru_hash.set("b", create_circuit_breaker("b"))
+
     assert_equal(2, lru_hash.size)
 
     Timecop.travel(Semian.minimum_lru_time) do
       # [a, b] are older than the min_time, but the hash isn't full, so
       # there's no garbage collection.
       lru_hash.set("c", create_circuit_breaker("c"))
+
       assert_equal(3, lru_hash.size)
     end
 
     Timecop.travel(Semian.minimum_lru_time + 1) do
       # [a, b] are beyond the min_time, but [c] isn't.
       lru_hash.set("d", create_circuit_breaker("d"))
+
       assert_equal(2, lru_hash.size)
     end
   end

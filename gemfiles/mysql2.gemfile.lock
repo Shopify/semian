@@ -7,11 +7,13 @@ GEM
   remote: https://rubygems.org/
   specs:
     minitest (5.16.3)
-    mocha (1.15.0)
+    mocha (2.0.1)
+      ruby2_keywords (>= 0.0.5)
     mysql2 (0.5.4)
     rake (13.0.6)
     rake-compiler (1.2.0)
       rake
+    ruby2_keywords (0.0.5)
     timecop (0.9.5)
     toxiproxy (2.0.2)
     webrick (1.7.0)
@@ -35,4 +37,4 @@ DEPENDENCIES
   webrick
 
 BUNDLED WITH
-   2.3.23
+   2.3.25

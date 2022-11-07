@@ -35,6 +35,7 @@ module RedisClientTests
       new_config(host: "example.com", port: 42, semian: { name: nil }).semian_identifier)
 
     config = new_config(semian: { name: "foo" })
+
     assert_equal(:redis_foo, config.new_client.semian_identifier)
     assert_equal(:redis_foo, config.new_pool.semian_identifier)
   end
@@ -43,12 +44,14 @@ module RedisClientTests
     config = new_config
     client = config.new_client
     client2 = config.new_client
+
     assert_equal(client.semian_resource, client2.semian_resource)
     assert_equal(client.semian_identifier, client2.semian_identifier)
   end
 
   def test_semian_can_be_disabled
     resource = RedisClient.new(semian: false).semian_resource
+
     assert_instance_of(Semian::UnprotectedResource, resource)
   end
 
@@ -101,6 +104,7 @@ module RedisClientTests
       next if scope == :query
 
       notified = true
+
       assert_equal(Semian[:redis_testing], resource)
       assert_equal(:connection, scope)
       assert_equal(:redis_client, adapter)
@@ -120,6 +124,7 @@ module RedisClientTests
       error = assert_raises(RedisClient::ResourceBusyError) do
         connect_to_redis!
       end
+
       assert_equal(:redis_testing, error.semian_identifier)
     end
   end
@@ -129,6 +134,7 @@ module RedisClientTests
       error = assert_raises(RedisClient::ConnectionError) do
         connect_to_redis!
       end
+
       assert_equal(:redis_testing, error.semian_identifier)
     end
   end
@@ -139,6 +145,7 @@ module RedisClientTests
     error = assert_raises(RedisClient::CommandError) do
       client.call("hget", "foo", "bar")
     end
+
     refute_respond_to(error, :semian_identifier)
   end
 
@@ -174,6 +181,7 @@ module RedisClientTests
     notified = false
     subscriber = Semian.subscribe do |event, resource, scope, adapter|
       notified = true
+
       assert_equal(:success, event)
       assert_equal(Semian[:redis_testing], resource)
       assert_equal(:query, scope)
@@ -383,6 +391,7 @@ module RedisClientTests
         @proxy.downstream(:latency, latency: latency).apply(&block)
       end
     end
+
     assert_in_delta(bench.real, expected_timeout, delta)
   end
 end
