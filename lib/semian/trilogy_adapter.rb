@@ -43,12 +43,12 @@ module Semian
       super
     end
 
-    def execute(sql, name = nil, async: false)
+    def execute(sql, name = nil, async: false, allow_retry: false)
       if query_allowlisted?(sql)
-        super(sql, name, async: async)
+        super(sql, name, async: async, allow_retry: allow_retry)
       else
         acquire_semian_resource(adapter: :trilogy_adapter, scope: :execute) do
-          super(sql, name, async: async)
+          super(sql, name, async: async, allow_retry: allow_retry)
         end
       end
     end

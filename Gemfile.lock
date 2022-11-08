@@ -1,4 +1,13 @@
 GIT
+  remote: https://github.com/github/activerecord-trilogy-adapter.git
+  revision: b1f0cd5d8305285bd77ab3f711a1e43f52fedd31
+  branch: main
+  specs:
+    activerecord-trilogy-adapter (2.1.0)
+      activerecord (~> 7.1.a)
+      trilogy (>= 2.1.1)
+
+GIT
   remote: https://github.com/rails/rails.git
   revision: 73388a2350060045328fdd409fa2282b4764b90f
   branch: main
@@ -116,7 +125,7 @@ PLATFORMS
 
 DEPENDENCIES
   activerecord!
-  activerecord-trilogy-adapter
+  activerecord-trilogy-adapter!
   benchmark-memory
   grpc (= 1.47.0)
   hiredis (~> 0.6)
