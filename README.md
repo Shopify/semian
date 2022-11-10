@@ -73,6 +73,7 @@ version is the version of the public gem with the same name:
 * [`semian/mysql2`][mysql-semian-adapter] (~> 0.3.16)
 * [`semian/redis`][redis-semian-adapter] (~> 3.2.1)
 * [`semian/net_http`][nethttp-semian-adapter]
+* [`semian-postgres`][postgres-semian-adapter]
 
 ### Creating Adapters
 
@@ -841,6 +842,7 @@ $ bundle install
 [release-it]: https://pragprog.com/titles/mnee2/release-it-second-edition/
 [shopify]: http://www.shopify.com/
 [mysql-semian-adapter]: lib/semian/mysql2.rb
+[postgres-semian-adapter]: https://github.com/mschoenlaub/semian-postgres
 [redis-semian-adapter]: lib/semian/redis.rb
 [semian-adapter]: lib/semian/adapter.rb
 [nethttp-semian-adapter]: lib/semian/net_http.rb
