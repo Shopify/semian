@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "thread"
+
 class LRUHash
   # This LRU (Least Recently Used) hash will allow
   # the cleaning of resources as time goes on.
@@ -41,7 +43,7 @@ class LRUHash
   #
   # Arguments:
   #   +max_size+ The maximum size of the table
-  #   +min_time+ The minimum time a resource can live in the cache
+  #   +min_time+ The minimum time in seconds a resource can live in the cache
   #
   # Note:
   #   The +min_time+ is a stronger guarantee than +max_size+. That is, if there are
@@ -57,9 +59,9 @@ class LRUHash
     @table = {}
     @lock =
       if Semian.thread_safe?
-        Mutex.new
+        ::Thread::Mutex.new
       else
-        NoopMutex.new
+        ::LRUHash::NoopMutex.new
       end
   end
 
@@ -83,7 +85,7 @@ class LRUHash
     @lock.synchronize do
       @table.delete(key)
       @table[key] = resource
-      resource.updated_at = Time.now
+      resource.updated_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     end
     clear_unused_resources if @table.length > @max_size
   end
@@ -98,7 +100,7 @@ class LRUHash
       found = @table.delete(key)
       if found
         @table[key] = found
-        found.updated_at = Time.now
+        found.updated_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       end
       found
     end
@@ -130,9 +132,10 @@ class LRUHash
     timer_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
     ran = try_synchronize do
-      # Clears resources that have not been used in the last 5 minutes.
+      # Clears resources that have not been used
+      # in the last 5 minutes (default value of Semian.minimum_lru_time).
 
-      stop_time = Time.now - @min_time # Don't process resources updated after this time
+      stop_time = Process.clock_gettime(Process::CLOCK_MONOTONIC) - @min_time
       @table.each do |_, resource|
         payload[:examined] += 1
 

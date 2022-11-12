@@ -7,6 +7,8 @@
   variable `SEMIAN_DISABLED` is set. (#427)
   Introduces environment variables `SEMIAN_CIRCUIT_BREAKER_DISABLED` to disable only
   `circuit_breaker` and `SEMIAN_BULKHEAD_DISABLED` only `bulkhead`.
+* Refactor: Replace `Time.now` with `CLOCK_MONOTONIC` in Resource `updated_at` field. (#443)
+  Replace `Timecop.travel` for tests with custom mock solution to support monotonic clocks.
 
 # v0.16.0
 

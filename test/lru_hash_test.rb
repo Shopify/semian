@@ -3,6 +3,8 @@
 require "test_helper"
 
 class TestLRUHash < Minitest::Test
+  include TimeHelper
+
   def setup
     Semian.thread_safe = true
     @lru_hash = LRUHash.new(max_size: 0)
@@ -58,35 +60,39 @@ class TestLRUHash < Minitest::Test
   end
 
   def test_set_cleans_resources_if_last_error_has_expired
-    @lru_hash.set("b", create_circuit_breaker("b", true, false, 1000))
+    lru_hash = LRUHash.new(max_size: 0, min_time: 1)
+    lru_hash.set("b", create_circuit_breaker("b", true, false, 2))
 
-    Timecop.travel(2000) do
-      @lru_hash.set("d", create_circuit_breaker("d"))
+    time_travel(4) do
+      lru_hash.set("d", create_circuit_breaker("d"))
 
-      assert_equal(1, @lru_hash.size)
+      assert_equal(["d"], lru_hash.values.map(&:name))
+      assert_equal(1, lru_hash.size)
     end
   end
 
   def test_set_does_not_clean_resources_if_last_error_has_not_expired
     @lru_hash.set("b", create_circuit_breaker("b", true, false, 1000))
 
-    Timecop.travel(600) do
+    time_travel(600) do
       @lru_hash.set("d", create_circuit_breaker("d"))
-
-      assert_equal(2, @lru_hash.size)
     end
+
+    assert_equal(2, @lru_hash.size)
   end
 
   def test_set_cleans_resources_if_minimum_time_is_reached
-    @lru_hash.set("a", create_circuit_breaker("a", true, false, 1000))
-    @lru_hash.set("b", create_circuit_breaker("b", false))
-    @lru_hash.set("c", create_circuit_breaker("c", false))
+    lru_hash = LRUHash.new(max_size: 0, min_time: 1)
+    lru_hash.set("a", create_circuit_breaker("a", true, false, 1000))
+    lru_hash.set("b", create_circuit_breaker("b", false))
+    lru_hash.set("c", create_circuit_breaker("c", false))
 
-    Timecop.travel(600) do
-      @lru_hash.set("d", create_circuit_breaker("d"))
-
-      assert_equal(2, @lru_hash.size)
+    time_travel(2) do
+      lru_hash.set("d", create_circuit_breaker("d"))
     end
+
+    assert_equal(["a", "d"], lru_hash.values.map(&:name))
+    assert_equal(2, lru_hash.size)
   end
 
   def test_set_does_not_cleans_resources_if_minimum_time_is_not_reached
@@ -121,9 +127,10 @@ class TestLRUHash < Minitest::Test
   end
 
   def test_clean_instrumentation
-    @lru_hash.set("a", create_circuit_breaker("a", true, false, 1000))
-    @lru_hash.set("b", create_circuit_breaker("b", true, false, 1000))
-    @lru_hash.set("c", create_circuit_breaker("c", true, false, 1000))
+    lru_hash = LRUHash.new(max_size: 0, min_time: 1)
+    lru_hash.set("a", create_circuit_breaker("a", true, false, 2))
+    lru_hash.set("b", create_circuit_breaker("b", true, false, 2))
+    lru_hash.set("c", create_circuit_breaker("c", true, false, 2))
 
     notified = false
     subscriber = Semian.subscribe do |event, resource, scope, adapter, payload|
@@ -131,7 +138,7 @@ class TestLRUHash < Minitest::Test
 
       notified = true
 
-      assert_equal(@lru_hash, resource)
+      assert_equal(lru_hash, resource)
       assert_nil(scope)
       assert_nil(adapter)
       assert_equal(4, payload[:size])
@@ -140,8 +147,8 @@ class TestLRUHash < Minitest::Test
       refute_nil(payload[:elapsed])
     end
 
-    Timecop.travel(2000) do
-      @lru_hash.set("d", create_circuit_breaker("d"))
+    time_travel(3) do
+      lru_hash.set("d", create_circuit_breaker("d"))
     end
 
     assert(notified, "No notifications has been emitted")
@@ -150,7 +157,8 @@ class TestLRUHash < Minitest::Test
   end
 
   def test_monotonically_increasing
-    start_time = Time.now
+    start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    lru_hash = LRUHash.new(max_size: 0, min_time: 3)
 
     notification = 0
     subscriber = Semian.subscribe do |event, _resource, _scope, _adapter, payload|
@@ -169,79 +177,81 @@ class TestLRUHash < Minitest::Test
       end
     end
 
-    assert_monotonic = lambda do
+    assert_monotonic = lambda do |lru_hash|
       previous_timestamp = start_time
 
-      @lru_hash.keys.zip(@lru_hash.values).each do |key, val|
+      lru_hash.keys.zip(lru_hash.values).each do |key, val|
         assert(val.updated_at > previous_timestamp, "Timestamp for #{key} was not monotonically increasing")
       end
     end
 
-    @lru_hash.set("a", create_circuit_breaker("a"))
-    @lru_hash.set("b", create_circuit_breaker("b"))
-    @lru_hash.set("c", create_circuit_breaker("c"))
+    lru_hash.set("a", create_circuit_breaker("a"))
+    lru_hash.set("b", create_circuit_breaker("b"))
+    lru_hash.set("c", create_circuit_breaker("c"))
 
-    # Before: [a, b, c]
-    # After: [a, c, b]
-    Timecop.travel(Semian.minimum_lru_time - 1) do
-      @lru_hash.get("b")
-      assert_monotonic.call
-    end
+    assert_equal(["a", "b", "c"], lru_hash.values.map(&:name))
 
-    # Before: [a, c, b]
-    # After: [a, c, b, d]
-    Timecop.travel(Semian.minimum_lru_time - 1) do
-      @lru_hash.set("d", create_circuit_breaker("d"))
-      assert_monotonic.call
-    end
+    time_travel(1) do
+      lru_hash.get("b")
+      assert_monotonic.call(lru_hash)
 
-    # Before: [a, c, b, d]
-    # After: [b, d, e]
-    Timecop.travel(Semian.minimum_lru_time) do
-      @lru_hash.set("e", create_circuit_breaker("e"))
-      assert_monotonic.call
+      assert_equal(["a", "c", "b"], lru_hash.values.map(&:name))
+
+      lru_hash.set("d", create_circuit_breaker("d"))
     end
+    assert_monotonic.call(lru_hash)
+
+    assert_equal(["a", "c", "b", "d"], lru_hash.values.map(&:name))
+
+    time_travel(3) do
+      lru_hash.set("e", create_circuit_breaker("e"))
+    end
+    assert_monotonic.call(lru_hash)
+
+    assert_equal(["b", "d", "e"], lru_hash.values.map(&:name))
   ensure
     Semian.unsubscribe(subscriber)
   end
 
   def test_max_size
-    lru_hash = LRUHash.new(max_size: 3)
+    lru_hash = LRUHash.new(max_size: 3, min_time: 1)
     lru_hash.set("a", create_circuit_breaker("a"))
     lru_hash.set("b", create_circuit_breaker("b"))
     lru_hash.set("c", create_circuit_breaker("c"))
 
     assert_equal(3, lru_hash.size)
+    assert_equal(["a", "b", "c"], lru_hash.values.map(&:name))
 
-    Timecop.travel(Semian.minimum_lru_time) do
-      # [a, b, c] are older than the min_time, so they get garbage collected.
-      lru_hash.set("d", create_circuit_breaker("d"))
+    sleep(1)
+    lru_hash.set("d", create_circuit_breaker("d"))
 
-      assert_equal(1, lru_hash.size)
-    end
+    assert_equal(["d"], lru_hash.values.map(&:name))
   end
 
   def test_max_size_overflow
-    lru_hash = LRUHash.new(max_size: 3)
+    lru_hash = LRUHash.new(max_size: 3, min_time: 3)
     lru_hash.set("a", create_circuit_breaker("a"))
     lru_hash.set("b", create_circuit_breaker("b"))
 
     assert_equal(2, lru_hash.size)
+    assert_equal(["a", "b"], lru_hash.values.map(&:name))
 
-    Timecop.travel(Semian.minimum_lru_time) do
+    time_travel(5) do
       # [a, b] are older than the min_time, but the hash isn't full, so
       # there's no garbage collection.
       lru_hash.set("c", create_circuit_breaker("c"))
-
-      assert_equal(3, lru_hash.size)
     end
 
-    Timecop.travel(Semian.minimum_lru_time + 1) do
+    assert_equal(3, lru_hash.size)
+    assert_equal(["a", "b", "c"], lru_hash.values.map(&:name))
+
+    time_travel(6) do
       # [a, b] are beyond the min_time, but [c] isn't.
       lru_hash.set("d", create_circuit_breaker("d"))
-
-      assert_equal(2, lru_hash.size)
     end
+
+    assert_equal(2, lru_hash.size)
+    assert_equal(["c", "d"], lru_hash.values.map(&:name))
   end
 
   private

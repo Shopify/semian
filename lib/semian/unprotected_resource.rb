@@ -9,7 +9,7 @@ module Semian
 
     def initialize(name)
       @name = name
-      @updated_at = Time.now
+      @updated_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     end
 
     def registered_workers

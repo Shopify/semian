@@ -104,7 +104,7 @@ module Semian
   attr_accessor :maximum_lru_size, :minimum_lru_time, :default_permissions, :namespace
 
   self.maximum_lru_size = 500
-  self.minimum_lru_time = 300
+  self.minimum_lru_time = 300 # 300 seconds / 5 minutes
   self.default_permissions = 0660
 
   def issue_disabled_semaphores_warning

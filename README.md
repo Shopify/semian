@@ -111,7 +111,7 @@ There are some global configuration options that can be set for Semian:
 # Note: Setting this to 0 enables aggressive garbage collection.
 Semian.maximum_lru_size = 0
 
-# Minimum time a resource should be resident in the LRU cache (default: 300s)
+# Minimum time in seconds a resource should be resident in the LRU cache (default: 300s)
 Semian.minimum_lru_time = 60
 ```
 

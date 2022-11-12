@@ -12,11 +12,12 @@ require "fileutils"
 require "mocha"
 require "mocha/minitest"
 
+require "helpers/adapter_helper"
 require "helpers/background_helper"
 require "helpers/circuit_breaker_helper"
-require "helpers/resource_helper"
-require "helpers/adapter_helper"
 require "helpers/mock_server.rb"
+require "helpers/resource_helper"
+require "helpers/time_helper.rb"
 
 require "config/semian_config"
 
