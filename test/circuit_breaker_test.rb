@@ -178,15 +178,24 @@ class TestCircuitBreaker < Minitest::Test
   end
 
   def test_request_allowed_query_doesnt_trigger_transitions
-    time_travel(-6) do
-      open_circuit!
+    resource = Semian.register(
+      :testing,
+      tickets: 1,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 2,
+      success_threshold: 1,
+    )
 
-      refute_predicate(@resource, :request_allowed?)
-      assert_predicate(@resource, :open?)
+    time_travel(-2) do
+      open_circuit!(resource)
+
+      refute_predicate(resource, :request_allowed?)
+      assert_predicate(resource, :open?)
     end
 
-    assert_predicate(@resource, :request_allowed?)
-    assert_predicate(@resource, :open?)
+    assert_predicate(resource, :request_allowed?)
+    assert_predicate(resource, :open?)
   end
 
   def test_open_close_open_cycle
@@ -214,15 +223,15 @@ class TestCircuitBreaker < Minitest::Test
       open_circuit!(resource)
 
       assert_circuit_opened(resource)
+    end
 
-      time_travel(resource.circuit_breaker.error_timeout + 1) do
-        assert_circuit_closed(resource)
+    time_travel(resource.circuit_breaker.error_timeout * 2 + 1) do
+      assert_circuit_closed(resource)
 
-        assert_predicate(resource, :half_open?)
-        assert_circuit_closed(resource)
+      assert_predicate(resource, :half_open?)
+      assert_circuit_closed(resource)
 
-        assert_predicate(resource, :closed?)
-      end
+      assert_predicate(resource, :closed?)
     end
   end
 
@@ -252,15 +261,15 @@ class TestCircuitBreaker < Minitest::Test
       open_circuit!(resource)
 
       assert_circuit_opened(resource)
+    end
 
-      time_travel(resource.circuit_breaker.error_timeout + 1) do
-        assert_circuit_closed(resource)
+    time_travel(resource.circuit_breaker.error_timeout * 2 + 1) do
+      assert_circuit_closed(resource)
 
-        assert_predicate(resource, :half_open?)
-        assert_circuit_closed(resource)
+      assert_predicate(resource, :half_open?)
+      assert_circuit_closed(resource)
 
-        assert_predicate(resource, :closed?)
-      end
+      assert_predicate(resource, :closed?)
     end
   end
 
@@ -355,8 +364,15 @@ class TestCircuitBreaker < Minitest::Test
   end
 
   def test_error_uses_defaults_when_using_timeout
-    resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5,
-      success_threshold: 1, use_timeoout: true)
+    resource = Semian.register(
+      :test_error_uses_defaults_when_using_timeout,
+      tickets: 1,
+      exceptions: [SomeError],
+      error_threshold: 3,
+      error_timeout: 5,
+      success_threshold: 1,
+      use_timeoout: true,
+    )
 
     time_travel(-6) do
       trigger_error!(resource)
@@ -374,7 +390,7 @@ class TestCircuitBreaker < Minitest::Test
 
     assert_circuit_closed(resource)
   ensure
-    Semian.destroy(:three)
+    Semian.destroy(:test_error_uses_defaults_when_using_timeout)
   end
 
   def test_error_threshold_timeout_is_skipped_when_not_using_error_threshold_and_not_using_timeout

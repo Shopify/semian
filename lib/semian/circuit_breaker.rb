@@ -64,7 +64,7 @@ module Semian
 
     def mark_failed(error)
       push_error(error)
-      push_time(@errors)
+      push_time
       if closed?
         transition_to_open if error_threshold_reached?
       elsif half_open?
@@ -129,19 +129,20 @@ module Semian
       last_error_time = @errors.last
       return false unless last_error_time
 
-      Time.at(last_error_time) + @error_timeout < Time.now
+      last_error_time + @error_timeout < Process.clock_gettime(Process::CLOCK_MONOTONIC)
     end
 
     def push_error(error)
       @last_error = error
     end
 
-    def push_time(window, time: Time.now)
+    def push_time
+      time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       if error_threshold_timeout_enabled
-        window.reject! { |err_time| err_time + @error_threshold_timeout < time.to_i }
+        @errors.reject! { |err_time| err_time + @error_threshold_timeout < time }
       end
 
-      window << time.to_i
+      @errors << time
     end
 
     def log_state_transition(new_state)
