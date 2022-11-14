@@ -11,7 +11,7 @@ GEM
     hiredis-client (0.11.1)
       redis-client (= 0.11.1)
     minitest (5.16.3)
-    mocha (2.0.1)
+    mocha (2.0.2)
       ruby2_keywords (>= 0.0.5)
     rake (13.0.6)
     rake-compiler (1.2.0)

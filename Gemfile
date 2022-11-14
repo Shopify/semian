@@ -15,7 +15,7 @@ group :test do
   gem "toxiproxy"
   gem "webrick"
 
-  gem "grpc", "1.49.1"
+  gem "grpc", "1.50.0"
   gem "mysql2", "~> 0.5"
   gem "activerecord", ">= 7.0.3"
   gem "hiredis", "~> 0.6"

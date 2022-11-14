@@ -18,7 +18,7 @@ GEM
     connection_pool (2.3.0)
     hiredis (0.6.3)
     minitest (5.16.3)
-    mocha (2.0.1)
+    mocha (2.0.2)
       ruby2_keywords (>= 0.0.5)
     rake (13.0.6)
     rake-compiler (1.2.0)

@@ -28,13 +28,13 @@ GEM
     google-protobuf (3.21.9-x86_64-linux)
     googleapis-common-protos-types (1.4.0)
       google-protobuf (~> 3.14)
-    grpc (1.49.1)
+    grpc (1.50.0)
       google-protobuf (~> 3.21)
       googleapis-common-protos-types (~> 1.0)
-    grpc (1.49.1-x86_64-darwin)
+    grpc (1.50.0-x86_64-darwin)
       google-protobuf (~> 3.21)
       googleapis-common-protos-types (~> 1.0)
-    grpc (1.49.1-x86_64-linux)
+    grpc (1.50.0-x86_64-linux)
       google-protobuf (~> 3.21)
       googleapis-common-protos-types (~> 1.0)
     hiredis (0.6.3)
@@ -46,7 +46,7 @@ GEM
     memory_profiler (1.0.1)
     method_source (1.0.0)
     minitest (5.16.3)
-    mocha (2.0.1)
+    mocha (2.0.2)
       ruby2_keywords (>= 0.0.5)
     mysql2 (0.5.4)
     parallel (1.22.1)
@@ -80,7 +80,7 @@ GEM
       unicode-display_width (>= 1.4.0, < 3.0)
     rubocop-ast (1.23.0)
       parser (>= 3.1.1.0)
-    rubocop-minitest (0.23.1)
+    rubocop-minitest (0.23.2)
       rubocop (>= 0.90, < 2.0)
     rubocop-rake (0.6.0)
       rubocop (~> 1.0)
@@ -105,7 +105,7 @@ PLATFORMS
 DEPENDENCIES
   activerecord (>= 7.0.3)
   benchmark-memory
-  grpc (= 1.49.1)
+  grpc (= 1.50.0)
   hiredis (~> 0.6)
   hiredis-client
   memory_profiler
