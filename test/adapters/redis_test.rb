@@ -212,7 +212,7 @@ module RedisTests
       connect_to_redis!(host: "thisdoesnotresolve")
     end
 
-    Timecop.travel(ERROR_TIMEOUT + 1) do
+    time_travel(ERROR_TIMEOUT + 1) do
       connect_to_redis!
     end
   end
@@ -255,7 +255,7 @@ module RedisTests
       connect_to_redis!
     end
 
-    Timecop.travel(ERROR_TIMEOUT + 1) do
+    time_travel(ERROR_TIMEOUT + 1) do
       connect_to_redis!
     end
   end
@@ -288,7 +288,7 @@ module RedisTests
     half_open_resource_timeout = 0.1
     client = connect_to_redis!(semian: { half_open_resource_timeout: half_open_resource_timeout })
 
-    Timecop.freeze(0) do
+    time_travel(0) do
       @proxy.downstream(:latency, latency: redis_timeout_ms + 200).apply do
         ERROR_THRESHOLD.times do
           assert_raises(::Redis::TimeoutError) do
@@ -303,13 +303,14 @@ module RedisTests
     end
 
     time_circuit_half_open = ERROR_TIMEOUT + 1
-    Timecop.travel(time_circuit_half_open) do
+    time_travel(time_circuit_half_open) do
       assert_redis_timeout_in_delta(expected_timeout: half_open_resource_timeout) do
         client.get("foo")
       end
     end
 
     time_circuit_closed = time_circuit_half_open + ERROR_TIMEOUT + 1
+    # TODO: Returns failure `Expected |0.0 - 0.5| (0.5) to be <= 0.1.`
     Timecop.travel(time_circuit_closed) do
       SUCCESS_THRESHOLD.times { client.get("foo") }
 
@@ -326,7 +327,7 @@ module RedisTests
     half_open_resource_timeout = 0.1
     client = connect_to_redis!(semian: { half_open_resource_timeout: half_open_resource_timeout })
 
-    Timecop.freeze(0) do
+    time_travel(0) do
       @proxy.downstream(:latency, latency: redis_timeout_ms + 200).apply do
         ERROR_THRESHOLD.times do
           assert_raises(::Redis::TimeoutError) do
@@ -343,7 +344,7 @@ module RedisTests
     client.close
 
     time_circuit_half_open = ERROR_TIMEOUT + 1
-    Timecop.travel(time_circuit_half_open) do
+    time_travel(time_circuit_half_open) do
       assert_redis_timeout_in_delta(expected_timeout: half_open_resource_timeout) do
         client.set("foo", 1)
       end
@@ -352,6 +353,7 @@ module RedisTests
     client.close
 
     time_circuit_closed = time_circuit_half_open + ERROR_TIMEOUT + 1
+    # TODO: Returns failure `Expected |0.0 - 0.5| (0.5) to be <= 0.1.`
     Timecop.travel(time_circuit_closed) do
       SUCCESS_THRESHOLD.times { client.set("foo", 1) }
 
@@ -366,7 +368,7 @@ module RedisTests
   def test_timeout_doesnt_change_when_half_open_but_not_configured
     client = connect_to_redis!
 
-    Timecop.freeze(0) do
+    time_travel(0) do
       @proxy.downstream(:latency, latency: redis_timeout_ms + 200).apply do
         ERROR_THRESHOLD.times do
           assert_raises(::Redis::TimeoutError) do
@@ -381,6 +383,7 @@ module RedisTests
     end
 
     time_circuit_half_open = ERROR_TIMEOUT + 1
+    # TODO: Returns failure `Expected |0.0 - 0.5| (0.5) to be <= 0.1.`
     Timecop.travel(time_circuit_half_open) do
       assert_redis_timeout_in_delta(expected_timeout: REDIS_TIMEOUT) do
         client.get("foo")
@@ -433,7 +436,7 @@ module RedisTests
       client.get("foo")
     end
 
-    Timecop.travel(ERROR_TIMEOUT + 1) do
+    time_travel(ERROR_TIMEOUT + 1) do
       assert_equal("2", client.get("foo"))
     end
   end

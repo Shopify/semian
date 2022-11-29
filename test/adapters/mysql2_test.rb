@@ -80,7 +80,7 @@ class TestMysql2 < Minitest::Test
     # After Mysql2::CircuitOpenError check regular queries are working fine.
     query_string = "1 + 1"
     result = nil
-    Timecop.travel(ERROR_TIMEOUT + 1) do
+    time_travel(ERROR_TIMEOUT + 1) do
       result = client.query("SELECT #{query_string};")
     end
 
@@ -166,7 +166,7 @@ class TestMysql2 < Minitest::Test
       connect_to_mysql!
     end
 
-    Timecop.travel(ERROR_TIMEOUT + 1) do
+    time_travel(ERROR_TIMEOUT + 1) do
       connect_to_mysql!
     end
   end
@@ -297,7 +297,7 @@ class TestMysql2 < Minitest::Test
       client.query("SELECT 1 + 1;")
     end
 
-    Timecop.travel(ERROR_TIMEOUT + 1) do
+    time_travel(ERROR_TIMEOUT + 1) do
       assert_equal(2, client.query("SELECT 1 + 1 as sum;").to_a.first["sum"])
     end
   end
@@ -355,7 +355,7 @@ class TestMysql2 < Minitest::Test
       client.query("SELECT 1 + 1;")
     end
 
-    Timecop.travel(ERROR_TIMEOUT + 1) do
+    time_travel(ERROR_TIMEOUT + 1) do
       @proxy.downstream(:latency, latency: 1500).apply do
         assert_raises(Mysql2::Error) do
           client.query("SELECT 1 + 1;")
@@ -363,7 +363,7 @@ class TestMysql2 < Minitest::Test
       end
     end
 
-    Timecop.travel(ERROR_TIMEOUT * 2 + 1) do
+    time_travel(ERROR_TIMEOUT * 2 + 1) do
       client.query("SELECT 1 + 1;")
       client.query("SELECT 1 + 1;")
 

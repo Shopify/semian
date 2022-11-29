@@ -7,6 +7,7 @@ class TestProtectedResource < Minitest::Test
   include CircuitBreakerHelper
   include ResourceHelper
   include BackgroundHelper
+  include TimeHelper
 
   def setup
     Semian.destroy(:testing)

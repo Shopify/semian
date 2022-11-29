@@ -71,5 +71,6 @@ module Minitest
   class Test
     include CleanupHelper
     include BackgroundHelper
+    include TimeHelper
   end
 end

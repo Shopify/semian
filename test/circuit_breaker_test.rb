@@ -4,15 +4,12 @@ require "test_helper"
 
 class TestCircuitBreaker < Minitest::Test
   include CircuitBreakerHelper
+  include TimeHelper
 
   def setup
     @strio = StringIO.new
     Semian.logger = Logger.new(@strio)
-    begin
-      Semian.destroy(:testing)
-    rescue
-      nil
-    end
+    Semian.destroy_all_resources
     Semian.register(
       :testing,
       tickets: 1,
@@ -110,7 +107,7 @@ class TestCircuitBreaker < Minitest::Test
   end
 
   def test_errors_more_than_duration_apart_doesnt_open_circuit
-    Timecop.travel(Time.now - 6) do
+    time_travel(-6) do
       trigger_error!
 
       assert_circuit_closed
@@ -125,13 +122,13 @@ class TestCircuitBreaker < Minitest::Test
     resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5,
       success_threshold: 1, error_threshold_timeout_enabled: false)
 
-    Timecop.travel(-6) do
+    time_travel(-6) do
       trigger_error!(resource)
 
       assert_circuit_closed(resource)
     end
 
-    Timecop.travel(-1) do
+    time_travel(-1) do
       trigger_error!(resource)
 
       assert_circuit_closed(resource)
@@ -148,13 +145,13 @@ class TestCircuitBreaker < Minitest::Test
     resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5,
       success_threshold: 1)
 
-    Timecop.travel(-6) do
+    time_travel(-6) do
       trigger_error!(resource)
 
       assert_circuit_closed(resource)
     end
 
-    Timecop.travel(-1) do
+    time_travel(-1) do
       trigger_error!(resource)
 
       assert_circuit_closed(resource)
@@ -168,7 +165,7 @@ class TestCircuitBreaker < Minitest::Test
   end
 
   def test_request_allowed_query_doesnt_trigger_transitions
-    Timecop.travel(Time.now - 6) do
+    time_travel(-6) do
       open_circuit!
 
       refute_predicate(@resource, :request_allowed?)
@@ -187,7 +184,7 @@ class TestCircuitBreaker < Minitest::Test
 
     assert_circuit_opened(resource)
 
-    Timecop.travel(resource.circuit_breaker.error_timeout + 1) do
+    time_travel(resource.circuit_breaker.error_timeout + 1) do
       assert_circuit_closed(resource)
 
       assert_predicate(resource, :half_open?)
@@ -199,7 +196,7 @@ class TestCircuitBreaker < Minitest::Test
 
       assert_circuit_opened(resource)
 
-      Timecop.travel(resource.circuit_breaker.error_timeout + 1) do
+      time_travel(resource.circuit_breaker.error_timeout + 1) do
         assert_circuit_closed(resource)
 
         assert_predicate(resource, :half_open?)
@@ -218,7 +215,7 @@ class TestCircuitBreaker < Minitest::Test
 
     assert_circuit_opened(resource)
 
-    Timecop.travel(resource.circuit_breaker.error_timeout + 1) do
+    time_travel(resource.circuit_breaker.error_timeout + 1) do
       assert_circuit_closed(resource)
 
       assert_predicate(resource, :half_open?)
@@ -230,7 +227,7 @@ class TestCircuitBreaker < Minitest::Test
 
       assert_circuit_opened(resource)
 
-      Timecop.travel(resource.circuit_breaker.error_timeout + 1) do
+      time_travel(resource.circuit_breaker.error_timeout + 1) do
         assert_circuit_closed(resource)
 
         assert_predicate(resource, :half_open?)
@@ -245,13 +242,13 @@ class TestCircuitBreaker < Minitest::Test
     resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5,
       success_threshold: 1, error_threshold_timeout: 10)
 
-    Timecop.travel(-6) do
+    time_travel(-6) do
       trigger_error!(resource)
 
       assert_circuit_closed(resource)
     end
 
-    Timecop.travel(-1) do
+    time_travel(-1) do
       trigger_error!(resource)
 
       assert_circuit_closed(resource)
@@ -268,13 +265,13 @@ class TestCircuitBreaker < Minitest::Test
     resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5,
       success_threshold: 1, error_threshold_timeout: 10, error_threshold_timeout_enabled: false)
 
-    Timecop.travel(-6) do
+    time_travel(-6) do
       trigger_error!(resource)
 
       assert_circuit_closed(resource)
     end
 
-    Timecop.travel(-1) do
+    time_travel(-1) do
       trigger_error!(resource)
 
       assert_circuit_closed(resource)
@@ -291,13 +288,13 @@ class TestCircuitBreaker < Minitest::Test
     resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5,
       success_threshold: 1)
 
-    Timecop.travel(-6) do
+    time_travel(-6) do
       trigger_error!(resource)
 
       assert_circuit_closed(resource)
     end
 
-    Timecop.travel(-1) do
+    time_travel(-1) do
       trigger_error!(resource)
 
       assert_circuit_closed(resource)
@@ -314,13 +311,13 @@ class TestCircuitBreaker < Minitest::Test
     resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5,
       success_threshold: 1, use_timeoout: true)
 
-    Timecop.travel(-6) do
+    time_travel(-6) do
       trigger_error!(resource)
 
       assert_circuit_closed(resource)
     end
 
-    Timecop.travel(-1) do
+    time_travel(-1) do
       trigger_error!(resource)
 
       assert_circuit_closed(resource)
@@ -337,13 +334,13 @@ class TestCircuitBreaker < Minitest::Test
     resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5,
       success_threshold: 1, error_threshold_timeout_enabled: false)
 
-    Timecop.travel(-6) do
+    time_travel(-6) do
       trigger_error!(resource)
 
       assert_circuit_closed(resource)
     end
 
-    Timecop.travel(-1) do
+    time_travel(-1) do
       trigger_error!(resource)
 
       assert_circuit_closed(resource)
@@ -496,7 +493,7 @@ class TestCircuitBreaker < Minitest::Test
     assert_equal(name, events[1][:name])
     assert_equal(:open, events[1][:state])
 
-    Timecop.travel(3600) do
+    time_travel(3600) do
       # Acquiring the resource successfully generates a transition to half_open, then closed.
       resource.acquire { nil }
 

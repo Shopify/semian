@@ -9,9 +9,7 @@ class TestResource < Minitest::Test
   EPSILON = 0.1
 
   def setup
-    Semian.destroy(:testing)
-  rescue
-    nil
+    Semian.destroy_all_resources
   end
 
   def teardown

@@ -10,7 +10,7 @@ module CircuitBreakerHelper
   end
 
   def half_open_cicuit!(resource = @resource, backwards_time_travel = 10)
-    Timecop.travel(Time.now - backwards_time_travel) do
+    time_travel(-backwards_time_travel) do
       open_circuit!(resource)
     end
   end

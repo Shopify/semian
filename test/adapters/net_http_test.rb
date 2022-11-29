@@ -474,7 +474,7 @@ class TestNetHTTP < Minitest::Test
   private
 
   def half_open_cicuit!(backwards_time_travel = 10)
-    Timecop.travel(Time.now - backwards_time_travel) do
+    time_travel(-backwards_time_travel) do
       open_circuit!
     end
   end
@@ -541,12 +541,13 @@ class TestNetHTTP < Minitest::Test
 
   def close_circuit!(hostname: SemianConfig["toxiproxy_upstream_host"], toxic_port: SemianConfig["http_toxiproxy_port"])
     http = Net::HTTP.new(hostname, toxic_port)
-    Timecop.travel(http.raw_semian_options[:error_timeout])
-    # Cause successes success_threshold times so circuit closes
-    http.raw_semian_options[:success_threshold].times do
-      response = http.get("/200")
+    time_travel(http.raw_semian_options[:error_timeout]) do
+      # Cause successes success_threshold times so circuit closes
+      http.raw_semian_options[:success_threshold].times do
+        response = http.get("/200")
 
-      assert_equal(200, response.code.to_i)
+        assert_equal(200, response.code.to_i)
+      end
     end
   end
 
