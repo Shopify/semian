@@ -1,12 +1,3 @@
-GIT
-  remote: https://github.com/redis-rb/redis-client.git
-  revision: df61e2dc6681b933d4ad34ffdd886941d972da43
-  specs:
-    hiredis-client (0.11.2)
-      redis-client (= 0.11.2)
-    redis-client (0.11.2)
-      connection_pool
-
 PATH
   remote: ..
   specs:
@@ -15,15 +6,12 @@ PATH
 GEM
   remote: https://rubygems.org/
   specs:
-    connection_pool (2.3.0)
-    hiredis (0.6.3)
     minitest (5.16.3)
     mocha (2.0.2)
       ruby2_keywords (>= 0.0.5)
     rake (13.0.6)
     rake-compiler (1.2.0)
       rake
-    redis (4.8.0)
     ruby2_keywords (0.0.5)
     timecop (0.9.5)
     toxiproxy (2.0.2)
@@ -37,13 +25,10 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
-  hiredis (~> 0.6)
-  hiredis-client!
   minitest
   mocha
   rake
   rake-compiler
-  redis (~> 4.8)
   semian!
   timecop
   toxiproxy
