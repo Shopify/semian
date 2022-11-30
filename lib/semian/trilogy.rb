@@ -21,6 +21,14 @@ class Trilogy
 
   ResourceBusyError = Class.new(SemianError)
   CircuitOpenError = Class.new(SemianError)
+
+  # method aliasing needs to happen first
+  # The naked methods are exposed as `raw_query` and `raw_ping` for instrumentation purpose
+  alias_method(:raw_query, :query)
+  remove_method(:query)
+
+  alias_method(:raw_ping, :ping)
+  remove_method(:ping)
 end
 
 module Semian
@@ -50,16 +58,16 @@ module Semian
       return false if closed?
 
       acquire_semian_resource(adapter: :trilogy, scope: :ping) do
-        super
+        raw_ping
       end
     end
 
-    def query(sql, *)
-      if query_allowlisted?(sql)
-        super
+    def query(*args)
+      if query_allowlisted?(*args)
+        raw_query(*args)
       else
         acquire_semian_resource(adapter: :trilogy, scope: :query) do
-          super
+          raw_query(*args)
         end
       end
     end
@@ -106,4 +114,4 @@ module Semian
   end
 end
 
-Trilogy.prepend(Semian::Trilogy)
+::Trilogy.prepend(Semian::Trilogy)

@@ -32,3 +32,5 @@ group :lint do
 end
 
 gemspec
+
+gem "debug", "~> 1.6"

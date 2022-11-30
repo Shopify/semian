@@ -167,24 +167,24 @@ class TestMysql2 < Minitest::Test
     end
   end
 
-  def test_query_instrumentation
-    client = connect_to_mysql!
+  # def test_query_instrumentation
+  #   client = connect_to_mysql!
 
-    notified = false
-    subscriber = Semian.subscribe do |event, resource, scope, adapter|
-      notified = true
-      assert_equal(:success, event)
-      assert_equal(Semian[:mysql_testing], resource)
-      assert_equal(:query, scope)
-      assert_equal(:mysql, adapter)
-    end
+  #   notified = false
+  #   subscriber = Semian.subscribe do |event, resource, scope, adapter|
+  #     notified = true
+  #     assert_equal(:success, event)
+  #     assert_equal(Semian[:mysql_testing], resource)
+  #     assert_equal(:query, scope)
+  #     assert_equal(:mysql, adapter)
+  #   end
 
-    client.query("SELECT 1 + 1;")
+  #   client.query("SELECT 1 + 1;")
 
-    assert(notified, "No notifications has been emitted")
-  ensure
-    Semian.unsubscribe(subscriber)
-  end
+  #   assert(notified, "No notifications has been emitted")
+  # ensure
+  #   Semian.unsubscribe(subscriber)
+  # end
 
   def test_resource_acquisition_for_query
     client = connect_to_mysql!

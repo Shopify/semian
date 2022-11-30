@@ -46,6 +46,7 @@ module Semian
     class << self
       # The naked methods are exposed as `raw_query` and `raw_connect` for instrumentation purpose
       def included(base)
+        require 'debug'; debugger
         base.send(:alias_method, :raw_query, :query)
         base.send(:remove_method, :query)
 
