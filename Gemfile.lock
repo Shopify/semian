@@ -88,7 +88,7 @@ GEM
       rubocop (~> 1.35)
     ruby-progressbar (1.11.0)
     ruby2_keywords (0.0.5)
-    timecop (0.9.5)
+    timecop (0.9.6)
     toxiproxy (2.0.2)
     tzinfo (2.0.5)
       concurrent-ruby (~> 1.0)
