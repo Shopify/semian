@@ -88,19 +88,19 @@ worker_bar = fork do
     Net::HTTP.start("example.com", 81, open_timeout: 3) do |http|
       http.request_get(bad_host)
     end
-  rescue => e
+  rescue Net::OpenTimeout => e
     puts "[pid=#{pid}]   >> Could not connect: #{e.message}".brown
   end
   puts
 
-  sleep(2)
+  sleep(1.5)
 
   puts "[pid=#{pid}] >> 4. Request to http://example.com:81/index.html - fail".magenta
   begin
     Net::HTTP.start("example.com", 81, open_timeout: 3) do |http|
       http.request_get(bad_host)
     end
-  rescue => e
+  rescue Net::OpenTimeout => e
     puts "[pid=#{pid}]   >> Could not connect: #{e.message}".brown
   end
   puts "[pid=#{pid}]   !!! Semian changed state from `closed` to `open` and record last error exception !!!".red.bold
@@ -125,6 +125,9 @@ worker_bar = fork do
 end
 
 Process.waitpid(worker_bar)
+exit($?.exitstatus) if $?.exitstatus != 0
+
 Process.waitpid(worker_foo)
+exit($?.exitstatus) if $?.exitstatus != 0
 
 puts "> That's all Folks!".green

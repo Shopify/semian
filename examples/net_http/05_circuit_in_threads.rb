@@ -86,21 +86,25 @@ worker_bar = Thread.new do
     Net::HTTP.start("example.com", 81, open_timeout: 3) do |http|
       http.request_get(bad_host)
     end
-  rescue => e
+  rescue Net::OpenTimeout => e
     puts "[thread=#{thread_id}]   >> Could not connect: #{e.message}".brown
   end
   puts
 
-  sleep(2)
+  sleep(1.5)
 
   puts "[thread=#{thread_id}] >> 4. Request to http://example.com:81/index.html - fail".magenta
   begin
     Net::HTTP.start("example.com", 81, open_timeout: 3) do |http|
       http.request_get(bad_host)
     end
-  rescue => e
+  rescue Net::OpenTimeout => e
     puts "[thread=#{thread_id}]   >> Could not connect: #{e.message}".brown
   end
+
+  resource = Semian["nethttp_example_com"]
+  raise "The state should be open - because expected 2 failed requests in last 5 seconds." unless resource.open?
+
   puts "[thread=#{thread_id}]   !!! Semian changed state from `closed` to `open` and record last error exception !!!".red.bold
   puts
 
@@ -111,6 +115,8 @@ worker_bar = Thread.new do
     end
   rescue Net::CircuitOpenError => e
     puts "[thread=#{thread_id}]  >> Semian is open: #{e.message}".brown
+  rescue => e
+    raise "Unexpected exception: #{e.messge} (#{e.class}). Check if Semian resource error_threshold_reached?"
   end
   puts
 

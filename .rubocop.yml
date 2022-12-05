@@ -36,3 +36,6 @@ Style/GlobalVars:
 
 Style/SingleLineMethods:
   Enabled: false
+
+Style/SpecialGlobalVars:
+  Enabled: false

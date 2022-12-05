@@ -70,8 +70,9 @@ workers << fork do
   Net::HTTP.start("example.com", 81, open_timeout: 5) do |http|
     http.request_get(bad_host)
   end
-rescue Errno::EADDRNOTAVAIL => e
-  puts "[pid=#{pid}] Expected networking problem that blocked the last ticket: #{e.class}: #{e.message}".blue
+  raise "Should not get to this line."
+rescue Errno::EADDRNOTAVAIL, Net::OpenTimeout => e
+  puts "[pid=#{pid}] EXPECTED networking problem that blocked the last ticket: #{e.class}: #{e.message}".blue
 end
 
 5.times do |_i|
