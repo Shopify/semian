@@ -6,18 +6,9 @@ require "securerandom"
 class TestProtectedResource < Minitest::Test
   include CircuitBreakerHelper
   include ResourceHelper
-  include BackgroundHelper
-  include TimeHelper
 
   def setup
-    Semian.destroy(:testing)
-  rescue
-    nil
-  end
-
-  def teardown
-    destroy_resources
-    super
+    destroy_all_semian_resources
   end
 
   def test_acquire_without_bulkhead

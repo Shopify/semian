@@ -19,10 +19,11 @@ Layout/LineLength:
 
 Lint/SuppressedException:
   Exclude:
-    - test/helpers/circuit_breaker_helper.rb
-    - test/adapters/net_http_test.rb
-    - test/protected_resource_test.rb
     - examples/**/*.rb
+    - test/adapters/net_http_test.rb
+    - test/helpers/circuit_breaker_helper.rb
+    - test/helpers/resource_helper.rb
+    - test/protected_resource_test.rb
 
 Minitest/RefuteFalse:
   Enabled: false

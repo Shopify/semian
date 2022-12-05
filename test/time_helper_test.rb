@@ -3,8 +3,6 @@
 require "test_helper"
 
 class TestTimeHelper < Minitest::Test
-  include TimeHelper
-
   def test_time_monotonic_travel_past
     now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     current = now + 1

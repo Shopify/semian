@@ -9,7 +9,7 @@ class TestCircuitBreaker < Minitest::Test
   def setup
     @strio = StringIO.new
     Semian.logger = Logger.new(@strio)
-    Semian.destroy_all_resources
+    destroy_all_semian_resources
     Semian.register(
       :testing,
       tickets: 1,

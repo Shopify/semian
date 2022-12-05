@@ -4,13 +4,7 @@ require "test_helper"
 
 class TestSemianAdapter < Minitest::Test
   def setup
-    Semian.unregister_all_resources
-    # Consumers registered in other test files must be cleared
-    Semian.reset!
-  end
-
-  def teardown
-    Semian.unregister_all_resources
+    destroy_all_semian_resources
   end
 
   def test_adapter_registers_consumer

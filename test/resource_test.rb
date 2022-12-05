@@ -3,17 +3,15 @@
 require "test_helper"
 
 class TestResource < Minitest::Test
-  include ResourceHelper
-
   # Time epsilon to account for super fast machines
   EPSILON = 0.1
 
   def setup
-    Semian.destroy_all_resources
+    destroy_all_semian_resources
   end
 
   def teardown
-    destroy_resources
+    destroy_all_semian_resources
     signal_workers("KILL")
     Process.waitall
   end
@@ -421,21 +419,29 @@ class TestResource < Minitest::Test
   end
 
   def test_permissions
-    resource = create_resource(:testing, permissions: 0600, tickets: 1)
+    resource = create_resource(:test_permissions, permissions: 0600, tickets: 42)
     semid = resource.semid
+    found = false
     %x(ipcs -s).lines.each do |line|
       if /\s#{semid}\s/.match(line)
         assert_equal("600", line.split[3])
+        found = true
       end
     end
 
-    resource = create_resource(:testing, permissions: 0660, tickets: 1)
+    assert(found, "Missing semaphor with semid #{semid}")
+
+    resource = create_resource(:test_permissions, permissions: 0660, tickets: 1)
     semid = resource.semid
+    found = false
     %x(ipcs -s).lines.each do |line|
       if /\s#{semid}\s/.match(line)
         assert_equal("660", line.split[3])
+        found = true
       end
     end
+
+    assert(found, "Missing semaphor with semid #{semid}")
   end
 
   def test_namespace

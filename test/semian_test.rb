@@ -3,6 +3,10 @@
 require "test_helper"
 
 class TestSemian < Minitest::Test
+  def setup
+    destroy_all_semian_resources
+  end
+
   def test_unsupported_acquire_yields
     acquired = false
     Semian.register(:testing, tickets: 1, error_threshold: 1, error_timeout: 2, success_threshold: 1)

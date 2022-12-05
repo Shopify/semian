@@ -20,4 +20,14 @@ module ResourceHelper
     end
     @resources = []
   end
+
+  def destroy_all_semian_resources
+    Semian.resources.values.each do |resource|
+      resource.bulkhead&.unregister_worker
+    rescue ::Semian::SyscallError
+    end
+    Semian.destroy_all_resources
+    destroy_resources
+    Semian.reset!
+  end
 end

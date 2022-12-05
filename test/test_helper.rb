@@ -61,16 +61,10 @@ Minitest.after_run do
   servers.each(&:stop)
 end
 
-module CleanupHelper
-  def setup
-    Semian.destroy_all_resources
-  end
-end
-
 module Minitest
   class Test
-    include CleanupHelper
     include BackgroundHelper
     include TimeHelper
+    include ResourceHelper
   end
 end
