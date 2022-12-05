@@ -274,7 +274,7 @@ diff_timespec_ms(struct timespec *end, struct timespec *begin)
 VALUE
 print_sem_vals_without_rescue(VALUE v_sem_id)
 {
-  int sem_id = rb_to_int(v_sem_id);
+  int sem_id = NUM2INT(v_sem_id);
   printf("[pid=%d][semian] semaphore values lock: %d, tickets: %d configured: %d, registered workers: %d\n",
    getpid(),
    get_sem_val(sem_id, SI_SEM_LOCK),
