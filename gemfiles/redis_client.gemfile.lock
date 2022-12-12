@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/redis-rb/redis-client.git
-  revision: df61e2dc6681b933d4ad34ffdd886941d972da43
+  revision: d00e69821a8a1fd5dcba2e48cc010f4d97846b3d
   specs:
     hiredis-client (0.11.2)
       redis-client (= 0.11.2)
@@ -9,7 +9,7 @@ GIT
 
 GIT
   remote: https://github.com/redis/redis-rb.git
-  revision: a8e00cbdac5e2eefc1872c0718d0290975b6e93b
+  revision: 5a9fb00366c94cb5603b13e903afee58a3e3ee7a
   specs:
     redis (5.0.5)
       redis-client (>= 0.9.0)

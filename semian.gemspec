@@ -27,7 +27,7 @@ Gem::Specification.new do |s|
     "source_code_uri" => "https://github.com/Shopify/semian",
   }
 
-  s.files = ::Dir["{lib,ext}/**/**/*.{rb,h,c}"]
+  s.files = Dir["{lib,ext}/**/**/*.{rb,h,c}"]
   s.files += ["LICENSE.md", "README.md"]
   s.extensions = ["ext/semian/extconf.rb"]
   s.require_paths = ["lib"]

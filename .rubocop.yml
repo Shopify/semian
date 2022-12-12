@@ -38,6 +38,9 @@ Style/GlobalVars:
   Exclude:
     - ext/semian/extconf.rb
 
+Style/RedundantConstantBase:
+  Enabled: false
+
 Style/SingleLineMethods:
   Enabled: false
 
