@@ -303,21 +303,20 @@ module RedisTests
     end
 
     time_circuit_half_open = ERROR_TIMEOUT + 1
-    time_travel(time_circuit_half_open) do
-      assert_redis_timeout_in_delta(expected_timeout: half_open_resource_timeout) do
+    assert_redis_timeout_in_delta(expected_timeout: half_open_resource_timeout) do
+      time_travel(time_circuit_half_open) do
         client.get("foo")
       end
     end
 
     time_circuit_closed = time_circuit_half_open + ERROR_TIMEOUT + 1
-    # TODO: Returns failure `Expected |0.0 - 0.5| (0.5) to be <= 0.1.`
-    Timecop.travel(time_circuit_closed) do
+    time_travel(time_circuit_closed) do
       SUCCESS_THRESHOLD.times { client.get("foo") }
+    end
 
-      # Timeout has reset now that the Circuit is closed
-      assert_redis_timeout_in_delta(expected_timeout: REDIS_TIMEOUT) do
-        client.get("foo")
-      end
+    # Timeout has reset now that the Circuit is closed
+    assert_redis_timeout_in_delta(expected_timeout: REDIS_TIMEOUT) do
+      client.get("foo")
     end
 
     assert_default_timeouts(client)
@@ -344,8 +343,8 @@ module RedisTests
     client.close
 
     time_circuit_half_open = ERROR_TIMEOUT + 1
-    time_travel(time_circuit_half_open) do
-      assert_redis_timeout_in_delta(expected_timeout: half_open_resource_timeout) do
+    assert_redis_timeout_in_delta(expected_timeout: half_open_resource_timeout) do
+      time_travel(time_circuit_half_open) do
         client.set("foo", 1)
       end
     end
@@ -353,13 +352,12 @@ module RedisTests
     client.close
 
     time_circuit_closed = time_circuit_half_open + ERROR_TIMEOUT + 1
-    # TODO: Returns failure `Expected |0.0 - 0.5| (0.5) to be <= 0.1.`
-    Timecop.travel(time_circuit_closed) do
+    time_travel(time_circuit_closed) do
       SUCCESS_THRESHOLD.times { client.set("foo", 1) }
+    end
 
-      assert_redis_timeout_in_delta(expected_timeout: REDIS_TIMEOUT) do
-        client.set("foo", 1)
-      end
+    assert_redis_timeout_in_delta(expected_timeout: REDIS_TIMEOUT) do
+      client.set("foo", 1)
     end
 
     assert_default_timeouts(client)
@@ -383,9 +381,8 @@ module RedisTests
     end
 
     time_circuit_half_open = ERROR_TIMEOUT + 1
-    # TODO: Returns failure `Expected |0.0 - 0.5| (0.5) to be <= 0.1.`
-    Timecop.travel(time_circuit_half_open) do
-      assert_redis_timeout_in_delta(expected_timeout: REDIS_TIMEOUT) do
+    assert_redis_timeout_in_delta(expected_timeout: REDIS_TIMEOUT) do
+      time_travel(time_circuit_half_open) do
         client.get("foo")
       end
     end

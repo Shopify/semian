@@ -21,7 +21,6 @@ GEM
     redis-client (0.11.2)
       connection_pool
     ruby2_keywords (0.0.5)
-    timecop (0.9.5)
     toxiproxy (2.0.2)
     webrick (1.7.0)
 
@@ -41,7 +40,6 @@ DEPENDENCIES
   rake-compiler
   redis
   semian!
-  timecop
   toxiproxy
   webrick
 

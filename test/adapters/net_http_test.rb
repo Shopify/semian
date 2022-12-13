@@ -19,6 +19,10 @@ class TestNetHTTP < Minitest::Test
     DEFAULT_SEMIAN_OPTIONS.merge(name: "#{host}_#{port}")
   end
 
+  def setup
+    destroy_all_semian_resources
+  end
+
   def test_semian_identifier
     with_server do
       with_semian_configuration do

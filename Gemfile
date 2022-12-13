@@ -11,7 +11,6 @@ group :test do
   gem "minitest"
   gem "mocha"
   gem "pry-byebug", require: false
-  gem "timecop"
   gem "toxiproxy"
   gem "webrick"
 

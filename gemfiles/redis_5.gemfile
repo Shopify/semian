@@ -6,7 +6,6 @@ gem "rake"
 gem "rake-compiler"
 gem "minitest"
 gem "mocha"
-gem "timecop"
 gem "toxiproxy"
 gem "webrick"
 

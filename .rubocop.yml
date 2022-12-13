@@ -25,6 +25,9 @@ Lint/SuppressedException:
     - test/helpers/resource_helper.rb
     - test/protected_resource_test.rb
 
+Minitest/AssertPredicate:
+  Enabled: false
+
 Minitest/RefuteFalse:
   Enabled: false
 

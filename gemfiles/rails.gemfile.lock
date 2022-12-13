@@ -27,7 +27,6 @@ GEM
     rake-compiler (1.2.0)
       rake
     ruby2_keywords (0.0.5)
-    timecop (0.9.5)
     toxiproxy (2.0.2)
     tzinfo (2.0.5)
       concurrent-ruby (~> 1.0)
@@ -48,7 +47,6 @@ DEPENDENCIES
   rake
   rake-compiler
   semian!
-  timecop
   toxiproxy
   webrick
 

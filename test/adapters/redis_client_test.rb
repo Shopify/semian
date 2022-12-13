@@ -213,22 +213,31 @@ module RedisClientTests
       end
     end
 
+    resource = Semian.resources[:redis_testing].circuit_breaker
+
+    assert(resource.open?, "Circuit breaker should be open")
+    assert_equal("RedisClient::ReadTimeoutError", resource.last_error.class.to_s)
+
     time_circuit_half_open = ERROR_TIMEOUT + 1
-    time_travel(time_circuit_half_open) do
-      assert_redis_timeout_in_delta(expected_timeout: half_open_resource_timeout) do
+    assert_redis_timeout_in_delta(expected_timeout: half_open_resource_timeout) do
+      time_travel(time_circuit_half_open) do
         client.call("get", "foo")
       end
     end
 
-    time_circuit_closed = time_circuit_half_open + ERROR_TIMEOUT + 1
-    # TODO: Returns failure `Expected |0.0 - 0.5| (0.5) to be <= 0.1.`
-    Timecop.travel(time_circuit_closed) do
-      SUCCESS_THRESHOLD.times { client.call("get", "foo") }
+    assert(resource.open?, "Circuit breaker should be open")
+    assert_equal("RedisClient::CannotConnectError", resource.last_error.class.to_s)
 
-      # Timeout has reset now that the Circuit is closed
-      assert_redis_timeout_in_delta(expected_timeout: REDIS_TIMEOUT) do
-        client.call("get", "foo")
-      end
+    time_circuit_closed = time_circuit_half_open + ERROR_TIMEOUT + 1
+    time_travel(time_circuit_closed) do
+      SUCCESS_THRESHOLD.times { client.call("get", "foo") }
+    end
+
+    assert(resource.closed?, "Circuit breaker should be closed")
+
+    # Timeout has reset now that the Circuit is closed
+    assert_redis_timeout_in_delta(expected_timeout: REDIS_TIMEOUT) do
+      client.call("get", "foo")
     end
 
     assert_equal(REDIS_TIMEOUT, client.connect_timeout)
@@ -257,8 +266,8 @@ module RedisClientTests
     client.close
 
     time_circuit_half_open = ERROR_TIMEOUT + 1
-    time_travel(time_circuit_half_open) do
-      assert_redis_timeout_in_delta(expected_timeout: half_open_resource_timeout) do
+    assert_redis_timeout_in_delta(expected_timeout: half_open_resource_timeout) do
+      time_travel(time_circuit_half_open) do
         client.call("set", "foo", 1)
       end
     end
@@ -266,13 +275,12 @@ module RedisClientTests
     client.close
 
     time_circuit_closed = time_circuit_half_open + ERROR_TIMEOUT + 1
-    # TODO: Returns failure `Expected |0.0 - 0.5| (0.5) to be <= 0.1.`
-    Timecop.travel(time_circuit_closed) do
+    time_travel(time_circuit_closed) do
       SUCCESS_THRESHOLD.times { client.call("set", "foo", 1) }
+    end
 
-      assert_redis_timeout_in_delta(expected_timeout: REDIS_TIMEOUT) do
-        client.call("set", "foo", 1)
-      end
+    assert_redis_timeout_in_delta(expected_timeout: REDIS_TIMEOUT) do
+      client.call("set", "foo", 1)
     end
 
     assert_equal(REDIS_TIMEOUT, client.connect_timeout)
@@ -298,9 +306,8 @@ module RedisClientTests
     end
 
     time_circuit_half_open = ERROR_TIMEOUT + 1
-    # TODO: Returns failure `Expected |0.0 - 0.5| (0.5) to be <= 0.1.`
-    Timecop.travel(time_circuit_half_open) do
-      assert_redis_timeout_in_delta(expected_timeout: REDIS_TIMEOUT) do
+    assert_redis_timeout_in_delta(expected_timeout: REDIS_TIMEOUT) do
+      time_travel(time_circuit_half_open) do
         client.call("get", "foo")
       end
     end

@@ -6,7 +6,6 @@ require "bundler/setup"
 require "minitest/autorun"
 require "semian"
 require "toxiproxy"
-require "timecop"
 require "tempfile"
 require "fileutils"
 require "mocha"
@@ -52,6 +51,8 @@ Toxiproxy.populate([
     listen: "#{SemianConfig["toxiproxy_upstream_host"]}:#{SemianConfig["grpc_toxiproxy_port"]}",
   },
 ])
+
+Toxiproxy.reset
 
 servers = []
 servers << MockServer.start(hostname: BIND_ADDRESS, port: SemianConfig["http_port_service_a"])

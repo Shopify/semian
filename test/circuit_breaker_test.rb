@@ -119,8 +119,15 @@ class TestCircuitBreaker < Minitest::Test
   end
 
   def test_sparse_errors_open_circuit_when_without_timeout
-    resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5,
-      success_threshold: 1, error_threshold_timeout_enabled: false)
+    resource = Semian.register(
+      :sparse_errors_open_circuit_when_without_timeout,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 3,
+      error_timeout: 5,
+      success_threshold: 1,
+      error_threshold_timeout_enabled: false,
+    )
 
     time_travel(-6) do
       trigger_error!(resource)
@@ -138,12 +145,18 @@ class TestCircuitBreaker < Minitest::Test
 
     assert_circuit_opened(resource)
   ensure
-    Semian.destroy(:three)
+    Semian.destroy(:sparse_errors_open_circuit_when_without_timeout)
   end
 
   def test_sparse_errors_dont_open_circuit
-    resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5,
-      success_threshold: 1)
+    resource = Semian.register(
+      :sparse_errors_dont_open_circuit,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 3,
+      error_timeout: 5,
+      success_threshold: 1,
+    )
 
     time_travel(-6) do
       trigger_error!(resource)
@@ -161,7 +174,7 @@ class TestCircuitBreaker < Minitest::Test
 
     assert_circuit_closed(resource)
   ensure
-    Semian.destroy(:three)
+    Semian.destroy(:sparse_errors_dont_open_circuit)
   end
 
   def test_request_allowed_query_doesnt_trigger_transitions
@@ -177,8 +190,14 @@ class TestCircuitBreaker < Minitest::Test
   end
 
   def test_open_close_open_cycle
-    resource = Semian.register(:open_close, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5,
-      success_threshold: 2)
+    resource = Semian.register(
+      :open_close,
+      tickets: 1,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 2,
+    )
 
     open_circuit!(resource)
 
@@ -208,8 +227,15 @@ class TestCircuitBreaker < Minitest::Test
   end
 
   def test_open_close_open_cycle_when_without_timeout
-    resource = Semian.register(:open_close, tickets: 1, exceptions: [SomeError], error_threshold: 2, error_timeout: 5,
-      success_threshold: 2, error_threshold_timeout_enabled: false)
+    resource = Semian.register(
+      :open_close,
+      tickets: 1,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 2,
+      error_threshold_timeout_enabled: false,
+    )
 
     open_circuit!(resource)
 
@@ -239,8 +265,15 @@ class TestCircuitBreaker < Minitest::Test
   end
 
   def test_error_error_threshold_timeout_overrides_error_timeout_when_set_for_opening_circuits
-    resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5,
-      success_threshold: 1, error_threshold_timeout: 10)
+    resource = Semian.register(
+      :three,
+      tickets: 1,
+      exceptions: [SomeError],
+      error_threshold: 3,
+      error_timeout: 5,
+      success_threshold: 1,
+      error_threshold_timeout: 10,
+    )
 
     time_travel(-6) do
       trigger_error!(resource)
@@ -262,8 +295,16 @@ class TestCircuitBreaker < Minitest::Test
   end
 
   def test_circuit_still_opens_when_passed_error_threshold_timeout_when_also_not_using_timeout
-    resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5,
-      success_threshold: 1, error_threshold_timeout: 10, error_threshold_timeout_enabled: false)
+    resource = Semian.register(
+      :three,
+      tickets: 1,
+      exceptions: [SomeError],
+      error_threshold: 3,
+      error_timeout: 5,
+      success_threshold: 1,
+      error_threshold_timeout: 10,
+      error_threshold_timeout_enabled: false,
+    )
 
     time_travel(-6) do
       trigger_error!(resource)
@@ -285,8 +326,14 @@ class TestCircuitBreaker < Minitest::Test
   end
 
   def test_error_threshold_timeout_defaults_to_error_timeout_when_not_specified
-    resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5,
-      success_threshold: 1)
+    resource = Semian.register(
+      :error_threshold_timeout_defaults_to_error_timeout_when_not_specified,
+      tickets: 1,
+      exceptions: [SomeError],
+      error_threshold: 3,
+      error_timeout: 5,
+      success_threshold: 1,
+    )
 
     time_travel(-6) do
       trigger_error!(resource)
@@ -304,7 +351,7 @@ class TestCircuitBreaker < Minitest::Test
 
     assert_circuit_closed(resource)
   ensure
-    Semian.destroy(:three)
+    Semian.destroy(:error_threshold_timeout_defaults_to_error_timeout_when_not_specified)
   end
 
   def test_error_uses_defaults_when_using_timeout
@@ -474,8 +521,14 @@ class TestCircuitBreaker < Minitest::Test
     end
 
     # Creating a resource should generate a :closed notification.
-    resource = Semian.register(name, tickets: 1, exceptions: [StandardError],
-      error_threshold: 2, error_timeout: 1, success_threshold: 1)
+    resource = Semian.register(
+      name,
+      tickets: 1,
+      exceptions: [StandardError],
+      error_threshold: 2,
+      error_timeout: 1,
+      success_threshold: 1,
+    )
 
     assert_equal(1, events.length)
     assert_equal(name, events[0][:name])
@@ -496,13 +549,13 @@ class TestCircuitBreaker < Minitest::Test
     time_travel(3600) do
       # Acquiring the resource successfully generates a transition to half_open, then closed.
       resource.acquire { nil }
-
-      assert_equal(4, events.length)
-      assert_equal(name, events[2][:name])
-      assert_equal(:half_open, events[2][:state])
-      assert_equal(name, events[3][:name])
-      assert_equal(:closed, events[3][:state])
     end
+
+    assert_equal(4, events.length)
+    assert_equal(name, events[2][:name])
+    assert_equal(:half_open, events[2][:state])
+    assert_equal(name, events[3][:name])
+    assert_equal(:closed, events[3][:state])
   ensure
     Semian.unsubscribe(:test_notify_state_transition)
   end
