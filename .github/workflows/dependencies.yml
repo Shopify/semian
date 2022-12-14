@@ -48,6 +48,9 @@ jobs:
         with:
           title: Bump gems
           labels: ruby,dependencies
+          branch: bump_dependencies
+          body: |
+            Update gems versions in Gemfiles to latest one.
           add-paths: |
             Gemfile.lock
             gemfiles/*.lock
