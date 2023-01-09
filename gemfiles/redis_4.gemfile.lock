@@ -10,11 +10,11 @@ GEM
     hiredis (0.6.3)
     hiredis-client (0.11.2)
       redis-client (= 0.11.2)
-    minitest (5.16.3)
+    minitest (5.17.0)
     mocha (2.0.2)
       ruby2_keywords (>= 0.0.5)
     rake (13.0.6)
-    rake-compiler (1.2.0)
+    rake-compiler (1.2.1)
       rake
     redis (4.8.0)
     redis-client (0.11.2)
