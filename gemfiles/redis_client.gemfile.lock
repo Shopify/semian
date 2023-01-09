@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/redis-rb/redis-client.git
-  revision: d00e69821a8a1fd5dcba2e48cc010f4d97846b3d
+  revision: 809bbab767f8e514ccd0d6008116c360435f3026
   specs:
     hiredis-client (0.11.2)
       redis-client (= 0.11.2)
@@ -24,11 +24,11 @@ GEM
   specs:
     connection_pool (2.3.0)
     hiredis (0.6.3)
-    minitest (5.16.3)
+    minitest (5.17.0)
     mocha (2.0.2)
       ruby2_keywords (>= 0.0.5)
     rake (13.0.6)
-    rake-compiler (1.2.0)
+    rake-compiler (1.2.1)
       rake
     ruby2_keywords (0.0.5)
     toxiproxy (2.0.2)
