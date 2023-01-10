@@ -10,7 +10,7 @@ gem "toxiproxy"
 gem "webrick"
 
 gem "hiredis", "~> 0.6"
-gem "hiredis-client"
+gem "hiredis-client", ">= 0.12.0"
 gem "redis"
 
 gemspec path: "../"

@@ -15,7 +15,7 @@ jobs:
     name: Update gems for all Gemfiles
     runs-on: ubuntu-latest
     container:
-      image: ruby:3.1
+      image: ruby:3.2
     steps:
       -
         name: Checkout

@@ -1,10 +1,10 @@
 GIT
   remote: https://github.com/redis-rb/redis-client.git
-  revision: 809bbab767f8e514ccd0d6008116c360435f3026
+  revision: ac1f3bffd9c1cef1e2d46a0dee6dc12b333da229
   specs:
-    hiredis-client (0.11.2)
-      redis-client (= 0.11.2)
-    redis-client (0.11.2)
+    hiredis-client (0.12.0)
+      redis-client (= 0.12.0)
+    redis-client (0.12.0)
       connection_pool
 
 GIT
@@ -54,4 +54,4 @@ DEPENDENCIES
   webrick
 
 BUNDLED WITH
-   2.3.26
+   2.4.3

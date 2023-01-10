@@ -1,4 +1,4 @@
-ARG RUBY_VERSION=3.1.3
+ARG RUBY_VERSION=3.2.0
 FROM ruby:${RUBY_VERSION} as base
 
 # Avoid warnings by switching to noninteractive

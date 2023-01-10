@@ -10,6 +10,7 @@
 * Refactor: Replace `Time.now` with `CLOCK_MONOTONIC` in Resource `updated_at` field. (#443)
   Replace `Timecop.travel` for tests with custom mock solution to support monotonic clocks.
 * Refactor: Replace `Time.now` with `CLOCK_MONOTONIC` in `CircuitBreaker`. (#441)
+* Support Ruby 3.2.0. (#463)
 
 # v0.16.0
 

@@ -19,7 +19,8 @@ group :test do
   gem "mysql2", "~> 0.5"
   gem "activerecord", ">= 7.0.3"
   gem "hiredis", "~> 0.6"
-  gem "hiredis-client"
+  # NOTE: v0.12.0 required for ruby 3.2.0. https://github.com/redis-rb/redis-client/issues/58
+  gem "hiredis-client", ">= 0.12.0"
   gem "redis"
 end
 
