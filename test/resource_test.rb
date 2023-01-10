@@ -55,8 +55,13 @@ class TestResource < Minitest::Test
 
   def test_unregister_past_0
     workers = 10
-    resource = Semian.register(:testing, tickets: workers * 2, error_threshold: 0, error_timeout: 0,
-      success_threshold: 0)
+    resource = Semian.register(
+      :testing,
+      tickets: workers * 2,
+      error_threshold: 0,
+      error_timeout: 0,
+      success_threshold: 0,
+    )
 
     fork_workers(count: workers, tickets: 0, timeout: 0.5, wait_for_timeout: true) do
       Semian.unregister(:testing)

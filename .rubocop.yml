@@ -38,6 +38,9 @@ Style/GlobalVars:
   Exclude:
     - ext/semian/extconf.rb
 
+Style/NumericLiteralPrefix:
+  EnforcedOctalStyle: zero_only
+
 Style/RedundantConstantBase:
   Enabled: false
 

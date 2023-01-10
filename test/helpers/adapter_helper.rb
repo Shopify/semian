@@ -23,9 +23,11 @@ module Semian
     include AdapterTest
 
     def initialize(**args)
-      @client_options = args.merge(success_threshold: 1,
+      @client_options = args.merge(
+        success_threshold: 1,
         error_threshold: 1,
-        error_timeout: 1)
+        error_timeout: 1,
+      )
     end
 
     def ==(other)

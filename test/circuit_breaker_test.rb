@@ -394,8 +394,15 @@ class TestCircuitBreaker < Minitest::Test
   end
 
   def test_error_threshold_timeout_is_skipped_when_not_using_error_threshold_and_not_using_timeout
-    resource = Semian.register(:three, tickets: 1, exceptions: [SomeError], error_threshold: 3, error_timeout: 5,
-      success_threshold: 1, error_threshold_timeout_enabled: false)
+    resource = Semian.register(
+      :three,
+      tickets: 1,
+      exceptions: [SomeError],
+      error_threshold: 3,
+      error_timeout: 5,
+      success_threshold: 1,
+      error_threshold_timeout_enabled: false,
+    )
 
     time_travel(-6) do
       trigger_error!(resource)
@@ -447,9 +454,15 @@ class TestCircuitBreaker < Minitest::Test
   end
 
   def test_changes_resource_timeout_when_configured
-    Semian.register(:resource_timeout, tickets: 1, exceptions: [SomeError],
-      error_threshold: 2, error_timeout: 5, success_threshold: 1,
-      half_open_resource_timeout: 0.123)
+    Semian.register(
+      :resource_timeout,
+      tickets: 1,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+      half_open_resource_timeout: 0.123,
+    )
     resource = Semian[:resource_timeout]
 
     half_open_cicuit!(resource)
@@ -468,9 +481,15 @@ class TestCircuitBreaker < Minitest::Test
   end
 
   def test_doesnt_change_resource_timeout_when_closed
-    Semian.register(:resource_timeout, tickets: 1, exceptions: [SomeError],
-      error_threshold: 2, error_timeout: 5, success_threshold: 1,
-      half_open_resource_timeout: 0.123)
+    Semian.register(
+      :resource_timeout,
+      tickets: 1,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+      half_open_resource_timeout: 0.123,
+    )
     resource = Semian[:resource_timeout]
 
     raw_resource = RawResource.new
@@ -487,9 +506,15 @@ class TestCircuitBreaker < Minitest::Test
   end
 
   def test_doesnt_blow_up_when_configured_half_open_timeout_but_adapter_doesnt_support
-    Semian.register(:resource_timeout, tickets: 1, exceptions: [SomeError],
-      error_threshold: 2, error_timeout: 5, success_threshold: 1,
-      half_open_resource_timeout: 0.123)
+    Semian.register(
+      :resource_timeout,
+      tickets: 1,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+      half_open_resource_timeout: 0.123,
+    )
     resource = Semian[:resource_timeout]
 
     raw_resource = Object.new
