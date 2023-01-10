@@ -66,8 +66,10 @@ class TestSemian < Minitest::Test
       )
     end
 
-    assert_equal("Semian configuration require either the :tickets or :quota parameter, you provided neither",
-      exception.message)
+    assert_equal(
+      "Semian configuration require either the :tickets or :quota parameter, you provided neither",
+      exception.message,
+    )
   end
 
   def test_register_with_exclusive_options
@@ -80,8 +82,10 @@ class TestSemian < Minitest::Test
       )
     end
 
-    assert_equal("Semian configuration require either the :tickets or :quota parameter, you provided both",
-      exception.message)
+    assert_equal(
+      "Semian configuration require either the :tickets or :quota parameter, you provided both",
+      exception.message,
+    )
   end
 
   def test_unsuported_constants
@@ -117,8 +121,10 @@ class TestSemian < Minitest::Test
       )
     end
 
-    assert_equal("Both bulkhead and circuitbreaker cannot be disabled.",
-      exception.message)
+    assert_equal(
+      "Both bulkhead and circuitbreaker cannot be disabled.",
+      exception.message,
+    )
   end
 
   def test_disabled_bulkheading

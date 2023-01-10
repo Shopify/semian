@@ -47,11 +47,23 @@ class LRUBenchmarker
     # make it a success or a failure
     random = rand(1...100)
     if random >= 0 && random <= 50
-      Semian.register("testing_#{i}", bulkhead: true, tickets: 1, error_threshold: 2, error_timeout: 5,
-        success_threshold: 1)
+      Semian.register(
+        "testing_#{i}",
+        bulkhead: true,
+        tickets: 1,
+        error_threshold: 2,
+        error_timeout: 5,
+        success_threshold: 1,
+      )
     else
-      Semian.register("testing_#{i}", bulkhead: false, tickets: 1, error_threshold: 2, error_timeout: 5,
-        success_threshold: 1)
+      Semian.register(
+        "testing_#{i}",
+        bulkhead: false,
+        tickets: 1,
+        error_threshold: 2,
+        error_timeout: 5,
+        success_threshold: 1,
+      )
     end
   end
 

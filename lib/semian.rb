@@ -322,11 +322,13 @@ module Semian
 
     permissions = options[:permissions] || default_permissions
     timeout = options[:timeout] || 0
-    ::Semian::Resource.new(name,
+    ::Semian::Resource.new(
+      name,
       tickets: options[:tickets],
       quota: options[:quota],
       permissions: permissions,
-      timeout: timeout)
+      timeout: timeout,
+    )
   end
 
   def require_keys!(required, options)

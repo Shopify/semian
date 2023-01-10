@@ -22,11 +22,13 @@ class TestSemianAdapter < Minitest::Test
     client = Semian::AdapterTestClient.new(quota: 0.5)
 
     assert_nil(Semian.resources[:testing_unregister])
-    resource = Semian.register(:testing_unregister,
+    resource = Semian.register(
+      :testing_unregister,
       tickets: 2,
       error_threshold: 0,
       error_timeout: 0,
-      success_threshold: 0)
+      success_threshold: 0,
+    )
 
     assert_equal(Semian.resources[:testing_unregister], resource)
 

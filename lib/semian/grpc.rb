@@ -117,7 +117,7 @@ module Semian
       execute = operation.singleton_method(:execute)
       operation.instance_variable_set(:@semian, self)
       operation.define_singleton_method(:execute) do
-        @semian.send(:acquire_semian_resource, **{ adapter: :grpc, scope: scope }) { execute.call }
+        @semian.send(:acquire_semian_resource, adapter: :grpc, scope: scope) { execute.call }
       end
     end
   end

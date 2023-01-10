@@ -29,10 +29,14 @@ module RedisClientTests
 
   def test_semian_identifier
     assert_equal(:redis_foo, new_config(semian: { name: "foo" }).semian_identifier)
-    assert_equal(:"redis_#{SemianConfig["toxiproxy_upstream_host"]}:16379/1",
-      new_config(semian: { name: nil }).semian_identifier)
-    assert_equal(:"redis_example.com:42/1",
-      new_config(host: "example.com", port: 42, semian: { name: nil }).semian_identifier)
+    assert_equal(
+      :"redis_#{SemianConfig["toxiproxy_upstream_host"]}:16379/1",
+      new_config(semian: { name: nil }).semian_identifier,
+    )
+    assert_equal(
+      :"redis_example.com:42/1",
+      new_config(host: "example.com", port: 42, semian: { name: nil }).semian_identifier,
+    )
 
     config = new_config(semian: { name: "foo" })
 
