@@ -63,9 +63,7 @@ class TestResource < Minitest::Test
       success_threshold: 0,
     )
 
-    fork_workers(count: workers, tickets: 0, timeout: 0.5, wait_for_timeout: true) do
-      Semian.unregister(:testing)
-    end
+    fork_workers(count: workers, tickets: 0, timeout: 0.5, wait_for_timeout: true)
 
     Semian.unregister(:testing)
     signal_workers("TERM")
