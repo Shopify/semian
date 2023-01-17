@@ -1,3 +1,11 @@
+GIT
+  remote: https://github.com/github/trilogy.git
+  revision: 548d300517eabc445922a70e863dff4ef3893cc7
+  ref: refs/pull/41/head
+  glob: contrib/ruby/*.gemspec
+  specs:
+    trilogy (2.2.0)
+
 PATH
   remote: .
   specs:
@@ -24,9 +32,17 @@ GEM
     concurrent-ruby (1.1.10)
     connection_pool (2.3.0)
     google-protobuf (3.21.12)
+    google-protobuf (3.21.12-x86_64-darwin)
+    google-protobuf (3.21.12-x86_64-linux)
     googleapis-common-protos-types (1.5.0)
       google-protobuf (~> 3.14)
     grpc (1.47.0)
+      google-protobuf (~> 3.19)
+      googleapis-common-protos-types (~> 1.0)
+    grpc (1.47.0-x86_64-darwin)
+      google-protobuf (~> 3.19)
+      googleapis-common-protos-types (~> 1.0)
+    grpc (1.47.0-x86_64-linux)
       google-protobuf (~> 3.19)
       googleapis-common-protos-types (~> 1.0)
     hiredis (0.6.3)
@@ -113,6 +129,7 @@ DEPENDENCIES
   rubocop-shopify
   semian!
   toxiproxy
+  trilogy!
   webrick
 
 BUNDLED WITH
