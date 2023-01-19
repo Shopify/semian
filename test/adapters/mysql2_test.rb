@@ -54,6 +54,7 @@ class TestMysql2 < Minitest::Test
 
   def test_query_errors_does_not_open_the_circuit
     client = connect_to_mysql!
+
     (ERROR_THRESHOLD * 2).times do
       assert_raises(::Mysql2::Error) do
         client.query("ERROR!")

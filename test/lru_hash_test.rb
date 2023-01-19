@@ -172,8 +172,6 @@ class TestLRUHash < Minitest::Test
         # At this point, the table looks like: [a, c, b, d, e]
         assert_equal(notification, payload[:size])
         assert_equal(3, payload[:examined])
-      else
-        assert_nil(true)
       end
     end
 
