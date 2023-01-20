@@ -96,6 +96,7 @@ module RedisTests
   def test_command_errors_does_not_open_the_circuit
     client = connect_to_redis!
     client.hset("my_hash", "foo", "bar")
+
     (ERROR_THRESHOLD * 2).times do
       assert_raises(Redis::CommandError) do
         client.get("my_hash")

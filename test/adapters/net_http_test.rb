@@ -111,6 +111,7 @@ class TestNetHTTP < Minitest::Test
         http_1 = Net::HTTP.new(SemianConfig["toxiproxy_upstream_host"], SemianConfig["http_toxiproxy_port"])
         http_1.semian_resource.acquire do
           http_2 = Net::HTTP.new(SemianConfig["toxiproxy_upstream_host"], SemianConfig["http_toxiproxy_port"])
+
           http_2.semian_resource.acquire do
             assert_raises(Net::ResourceBusyError) do
               Net::HTTP.get(URI("http://#{SemianConfig["toxiproxy_upstream_host"]}:#{SemianConfig["http_toxiproxy_port"]}/"))
@@ -232,6 +233,7 @@ class TestNetHTTP < Minitest::Test
     semian_configuration_proc = proc do |host, port|
       DEFAULT_SEMIAN_OPTIONS.merge(name: "#{host}_#{port}")
     end
+
     with_semian_configuration(semian_configuration_proc) do
       assert_raises(Semian::NetHTTP::SemianConfigurationChangedError) do
         Semian::NetHTTP.semian_configuration = semian_configuration_proc
@@ -320,6 +322,7 @@ class TestNetHTTP < Minitest::Test
       with_server do
         open_circuit!
       end
+
       with_server(
         ports: [SemianConfig["http_port_service_a"], SemianConfig["http_port_service_b"]],
         reset_semian_state: false,
