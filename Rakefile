@@ -144,3 +144,23 @@ task examples: ["examples:net_http", "examples:activerecord_trilogy_adapter"]
 
 task default: :build
 task default: :test # rubocop:disable Rake/DuplicateTask
+
+desc "Generate flamegrpahs for different versions"
+task :flamegraph do
+  script = "scripts/benchmarks/flamegraph.rb"
+  flamegraph_parse_command = "flamegraph.pl --countname=ms --width=1400"
+
+  %x(ruby #{script} | #{flamegraph_parse_command} > without_semian.svg)
+  ["v0.15.0", "v0.16.0", "v0.17.0", "master"].each do |ver|
+    %x(WITH_CIRCUIT_BREAKER_ENABLED=1 SEMIAN_VERSION=#{ver} ruby #{script} \
+        | #{flamegraph_parse_command} > semian_#{ver}_enabled.svg)
+  end
+end
+
+desc "Run benchmarks for specific versions"
+task :benchmark do
+  ["v0.15.0", "v0.16.0", "v0.17.0", "master"].each do |ver|
+    ruby "scripts/benchmarks/net_http_acquire_benchmarker.rb SEMIAN_VERSION=#{ver}"
+    ruby "scripts/benchmarks/lru_benchmarker.rb SEMIAN_VERSION=#{ver}"
+  end
+end

@@ -3,18 +3,27 @@
 # Benchmarks the usage of an LRUHash during the set operation.
 # To make sure we are cleaning resources, MINIMUM_TIME_IN_LRU needs
 # to be set to 0
-$LOAD_PATH.unshift(File.expand_path("../../../lib", __FILE__))
-$LOAD_PATH.unshift(File.expand_path("../../../test", __FILE__))
-require "thin"
+
+# Envronment variable SEMIAN_VERSION have values v0.16.0, HEAD, master, custom-branch-name.
+target_version = ENV.fetch("SEMIAN_VERSION", nil)
+if target_version.nil? && !ARGV.empty?
+  target_version = ARGV.first.sub("SEMIAN_VERSION=", "")
+end
+
+require "bundler/inline"
+
+gemfile do
+  source "https://rubygems.org"
+  gem "benchmark-ips", require: "benchmark/ips"
+  gem "benchmark-memory", require: "benchmark/memory"
+  gem "semian", git: "https://github.com/shopify/semian.git", ref: target_version
+end
+
 require "benchmark"
 require "benchmark/ips"
 require "benchmark/memory"
 require "semian"
 require "semian/net_http"
-require "toxiproxy"
-require "yaml"
-require "byebug"
-require "minitest"
 
 class LRUBenchmarker
   def run_ips_benchmark
