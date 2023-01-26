@@ -7,9 +7,9 @@ require "active_record/connection_adapters/trilogy_adapter"
 module ActiveRecord
   module ConnectionAdapters
     class TrilogyAdapter
-      StatementInvalid.include(::Semian::AdapterError)
+      ActiveRecord::ActiveRecordError.include(::Semian::AdapterError)
 
-      class SemianError < StatementInvalid
+      class SemianError < ActiveRecordError
         def initialize(semian_identifier, *args)
           super(*args)
           @semian_identifier = semian_identifier
@@ -30,6 +30,7 @@ module Semian
 
     def initialize(*options)
       *, config = options
+      @read_timeout = config[:read_timeout] || 0
       @raw_semian_options = config.delete(:semian)
       @semian_identifier = begin
         name = semian_options && semian_options[:name]
@@ -54,41 +55,37 @@ module Semian
     end
 
     def with_resource_timeout(temp_timeout)
+      connection_was_nil = false
+
       if connection.nil?
-        prev_read_timeout = @config[:read_timeout] || 0 # We're assuming defaulting the timeout to 0 won't change in Trilogy
-        @config[:read_timeout] = temp_timeout # Create new client with config
+        prev_read_timeout = @read_timeout # Use read_timeout from when we first connected
+        connection_was_nil = true
       else
         prev_read_timeout = connection.read_timeout
         connection.read_timeout = temp_timeout
       end
+
       yield
+
+      connection.read_timeout = temp_timeout if connection_was_nil
     ensure
-      @config[:read_timeout] = prev_read_timeout
       connection&.read_timeout = prev_read_timeout
     end
 
     private
 
-    def resource_exceptions
-      []
-    end
-
     def acquire_semian_resource(**)
       super
-    # We're going to need to rescue ConnectionNotEstablished here
-    # and fix this upstream in the Trilogy adapter -- right now, #new_client raises
-    # raw ECONNREFUSED errors
-    # Also, we shouldn't be wrapping TIMEDOUT and ECONNREFUSED in StatementInvalid => use
-    # more appropriate error classes
-    # We see ECONNREFUSED wrapped as an AR::StatementInvalid exception instead of the
-    # raw one when we go through #execute, because it gets translated in #with_raw_connection
-    # I think #new_client should just be more nuanced
     rescue ActiveRecord::StatementInvalid => error
-      if error.cause.is_a?(Errno::ETIMEDOUT) || error.cause.is_a?(Errno::ECONNREFUSED)
+      if error.cause.is_a?(Trilogy::TimeoutError)
         semian_resource.mark_failed(error)
         error.semian_identifier = semian_identifier
       end
       raise
+     end
+
+    def resource_exceptions
+      [ActiveRecord::ConnectionNotEstablished]
     end
 
     # TODO: share this with Mysql2

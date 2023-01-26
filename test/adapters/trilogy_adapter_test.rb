@@ -69,7 +69,7 @@ module ActiveRecord
       def test_connection_errors_open_the_circuit
         @proxy.downstream(:latency, latency: 2200).apply do
           ERROR_THRESHOLD.times do
-            assert_raises(ActiveRecord::StatementInvalid) do
+            assert_raises(ActiveRecord::ConnectionNotEstablished) do
               @adapter.execute("SELECT 1;")
             end
           end
@@ -104,7 +104,7 @@ module ActiveRecord
         end
 
         # After TrilogyAdapter::CircuitOpenError check regular queries are working fine.
-        result = Timecop.travel(ERROR_TIMEOUT + 1) do
+        result = time_travel(ERROR_TIMEOUT + 1) do
           @adapter.execute("SELECT 1 + 1;")
         end
 
@@ -151,7 +151,7 @@ module ActiveRecord
 
       def test_network_errors_are_tagged_with_the_resource_identifier
         @proxy.down do
-          error = assert_raises(ActiveRecord::StatementInvalid) do
+          error = assert_raises(ActiveRecord::ConnectionNotEstablished) do
             @adapter.execute("SELECT 1 + 1;")
           end
           assert_equal(@adapter.semian_identifier, error.semian_identifier)
@@ -213,7 +213,7 @@ module ActiveRecord
           trilogy_adapter.connect!
         end
 
-        Timecop.travel(ERROR_TIMEOUT + 1) do
+        time_travel(ERROR_TIMEOUT + 1) do
           trilogy_adapter.connect!
         end
       end
@@ -249,7 +249,7 @@ module ActiveRecord
           @adapter.execute("SELECT 1 + 1;")
         end
 
-        Timecop.travel(ERROR_TIMEOUT + 1) do
+        time_travel(ERROR_TIMEOUT + 1) do
           assert_equal(2, @adapter.execute("SELECT 1 + 1;").to_a.flatten.first)
         end
       end
@@ -309,8 +309,8 @@ module ActiveRecord
         adapter = trilogy_adapter(semian: SEMIAN_OPTIONS.merge(half_open_resource_timeout: 1))
 
         @proxy.downstream(:latency, latency: 3000).apply do
-          (ERROR_THRESHOLD * 2).times do
-            assert_raises(ActiveRecord::StatementInvalid) do
+          ERROR_THRESHOLD.times do
+            assert_raises(ActiveRecord::ConnectionNotEstablished) do
               adapter.execute("SELECT 1 + 1;")
             end
           end
@@ -320,15 +320,16 @@ module ActiveRecord
           adapter.execute("SELECT 1 + 1;")
         end
 
-        Timecop.travel(ERROR_TIMEOUT + 1) do
+        # Circuit moves to half-open state, so 1500 of latency should result in error
+        time_travel(ERROR_TIMEOUT + 1) do
           @proxy.downstream(:latency, latency: 1500).apply do
-            assert_raises(ActiveRecord::StatementInvalid) do
+            assert_raises(ActiveRecord::ConnectionNotEstablished) do
               adapter.execute("SELECT 1 + 1;")
             end
           end
         end
 
-        Timecop.travel(ERROR_TIMEOUT * 2 + 1) do
+        time_travel(ERROR_TIMEOUT * 2 + 1) do
           adapter.execute("SELECT 1 + 1;")
           adapter.execute("SELECT 1 + 1;")
 
@@ -345,7 +346,7 @@ module ActiveRecord
 
       def test_circuit_open_errors_do_not_trigger_the_circuit_breaker
         @proxy.down do
-          err = assert_raises(ActiveRecord::StatementInvalid) do
+          err = assert_raises(ActiveRecord::ConnectionNotEstablished) do
             @adapter.execute("SELECT 1;")
           end
           2.times do
@@ -353,8 +354,7 @@ module ActiveRecord
               @adapter.execute("SELECT 1;")
             end
             error = Semian[:trilogy_adapter_testing].circuit_breaker.last_error
-            assert_equal(ActiveRecord::StatementInvalid, error.class)
-            assert_equal(Errno::ECONNREFUSED, error.cause.class)
+            assert_equal(ActiveRecord::ConnectionNotEstablished, error.class)
           end
         end
       end
