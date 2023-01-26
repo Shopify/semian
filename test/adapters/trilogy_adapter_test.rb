@@ -333,7 +333,7 @@ module ActiveRecord
           adapter.execute("SELECT 1 + 1;")
           adapter.execute("SELECT 1 + 1;")
 
-          # Timeout has reset to the normal 2 seconds now that Circuit is closed
+          # Timeout has reset to the normal 2 seconds now that circuit is closed
           @proxy.downstream(:latency, latency: 1500).apply do
             adapter.execute("SELECT 1 + 1;")
           end
