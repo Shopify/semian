@@ -1,11 +1,19 @@
 GIT
   remote: https://github.com/github/activerecord-trilogy-adapter.git
-  revision: b1f0cd5d8305285bd77ab3f711a1e43f52fedd31
-  branch: main
+  revision: 4143db9b0a1529c44f88743b24206e42e987679d
+  ref: refs/pull/24/head
   specs:
     activerecord-trilogy-adapter (2.1.0)
       activerecord (~> 7.1.a)
       trilogy (>= 2.1.1)
+
+GIT
+  remote: https://github.com/github/trilogy.git
+  revision: b54138b188f19722d7f94614ae72064683e56276
+  ref: refs/pull/41/head
+  glob: contrib/ruby/*.gemspec
+  specs:
+    trilogy (2.2.0)
 
 GIT
   remote: https://github.com/rails/rails.git
@@ -32,19 +40,6 @@ PATH
 GEM
   remote: https://rubygems.org/
   specs:
-    activemodel (7.0.4.1)
-      activesupport (= 7.0.4.1)
-    activerecord (7.0.4.1)
-      activemodel (= 7.0.4.1)
-      activesupport (= 7.0.4.1)
-    activesupport (7.0.4.1)
-      concurrent-ruby (~> 1.0, >= 1.0.2)
-      i18n (>= 1.6, < 2)
-      minitest (>= 5.1)
-      tzinfo (~> 2.0)
-    activerecord-trilogy-adapter (2.1.0)
-      activerecord (~> 7.1.a)
-      trilogy (>= 2.1.1)
     ast (2.4.2)
     benchmark-memory (0.2.0)
       memory_profiler (~> 1)
@@ -53,9 +48,17 @@ GEM
     concurrent-ruby (1.1.10)
     connection_pool (2.3.0)
     google-protobuf (3.21.12)
+    google-protobuf (3.21.12-x86_64-darwin)
+    google-protobuf (3.21.12-x86_64-linux)
     googleapis-common-protos-types (1.5.0)
       google-protobuf (~> 3.14)
     grpc (1.47.0)
+      google-protobuf (~> 3.19)
+      googleapis-common-protos-types (~> 1.0)
+    grpc (1.47.0-x86_64-darwin)
+      google-protobuf (~> 3.19)
+      googleapis-common-protos-types (~> 1.0)
+    grpc (1.47.0-x86_64-linux)
       google-protobuf (~> 3.19)
       googleapis-common-protos-types (~> 1.0)
     hiredis (0.6.3)
@@ -110,7 +113,6 @@ GEM
     ruby-progressbar (1.11.0)
     ruby2_keywords (0.0.5)
     toxiproxy (2.0.2)
-    trilogy (2.2.0)
     tzinfo (2.0.5)
       concurrent-ruby (~> 1.0)
     unicode-display_width (2.4.2)
@@ -144,6 +146,7 @@ DEPENDENCIES
   rubocop-shopify
   semian!
   toxiproxy
+  trilogy!
   webrick
 
 BUNDLED WITH

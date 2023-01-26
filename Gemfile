@@ -17,7 +17,8 @@ group :test do
   # The last stable version for MacOS ARM darwin
   gem "grpc", "1.47.0"
   gem "mysql2", "~> 0.5"
-  gem "activerecord-trilogy-adapter", github: "github/activerecord-trilogy-adapter", branch: "main"
+  gem "trilogy", github: "https://github.com/github/trilogy/pull/41", glob: "contrib/ruby/*.gemspec"
+  gem "activerecord-trilogy-adapter", github: "https://github.com/github/activerecord-trilogy-adapter/pull/24"
   gem "activerecord", github: "rails/rails", branch: "main"
   gem "hiredis", "~> 0.6"
   # NOTE: v0.12.0 required for ruby 3.2.0. https://github.com/redis-rb/redis-client/issues/58
