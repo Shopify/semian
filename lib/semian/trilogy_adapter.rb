@@ -9,7 +9,8 @@ module ActiveRecord
     class TrilogyAdapter
       ActiveRecord::ActiveRecordError.include(::Semian::AdapterError)
 
-      class SemianError < ActiveRecordError
+      # Ensure we can rescue ResourceBusyError and CircuitOpenError as ActiveRecord::StatementInvalid
+      class SemianError < StatementInvalid
         def initialize(semian_identifier, *args)
           super(*args)
           @semian_identifier = semian_identifier
