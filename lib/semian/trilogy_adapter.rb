@@ -30,7 +30,6 @@ module Semian
 
     def initialize(*options)
       *, config = options
-      @read_timeout = config[:read_timeout] || 0
       @raw_semian_options = config.delete(:semian)
       @semian_identifier = begin
         name = semian_options && semian_options[:name]
@@ -55,20 +54,16 @@ module Semian
     end
 
     def with_resource_timeout(temp_timeout)
-      connection_was_nil = false
-
       if connection.nil?
-        prev_read_timeout = @read_timeout # Use read_timeout from when we first connected
-        connection_was_nil = true
+        prev_read_timeout = @config[:read_timeout] || 0
+        @config.merge!(read_timeout: temp_timeout) # Create new client with temp_timeout for read timeout
       else
         prev_read_timeout = connection.read_timeout
         connection.read_timeout = temp_timeout
       end
-
       yield
-
-      connection.read_timeout = temp_timeout if connection_was_nil
     ensure
+      @config.merge!(read_timeout: prev_read_timeout)
       connection&.read_timeout = prev_read_timeout
     end
 
