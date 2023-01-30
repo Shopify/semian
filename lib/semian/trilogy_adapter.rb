@@ -54,6 +54,12 @@ module Semian
       end
     end
 
+    def active?
+      acquire_semian_resource(adapter: :trilogy_adapter, scope: :ping) do
+        super
+      end
+    end
+
     def with_resource_timeout(temp_timeout)
       if connection.nil?
         prev_read_timeout = @config[:read_timeout] || 0

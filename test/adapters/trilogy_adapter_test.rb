@@ -123,7 +123,9 @@ module ActiveRecord
           assert_equal(:trilogy_adapter, adapter)
         end
 
-        @adapter.connect!
+        # We can't use the public #connect! API here because we'll call
+        # active?, which will scope the event to :ping.
+        @adapter.send(:connect)
 
         assert(notified, "No notifications have been emitted")
       ensure
@@ -143,6 +145,25 @@ module ActiveRecord
         end
 
         @adapter.execute("SELECT 1;")
+
+        assert(notified, "No notifications has been emitted")
+      ensure
+        Semian.unsubscribe(subscriber)
+      end
+
+      def test_active_instrumentation
+        @adapter.connect!
+
+        notified = false
+        subscriber = Semian.subscribe do |event, resource, scope, adapter|
+          notified = true
+          assert_equal(:success, event)
+          assert_equal(Semian[:trilogy_adapter_testing], resource)
+          assert_equal(:ping, scope)
+          assert_equal(:trilogy_adapter, adapter)
+        end
+
+        @adapter.active?
 
         assert(notified, "No notifications has been emitted")
       ensure
@@ -182,6 +203,16 @@ module ActiveRecord
         Semian[:trilogy_adapter_testing].acquire do
           assert_raises(TrilogyAdapter::ResourceBusyError) do
             @adapter.execute("SELECT 1;")
+          end
+        end
+      end
+
+      def test_resource_acquisition_for_ping
+        @adapter.connect!
+
+        Semian[:trilogy_adapter_testing].acquire do
+          assert_raises(TrilogyAdapter::ResourceBusyError) do
+            @adapter.active?
           end
         end
       end
@@ -231,8 +262,6 @@ module ActiveRecord
       end
 
       def test_circuit_breaker_on_query
-        adapter2 = trilogy_adapter
-
         @proxy.downstream(:latency, latency: 2200).apply do
           background { trilogy_adapter.execute("SELECT 1 + 1;") }
 
@@ -251,6 +280,42 @@ module ActiveRecord
 
         time_travel(ERROR_TIMEOUT + 1) do
           assert_equal(2, @adapter.execute("SELECT 1 + 1;").to_a.flatten.first)
+        end
+      end
+
+      def test_resource_timeout_on_ping
+        adapter2 = trilogy_adapter
+
+        @proxy.downstream(:latency, latency: 500).apply do
+          background { adapter2.execute("SELECT 1 + 1;") }
+
+          assert_raises(TrilogyAdapter::ResourceBusyError) do
+            @adapter.active?
+          end
+        end
+      end
+
+      def test_circuit_breaker_on_ping
+        @proxy.downstream(:latency, latency: 2200).apply do
+          background { trilogy_adapter.execute("SELECT 1 + 1;") }
+
+          ERROR_THRESHOLD.times do
+            assert_raises(TrilogyAdapter::ResourceBusyError) do
+              @adapter.query("SELECT 1 + 1;")
+            end
+          end
+        end
+
+        yield_to_background
+
+        assert_raises(TrilogyAdapter::CircuitOpenError) do
+          @adapter.active?
+        end
+
+        time_travel(ERROR_TIMEOUT + 1) do
+          # Connection is no longer active, but we shouldn't be raising CircuitOpenError
+          # anymore.
+          refute @adapter.active?
         end
       end
 
