@@ -27,6 +27,9 @@ module Semian
   module TrilogyAdapter
     include Semian::Adapter
 
+    ResourceBusyError = ::ActiveRecord::ConnectionAdapters::TrilogyAdapter::ResourceBusyError
+    CircuitOpenError = ::ActiveRecord::ConnectionAdapters::TrilogyAdapter::CircuitOpenError
+
     attr_reader :raw_semian_options, :semian_identifier
 
     def initialize(*options)
@@ -58,6 +61,8 @@ module Semian
       acquire_semian_resource(adapter: :trilogy_adapter, scope: :ping) do
         super
       end
+    rescue ResourceBusyError, CircuitOpenError => error
+      false
     end
 
     def with_resource_timeout(temp_timeout)

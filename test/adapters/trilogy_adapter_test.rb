@@ -198,7 +198,7 @@ module ActiveRecord
 
         Semian[:trilogy_adapter_testing].acquire do
           error = assert_raises(TrilogyAdapter::ResourceBusyError) do
-            trilogy_adapter.connect!
+            trilogy_adapter.send(:connect) # Avoid going through connect!, which will call #active?
           end
 
           assert_equal(:trilogy_adapter_testing, error.semian_identifier)
@@ -215,22 +215,12 @@ module ActiveRecord
         end
       end
 
-      def test_resource_acquisition_for_ping
-        @adapter.connect!
-
-        Semian[:trilogy_adapter_testing].acquire do
-          assert_raises(TrilogyAdapter::ResourceBusyError) do
-            @adapter.active?
-          end
-        end
-      end
-
       def test_resource_timeout_on_connect
         @proxy.downstream(:latency, latency: 500).apply do
           background { @adapter.connect! }
 
           assert_raises(TrilogyAdapter::ResourceBusyError) do
-            trilogy_adapter.connect!
+            trilogy_adapter.send(:connect) # Avoid going through connect!, which will call #active?
           end
         end
       end
@@ -241,7 +231,7 @@ module ActiveRecord
 
           ERROR_THRESHOLD.times do
             assert_raises(TrilogyAdapter::ResourceBusyError) do
-              trilogy_adapter.connect!
+              trilogy_adapter.send(:connect) # Avoid going through connect!, which will call #active?
             end
           end
         end
@@ -288,42 +278,6 @@ module ActiveRecord
 
         time_travel(ERROR_TIMEOUT + 1) do
           assert_equal(2, @adapter.execute("SELECT 1 + 1;").to_a.flatten.first)
-        end
-      end
-
-      def test_resource_timeout_on_ping
-        adapter2 = trilogy_adapter
-
-        @proxy.downstream(:latency, latency: 500).apply do
-          background { adapter2.execute("SELECT 1 + 1;") }
-
-          assert_raises(TrilogyAdapter::ResourceBusyError) do
-            @adapter.active?
-          end
-        end
-      end
-
-      def test_circuit_breaker_on_ping
-        @proxy.downstream(:latency, latency: 2200).apply do
-          background { trilogy_adapter.execute("SELECT 1 + 1;") }
-
-          ERROR_THRESHOLD.times do
-            assert_raises(TrilogyAdapter::ResourceBusyError) do
-              @adapter.query("SELECT 1 + 1;")
-            end
-          end
-        end
-
-        yield_to_background
-
-        assert_raises(TrilogyAdapter::CircuitOpenError) do
-          @adapter.active?
-        end
-
-        time_travel(ERROR_TIMEOUT + 1) do
-          # Connection is no longer active, but we shouldn't be raising CircuitOpenError
-          # anymore.
-          refute_predicate(@adapter, :active?)
         end
       end
 
@@ -421,17 +375,18 @@ module ActiveRecord
 
       def test_circuit_open_errors_do_not_trigger_the_circuit_breaker
         @proxy.down do
-          err = assert_raises(ActiveRecord::ConnectionNotEstablished) do
-            @adapter.execute("SELECT 1;")
-          end
-          2.times do
-            assert_raises(TrilogyAdapter::CircuitOpenError) do
+          ERROR_THRESHOLD.times do
+            assert_raises(ActiveRecord::ConnectionNotEstablished) do
               @adapter.execute("SELECT 1;")
             end
-            error = Semian[:trilogy_adapter_testing].circuit_breaker.last_error
-
-            assert_equal(ActiveRecord::ConnectionNotEstablished, error.class)
           end
+
+          assert_raises(TrilogyAdapter::CircuitOpenError) do
+            @adapter.execute("SELECT 1;")
+          end
+          error = Semian[:trilogy_adapter_testing].circuit_breaker.last_error
+
+          assert_equal(ActiveRecord::ConnectionNotEstablished, error.class)
         end
       end
 
