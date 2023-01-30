@@ -38,12 +38,14 @@ module ActiveRecord
       end
 
       def test_semian_identifier
-        assert_equal(:"trilogy_adapter_testing", @adapter.semian_identifier)
+        assert_equal(:trilogy_adapter_testing, @adapter.semian_identifier)
 
         adapter = trilogy_adapter(host: "127.0.0.1", semian: { name: nil })
+
         assert_equal(:"trilogy_adapter_127.0.0.1:13306", adapter.semian_identifier)
 
         adapter = trilogy_adapter(host: "example.com", port: 42, semian: { name: nil })
+
         assert_equal(:"trilogy_adapter_example.com:42", adapter.semian_identifier)
       end
 
@@ -81,7 +83,7 @@ module ActiveRecord
       end
 
       def test_query_errors_do_not_open_the_circuit
-        (ERROR_THRESHOLD).times do
+        ERROR_THRESHOLD.times do
           assert_raises(ActiveRecord::StatementInvalid) do
             @adapter.execute("ERROR!")
           end
@@ -89,6 +91,7 @@ module ActiveRecord
         err = assert_raises(ActiveRecord::StatementInvalid) do
           @adapter.execute("ERROR!")
         end
+
         refute_kind_of(TrilogyAdapter::CircuitOpenError, err)
       end
 
@@ -138,6 +141,7 @@ module ActiveRecord
         notified = false
         subscriber = Semian.subscribe do |event, resource, scope, adapter|
           notified = true
+
           assert_equal(:success, event)
           assert_equal(Semian[:trilogy_adapter_testing], resource)
           assert_equal(:execute, scope)
@@ -157,6 +161,7 @@ module ActiveRecord
         notified = false
         subscriber = Semian.subscribe do |event, resource, scope, adapter|
           notified = true
+
           assert_equal(:success, event)
           assert_equal(Semian[:trilogy_adapter_testing], resource)
           assert_equal(:ping, scope)
@@ -175,6 +180,7 @@ module ActiveRecord
           error = assert_raises(ActiveRecord::ConnectionNotEstablished) do
             @adapter.execute("SELECT 1 + 1;")
           end
+
           assert_equal(@adapter.semian_identifier, error.semian_identifier)
         end
       end
@@ -183,6 +189,7 @@ module ActiveRecord
         error = assert_raises(ActiveRecord::StatementInvalid) do
           @adapter.execute("SYNTAX ERROR!")
         end
+
         assert_nil(error.semian_identifier)
       end
 
@@ -193,6 +200,7 @@ module ActiveRecord
           error = assert_raises(TrilogyAdapter::ResourceBusyError) do
             trilogy_adapter.connect!
           end
+
           assert_equal(:trilogy_adapter_testing, error.semian_identifier)
         end
       end
@@ -315,7 +323,7 @@ module ActiveRecord
         time_travel(ERROR_TIMEOUT + 1) do
           # Connection is no longer active, but we shouldn't be raising CircuitOpenError
           # anymore.
-          refute @adapter.active?
+          refute_predicate(@adapter, :active?)
         end
       end
 
@@ -345,6 +353,7 @@ module ActiveRecord
 
       def test_query_allowlisted_returns_false_for_binary_sql
         binary_query = File.read(File.expand_path("../../fixtures/binary.sql", __FILE__))
+
         refute(@adapter.send(:query_allowlisted?, binary_query))
       end
 
@@ -405,6 +414,7 @@ module ActiveRecord
         end
 
         raw_connection = adapter.send(:connection)
+
         assert_equal(2, raw_connection.read_timeout)
         assert_equal(2, raw_connection.write_timeout)
       end
@@ -419,6 +429,7 @@ module ActiveRecord
               @adapter.execute("SELECT 1;")
             end
             error = Semian[:trilogy_adapter_testing].circuit_breaker.last_error
+
             assert_equal(ActiveRecord::ConnectionNotEstablished, error.class)
           end
         end

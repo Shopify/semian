@@ -84,7 +84,7 @@ module Semian
         error.semian_identifier = semian_identifier
       end
       raise
-     end
+    end
 
     def resource_exceptions
       [ActiveRecord::ConnectionNotEstablished]
