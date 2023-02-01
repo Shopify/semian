@@ -12,6 +12,7 @@
 * Refactor: Replace `Time.now` with `CLOCK_MONOTONIC` in `CircuitBreaker`. (#441)
 * Support Ruby 3.2.0. (#463)
 * Enable write barrier protection on Resource. (#469)
+* Support Active Record Trilogy adapter. (#468)
 
 # v0.16.0
 
