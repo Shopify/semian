@@ -28,6 +28,9 @@ Lint/SuppressedException:
 Minitest/AssertPredicate:
   Enabled: false
 
+Minitest/MultipleAssertions:
+  Enabled: false
+
 Minitest/RefuteFalse:
   Enabled: false
 
