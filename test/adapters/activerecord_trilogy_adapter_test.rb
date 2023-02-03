@@ -373,6 +373,12 @@ module ActiveRecord
         assert_equal(2, raw_connection.write_timeout)
       end
 
+      def test_trilogy_default_read_timeout
+        client = Trilogy.new(@configuration.slice(:username, :host, :port))
+
+        assert_equal(0, client.read_timeout)
+      end
+
       def test_circuit_open_errors_do_not_trigger_the_circuit_breaker
         @proxy.down do
           ERROR_THRESHOLD.times do
