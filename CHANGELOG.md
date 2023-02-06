@@ -11,6 +11,7 @@
   Replace `Timecop.travel` for tests with custom mock solution to support monotonic clocks.
 * Refactor: Replace `Time.now` with `CLOCK_MONOTONIC` in `CircuitBreaker`. (#441)
 * Support Ruby 3.2.0. (#463)
+* Enable write barrier protection on Resource. (#469)
 
 # v0.16.0
 
