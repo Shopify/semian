@@ -859,6 +859,7 @@ $ bundle install
 [mysql-semian-adapter]: lib/semian/mysql2.rb
 [postgres-semian-adapter]: https://github.com/mschoenlaub/semian-postgres
 [redis-semian-adapter]: lib/semian/redis.rb
+[activerecord-trilogy-semian-adapter]: lib/semian/activerecord_trilogy_adapter.rb
 [semian-adapter]: lib/semian/adapter.rb
 [nethttp-semian-adapter]: lib/semian/net_http.rb
 [nethttp-default-errors]: lib/semian/net_http.rb#L35-L45

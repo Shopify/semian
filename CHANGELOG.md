@@ -1,3 +1,7 @@
+# Unreleased
+
+* Support Active Record Trilogy adapter. (#468)
+
 # v0.17.0
 
 * Avoid prepending the same prefix twice to errors messages. (#423)

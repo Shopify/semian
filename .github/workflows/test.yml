@@ -119,6 +119,7 @@ jobs:
           - redis_4
           - redis_5
           - redis_client
+          - activerecord_trilogy_adapter
         include:
           - gemfile: grpc
             adapter: grpc
@@ -134,6 +135,8 @@ jobs:
             adapter: redis
           - gemfile: redis_client
             adapter: redis_client
+          - gemfile: activerecord_trilogy_adapter
+            adapter: activerecord_trilogy_adapter
     services:
       mysql:
         image: mysql:5.7
