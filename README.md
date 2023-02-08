@@ -73,6 +73,7 @@ version is the version of the public gem with the same name:
 * [`semian/mysql2`][mysql-semian-adapter] (~> 0.3.16)
 * [`semian/redis`][redis-semian-adapter] (~> 3.2.1)
 * [`semian/net_http`][nethttp-semian-adapter]
+* [`semian/activerecord_trilogy_adapter`][activerecord-trilogy-semian-adapter]
 * [`semian-postgres`][postgres-semian-adapter]
 
 ### Creating Adapters
