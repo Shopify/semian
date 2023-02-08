@@ -1,4 +1,4 @@
-# Unreleased
+# v0.17.0
 
 * Avoid prepending the same prefix twice to errors messages. (#423)
   This mostly happens with the `redis-rb 5+` gem as it translate `redis-client` errors.
