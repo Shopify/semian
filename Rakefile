@@ -121,10 +121,26 @@ namespace :examples do
       end
     end
   end
+
+  desc "Run examples for activerecord-trilogy-adapter"
+  task :activerecord_trilogy_adapter do
+    Dir["examples/activerecord_trilogy_adapter/*.rb"].entries.each do |f|
+      ruby f do |ok, status|
+        if !ok && status.respond_to?(:signaled?) && status.signaled?
+          raise SignalException, status.termsig
+        elsif !ok
+          status  = "Command failed with status (#{status.exitstatus})"
+          details = ": [ruby #{f}]"
+          message = status + details
+          raise message
+        end
+      end
+    end
+  end
 end
 
 desc "Run examples"
-task examples: ["examples:net_http"]
+task examples: ["examples:net_http", "examples:activerecord_trilogy_adapter"]
 
 task default: :build
 task default: :test # rubocop:disable Rake/DuplicateTask

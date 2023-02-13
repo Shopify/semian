@@ -83,6 +83,8 @@ jobs:
           (echo "===== Retry Attempt: 3 ====" && bundle exec rake test:semian)
       -
         name: Examples
+        env:
+          MYSQL_HOST: mysql
         run: |
           bundle exec rake examples
 
