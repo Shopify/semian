@@ -60,12 +60,10 @@ module ActiveRecord
       end
 
       def test_adapter_does_not_modify_config
-        config = @configuration.merge(config_overrides)
+        assert(@configuration.key?(:semian))
+        TrilogyAdapter.new(@configuration)
 
-        assert(config.key?(:semian))
-        TrilogyAdapter.new(config)
-
-        assert(config.key?(:semian))
+        assert(@configuration.key?(:semian))
       end
 
       def test_unconfigured
