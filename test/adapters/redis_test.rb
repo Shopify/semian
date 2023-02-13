@@ -199,7 +199,11 @@ module RedisTests
 
   def test_resource_timeout_on_connect
     @proxy.downstream(:latency, latency: redis_timeout_ms).apply do
-      background { connect_to_redis! }
+      background do
+        connect_to_redis!
+      rescue Redis::CircuitOpenError
+        nil
+      end
 
       assert_raises(Redis::ResourceBusyError) do
         connect_to_redis!
