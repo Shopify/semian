@@ -300,6 +300,32 @@ SEMIAN_PARAMETERS = { tickets: 1,
                       open_circuit_server_errors: true }
 ```
 
+#### ActiveRecord
+
+Semian supports two Activeredord adapters: `mysql2` and `trilogy`.
+It could be configured by modifying the `database.yml` to something:
+
+```yml
+semian: &semian
+  success_threshold: 2
+  error_threshold: 3
+  error_timeout: 4
+  half_open_resource_timeout: 1
+  bulkhead: false # Disable bulkhead for Puma: https://github.com/shopify/semian#thread-safety
+  name: semian_identifier_name
+
+default: &default
+  adapter: mysql2
+  username: root
+  password:
+  host: localhost
+  read_timeout: 2
+  write_timeout: 1
+  connect_timeout: 1
+  semian:
+    <<: *semian
+```
+
 # Understanding Semian
 
 Semian is a library with heuristics for failing fast. This section will explain
