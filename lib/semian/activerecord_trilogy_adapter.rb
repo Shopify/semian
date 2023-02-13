@@ -33,6 +33,7 @@ module Semian
 
     def initialize(*options)
       *, config = options
+      config = config.dup
       @raw_semian_options = config.delete(:semian)
       @semian_identifier = begin
         name = semian_options && semian_options[:name]

@@ -59,6 +59,15 @@ module ActiveRecord
         assert_instance_of(Semian::UnprotectedResource, resource)
       end
 
+      def test_adapter_does_not_modify_config
+        config = @configuration.merge(config_overrides)
+
+        assert(config.key?(:semian))
+        TrilogyAdapter.new(config)
+
+        assert(config.key?(:semian))
+      end
+
       def test_unconfigured
         adapter = trilogy_adapter(
           host: SemianConfig["toxiproxy_upstream_host"],
