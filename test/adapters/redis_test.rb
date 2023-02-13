@@ -8,6 +8,8 @@ require "benchmark"
 require "semian/redis"
 
 module RedisTests
+  include BackgroundHelper
+
   REDIS_TIMEOUT = 0.5
   ERROR_TIMEOUT = 5
   ERROR_THRESHOLD = 1
@@ -21,9 +23,8 @@ module RedisTests
     error_timeout: ERROR_TIMEOUT,
   }
 
-  attr_writer :threads
-
   def setup
+    super
     @proxy = Toxiproxy[:semian_test_redis]
     Semian.destroy(:redis_testing)
   end

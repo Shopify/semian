@@ -6,6 +6,8 @@ require "semian/activerecord_trilogy_adapter"
 module ActiveRecord
   module ConnectionAdapters
     class ActiveRecordTrilogyAdapterTest < Minitest::Test
+      include BackgroundHelper
+
       ERROR_TIMEOUT = 5
       ERROR_THRESHOLD = 1
       SEMIAN_OPTIONS = {
@@ -18,6 +20,7 @@ module ActiveRecord
       }
 
       def setup
+        super
         @proxy = Toxiproxy[:semian_test_mysql]
         Semian.destroy(:mysql_testing)
 
@@ -34,6 +37,7 @@ module ActiveRecord
       end
 
       def teardown
+        super
         @adapter.disconnect!
       end
 

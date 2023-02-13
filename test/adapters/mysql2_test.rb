@@ -5,6 +5,8 @@ require "mysql2"
 require "semian/mysql2"
 
 class TestMysql2 < Minitest::Test
+  include BackgroundHelper
+
   ERROR_TIMEOUT = 5
   ERROR_THRESHOLD = 1
   SEMIAN_OPTIONS = {
@@ -17,6 +19,7 @@ class TestMysql2 < Minitest::Test
   }
 
   def setup
+    super
     @proxy = Toxiproxy[:semian_test_mysql]
     Semian.destroy(:mysql_testing)
   end
