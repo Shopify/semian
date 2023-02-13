@@ -6,6 +6,7 @@ require "securerandom"
 class TestProtectedResource < Minitest::Test
   include CircuitBreakerHelper
   include ResourceHelper
+  include BackgroundHelper
 
   def setup
     destroy_all_semian_resources

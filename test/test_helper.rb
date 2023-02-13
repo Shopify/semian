@@ -64,7 +64,6 @@ end
 
 module Minitest
   class Test
-    include BackgroundHelper
     include TimeHelper
     include ResourceHelper
   end
