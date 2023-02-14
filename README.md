@@ -300,10 +300,10 @@ SEMIAN_PARAMETERS = { tickets: 1,
                       open_circuit_server_errors: true }
 ```
 
-#### ActiveRecord
+#### Active Record
 
-Semian supports ActiveRecord adapter `trilogy`.
-It could be configured by modifying the `database.yml` to:
+Semian supports Active Record adapter `trilogy`.
+It can be configured in the `database.yml`:
 
 ```yml
 semian: &semian
@@ -325,6 +325,9 @@ default: &default
   semian:
     <<: *semian
 ```
+
+Example cases for `activerecord-trilogy-adapter` can be run using
+`BUNDLE_GEMFILE=gemfiles/activerecord_trilogy_adapter.gemfile bundle exec rake examples:activerecord_trilogy_adapter`
 
 # Understanding Semian
 
