@@ -73,6 +73,7 @@ version is the version of the public gem with the same name:
 * [`semian/mysql2`][mysql-semian-adapter] (~> 0.3.16)
 * [`semian/redis`][redis-semian-adapter] (~> 3.2.1)
 * [`semian/net_http`][nethttp-semian-adapter]
+* [`semian/activerecord_trilogy_adapter`][activerecord-trilogy-semian-adapter]
 * [`semian-postgres`][postgres-semian-adapter]
 
 ### Creating Adapters
@@ -298,6 +299,35 @@ SEMIAN_PARAMETERS = { tickets: 1,
                       error_timeout: 10,
                       open_circuit_server_errors: true }
 ```
+
+#### Active Record
+
+Semian supports Active Record adapter `trilogy`.
+It can be configured in the `database.yml`:
+
+```yml
+semian: &semian
+  success_threshold: 2
+  error_threshold: 3
+  error_timeout: 4
+  half_open_resource_timeout: 1
+  bulkhead: false # Disable bulkhead for Puma: https://github.com/shopify/semian#thread-safety
+  name: semian_identifier_name
+
+default: &default
+  adapter: trilogy
+  username: root
+  password:
+  host: localhost
+  read_timeout: 2
+  write_timeout: 1
+  connect_timeout: 1
+  semian:
+    <<: *semian
+```
+
+Example cases for `activerecord-trilogy-adapter` can be run using
+`BUNDLE_GEMFILE=gemfiles/activerecord_trilogy_adapter.gemfile bundle exec rake examples:activerecord_trilogy_adapter`
 
 # Understanding Semian
 
