@@ -91,6 +91,15 @@ class TestSemianAdapter < Minitest::Test
     end
   end
 
+  def test_does_not_memoize_dynamic_options
+    dynamic_client = Semian::DynamicAdapterTestClient.new(quota: 0.5)
+
+    refute_nil(dynamic_client.semian_resource)
+    assert_equal(4, dynamic_client.raw_semian_options[:success_threshold])
+    assert_equal(5, dynamic_client.raw_semian_options[:success_threshold])
+    assert_nil(dynamic_client.instance_variable_get("@semian_options"))
+  end
+
   class MyAdapterError < StandardError
     include Semian::AdapterError
   end

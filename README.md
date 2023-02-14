@@ -254,10 +254,40 @@ The `semian_options` passed apply to that resource. Semian creates the `semian_i
 from the `name` to look up and store changes in the circuit breaker and bulkhead states
 and associate successes, failures, errors with the protected resource.
 
-We only require that:
-* the `semian_configuration` be **set only once** over the lifetime of the library
-* the output of the `proc` be the same over time, that is, the configuration produced by
-  each pair of `host`, `port` is **the same each time** the callback is invoked.
+We only require that the `semian_configuration` be **set only once** over the lifetime of
+the library.
+
+If you need to return different values for the same pair of `host`/`port` value, you **must**
+include the `dynamic: true` option. Returning different values for the same `host`/`port` values
+without setting the `dynamic` option can lead to undesirable behavior.
+
+A common example for dynamic options is the use of a thread local variable, such as
+`ActiveSupport::CurrentAttributes`, for requests to a service acting as a proxy.
+
+```ruby
+SEMIAN_PARAMETERS = {
+  # ...
+  dynamic: true,
+}
+
+class CurrentSemianSubResource < ActiveSupport::Attributes
+ attribute :name
+end
+
+Semian::NetHTTP.semian_configuration = proc do |host, port|
+  name = "#{host}_#{port}"
+  if (sub_resource_name = CurrentSemianSubResource.name)
+    name << "_#{name}"
+  end
+  SEMIAN_PARAMETERS.merge(name: name)
+end
+
+# Two requests to example.com can use two different semian resources,
+# as long as `CurrentSemianSubResource.name` is set accordingly:
+# CurrentSemianSubResource.set(name: "sub_resource_1") { Net::HTTP.get_response(URI("http://example.com")) }
+# and:
+# CurrentSemianSubResource.set(name: "sub_resource_2") { Net::HTTP.get_response(URI("http://example.com")) }
+```
 
 For most purposes, `"#{host}_#{port}"` is a good default `name`. Custom `name` formats
 can be useful to grouping related subdomains as one resource, so that they all

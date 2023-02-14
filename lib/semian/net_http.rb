@@ -91,16 +91,20 @@ module Semian
     end
 
     def connect
-      return super if disabled?
+      with_cleared_dynamic_options do
+        return super if disabled?
 
-      acquire_semian_resource(adapter: :http, scope: :connection) { super }
+        acquire_semian_resource(adapter: :http, scope: :connection) { super }
+      end
     end
 
     def transport_request(*)
-      return super if disabled?
+      with_cleared_dynamic_options do
+        return super if disabled?
 
-      acquire_semian_resource(adapter: :http, scope: :query) do
-        handle_error_responses(super)
+        acquire_semian_resource(adapter: :http, scope: :query) do
+          handle_error_responses(super)
+        end
       end
     end
 
@@ -124,6 +128,24 @@ module Semian
         semian_resource.mark_failed(result) if result.is_a?(::Net::HTTPServerError)
       end
       result
+    end
+
+    def with_cleared_dynamic_options
+      unless @resource_acquisition_in_progress
+        @resource_acquisition_in_progress = true
+        resource_acquisition_started = true
+      end
+
+      yield
+    ensure
+      if resource_acquisition_started
+        if @raw_semian_options&.fetch(:dynamic, false)
+          # Clear @raw_semian_options if the resource was flagged as dynamic.
+          @raw_semian_options = nil
+        end
+
+        @resource_acquisition_in_progress = false
+      end
     end
   end
 end
