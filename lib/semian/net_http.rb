@@ -30,8 +30,8 @@ module Semian
       end
     end
 
-    def semian_identifier
-      "nethttp_#{raw_semian_options[:name]}"
+    def semian_identifier(options: raw_semian_options)
+      "nethttp_#{options[:name]}"
     end
 
     DEFAULT_ERRORS = [
@@ -75,32 +75,54 @@ module Semian
 
     Semian::NetHTTP.reset_exceptions
 
+    def time(name)
+      starting = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      yield
+    ensure
+      ending = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      puts format("(#{name}): %f", (ending - starting).to_s)
+    end
+
     def raw_semian_options
-      @raw_semian_options ||= begin
-        @raw_semian_options = Semian::NetHTTP.retrieve_semian_configuration(address, port)
-        @raw_semian_options = @raw_semian_options.dup unless @raw_semian_options.nil?
+      return @raw_semian_options if @raw_semian_options
+
+      # $call_count = 0 if $call_count.nil?
+      # $call_count += 1
+      # puts "$call_count: #{$call_count}"
+      # puts caller[0]
+      raw_semian_options = time("call config block") { Semian::NetHTTP.retrieve_semian_configuration(address, port) }
+      if raw_semian_options
+        raw_semian_options = raw_semian_options.dup
+
+        if raw_semian_options.fetch(:deterministic, true)
+          @semian_deterministic_config = true
+          @raw_semian_options = raw_semian_options
+        end
       end
+      raw_semian_options
     end
 
     def resource_exceptions
       Semian::NetHTTP.exceptions
     end
 
-    def disabled?
-      raw_semian_options.nil? || @semian_enabled == false
+    def disabled?(options = nil)
+      options = raw_semian_options unless options
+      options.nil? || @semian_enabled == false
     end
 
     def connect
-      return super if disabled?
+      return super if disabled?(raw_semian_options)
 
       acquire_semian_resource(adapter: :http, scope: :connection) { super }
     end
 
     def transport_request(*)
-      return super if disabled?
+      options = raw_semian_options
+      return super if disabled?(options)
 
-      acquire_semian_resource(adapter: :http, scope: :query) do
-        handle_error_responses(super)
+      acquire_semian_resource(adapter: :http, scope: :query, options: options) do
+        handle_error_responses(super, options)
       end
     end
 
@@ -119,8 +141,8 @@ module Semian
 
     private
 
-    def handle_error_responses(result)
-      if raw_semian_options.fetch(:open_circuit_server_errors, false)
+    def handle_error_responses(result, options)
+      if options.fetch(:open_circuit_server_errors, false)
         semian_resource.mark_failed(result) if result.is_a?(::Net::HTTPServerError)
       end
       result

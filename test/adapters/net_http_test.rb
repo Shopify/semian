@@ -498,7 +498,7 @@ class TestNetHTTP < Minitest::Test
     mutated_objects = {}
     Semian::NetHTTP.send(:alias_method, :orig_semian_resource, :semian_resource)
     Semian::NetHTTP.send(:alias_method, :orig_raw_semian_options, :raw_semian_options)
-    Semian::NetHTTP.send(:define_method, :semian_resource) do
+    Semian::NetHTTP.send(:define_method, :semian_resource) do |_options = nil|
       mutated_objects[self] = [@semian_resource, @raw_semian_options] unless mutated_objects.key?(self)
       orig_semian_resource
     end

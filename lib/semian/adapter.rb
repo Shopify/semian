@@ -8,20 +8,31 @@ module Semian
       raise NotImplementedError, "Semian adapters must implement a `semian_identifier` method"
     end
 
-    def semian_resource
-      @semian_resource ||= case semian_options
+    def semian_resource(options = nil)
+      return @semian_resource if @semian_resource
+
+      options ||= semian_options
+      name = semian_identifier(options: options)
+
+      case options
       when false
-        UnprotectedResource.new(semian_identifier)
+        @semian_resource = UnprotectedResource.new(name)
       when nil
-        Semian.logger.info("Semian is not configured for #{self.class.name}: #{semian_identifier}")
-        UnprotectedResource.new(semian_identifier)
+        Semian.logger.info("Semian is not configured for #{self.class.name}: #{name}")
+        @semian_resource = UnprotectedResource.new(name)
       else
-        options = semian_options.dup
-        options.delete(:name)
-        options[:consumer] = self
-        options[:exceptions] ||= []
-        options[:exceptions] += resource_exceptions
-        ::Semian.retrieve_or_register(semian_identifier, **options)
+        o = options.dup
+        o.delete(:name)
+        o[:consumer] = self
+        o[:exceptions] ||= []
+        o[:exceptions] += resource_exceptions
+        resource = ::Semian.retrieve_or_register(name, **o)
+
+        if o.fetch(:deterministic, true)
+          @semian_resource = resource
+        end
+
+        resource
       end
     end
 
@@ -31,10 +42,10 @@ module Semian
 
     private
 
-    def acquire_semian_resource(scope:, adapter:, &block)
+    def acquire_semian_resource(scope:, adapter:, options: nil, &block)
       return yield if resource_already_acquired?
 
-      semian_resource.acquire(scope: scope, adapter: adapter, resource: self) do
+      semian_resource(options).acquire(scope: scope, adapter: adapter, resource: self) do
         mark_resource_as_acquired(&block)
       end
     rescue ::Semian::OpenCircuitError => error
@@ -50,10 +61,16 @@ module Semian
     end
 
     def semian_options
-      return @semian_options if defined? @semian_options
+      if defined? @semian_options
+        return @semian_options
+      end
 
       options = raw_semian_options
-      @semian_options = options && options.map { |k, v| [k.to_sym, v] }.to_h
+      symbolized = options && options.map { |k, v| [k.to_sym, v] }.to_h
+      if symbolized.nil? || symbolized == false || symbolized.fetch(:deterministic, true)
+        @semian_options = symbolized
+      end
+      symbolized
     end
 
     def raw_semian_options
