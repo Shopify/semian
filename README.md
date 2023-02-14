@@ -302,8 +302,8 @@ SEMIAN_PARAMETERS = { tickets: 1,
 
 #### ActiveRecord
 
-Semian supports two Activeredord adapters: `mysql2` and `trilogy`.
-It could be configured by modifying the `database.yml` to something:
+Semian supports ActiveRecord adapter `trilogy`.
+It could be configured by modifying the `database.yml` to:
 
 ```yml
 semian: &semian
@@ -315,7 +315,7 @@ semian: &semian
   name: semian_identifier_name
 
 default: &default
-  adapter: mysql2
+  adapter: trilogy
   username: root
   password:
   host: localhost
