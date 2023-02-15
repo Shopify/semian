@@ -1,5 +1,7 @@
 # Unreleased
 
+# v0.18.0
+
 * Support Active Record Trilogy adapter. (#468)
 
 # v0.17.0

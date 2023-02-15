@@ -31,6 +31,7 @@ Commit changes and create a tag. Make sure commit and tag are signed.
 Extract related content from [`CHANGELOG.md`][./CHANGELOG.md] for a tag message.
 
 ```shell
+$ bundle install
 $ export RELEASE_VERSION=0.x.y
 $ git commit -a -S -m "Release $RELEASE_VERSION"
 $ git tag -s "v$RELEASE_VERSION"
