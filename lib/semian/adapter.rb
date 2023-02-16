@@ -12,7 +12,7 @@ module Semian
       return @semian_resource if @semian_resource
 
       options ||= semian_options
-      name = semian_identifier(options: options)
+      name = semian_identifier
 
       case options
       when false

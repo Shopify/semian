@@ -30,8 +30,8 @@ module Semian
       end
     end
 
-    def semian_identifier(options: raw_semian_options)
-      "nethttp_#{options[:name]}"
+    def semian_identifier
+      "nethttp_#{raw_semian_options[:name]}"
     end
 
     DEFAULT_ERRORS = [
