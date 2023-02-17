@@ -23,6 +23,10 @@ class TestNetHTTP < Minitest::Test
     destroy_all_semian_resources
   end
 
+  def teardown
+    Thread.current[:namespace] = nil
+  end
+
   def test_semian_identifier
     with_server do
       with_semian_configuration do
@@ -482,6 +486,31 @@ class TestNetHTTP < Minitest::Test
     end
   ensure
     ENV.delete("SEMIAN_DISABLED")
+  end
+
+  def test_non_deterministic_config
+    options = proc do |host, port|
+      DEFAULT_SEMIAN_OPTIONS.merge(
+        deterministic: false,
+        name: "#{host}_#{port}_#{Thread.current[:namespace]}",
+      )
+    end
+    host = SemianConfig["toxiproxy_upstream_host"]
+    port = SemianConfig["http_toxiproxy_port"]
+    http = Net::HTTP.new(host, port)
+    Thread.current[:namespace] = "service_a"
+
+    with_semian_configuration(options) do
+      with_server do
+        http.get("/200")
+
+        Thread.current[:namespace] = "service_b"
+        http.get("/200")
+
+        assert_includes(Semian.resources.keys, "nethttp_#{host}_#{port}_service_a")
+        assert_includes(Semian.resources.keys, "nethttp_#{host}_#{port}_service_b")
+      end
+    end
   end
 
   private
