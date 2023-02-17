@@ -90,7 +90,8 @@ module Semian
       # $call_count += 1
       # puts "$call_count: #{$call_count}"
       # puts caller[0]
-      raw_semian_options = time("call config block") { Semian::NetHTTP.retrieve_semian_configuration(address, port) }
+      # raw_semian_options = time("call config block") { Semian::NetHTTP.retrieve_semian_configuration(address, port) }
+      raw_semian_options = Semian::NetHTTP.retrieve_semian_configuration(address, port)
       if raw_semian_options
         raw_semian_options = raw_semian_options.dup
 
