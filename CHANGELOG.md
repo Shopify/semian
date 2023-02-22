@@ -1,5 +1,7 @@
 # Unreleased
 
+* Drop support of Ruby 2.7. (#???)
+
 # v0.18.0
 
 * Support Active Record Trilogy adapter. (#468)
