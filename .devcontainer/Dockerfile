@@ -18,7 +18,9 @@ RUN apt-get -o Acquire::Max-FutureTime=86400 update \
       netcat \
       procps \
       xz-utils \
- && gem install bundler rcodetools rubocop ruby-debug-ide fastri
+ && gem install bundler rcodetools rubocop ruby-debug-ide fastri \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt
 RUN git clone --depth 1 https://github.com/brendangregg/FlameGraph
