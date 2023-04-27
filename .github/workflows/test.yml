@@ -117,7 +117,8 @@ jobs:
           - grpc
           - mysql2
           - net_http
-          - rails
+          - rails_mysql2
+          - rails_trilogy
           - redis_4
           - redis_5
           - redis_client
@@ -129,8 +130,10 @@ jobs:
             adapter: mysql2
           - gemfile: net_http
             adapter: net_http
-          - gemfile: rails
-            adapter: rails
+          - gemfile: rails_mysql2
+            adapter: rails_mysql2
+          - gemfile: rails_trilogy
+            adapter: rails_trilogy
           - gemfile: redis_4
             adapter: redis
           - gemfile: redis_5

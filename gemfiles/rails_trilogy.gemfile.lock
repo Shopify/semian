@@ -1,23 +1,15 @@
 GIT
-  remote: https://github.com/github/activerecord-trilogy-adapter.git
-  revision: 516c234352388c8b423f9bb50ca4d54bef8f04fa
-  branch: main
-  specs:
-    activerecord-trilogy-adapter (2.1.0)
-      activerecord (~> 7.1.a)
-      trilogy (>= 2.1.1)
-
-GIT
   remote: https://github.com/github/trilogy.git
-  revision: 2dd91e5d1974b29473ad646e5dba0a50562fe37a
+  revision: 6dd14cca18dade150d6573d55496ce7f8b8b45dc
   branch: main
   glob: contrib/ruby/*.gemspec
   specs:
-    trilogy (2.2.0)
+    trilogy (2.4.0)
 
 GIT
   remote: https://github.com/rails/rails.git
-  revision: 6017df6a8e1468eef6432065e7a679f7f203827f
+  revision: eac3208b809c45ace005d1a3e5039c69216ca02f
+  branch: main
   specs:
     activemodel (7.1.0.alpha)
       activesupport (= 7.1.0.alpha)
@@ -39,11 +31,11 @@ PATH
 GEM
   remote: https://rubygems.org/
   specs:
-    concurrent-ruby (1.2.0)
-    connection_pool (2.3.0)
-    i18n (1.12.0)
+    concurrent-ruby (1.2.2)
+    connection_pool (2.4.0)
+    i18n (1.13.0)
       concurrent-ruby (~> 1.0)
-    minitest (5.17.0)
+    minitest (5.18.0)
     mocha (2.0.2)
       ruby2_keywords (>= 0.0.5)
     rake (13.0.6)
@@ -56,12 +48,10 @@ GEM
     webrick (1.8.1)
 
 PLATFORMS
-  arm64-darwin-21
   x86_64-linux
 
 DEPENDENCIES
   activerecord!
-  activerecord-trilogy-adapter!
   minitest
   mocha
   rake
@@ -72,4 +62,4 @@ DEPENDENCIES
   webrick
 
 BUNDLED WITH
-   2.4.3
+   2.4.12
