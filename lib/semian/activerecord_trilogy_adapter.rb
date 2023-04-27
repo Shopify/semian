@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "semian/adapter"
-require "activerecord-trilogy-adapter"
+require "active_record"
 require "active_record/connection_adapters/trilogy_adapter"
 
 module ActiveRecord
