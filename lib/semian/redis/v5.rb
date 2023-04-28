@@ -6,6 +6,14 @@ class Redis
   BaseConnectionError.include(::Semian::AdapterError)
   OutOfMemoryError.include(::Semian::AdapterError)
 
+  class ReadOnlyError < Redis::BaseConnectionError
+    # A ReadOnlyError is a fast failure and we don't want to track these errors so that we can reconnect
+    # to the new primary ASAP
+    def marks_semian_circuits?
+      false
+    end
+  end
+
   class SemianError < BaseConnectionError
     def initialize(semian_identifier, *args)
       super(*args)

@@ -1,5 +1,7 @@
 # Unreleased
 
+* Redis Readonly errors won't trigger semian open circuit. (#489)
+
 # v0.18.1
 
 * Remove dependency on activerecord-trilogy-adapter in Trilogy adapter for Semian. (#486)
