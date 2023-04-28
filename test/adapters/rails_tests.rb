@@ -2,10 +2,9 @@
 
 require "test_helper"
 require "active_record"
-require "semian/mysql2"
 require "semian/rails"
 
-class TestRails < Minitest::Test
+module RailsTests
   SUCCESS_THRESHOLD = 2
   ERROR_THRESHOLD = 1
   ERROR_TIMEOUT = 5
@@ -20,7 +19,7 @@ class TestRails < Minitest::Test
 
   def setup
     @config = {
-      adapter: "mysql2",
+      adapter: @adapter,
       connect_timeout: 2,
       read_timeout: 2,
       write_timeout: 2,

@@ -1,0 +1,63 @@
+PATH
+  remote: ..
+  specs:
+    semian (0.18.0)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    activemodel (7.0.4.1)
+      activesupport (= 7.0.4.1)
+    activerecord (7.0.4.1)
+      activemodel (= 7.0.4.1)
+      activesupport (= 7.0.4.1)
+    activesupport (7.0.4.1)
+      concurrent-ruby (~> 1.0, >= 1.0.2)
+      i18n (>= 1.6, < 2)
+      minitest (>= 5.1)
+      tzinfo (~> 2.0)
+    concurrent-ruby (1.1.10)
+    debug (1.7.2)
+      irb (>= 1.5.0)
+      reline (>= 0.3.1)
+    i18n (1.12.0)
+      concurrent-ruby (~> 1.0)
+    io-console (0.6.0)
+    irb (1.6.4)
+      reline (>= 0.3.0)
+    minitest (5.17.0)
+    mocha (2.0.2)
+      ruby2_keywords (>= 0.0.5)
+    mysql2 (0.5.4)
+    rake (13.0.6)
+    rake-compiler (1.2.1)
+      rake
+    reline (0.3.3)
+      io-console (~> 0.5)
+    ruby2_keywords (0.0.5)
+    toxiproxy (2.0.2)
+    tzinfo (2.0.5)
+      concurrent-ruby (~> 1.0)
+    webrick (1.7.0)
+
+PLATFORMS
+  aarch64-linux
+  arm64-darwin-21
+  ruby
+  x86_64-darwin-21
+  x86_64-linux
+
+DEPENDENCIES
+  activerecord (>= 7.0.3)
+  debug
+  minitest
+  mocha
+  mysql2 (~> 0.5)
+  rake
+  rake-compiler
+  semian!
+  toxiproxy
+  webrick
+
+BUNDLED WITH
+   2.4.3
