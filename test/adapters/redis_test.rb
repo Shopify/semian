@@ -448,6 +448,24 @@ module RedisTests
     end
   end
 
+  def test_readonly_errors_does_not_open_the_circuit
+    client = connect_to_redis!
+
+    with_readonly_mode(client) do
+      ERROR_THRESHOLD.times do
+        assert_raises(::Redis::ReadOnlyError, ::Redis::CommandError) do
+          client.set("foo", "bar")
+        end
+      end
+
+      error = assert_raises(::Redis::ReadOnlyError, ::Redis::CommandError) do
+        client.set("foo", "bar")
+      end
+
+      assert_match("READONLY You can't write against a read only replica.", error.message)
+    end
+  end
+
   private
 
   def new_redis(options = {})
@@ -487,6 +505,13 @@ module RedisTests
     ensure
       client.config("set", "maxmemory", old)
     end
+  end
+
+  def with_readonly_mode(client)
+    client.replicaof("localhost", "6379")
+    yield
+  ensure
+    client.replicaof("NO", "ONE")
   end
 
   def redis_timeout_ms

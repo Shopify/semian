@@ -32,6 +32,14 @@ class Redis
     end
   end
 
+  class ReadOnlyError < Redis::CommandError
+    # A ReadOnlyError is a fast failure and we don't want to track these errors so that we can reconnect
+    # to the new primary ASAP
+    def marks_semian_circuits?
+      false
+    end
+  end
+
   ResourceBusyError = Class.new(SemianError)
   CircuitOpenError = Class.new(SemianError)
   ResolveError = Class.new(SemianError)

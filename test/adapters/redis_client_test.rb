@@ -145,6 +145,22 @@ module RedisClientTests
     end
   end
 
+  def test_readonly_errors_does_not_open_the_circuit
+    client = connect_to_redis!
+
+    with_readonly_mode(client) do
+      ERROR_THRESHOLD.times do
+        assert_raises(RedisClient::ReadOnlyError) do
+          client.call("set", "foo", "bar")
+        end
+      end
+
+      assert_raises(RedisClient::ReadOnlyError) do
+        client.call("set", "foo", "bar")
+      end
+    end
+  end
+
   def test_other_redis_errors_are_not_tagged_with_the_resource_identifier
     client = connect_to_redis!
     client.call("set", "foo", "bar")
@@ -377,6 +393,13 @@ module RedisClientTests
 
   def new_client(**options)
     new_config(**options).new_client
+  end
+
+  def with_readonly_mode(client)
+    client.call("replicaof", "localhost", "6379")
+    yield
+  ensure
+    client.call("replicaof", "NO", "ONE")
   end
 
   def new_config(**options)
