@@ -47,15 +47,16 @@ module Semian
       super
     end
 
-    def execute(sql, name = nil, async: false, allow_retry: false)
+    def execute(sql, *)
       if query_allowlisted?(sql)
-        super(sql, name, async: async, allow_retry: allow_retry)
+        super
       else
         acquire_semian_resource(adapter: :trilogy_adapter, scope: :execute) do
-          super(sql, name, async: async, allow_retry: allow_retry)
+          super
         end
       end
     end
+    ruby2_keywords :execute
 
     def active?
       acquire_semian_resource(adapter: :trilogy_adapter, scope: :ping) do
