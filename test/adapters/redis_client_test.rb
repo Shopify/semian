@@ -151,12 +151,12 @@ module RedisClientTests
     with_readonly_mode(client) do
       ERROR_THRESHOLD.times do
         assert_raises(RedisClient::ReadOnlyError) do
-          client.call("set", "foo", "bar")
+          client.call("EVAL", "return redis.call('set', 'foo', 'bar')", "0")
         end
       end
 
       assert_raises(RedisClient::ReadOnlyError) do
-        client.call("set", "foo", "bar")
+        client.call("EVAL", "return redis.call('set', 'foo', 'bar')", "0")
       end
     end
   end
