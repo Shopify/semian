@@ -1,5 +1,10 @@
 # Unreleased
 
+# v0.18.1
+
+* Remove dependency on activerecord-trilogy-adapter in Trilogy adapter for Semian. (#486)
+* Fix: Change in method signature for Trilogy adapter's `#execute_method`. (#491)
+
 # v0.18.0
 
 * Support Active Record Trilogy adapter. (#468)
