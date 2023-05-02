@@ -1,5 +1,4 @@
-## Semian ![Build Status](https://github.com/Shopify/semian/actions/workflows/main.yml/badge.svg)
-
+## Semian ![Build Status](https://github.com/Shopify/semian/actions/workflows/test.yml/badge.svg)
 
 ![](http://i.imgur.com/7Vn2ibF.png)
 
