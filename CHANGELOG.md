@@ -1,5 +1,9 @@
 # Unreleased
 
+Nil
+
+# v0.19.0
+
 * Redis Readonly errors won't trigger semian open circuit. (#489)
 * New `dynamic` options, allowing a per-request resource configuration with the HTTP adapter. (#485)
 
