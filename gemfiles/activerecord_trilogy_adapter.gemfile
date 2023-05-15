@@ -9,8 +9,7 @@ gem "mocha"
 gem "toxiproxy"
 gem "webrick"
 
-gem "trilogy", github: "github/trilogy", branch: "main", glob: "contrib/ruby/*.gemspec"
-gem "activerecord-trilogy-adapter", github: "github/activerecord-trilogy-adapter", branch: "main"
+gem "trilogy", "~> 2.4"
 gem "activerecord", github: "rails/rails"
 
 gemspec path: "../"

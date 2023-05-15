@@ -385,7 +385,7 @@ module ActiveRecord
       end
 
       def test_trilogy_default_read_timeout
-        client = Trilogy.new(@configuration.slice(:username, :host, :port))
+        client = ::Trilogy.new(@configuration.slice(:username, :host, :port))
 
         assert_equal(0, client.read_timeout)
       end

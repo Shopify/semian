@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "activerecord-trilogy-adapter"
 require "semian"
 require "semian/activerecord_trilogy_adapter"
 require_relative "../colors"
