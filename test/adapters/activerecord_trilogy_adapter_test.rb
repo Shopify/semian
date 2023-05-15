@@ -155,7 +155,7 @@ module ActiveRecord
 
           assert_equal(:success, event)
           assert_equal(Semian[:mysql_testing], resource)
-          assert_equal(:execute, scope)
+          assert_equal(:query, scope)
           assert_equal(:trilogy_adapter, adapter)
         end
 

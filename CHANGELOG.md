@@ -1,6 +1,6 @@
 # Unreleased
 
-Nil
+* Active Record Trilogy adapter needs to patch `#raw_execute` instead of `#execute` for queries. (#494)
 
 # v0.19.0
 
