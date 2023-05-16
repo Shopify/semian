@@ -9,7 +9,7 @@ gem "mocha"
 gem "toxiproxy"
 gem "webrick"
 
-gem "trilogy", github: "github/trilogy", branch: "main", glob: "contrib/ruby/*.gemspec"
+gem "trilogy", "~> 2.4"
 # we can share the Gemfile with rails mysql2 once activerecord is released with the trilogy adapter
 gem "activerecord", github: "rails/rails", branch: "main"
 

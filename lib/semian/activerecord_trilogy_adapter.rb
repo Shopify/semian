@@ -47,16 +47,16 @@ module Semian
       super
     end
 
-    def execute(sql, *)
+    def raw_execute(sql, *)
       if query_allowlisted?(sql)
         super
       else
-        acquire_semian_resource(adapter: :trilogy_adapter, scope: :execute) do
+        acquire_semian_resource(adapter: :trilogy_adapter, scope: :query) do
           super
         end
       end
     end
-    ruby2_keywords :execute
+    ruby2_keywords :raw_execute
 
     def active?
       acquire_semian_resource(adapter: :trilogy_adapter, scope: :ping) do

@@ -1,14 +1,6 @@
 GIT
-  remote: https://github.com/github/trilogy.git
-  revision: 6dd14cca18dade150d6573d55496ce7f8b8b45dc
-  branch: main
-  glob: contrib/ruby/*.gemspec
-  specs:
-    trilogy (2.4.0)
-
-GIT
   remote: https://github.com/rails/rails.git
-  revision: eac3208b809c45ace005d1a3e5039c69216ca02f
+  revision: bdbcbc179df93b18e2ce6e1deef631eb2eea1624
   branch: main
   specs:
     activemodel (7.1.0.alpha)
@@ -26,7 +18,7 @@ GIT
 PATH
   remote: ..
   specs:
-    semian (0.18.0)
+    semian (0.19.0)
 
 GEM
   remote: https://rubygems.org/
@@ -43,11 +35,13 @@ GEM
       rake
     ruby2_keywords (0.0.5)
     toxiproxy (2.0.2)
+    trilogy (2.4.0)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
     webrick (1.8.1)
 
 PLATFORMS
+  arm64-darwin-22
   x86_64-linux
 
 DEPENDENCIES
@@ -58,7 +52,7 @@ DEPENDENCIES
   rake-compiler
   semian!
   toxiproxy
-  trilogy!
+  trilogy (~> 2.4)
   webrick
 
 BUNDLED WITH

@@ -1,23 +1,6 @@
 GIT
-  remote: https://github.com/github/activerecord-trilogy-adapter.git
-  revision: 516c234352388c8b423f9bb50ca4d54bef8f04fa
-  branch: main
-  specs:
-    activerecord-trilogy-adapter (2.1.0)
-      activerecord (~> 7.1.a)
-      trilogy (>= 2.1.1)
-
-GIT
-  remote: https://github.com/github/trilogy.git
-  revision: 07f83dbe36c7ea31a348847eabcb8f3860a07ab0
-  branch: main
-  glob: contrib/ruby/*.gemspec
-  specs:
-    trilogy (2.2.0)
-
-GIT
   remote: https://github.com/rails/rails.git
-  revision: 03702da57aa4e607e0115ea063908f9d4df7c3a0
+  revision: d137b10f946ff78fac8fe203d5aeaf2bb4c3a1d9
   branch: main
   specs:
     activemodel (7.1.0.alpha)
@@ -48,9 +31,17 @@ GEM
     concurrent-ruby (1.2.0)
     connection_pool (2.3.0)
     google-protobuf (3.21.12)
+    google-protobuf (3.21.12-x86_64-darwin)
+    google-protobuf (3.21.12-x86_64-linux)
     googleapis-common-protos-types (1.5.0)
       google-protobuf (~> 3.14)
     grpc (1.47.0)
+      google-protobuf (~> 3.19)
+      googleapis-common-protos-types (~> 1.0)
+    grpc (1.47.0-x86_64-darwin)
+      google-protobuf (~> 3.19)
+      googleapis-common-protos-types (~> 1.0)
+    grpc (1.47.0-x86_64-linux)
       google-protobuf (~> 3.19)
       googleapis-common-protos-types (~> 1.0)
     hiredis (0.6.3)
@@ -105,6 +96,7 @@ GEM
     ruby-progressbar (1.11.0)
     ruby2_keywords (0.0.5)
     toxiproxy (2.0.2)
+    trilogy (2.4.1)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
     unicode-display_width (2.4.2)
@@ -120,7 +112,6 @@ PLATFORMS
 
 DEPENDENCIES
   activerecord!
-  activerecord-trilogy-adapter!
   benchmark-memory
   grpc (= 1.47.0)
   hiredis (~> 0.6)
@@ -139,7 +130,7 @@ DEPENDENCIES
   rubocop-shopify
   semian!
   toxiproxy
-  trilogy!
+  trilogy (~> 2.4)
   webrick
 
 BUNDLED WITH
