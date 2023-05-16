@@ -228,7 +228,9 @@ module ActiveRecord
 
       def test_resource_timeout_on_connect
         @proxy.downstream(:latency, latency: 500).apply do
-          background { @adapter.connect! }
+          background do
+            assert_raises(TrilogyAdapter::CircuitOpenError) { @adapter.connect! }
+          end
 
           assert_raises(TrilogyAdapter::ResourceBusyError) do
             trilogy_adapter.send(:connect) # Avoid going through connect!, which will call #active?
@@ -238,7 +240,9 @@ module ActiveRecord
 
       def test_circuit_breaker_on_connect
         @proxy.downstream(:latency, latency: 500).apply do
-          background { @adapter.connect! }
+          background do
+            assert_raises(TrilogyAdapter::CircuitOpenError) { @adapter.connect! }
+          end
 
           ERROR_THRESHOLD.times do
             assert_raises(TrilogyAdapter::ResourceBusyError) do
@@ -248,10 +252,6 @@ module ActiveRecord
         end
 
         yield_to_background
-
-        assert_raises(TrilogyAdapter::CircuitOpenError) do
-          trilogy_adapter.connect!
-        end
 
         time_travel(ERROR_TIMEOUT + 1) do
           trilogy_adapter.connect!
