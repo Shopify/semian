@@ -9,7 +9,7 @@ module ActiveRecord
     class TrilogyAdapter
       ActiveRecord::ActiveRecordError.include(::Semian::AdapterError)
 
-      class SemianError < StatementInvalid
+      class SemianError < ConnectionNotEstablished
         def initialize(semian_identifier, *args)
           super(*args)
           @semian_identifier = semian_identifier
