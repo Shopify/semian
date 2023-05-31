@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/rails/rails.git
-  revision: d12f1a2f84128085ee0bdbbbe28df9ec27a9bc64
+  revision: 4e71edfca8525417597b079440d876310dd6290d
   specs:
     activemodel (7.1.0.alpha)
       activesupport (= 7.1.0.alpha)
@@ -17,13 +17,13 @@ GIT
 PATH
   remote: ..
   specs:
-    semian (0.19.0)
+    semian (0.19.1)
 
 GEM
   remote: https://rubygems.org/
   specs:
     concurrent-ruby (1.2.2)
-    connection_pool (2.4.0)
+    connection_pool (2.4.1)
     i18n (1.13.0)
       concurrent-ruby (~> 1.0)
     minitest (5.18.0)
