@@ -196,6 +196,16 @@ module ActiveRecord
         end
       end
 
+      def test_connection_failed_errors_are_tagged_with_the_resource_identifier
+        @adapter.send(:raw_connection).close
+
+        error = assert_raises(ActiveRecord::ConnectionFailed) do
+          @adapter.execute("SELECT 1 + 1;")
+        end
+
+        assert_equal(@adapter.semian_identifier, error.semian_identifier)
+      end
+
       def test_other_mysql_errors_are_not_tagged_with_the_resource_identifier
         error = assert_raises(ActiveRecord::StatementInvalid) do
           @adapter.execute("SYNTAX ERROR!")

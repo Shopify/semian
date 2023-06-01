@@ -82,18 +82,12 @@ module Semian
 
     private
 
-    def acquire_semian_resource(**)
-      super
-    rescue ActiveRecord::StatementInvalid => error
-      if error.cause.is_a?(Trilogy::TimeoutError)
-        semian_resource.mark_failed(error)
-        error.semian_identifier = semian_identifier
-      end
-      raise
-    end
-
     def resource_exceptions
-      [ActiveRecord::ConnectionNotEstablished]
+      [
+        ActiveRecord::AdapterTimeout,
+        ActiveRecord::ConnectionFailed,
+        ActiveRecord::ConnectionNotEstablished,
+      ]
     end
 
     # TODO: share this with Mysql2
