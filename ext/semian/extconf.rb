@@ -15,6 +15,8 @@ end
 
 require "mkmf"
 
+dir_config("openssl")
+
 abort "openssl is missing. please install openssl." unless find_header("openssl/sha.h")
 abort "openssl is missing. please install openssl." unless find_library("crypto", "SHA1")
 

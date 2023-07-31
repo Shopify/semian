@@ -1,6 +1,7 @@
 # Unreleased
 
 * Ensure Active Record Trilogy adapter handles AdapterTimeout and ConnectionFailed exceptions. (#497)
+* Allow passing --with-openssl-dir for a custom OpenSSL installation. (#499)
 
 # v0.19.1
 
