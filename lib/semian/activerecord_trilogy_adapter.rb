@@ -59,12 +59,37 @@ module Semian
     ruby2_keywords :raw_execute
 
     def active?
+      p [:Trilogy_semian_active?]
+      p STDERR
       acquire_semian_resource(adapter: :trilogy_adapter, scope: :ping) do
         super
       end
     rescue ResourceBusyError, CircuitOpenError
       false
     end
+
+    def acquire_semian_resource(scope:, adapter:, &block)
+      return yield if resource_already_acquired?
+
+      p [:Trilogy_semian_acquire_semian_resource]
+      p semian_resource
+      p STDERR
+
+      semian_resource.acquire(scope: scope, adapter: adapter, resource: self) do
+        mark_resource_as_acquired(&block)
+      end
+    rescue ::Semian::OpenCircuitError => error
+      last_error = semian_resource.circuit_breaker.last_error
+      message = "#{error.message} caused by #{last_error.message}"
+      last_error = nil unless last_error.is_a?(Exception) # Net::HTTPServerError is not an exception
+      raise self.class::CircuitOpenError.new(semian_identifier, message), cause: last_error
+    rescue ::Semian::BaseError => error
+      raise self.class::ResourceBusyError.new(semian_identifier, error.message)
+    rescue *resource_exceptions => error
+      error.semian_identifier = semian_identifier if error.respond_to?(:semian_identifier=)
+      raise
+    end
+
 
     def with_resource_timeout(temp_timeout)
       if connection.nil?
