@@ -360,12 +360,6 @@ ms_to_timespec(long ms, struct timespec *ts)
 }
 
 static void
-semian_resource_mark(void *ptr)
-{
-  /* noop */
-}
-
-static void
 semian_resource_free(void *ptr)
 {
   semian_resource_t *res = (semian_resource_t *) ptr;
@@ -386,7 +380,7 @@ static const rb_data_type_t
 semian_resource_type = {
   "semian_resource",
   {
-    semian_resource_mark,
+    NULL,
     semian_resource_free,
     semian_resource_memsize
   },
