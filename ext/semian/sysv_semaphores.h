@@ -66,7 +66,7 @@ enum SEMINDEX_ENUM {
     FOREACH_SEMINDEX(GENERATE_ENUM)
 };
 
-extern VALUE eSyscall, eTimeout, eInternal;
+extern VALUE eSyscall, eTimeout, eInternal, eSemaphoreMissing;
 
 // Helper for syscall verbose debugging
 void
