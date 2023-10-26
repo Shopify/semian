@@ -1,7 +1,11 @@
 # Unreleased
 
+# v0.20.0
+
 * Ensure Active Record Trilogy adapter handles AdapterTimeout and ConnectionFailed exceptions. (#497)
 * Allow passing --with-openssl-dir for a custom OpenSSL installation. (#499)
+* Use ActiveRecord::ConnectionNotEstablished as base error for TrilogyAdapter. (#496)
+* Fix Mysql2 connection error regular expressions. (#506)
 
 # v0.19.1
 
