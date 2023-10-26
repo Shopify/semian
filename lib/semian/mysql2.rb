@@ -22,8 +22,8 @@ module Semian
     include Semian::Adapter
 
     CONNECTION_ERROR = Regexp.union(
-      /Can't connect to MySQL server on/i,
-      /Lost connection to MySQL server/i,
+      /Can't connect to (?:MySQL )?server on/i,
+      /Lost connection to (?:MySQL )?server/i,
       /MySQL server has gone away/i,
       /Too many connections/i,
       /closed MySQL connection/i,
