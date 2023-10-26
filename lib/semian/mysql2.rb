@@ -131,7 +131,12 @@ module Semian
     def acquire_semian_resource(**)
       super
     rescue ::Mysql2::Error => error
+      puts "Rescuing error....... #{error.class}"
+      puts "Message: #{error.message}"
+      puts "Semian error? #{error.is_a?(::Mysql2::SemianError)}"
+      puts "message matches conn error? #{error.message.match?(CONNECTION_ERROR)}"
       if error.is_a?(PingFailure) || (!error.is_a?(::Mysql2::SemianError) && error.message.match?(CONNECTION_ERROR))
+        puts "in here!"
         semian_resource.mark_failed(error)
         error.semian_identifier = semian_identifier
       end

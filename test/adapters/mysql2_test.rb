@@ -128,6 +128,7 @@ class TestMysql2 < Minitest::Test
       error = assert_raises(::Mysql2::Error) do
         client.query("SELECT 1 + 1;")
       end
+      puts "---------------"
       puts error.class
       puts error.inspect
 
