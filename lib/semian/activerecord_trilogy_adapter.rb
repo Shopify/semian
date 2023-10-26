@@ -91,11 +91,7 @@ module Semian
     end
 
     # TODO: share this with Mysql2
-    QUERY_ALLOWLIST = Regexp.union(
-      %r{\A(?:/\*.*?\*/)?\s*ROLLBACK}i,
-      %r{\A(?:/\*.*?\*/)?\s*COMMIT}i,
-      %r{\A(?:/\*.*?\*/)?\s*RELEASE\s+SAVEPOINT}i,
-    )
+    QUERY_ALLOWLIST = %r{\A(?:/\*.*?\*/)?\s*(ROLLBACK|COMMIT|RELEASE\s+SAVEPOINT)}i
 
     def query_allowlisted?(sql, *)
       QUERY_ALLOWLIST.match?(sql)
