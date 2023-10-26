@@ -18,7 +18,7 @@ GIT
 PATH
   remote: .
   specs:
-    semian (0.20.0)
+    semian (0.20.1)
 
 GEM
   remote: https://rubygems.org/
