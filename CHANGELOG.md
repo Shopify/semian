@@ -1,5 +1,9 @@
 # Unreleased
 
+# v0.20.1
+
+* More efficient activerecord_trilogy_adapter and mysql2_adapter regex. (#508, #510)
+
 # v0.20.0
 
 * Ensure Active Record Trilogy adapter handles AdapterTimeout and ConnectionFailed exceptions. (#497)
