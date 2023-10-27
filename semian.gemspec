@@ -21,7 +21,7 @@ Gem::Specification.new do |s|
   s.metadata = {
     "allowed_push_host" => "https://rubygems.org",
     "bug_tracker_uri" => "https://github.com/Shopify/semian/issues",
-    "changelog_uri" => "https://github.com/Shopify/semian/blob/master/CHANGELOG.md",
+    "changelog_uri" => "https://github.com/Shopify/semian/blob/main/CHANGELOG.md",
     "documentation_uri" => "https://github.com/Shopify/semian",
     "homepage_uri" => "https://github.com/Shopify/semian",
     "source_code_uri" => "https://github.com/Shopify/semian",

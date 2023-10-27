@@ -10,15 +10,15 @@ Ensure your local workstation is configured to be able to
 ### Checkout latest code
 
 ```shell
-$ git checkout master
-$ git pull origin master
+$ git checkout main
+$ git pull origin main
 ```
 
 ### Bump version
 
 Update version in [`lib/semian/version.rb`](./lib/semian/version.rb).
 Check if there is required changes in [`README.md`](./README.md).
-Add line after `## [Unreleased]` in [`CHANGELOG.md`][./CHANGELOG.md] with new version.
+Add line after `## [Unreleased]` in [`CHANGELOG.md`](./CHANGELOG.md) with new version.
 
 ### Run Tests
 
@@ -28,7 +28,7 @@ Check [`README.md`](./README.md).
 ### Create Release Commit and Tag
 
 Commit changes and create a tag. Make sure commit and tag are signed.
-Extract related content from [`CHANGELOG.md`][./CHANGELOG.md] for a tag message.
+Extract related content from [`CHANGELOG.md`](./CHANGELOG.md) for a tag message.
 
 ```shell
 $ bundle install
@@ -42,7 +42,7 @@ $ git tag -s "v$RELEASE_VERSION"
 On your local machine again, push your commit and tag
 
 ```shell
-$ git push origin master --follow-tags
+$ git push origin main --follow-tags
 ```
 
 ## Verify rubygems release
