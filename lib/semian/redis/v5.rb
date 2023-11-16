@@ -42,13 +42,11 @@ module Semian
   end
 
   module RedisV5Client
-    private
-
     def translate_error!(error)
       redis_error = translate_error_class(error.class)
       if redis_error < ::Semian::AdapterError
         redis_error = redis_error.new(error.message)
-        redis_error.semian_identifier = semian_identifier
+        redis_error.semian_identifier = error.semian_identifier
       end
       raise redis_error, error.message, error.backtrace
     end
@@ -56,4 +54,4 @@ module Semian
 end
 
 ::Redis.prepend(Semian::RedisV5)
-::Redis::Client.prepend(Semian::RedisV5Client)
+::Redis::Client.singleton_class.prepend(Semian::RedisV5Client)
