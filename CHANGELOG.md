@@ -1,5 +1,9 @@
 # Unreleased
 
+# v0.21.0
+
+* Fixed compatibility with redis-rb 5.0.7+
+
 # v0.20.1
 
 * More efficient activerecord_trilogy_adapter and mysql2_adapter regex. (#508, #510)
