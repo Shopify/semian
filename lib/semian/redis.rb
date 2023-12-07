@@ -4,7 +4,8 @@ require "semian/adapter"
 require "redis"
 
 if Redis::VERSION >= "5"
-  gem "redis", ">= 5.0.3"
+  gem "redis", ">= 5.0.7"
+  gem "redis-client", ">= 0.19.0"
   require "semian/redis/v5"
   return
 end
