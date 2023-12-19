@@ -329,26 +329,25 @@ module ActiveRecord
       def test_query_allowlisted_returns_false_for_binary_sql
         binary_query = File.read(File.expand_path("../../fixtures/binary.sql", __FILE__))
 
-        refute(@adapter.send(:query_allowlisted?, binary_query))
+        refute(Semian::ActiveRecordTrilogyAdapter.query_allowlisted?(binary_query))
       end
 
-      def test_semian_allows_rollback_to_safepoint
+      def test_semian_allows_release_savepoint
         @adapter.execute("START TRANSACTION;")
-        @adapter.execute("SAVEPOINT foobar;")
 
         Semian[:mysql_testing].acquire do
-          @adapter.execute("ROLLBACK TO foobar;")
+          @adapter.execute("RELEASE SAVEPOINT active_record_99;")
         end
 
         @adapter.execute("ROLLBACK;")
       end
 
-      def test_semian_allows_release_savepoint
+      def test_semian_allows_rollback_to_savepoint
         @adapter.execute("START TRANSACTION;")
-        @adapter.execute("SAVEPOINT foobar;")
+        @adapter.execute("SAVEPOINT active_record_99;")
 
         Semian[:mysql_testing].acquire do
-          @adapter.execute("RELEASE SAVEPOINT foobar;")
+          @adapter.execute("ROLLBACK TO SAVEPOINT active_record_99;")
         end
 
         @adapter.execute("ROLLBACK;")
