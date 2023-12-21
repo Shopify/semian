@@ -306,7 +306,7 @@ module ActiveRecord
         @adapter.execute("START TRANSACTION;")
 
         Semian[:mysql_testing].acquire do
-          @adapter.execute("ROLLBACK;")
+          @adapter.execute("ROLLBACK")
         end
       end
 
@@ -314,7 +314,7 @@ module ActiveRecord
         @adapter.execute("START TRANSACTION;")
 
         Semian[:mysql_testing].acquire do
-          @adapter.execute("/*foo:bar*/ ROLLBACK;")
+          @adapter.execute("/*foo:bar*/ ROLLBACK")
         end
       end
 
@@ -322,7 +322,7 @@ module ActiveRecord
         @adapter.execute("START TRANSACTION;")
 
         Semian[:mysql_testing].acquire do
-          @adapter.execute("COMMIT;")
+          @adapter.execute("COMMIT")
         end
       end
 
@@ -334,9 +334,10 @@ module ActiveRecord
 
       def test_semian_allows_release_savepoint
         @adapter.execute("START TRANSACTION;")
+        @adapter.execute("SAVEPOINT active_record_2;")
 
         Semian[:mysql_testing].acquire do
-          @adapter.execute("RELEASE SAVEPOINT active_record_99;")
+          @adapter.execute("RELEASE SAVEPOINT active_record_2")
         end
 
         @adapter.execute("ROLLBACK;")
@@ -344,13 +345,13 @@ module ActiveRecord
 
       def test_semian_allows_rollback_to_savepoint
         @adapter.execute("START TRANSACTION;")
-        @adapter.execute("SAVEPOINT active_record_99;")
+        @adapter.execute("SAVEPOINT active_record_1;")
 
         Semian[:mysql_testing].acquire do
-          @adapter.execute("ROLLBACK TO SAVEPOINT active_record_99;")
+          @adapter.execute("ROLLBACK TO SAVEPOINT active_record_1")
         end
 
-        @adapter.execute("ROLLBACK;")
+        @adapter.execute("ROLLBACK")
       end
 
       def test_changes_timeout_when_half_open_and_configured
