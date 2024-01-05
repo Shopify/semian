@@ -32,17 +32,14 @@ module Semian
     QUERY_ALLOWLIST = %r{\A(?:/\*.*?\*/)?\s*(ROLLBACK|COMMIT|RELEASE\s+SAVEPOINT)}i
 
     # The common case here is NOT to have transaction management statements, therefore
-    # we are exploiting the fact that ActiveRecord will use COMMIT/ROLLBACK as
+    # we are exploiting the fact that Active Record will use COMMIT/ROLLBACK as
     # the suffix of the command string and
     # name savepoints by level of nesting as `active_record_1` ... n.
     #
-    # Since looking at the last characters in a sring using `end_with?` is a LOT cheaper than
+    # Since looking at the last characters in a string using `end_with?` is a LOT cheaper than
     # running a regex, we are returning early if the last characters of
     # the SQL statements are NOT the last characters of the known transaction
-    # control statements
-    #
-    # Running `test/alllow_list_bench.rb` as of now (Dec 2023 using ruby 3.1) shows
-    # this method to be ~20x faster in the common case vs matching the full regular expression
+    # control statements.
     class << self
       def query_allowlisted?(sql, *)
         # Any nesting pass _3 levels is won't get bypassed. I think that is fine once
