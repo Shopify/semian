@@ -42,9 +42,12 @@ module Semian
     # control statements.
     class << self
       def query_allowlisted?(sql, *)
-        tx_command_statement = sql.end_with?("T") || sql.end_with?("K") # COMMIT, ROLLBACK
-        savepoint_statement = sql.end_with?("_1") || sql.end_with?("_2") # RELEASE SAVEPOINT. Nesting past _3 levels won't get bypassed.
+        # COMMIT, ROLLBACK
+        tx_command_statement = sql.end_with?("T") || sql.end_with?("K")
+
+        # RELEASE SAVEPOINT. Nesting past _3 levels won't get bypassed.
         # Active Record does not send trailing spaces or `;`, so we are in the realm of hand crafted queries here.
+        savepoint_statement = sql.end_with?("_1") || sql.end_with?("_2")
         unclear = sql.end_with?(" ") || sql.end_with?(";")
 
         if !tx_command_statement && !savepoint_statement && !unclear
