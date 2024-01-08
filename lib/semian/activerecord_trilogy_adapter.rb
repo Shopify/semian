@@ -42,14 +42,12 @@ module Semian
     # control statements.
     class << self
       def query_allowlisted?(sql, *)
-        # Any nesting pass _3 levels is won't get bypassed. I think that is fine once
-        # you are 3 level deep in nested transactions you have bigger problems.
-        unlikely_to_be_tx_control_statement = !sql.end_with?("T") && !sql.end_with?("K") && !sql.end_with?("_1")\
-        && !sql.end_with?("_2")
-        # ActiveRecord does not send trailing spaces of ; we are in the realm of hand crafted queries here
+        tx_command_statement = sql.end_with?("T") || sql.end_with?("K") # COMMIT, ROLLBACK
+        savepoint_statement = sql.end_with?("_1") || sql.end_with?("_2") # RELEASE SAVEPOINT. Nesting past _3 levels won't get bypassed.
+        # Active Record does not send trailing spaces or `;`, so we are in the realm of hand crafted queries here.
         unclear = sql.end_with?(" ") || sql.end_with?(";")
 
-        if unlikely_to_be_tx_control_statement && !unclear
+        if !tx_command_statement && !savepoint_statement && !unclear
           false
         else
           QUERY_ALLOWLIST.match?(sql)
