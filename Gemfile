@@ -7,6 +7,7 @@ gem "rake-compiler"
 
 group :test do
   gem "benchmark-memory"
+  gem "benchmark-ips"
   gem "memory_profiler"
   gem "minitest"
   gem "mocha"

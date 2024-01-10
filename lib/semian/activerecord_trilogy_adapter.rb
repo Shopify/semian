@@ -29,6 +29,39 @@ module Semian
     ResourceBusyError = ::ActiveRecord::ConnectionAdapters::TrilogyAdapter::ResourceBusyError
     CircuitOpenError = ::ActiveRecord::ConnectionAdapters::TrilogyAdapter::CircuitOpenError
 
+    QUERY_ALLOWLIST = %r{\A(?:/\*.*?\*/)?\s*(ROLLBACK|COMMIT|RELEASE\s+SAVEPOINT)}i
+
+    # The common case here is NOT to have transaction management statements, therefore
+    # we are exploiting the fact that Active Record will use COMMIT/ROLLBACK as
+    # the suffix of the command string and
+    # name savepoints by level of nesting as `active_record_1` ... n.
+    #
+    # Since looking at the last characters in a string using `end_with?` is a LOT cheaper than
+    # running a regex, we are returning early if the last characters of
+    # the SQL statements are NOT the last characters of the known transaction
+    # control statements.
+    class << self
+      def query_allowlisted?(sql, *)
+        # COMMIT, ROLLBACK
+        tx_command_statement = sql.end_with?("T") || sql.end_with?("K")
+
+        # RELEASE SAVEPOINT. Nesting past _3 levels won't get bypassed.
+        # Active Record does not send trailing spaces or `;`, so we are in the realm of hand crafted queries here.
+        savepoint_statement = sql.end_with?("_1") || sql.end_with?("_2")
+        unclear = sql.end_with?(" ") || sql.end_with?(";")
+
+        if !tx_command_statement && !savepoint_statement && !unclear
+          false
+        else
+          QUERY_ALLOWLIST.match?(sql)
+        end
+      rescue ArgumentError
+        return false unless sql.valid_encoding?
+
+        raise
+      end
+    end
+
     attr_reader :raw_semian_options, :semian_identifier
 
     def initialize(*options)
@@ -48,7 +81,7 @@ module Semian
     end
 
     def raw_execute(sql, *)
-      if query_allowlisted?(sql)
+      if Semian::ActiveRecordTrilogyAdapter.query_allowlisted?(sql)
         super
       else
         acquire_semian_resource(adapter: :trilogy_adapter, scope: :query) do
@@ -88,17 +121,6 @@ module Semian
         ActiveRecord::ConnectionFailed,
         ActiveRecord::ConnectionNotEstablished,
       ]
-    end
-
-    # TODO: share this with Mysql2
-    QUERY_ALLOWLIST = %r{\A(?:/\*.*?\*/)?\s*(ROLLBACK|COMMIT|RELEASE\s+SAVEPOINT)}i
-
-    def query_allowlisted?(sql, *)
-      QUERY_ALLOWLIST.match?(sql)
-    rescue ArgumentError
-      return false unless sql.valid_encoding?
-
-      raise
     end
 
     def connect(*args)
