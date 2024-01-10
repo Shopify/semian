@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix valid_raw_connection check
+
 # v0.21.0
 
 * Fixed compatibility with redis-rb 5.0.7+
