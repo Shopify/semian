@@ -1,5 +1,7 @@
 # Unreleased
 
+# v0.21.1
+
 * Fix valid_raw_connection check
 
 # v0.21.0
