@@ -39,7 +39,7 @@ module Semian
     #   - @raw_connection is for 7.0.x
     #   - @connection is for versions below 6.1.x and below
     def client_connection
-      if respond_to?(:valid_raw_connection)
+      if respond_to?(:valid_raw_connection, true)
         valid_raw_connection
       elsif instance_variable_defined?(:@raw_connection)
         @raw_connection
