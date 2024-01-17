@@ -1,5 +1,9 @@
 # Unreleased
 
+# v0.21.2
+* Change: Trilogy ActiveRecord adapter will not bypass "SAVEPOINT RELEASE" unless it uses the ActiveRecord default name and only 2 levels of nesting
+* Change: The bypass for COMMIT/ROLLBACK statements assumes current ActiveRecord behaviour, that is no blank spaces or ";" chracter at the end of the statement
+
 # v0.21.1
 
 * Fix valid_raw_connection check
