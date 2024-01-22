@@ -61,7 +61,7 @@ jobs:
         uses: actions/checkout@v3
       -
         name: Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: vendor/bundle
           key: ${{ runner.os }}-ruby-${{ matrix.ruby }}-gems-${{ hashFiles( format('{0}.lock', env.BUNDLE_GEMFILE) ) }}
@@ -167,7 +167,7 @@ jobs:
         uses: actions/checkout@v3
       -
         name: Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: vendor/bundle
           key: ${{ runner.os }}-ruby-${{ matrix.ruby }}-adapter-${{ matrix.gemfile }}-gems-${{ hashFiles( format('{0}.lock', env.BUNDLE_GEMFILE) ) }}
