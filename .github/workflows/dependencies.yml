@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v3
       -
         name: Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: vendor/bundle
           key: ${{ runner.os }}-ruby-3.1-gems-${{ hashFiles('Gemfile.lock') }}
