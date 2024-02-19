@@ -100,17 +100,17 @@ module Semian
     end
 
     def with_resource_timeout(temp_timeout)
-      if connection.nil?
+      if @raw_connection.nil?
         prev_read_timeout = @config[:read_timeout] || 0
         @config.merge!(read_timeout: temp_timeout) # Create new client with temp_timeout for read timeout
       else
-        prev_read_timeout = connection.read_timeout
-        connection.read_timeout = temp_timeout
+        prev_read_timeout = @raw_connection.read_timeout
+        @raw_connection.read_timeout = temp_timeout
       end
       yield
     ensure
       @config.merge!(read_timeout: prev_read_timeout)
-      connection&.read_timeout = prev_read_timeout
+      @raw_connection&.read_timeout = prev_read_timeout
     end
 
     private
