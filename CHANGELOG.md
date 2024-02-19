@@ -1,5 +1,7 @@
 # Unreleased
 
+# v0.21.3
+
 * Fix: Trilogy ActiveRecord adapter to be compatible with latest Rails edge.
 
 # v0.21.2
