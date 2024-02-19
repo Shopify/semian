@@ -417,6 +417,14 @@ module ActiveRecord
         end
       end
 
+      def test_with_resource_timeout
+        assert_equal(2.0, @adapter.raw_connection.read_timeout)
+        @adapter.with_resource_timeout(0.5) do
+          assert_equal(0.5, @adapter.raw_connection.read_timeout)
+        end
+        assert_equal(2.0, @adapter.raw_connection.read_timeout)
+      end
+
       private
 
       def trilogy_adapter(**config_overrides)

@@ -54,3 +54,6 @@ Style/SingleLineMethods:
 
 Style/SpecialGlobalVars:
   Enabled: false
+
+Minitest/AssertInDelta:
+  Enabled: false
