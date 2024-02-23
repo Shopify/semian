@@ -306,7 +306,7 @@ module ActiveRecord
         @adapter.execute("START TRANSACTION;")
 
         Semian[:mysql_testing].acquire do
-          @adapter.execute("ROLLBACK;")
+          @adapter.execute("ROLLBACK")
         end
       end
 
@@ -314,7 +314,7 @@ module ActiveRecord
         @adapter.execute("START TRANSACTION;")
 
         Semian[:mysql_testing].acquire do
-          @adapter.execute("/*foo:bar*/ ROLLBACK;")
+          @adapter.execute("/*foo:bar*/ ROLLBACK")
         end
       end
 
@@ -322,36 +322,36 @@ module ActiveRecord
         @adapter.execute("START TRANSACTION;")
 
         Semian[:mysql_testing].acquire do
-          @adapter.execute("COMMIT;")
+          @adapter.execute("COMMIT")
         end
       end
 
       def test_query_allowlisted_returns_false_for_binary_sql
         binary_query = File.read(File.expand_path("../../fixtures/binary.sql", __FILE__))
 
-        refute(@adapter.send(:query_allowlisted?, binary_query))
-      end
-
-      def test_semian_allows_rollback_to_safepoint
-        @adapter.execute("START TRANSACTION;")
-        @adapter.execute("SAVEPOINT foobar;")
-
-        Semian[:mysql_testing].acquire do
-          @adapter.execute("ROLLBACK TO foobar;")
-        end
-
-        @adapter.execute("ROLLBACK;")
+        refute(Semian::ActiveRecordTrilogyAdapter.query_allowlisted?(binary_query))
       end
 
       def test_semian_allows_release_savepoint
         @adapter.execute("START TRANSACTION;")
-        @adapter.execute("SAVEPOINT foobar;")
+        @adapter.execute("SAVEPOINT active_record_2;")
 
         Semian[:mysql_testing].acquire do
-          @adapter.execute("RELEASE SAVEPOINT foobar;")
+          @adapter.execute("RELEASE SAVEPOINT active_record_2")
         end
 
         @adapter.execute("ROLLBACK;")
+      end
+
+      def test_semian_allows_rollback_to_savepoint
+        @adapter.execute("START TRANSACTION;")
+        @adapter.execute("SAVEPOINT active_record_1;")
+
+        Semian[:mysql_testing].acquire do
+          @adapter.execute("ROLLBACK TO SAVEPOINT active_record_1")
+        end
+
+        @adapter.execute("ROLLBACK")
       end
 
       def test_changes_timeout_when_half_open_and_configured
@@ -415,6 +415,14 @@ module ActiveRecord
 
           assert_equal(ActiveRecord::ConnectionNotEstablished, error.class)
         end
+      end
+
+      def test_with_resource_timeout
+        assert_equal(2.0, @adapter.raw_connection.read_timeout)
+        @adapter.with_resource_timeout(0.5) do
+          assert_equal(0.5, @adapter.raw_connection.read_timeout)
+        end
+        assert_equal(2.0, @adapter.raw_connection.read_timeout)
       end
 
       private

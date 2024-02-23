@@ -1,28 +1,28 @@
 PATH
   remote: ..
   specs:
-    semian (0.16.0)
+    semian (0.20.1)
 
 GEM
   remote: https://rubygems.org/
   specs:
-    connection_pool (2.3.0)
+    connection_pool (2.4.1)
     hiredis (0.6.3)
-    hiredis-client (0.12.1)
-      redis-client (= 0.12.1)
-    minitest (5.17.0)
-    mocha (2.0.2)
+    hiredis-client (0.19.0)
+      redis-client (= 0.19.0)
+    minitest (5.20.0)
+    mocha (2.1.0)
       ruby2_keywords (>= 0.0.5)
-    rake (13.0.6)
-    rake-compiler (1.2.1)
+    rake (13.1.0)
+    rake-compiler (1.2.5)
       rake
-    redis (5.0.6)
-      redis-client (>= 0.9.0)
-    redis-client (0.12.1)
+    redis (5.0.8)
+      redis-client (>= 0.17.0)
+    redis-client (0.19.0)
       connection_pool
     ruby2_keywords (0.0.5)
     toxiproxy (2.0.2)
-    webrick (1.7.0)
+    webrick (1.8.1)
 
 PLATFORMS
   aarch64-linux
@@ -44,4 +44,4 @@ DEPENDENCIES
   webrick
 
 BUNDLED WITH
-   2.4.3
+   2.4.21

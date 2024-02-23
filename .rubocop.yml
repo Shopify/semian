@@ -12,6 +12,8 @@ inherit_gem:
 AllCops:
   TargetRubyVersion: 2.7
   NewCops: enable
+  Exclude:
+    - test/allow_list_bench.rb
 
 Layout/LineLength:
   Exclude:
@@ -51,4 +53,7 @@ Style/SingleLineMethods:
   Enabled: false
 
 Style/SpecialGlobalVars:
+  Enabled: false
+
+Minitest/AssertInDelta:
   Enabled: false

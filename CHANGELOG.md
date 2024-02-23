@@ -1,7 +1,31 @@
 # Unreleased
 
+# v0.21.3
+
+* Fix: Trilogy ActiveRecord adapter to be compatible with latest Rails edge.
+
+# v0.21.2
+* Change: Trilogy ActiveRecord adapter will not bypass "SAVEPOINT RELEASE" unless it uses the ActiveRecord default name and only 2 levels of nesting
+* Change: The bypass for COMMIT/ROLLBACK statements assumes current ActiveRecord behaviour, that is no blank spaces or ";" chracter at the end of the statement
+
+# v0.21.1
+
+* Fix valid_raw_connection check
+
+# v0.21.0
+
+* Fixed compatibility with redis-rb 5.0.7+
+
+# v0.20.1
+
+* More efficient activerecord_trilogy_adapter and mysql2_adapter regex. (#508, #510)
+
+# v0.20.0
+
 * Ensure Active Record Trilogy adapter handles AdapterTimeout and ConnectionFailed exceptions. (#497)
 * Allow passing --with-openssl-dir for a custom OpenSSL installation. (#499)
+* Use ActiveRecord::ConnectionNotEstablished as base error for TrilogyAdapter. (#496)
+* Fix Mysql2 connection error regular expressions. (#506)
 
 # v0.19.1
 

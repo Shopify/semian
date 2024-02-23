@@ -22,8 +22,8 @@ module Semian
     include Semian::Adapter
 
     CONNECTION_ERROR = Regexp.union(
-      /Can't connect to MySQL server on/i,
-      /Lost connection to MySQL server/i,
+      /Can't connect to (?:MySQL )?server on/i,
+      /Lost connection to (?:MySQL )?server/i,
       /MySQL server has gone away/i,
       /Too many connections/i,
       /closed MySQL connection/i,
@@ -37,11 +37,7 @@ module Semian
     DEFAULT_HOST = "localhost"
     DEFAULT_PORT = 3306
 
-    QUERY_WHITELIST = Regexp.union(
-      %r{\A(?:/\*.*?\*/)?\s*ROLLBACK}i,
-      %r{\A(?:/\*.*?\*/)?\s*COMMIT}i,
-      %r{\A(?:/\*.*?\*/)?\s*RELEASE\s+SAVEPOINT}i,
-    )
+    QUERY_ALLOWLIST = %r{\A(?:/\*.*?\*/)?\s*(ROLLBACK|COMMIT|RELEASE\s+SAVEPOINT)}i
 
     class << self
       # The naked methods are exposed as `raw_query` and `raw_connect` for instrumentation purpose
@@ -114,7 +110,7 @@ module Semian
     end
 
     def query_whitelisted?(sql, *)
-      QUERY_WHITELIST =~ sql
+      QUERY_ALLOWLIST =~ sql
     rescue ArgumentError
       # The above regexp match can fail if the input SQL string contains binary
       # data that is not recognized as a valid encoding, in which case we just

@@ -4,8 +4,3 @@ dependencies:
   bundler:
     without:
       - test
-
-deploy:
-  max_commits: 1
-  pre:
-    - ./scripts/pre_release
