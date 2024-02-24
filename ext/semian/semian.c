@@ -1,6 +1,6 @@
 #include "semian.h"
 
-VALUE eSyscall, eTimeout, eInternal;
+VALUE eSyscall, eTimeout, eInternal, eSemaphoreMissing;
 
 void Init_semian()
 {
@@ -45,6 +45,17 @@ void Init_semian()
    */
   eInternal = rb_const_get(cSemian, rb_intern("InternalError"));
   rb_global_variable(&eInternal);
+
+  /* Document-class: Semian::SemaphoreMissingError
+   *
+   * Indicates that some time after initialization, a semaphore array was no longer
+   * present when we tried to access it. This can happen because semaphores were
+   * deleted using the <code>ipcrm</code> command line tool, the
+   * <code>semctl(..., IPC_RMID)</code> syscall, or systemd's <code>RemoveIPC</code>
+   * feature.
+   */
+  eSemaphoreMissing = rb_const_get(cSemian, rb_intern("SemaphoreMissingError"));
+  rb_global_variable(&eSemaphoreMissing);
 
   rb_define_alloc_func(cResource, semian_resource_alloc);
   rb_define_method(cResource, "initialize_semaphore", semian_resource_initialize, 5);

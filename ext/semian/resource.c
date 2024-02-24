@@ -63,6 +63,8 @@ semian_resource_acquire(int argc, VALUE *argv, VALUE self)
   if (res.error != 0) {
     if (res.error == EAGAIN) {
       rb_raise(eTimeout, "timed out waiting for resource '%s'", res.name);
+    } else if (res.error == EINVAL && get_semaphore(res.sem_id) == -1 && errno == ENOENT) {
+      rb_raise(eSemaphoreMissing, "semaphore array '%s' no longer exists", res.name);
     } else {
       raise_semian_syscall_error("semop()", res.error);
     }
