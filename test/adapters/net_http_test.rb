@@ -11,7 +11,7 @@ class TestNetHTTP < Minitest::Test
     error_timeout: 10,
   }.freeze
   DEFAULT_SEMIAN_CONFIGURATION = proc do |host, port|
-    if host == SemianConfig["toxiproxy_upstream_host"] && \
+    if host == SemianConfig["toxiproxy_upstream_host"] &&
         port == SemianConfig["toxiproxy_upstream_port"] # disable if toxiproxy
       next nil
     end
@@ -311,7 +311,7 @@ class TestNetHTTP < Minitest::Test
     sample_env = "development"
 
     semian_configuration_proc = proc do |host, port|
-      if host == SemianConfig["toxiproxy_upstream_host"] && \
+      if host == SemianConfig["toxiproxy_upstream_host"] &&
           port == SemianConfig["toxiproxy_upstream_port"] # disable if toxiproxy
         next nil
       end

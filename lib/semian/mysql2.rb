@@ -136,7 +136,8 @@ module Semian
 
     def raw_semian_options
       return query_options[:semian] if query_options.key?(:semian)
-      return query_options["semian"] if query_options.key?("semian")
+
+      query_options["semian"] if query_options.key?("semian")
     end
   end
 end

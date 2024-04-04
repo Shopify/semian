@@ -405,14 +405,15 @@ module RedisClientTests
   def new_config(**options)
     options[:host] = SemianConfig["toxiproxy_upstream_host"] if options[:host].nil?
     semian_options = SEMIAN_OPTIONS.merge(options.delete(:semian) || {})
-    RedisClient.config(**{
+    RedisClient.config(
       port: SemianConfig["redis_toxiproxy_port"],
       reconnect_attempts: 0,
       db: 1,
       timeout: REDIS_TIMEOUT,
       semian: semian_options,
       driver: redis_driver,
-    }.merge(options))
+      **options,
+    )
   end
 
   def connect_to_redis!(semian_options = {})
