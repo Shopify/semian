@@ -151,7 +151,8 @@ module Semian
 
     def raw_semian_options
       return options[:semian] if options.key?(:semian)
-      return options["semian"] if options.key?("semian")
+
+      options["semian"] if options.key?("semian")
     end
 
     def raise_if_out_of_memory(reply)

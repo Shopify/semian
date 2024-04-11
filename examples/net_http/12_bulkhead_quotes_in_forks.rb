@@ -17,7 +17,7 @@ end
 SEMIAN_PARAMETERS = {
   bulkhead: true,
   quota: 1, # Tickets calculated base on number of workers
-  timeout: 1,            # Timeout in seconds (1 sec) to wait to get a free ticket.
+  timeout: 1, # Timeout in seconds (1 sec) to wait to get a free ticket.
   circuit_breaker: false,
 }
 

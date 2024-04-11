@@ -18,7 +18,7 @@ class TestGRPC < Minitest::Test
   }
 
   DEFAULT_SEMIAN_CONFIGURATION = proc do |host|
-    if host == SemianConfig["toxiproxy_upstream_host"] && \
+    if host == SemianConfig["toxiproxy_upstream_host"] &&
         port == SemianConfig["toxiproxy_upstream_port"] # disable if toxiproxy
       next nil
     end
