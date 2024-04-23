@@ -28,6 +28,8 @@ module Semian
       /Too many connections/i,
       /closed MySQL connection/i,
       /Timeout waiting for a response/i,
+      /No matching servers with free connections/i,
+      /Max connect timeout reached while reaching hostgroup/i,
     )
 
     ResourceBusyError = ::Mysql2::ResourceBusyError
