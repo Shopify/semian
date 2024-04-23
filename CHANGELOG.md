@@ -1,5 +1,7 @@
 # Unreleased
 
+* Change: semians will trigger on ER_PROXYSQL_MAX_CONN_TIMEOUT (#520)
+
 # v0.21.3
 
 * Fix: Trilogy ActiveRecord adapter to be compatible with latest Rails edge.
