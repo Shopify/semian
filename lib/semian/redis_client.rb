@@ -33,19 +33,25 @@ class RedisClient
   CircuitOpenError = Class.new(SemianError)
 
   module SemianConfig
-    attr_reader :raw_semian_options
-
     def initialize(semian: nil, **kwargs)
       super(**kwargs)
 
       @raw_semian_options = semian
     end
 
+    def raw_semian_options
+      @raw_semian_options.respond_to?(:call) ? @raw_semian_options.call(host, port) : @raw_semian_options
+    end
+
     def semian_identifier
-      @semian_identifier ||= begin
+      return @semian_identifier if @semian_identifier
+
+      identifier ||= begin
         name = (semian_options && semian_options[:name]) || "#{host}:#{port}/#{db}"
         :"redis_#{name}"
       end
+      @semian_identifier = identifier unless semian_options && semian_options[:dynamic]
+      identifier
     end
 
     define_method(:semian_options, Semian::Adapter.instance_method(:semian_options))
