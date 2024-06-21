@@ -46,7 +46,7 @@ class RedisClient
     def semian_identifier
       return @semian_identifier if @semian_identifier
 
-      identifier ||= begin
+      identifier = begin
         name = (semian_options && semian_options[:name]) || "#{host}:#{port}/#{db}"
         :"redis_#{name}"
       end

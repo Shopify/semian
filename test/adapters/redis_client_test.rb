@@ -65,28 +65,26 @@ module RedisClientTests
 
     config = new_config(semian: options)
     client = config.new_client
-    client2 = config.new_client
-
-    Thread.current[:sub_resource_name] = "one"
 
     assert_equal(:redis_shared_pool_one, client.semian_identifier)
     Thread.current[:sub_resource_name] = "two"
 
-    assert_equal(:redis_shared_pool_two, client2.semian_identifier)
+    assert_equal(:redis_shared_pool_two, client.semian_identifier)
   end
 
   def test_dynamic_circuit_breaker
-    Thread.current[:sub_resource_name] = "one"
     options = proc do |_host, _port|
       SEMIAN_OPTIONS.merge(
         dynamic: true,
         name: "shared_pool_#{Thread.current[:sub_resource_name]}",
       )
     end
+    Thread.current[:sub_resource_name] = "one"
     client = connect_to_redis!(options)
     Thread.current[:sub_resource_name] = "two"
-    client2 = connect_to_redis!(options)
+    client.call("get", "foo") # establish connection for second semian
 
+    Thread.current[:sub_resource_name] = "one  "
     client.call("set", "foo", 2)
 
     @proxy.downstream(:latency, latency: 1000).apply do
@@ -98,38 +96,40 @@ module RedisClientTests
       end
     end
 
-    # client two should not have open circuit
+    # semian two should not have open circuit
     Thread.current[:sub_resource_name] = "two"
 
-    assert_equal("2", client2.call("get", "foo"))
+    assert_equal("2", client.call("get", "foo"))
 
     Thread.current[:sub_resource_name] = "one"
     assert_raises(RedisClient::CircuitOpenError) do
       client.call("get", "foo")
     end
 
-    # client 2 timeout to open the circuit
+    # semian two force timeout to open the circuit
     Thread.current[:sub_resource_name] = "two"
+    client.call("get", "foo")
 
     @proxy.downstream(:latency, latency: 1000).apply do
       assert_raises(RedisClient::ReadTimeoutError) do
-        client2.call("get", "foo")
+        client.call("get", "foo")
       end
     end
 
     Thread.current[:sub_resource_name] = "two"
     assert_raises(RedisClient::CircuitOpenError) do
-      client2.call("get", "foo")
+      client.call("get", "foo")
     end
 
-    # Both circuits recover
+    # Both semians recover
     time_travel(ERROR_TIMEOUT + 1) do
       Thread.current[:sub_resource_name] = "one"
 
       assert_equal("2", client.call("get", "foo"))
+
       Thread.current[:sub_resource_name] = "two"
 
-      assert_equal("2", client2.call("get", "foo"))
+      assert_equal("2", client.call("get", "foo"))
     end
 
     assert_includes(Semian.resources.keys, :redis_shared_pool_one)
