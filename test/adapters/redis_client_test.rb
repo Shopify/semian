@@ -134,7 +134,6 @@ module RedisClientTests
 
     assert_includes(Semian.resources.keys, :redis_shared_pool_one)
     assert_includes(Semian.resources.keys, :redis_shared_pool_two)
-
   ensure
     # clean up semians between test runs as we aren't using the standard semian names
     Semian.destroy(:redis_shared_pool_one)
