@@ -84,7 +84,7 @@ module RedisClientTests
     Thread.current[:sub_resource_name] = "two"
     client.call("get", "foo") # establish connection for second semian
 
-    Thread.current[:sub_resource_name] = "one  "
+    Thread.current[:sub_resource_name] = "one"
     client.call("set", "foo", 2)
 
     @proxy.downstream(:latency, latency: 1000).apply do
