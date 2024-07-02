@@ -54,6 +54,92 @@ module RedisClientTests
     assert_equal(client.semian_identifier, client2.semian_identifier)
   end
 
+  def test_dynamic_config_alias
+    Thread.current[:sub_resource_name] = "one"
+    options = proc do |_host, _port|
+      SEMIAN_OPTIONS.merge(
+        dynamic: true,
+        name: "shared_pool_#{Thread.current[:sub_resource_name]}",
+      )
+    end
+
+    config = new_config(semian: options)
+    client = config.new_client
+
+    assert_equal(:redis_shared_pool_one, client.semian_identifier)
+    Thread.current[:sub_resource_name] = "two"
+
+    assert_equal(:redis_shared_pool_two, client.semian_identifier)
+  end
+
+  def test_dynamic_circuit_breaker
+    options = proc do |_host, _port|
+      SEMIAN_OPTIONS.merge(
+        dynamic: true,
+        name: "shared_pool_#{Thread.current[:sub_resource_name]}",
+      )
+    end
+    Thread.current[:sub_resource_name] = "one"
+    client = connect_to_redis!(options)
+    Thread.current[:sub_resource_name] = "two"
+    client.call("get", "foo") # establish connection for second semian
+
+    Thread.current[:sub_resource_name] = "one"
+    client.call("set", "foo", 2)
+
+    @proxy.downstream(:latency, latency: 1000).apply do
+      ERROR_THRESHOLD.times do
+        Thread.current[:sub_resource_name] = "one"
+        assert_raises(RedisClient::ReadTimeoutError) do
+          client.call("get", "foo")
+        end
+      end
+    end
+
+    # semian two should not have open circuit
+    Thread.current[:sub_resource_name] = "two"
+
+    assert_equal("2", client.call("get", "foo"))
+
+    Thread.current[:sub_resource_name] = "one"
+    assert_raises(RedisClient::CircuitOpenError) do
+      client.call("get", "foo")
+    end
+
+    # semian two force timeout to open the circuit
+    Thread.current[:sub_resource_name] = "two"
+    client.call("get", "foo")
+
+    @proxy.downstream(:latency, latency: 1000).apply do
+      assert_raises(RedisClient::ReadTimeoutError) do
+        client.call("get", "foo")
+      end
+    end
+
+    Thread.current[:sub_resource_name] = "two"
+    assert_raises(RedisClient::CircuitOpenError) do
+      client.call("get", "foo")
+    end
+
+    # Both semians recover
+    time_travel(ERROR_TIMEOUT + 1) do
+      Thread.current[:sub_resource_name] = "one"
+
+      assert_equal("2", client.call("get", "foo"))
+
+      Thread.current[:sub_resource_name] = "two"
+
+      assert_equal("2", client.call("get", "foo"))
+    end
+
+    assert_includes(Semian.resources.keys, :redis_shared_pool_one)
+    assert_includes(Semian.resources.keys, :redis_shared_pool_two)
+  ensure
+    # clean up semians between test runs as we aren't using the standard semian names
+    Semian.destroy(:redis_shared_pool_one)
+    Semian.destroy(:redis_shared_pool_two)
+  end
+
   def test_semian_can_be_disabled
     resource = RedisClient.new(semian: false).semian_resource
 
@@ -404,7 +490,12 @@ module RedisClientTests
 
   def new_config(**options)
     options[:host] = SemianConfig["toxiproxy_upstream_host"] if options[:host].nil?
-    semian_options = SEMIAN_OPTIONS.merge(options.delete(:semian) || {})
+    passed_semian_options = options.delete(:semian) || {}
+    semian_options = if passed_semian_options.respond_to?(:call)
+      passed_semian_options
+    else
+      SEMIAN_OPTIONS.merge(passed_semian_options)
+    end
     RedisClient.config(
       port: SemianConfig["redis_toxiproxy_port"],
       reconnect_attempts: 0,
@@ -417,7 +508,7 @@ module RedisClientTests
   end
 
   def connect_to_redis!(semian_options = {})
-    host = semian_options.delete(:host)
+    host = semian_options.respond_to?(:call) ? nil : semian_options.delete(:host)
     redis = new_client(host: host, semian: semian_options)
     redis.call("PING")
     redis
