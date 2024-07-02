@@ -1,6 +1,7 @@
 # Unreleased
 
 * Change: semians will trigger on ER_PROXYSQL_MAX_CONN_TIMEOUT (#520)
+* Change: added support for dynamic semian_configurations to the Semian Redis adapter
 
 # v0.21.3
 
