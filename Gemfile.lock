@@ -59,7 +59,7 @@ GEM
     memory_profiler (1.0.1)
     method_source (1.0.0)
     minitest (5.17.0)
-    mocha (2.0.2)
+    mocha (2.4.5)
       ruby2_keywords (>= 0.0.5)
     mysql2 (0.5.6)
     parallel (1.24.0)
