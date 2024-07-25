@@ -16,7 +16,7 @@ group :test do
   gem "webrick"
 
   # The last stable version for MacOS ARM darwin
-  gem "grpc", "1.60.0"
+  gem "grpc", "1.65.1"
   gem "mysql2", "~> 0.5"
   gem "trilogy", "~> 2.4"
   gem "activerecord", github: "rails/rails", branch: "main"
