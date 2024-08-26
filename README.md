@@ -271,22 +271,22 @@ SEMIAN_PARAMETERS = {
 }
 
 class CurrentSemianSubResource < ActiveSupport::CurrentAttributes
- attribute :name
+ attribute :sub_name
 end
 
 Semian::NetHTTP.semian_configuration = proc do |host, port|
   name = "#{host}_#{port}"
-  if (sub_resource_name = CurrentSemianSubResource.name)
+  if (sub_resource_name = CurrentSemianSubResource.sub_name)
     name << "_#{sub_resource_name}"
   end
   SEMIAN_PARAMETERS.merge(name: name)
 end
 
 # Two requests to example.com can use two different semian resources,
-# as long as `CurrentSemianSubResource.name` is set accordingly:
-# CurrentSemianSubResource.set(name: "sub_resource_1") { Net::HTTP.get_response(URI("http://example.com")) }
+# as long as `CurrentSemianSubResource.sub_name` is set accordingly:
+# CurrentSemianSubResource.set(sub_name: "sub_resource_1") { Net::HTTP.get_response(URI("http://example.com")) }
 # and:
-# CurrentSemianSubResource.set(name: "sub_resource_2") { Net::HTTP.get_response(URI("http://example.com")) }
+# CurrentSemianSubResource.set(sub_name: "sub_resource_2") { Net::HTTP.get_response(URI("http://example.com")) }
 ```
 
 For most purposes, `"#{host}_#{port}"` is a good default `name`. Custom `name` formats
