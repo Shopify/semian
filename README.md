@@ -270,14 +270,14 @@ SEMIAN_PARAMETERS = {
   dynamic: true,
 }
 
-class CurrentSemianSubResource < ActiveSupport::Attributes
+class CurrentSemianSubResource < ActiveSupport::CurrentAttributes
  attribute :name
 end
 
 Semian::NetHTTP.semian_configuration = proc do |host, port|
   name = "#{host}_#{port}"
   if (sub_resource_name = CurrentSemianSubResource.name)
-    name << "_#{name}"
+    name << "_#{sub_resource_name}"
   end
   SEMIAN_PARAMETERS.merge(name: name)
 end
