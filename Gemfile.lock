@@ -58,7 +58,7 @@ GEM
     language_server-protocol (3.17.0.3)
     memory_profiler (1.0.1)
     method_source (1.0.0)
-    minitest (5.17.0)
+    minitest (5.25.1)
     mocha (2.4.5)
       ruby2_keywords (>= 0.0.5)
     mysql2 (0.5.6)
