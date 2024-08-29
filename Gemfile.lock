@@ -108,7 +108,7 @@ GEM
     ruby2_keywords (0.0.5)
     strscan (3.1.0)
     toxiproxy (2.0.2)
-    trilogy (2.4.1)
+    trilogy (2.8.1)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
     unicode-display_width (2.5.0)
@@ -144,7 +144,7 @@ DEPENDENCIES
   rubocop-shopify
   semian!
   toxiproxy
-  trilogy (~> 2.4)
+  trilogy (~> 2.8)
   webrick
 
 BUNDLED WITH
