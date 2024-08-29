@@ -270,7 +270,7 @@ class TestLRUHash < Minitest::Test
   end
 
   def create_bulkhead(name, bulkhead)
-    return nil unless bulkhead
+    return unless bulkhead
 
     Semian::Resource.new(name, tickets: 1, quota: nil, permissions: 0660, timeout: 0)
   end
