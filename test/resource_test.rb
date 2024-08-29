@@ -42,7 +42,7 @@ class TestResource < Minitest::Test
   end
 
   def test_max_tickets
-    assert(Semian::MAX_TICKETS > 0)
+    assert_operator(Semian::MAX_TICKETS, :>, 0)
   end
 
   def test_register

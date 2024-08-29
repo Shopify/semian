@@ -52,7 +52,7 @@ class TestInstrumentation < Minitest::Test
     subscription = Semian.subscribe do |*_, wait_time|
       hit = true
 
-      assert(wait_time.is_a?(Integer))
+      assert_kind_of(Integer, wait_time)
     end
     Semian[:testing].acquire {}
 

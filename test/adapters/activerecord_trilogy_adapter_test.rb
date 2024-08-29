@@ -413,7 +413,7 @@ module ActiveRecord
           end
           error = Semian[:mysql_testing].circuit_breaker.last_error
 
-          assert_equal(ActiveRecord::ConnectionNotEstablished, error.class)
+          assert_instance_of(ActiveRecord::ConnectionNotEstablished, error)
         end
       end
 
