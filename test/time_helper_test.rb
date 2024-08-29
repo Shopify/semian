@@ -10,7 +10,7 @@ class TestTimeHelper < Minitest::Test
       current = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     end
 
-    assert(now > current, "now #{now} should be bigger than current #{current}")
+    assert_operator(now, :>, current, "now #{now} should be bigger than current #{current}")
   end
 
   def test_time_monotonic_travel_future
@@ -20,7 +20,7 @@ class TestTimeHelper < Minitest::Test
       current = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     end
 
-    assert(now + 5 < current, "now #{now} should be less than current #{current} at least by 5 secs")
+    assert_operator(now + 5, :<, current, "now #{now} should be less than current #{current} at least by 5 secs")
   end
 
   def test_time_travel_past
@@ -30,7 +30,7 @@ class TestTimeHelper < Minitest::Test
       current = Time.now
     end
 
-    assert(now > current, "now #{now} should be bigger than current #{current}")
+    assert_operator(now, :>, current, "now #{now} should be bigger than current #{current}")
   end
 
   def test_time_travel_future
@@ -40,6 +40,6 @@ class TestTimeHelper < Minitest::Test
       current = Time.now
     end
 
-    assert(now + 5 < current, "now #{now} should be less than current #{current} at least by 5 secs")
+    assert_operator(now + 5, :<, current, "now #{now} should be less than current #{current} at least by 5 secs")
   end
 end
