@@ -24,7 +24,7 @@ GEM
   remote: https://rubygems.org/
   specs:
     ast (2.4.2)
-    benchmark-ips (2.13.0)
+    benchmark-ips (2.14.0)
     benchmark-memory (0.2.0)
       memory_profiler (~> 1)
     byebug (11.1.3)
