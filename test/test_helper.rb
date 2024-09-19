@@ -4,6 +4,7 @@ require "rubygems"
 require "bundler/setup"
 
 require "minitest/autorun"
+$VERBOSE = true
 require "semian"
 require "toxiproxy"
 require "tempfile"

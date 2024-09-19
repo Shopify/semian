@@ -525,13 +525,17 @@ class TestNetHTTP < Minitest::Test
     orig_semian_options = Semian::NetHTTP.semian_configuration
     Semian::NetHTTP.instance_variable_set(:@semian_configuration, nil)
     mutated_objects = {}
-    Semian::NetHTTP.send(:alias_method, :orig_semian_resource, :semian_resource)
-    Semian::NetHTTP.send(:alias_method, :orig_raw_semian_options, :raw_semian_options)
-    Semian::NetHTTP.send(:define_method, :semian_resource) do
+    Semian::NetHTTP.alias_method(:orig_semian_resource, :semian_resource)
+    Semian::NetHTTP.alias_method(:orig_raw_semian_options, :raw_semian_options)
+
+    Semian::NetHTTP.alias_method(:semian_resource, :semian_resource) # Silence redefinition warnings
+    Semian::NetHTTP.define_method(:semian_resource) do
       mutated_objects[self] = [@semian_resource, @raw_semian_options] unless mutated_objects.key?(self)
       orig_semian_resource
     end
-    Semian::NetHTTP.send(:define_method, :raw_semian_options) do
+
+    Semian::NetHTTP.alias_method(:raw_semian_options, :raw_semian_options) # Silence redefinition warnings
+    Semian::NetHTTP.define_method(:raw_semian_options) do
       mutated_objects[self] = [@semian_resource, @raw_semian_options] unless mutated_objects.key?(self)
       orig_raw_semian_options
     end
@@ -541,9 +545,14 @@ class TestNetHTTP < Minitest::Test
   ensure
     Semian::NetHTTP.instance_variable_set(:@semian_configuration, nil)
     Semian::NetHTTP.semian_configuration = orig_semian_options
-    Semian::NetHTTP.send(:alias_method, :semian_resource, :orig_semian_resource)
-    Semian::NetHTTP.send(:alias_method, :raw_semian_options, :orig_raw_semian_options)
-    Semian::NetHTTP.send(:undef_method, :orig_semian_resource, :orig_raw_semian_options)
+
+    Semian::NetHTTP.alias_method(:semian_resource, :semian_resource) # Silence redefinition warnings
+    Semian::NetHTTP.alias_method(:semian_resource, :orig_semian_resource)
+
+    Semian::NetHTTP.alias_method(:raw_semian_options, :raw_semian_options) # Silence redefinition warnings
+    Semian::NetHTTP.alias_method(:raw_semian_options, :orig_raw_semian_options)
+
+    Semian::NetHTTP.undef_method(:orig_semian_resource, :orig_raw_semian_options)
     mutated_objects.each do |instance, (res, opt)| # Sadly, only way to fully restore cached properties
       instance.instance_variable_set(:@semian_resource, res)
       instance.instance_variable_set(:@raw_semian_options, opt)
