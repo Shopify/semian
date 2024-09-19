@@ -9,6 +9,12 @@ module Semian
       def instance(name, **kwargs)
         Semian.resources[name] ||= ProtectedResource.new(name, new(name, **kwargs), nil)
       end
+
+      private
+
+      def redefinable(method_name)
+        alias_method(method_name, method_name) # Silence method redefinition warnings
+      end
     end
 
     def initialize(name, tickets: nil, quota: nil, permissions: Semian.default_permissions, timeout: 0)
@@ -26,41 +32,41 @@ module Semian
       @name = name
     end
 
-    def reset_registered_workers!
+    redefinable def reset_registered_workers!
     end
 
-    def destroy
+    redefinable def destroy
     end
 
-    def unregister_worker
+    redefinable def unregister_worker
     end
 
-    def acquire(*)
+    redefinable def acquire(*)
       wait_time = 0
       yield wait_time
     end
 
-    def count
+    redefinable def count
       0
     end
 
-    def tickets
+    redefinable def tickets
       0
     end
 
-    def registered_workers
+    redefinable def registered_workers
       0
     end
 
-    def semid
+    redefinable def semid
       0
     end
 
-    def key
+    redefinable def key
       "0x00000000"
     end
 
-    def in_use?
+    redefinable def in_use?
       false
     end
   end

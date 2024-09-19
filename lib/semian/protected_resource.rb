@@ -4,7 +4,7 @@ module Semian
   class ProtectedResource
     extend Forwardable
 
-    def_delegators :@bulkhead, :destroy, :count, :semid, :tickets, :registered_workers
+    def_delegators :@bulkhead, :count, :semid, :tickets, :registered_workers
     def_delegators :@circuit_breaker,
       :reset,
       :mark_failed,
