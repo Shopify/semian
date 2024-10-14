@@ -104,7 +104,7 @@ GEM
     ruby-progressbar (1.13.0)
     ruby2_keywords (0.0.5)
     toxiproxy (2.0.2)
-    trilogy (2.8.1)
+    trilogy (2.9.0)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
     unicode-display_width (2.6.0)
@@ -140,7 +140,7 @@ DEPENDENCIES
   rubocop-shopify
   semian!
   toxiproxy
-  trilogy (~> 2.8)
+  trilogy (~> 2.9)
   webrick
 
 BUNDLED WITH
