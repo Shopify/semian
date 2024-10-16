@@ -5,9 +5,6 @@ ID id_wait_time;
 ID id_timeout;
 int system_max_semaphore_count;
 
-static VALUE
-cleanup_semian_resource_acquire(VALUE self);
-
 static void
 check_tickets_xor_quota_arg(VALUE tickets, VALUE quota);
 
@@ -33,14 +30,10 @@ static const rb_data_type_t
 semian_resource_type;
 
 VALUE
-semian_resource_acquire(int argc, VALUE *argv, VALUE self)
+semian_resource_acquire_semaphore(int argc, VALUE *argv, VALUE self)
 {
   semian_resource_t *self_res = NULL;
   semian_resource_t res = { 0 };
-
-  if (!rb_block_given_p()) {
-    rb_raise(rb_eArgError, "acquire requires a block");
-  }
 
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, self_res);
   res = *self_res;
@@ -75,7 +68,19 @@ semian_resource_acquire(int argc, VALUE *argv, VALUE self)
     wait_time = LONG2NUM(res.wait_time);
   }
 
-  return rb_ensure(rb_yield, wait_time, cleanup_semian_resource_acquire, self);
+  return wait_time;
+}
+
+VALUE
+semian_resource_acquire(int argc, VALUE *argv, VALUE self)
+{
+  if (!rb_block_given_p()) {
+    rb_raise(rb_eArgError, "acquire requires a block");
+  }
+
+  VALUE wait_time = semian_resource_acquire_semaphore(argc, argv, self);
+
+  return rb_ensure(rb_yield, wait_time, semian_resource_release_semaphore, self);
 }
 
 VALUE
@@ -253,8 +258,8 @@ semian_resource_in_use(VALUE self)
   return Qtrue;
 }
 
-static VALUE
-cleanup_semian_resource_acquire(VALUE self)
+VALUE
+semian_resource_release_semaphore(VALUE self)
 {
   semian_resource_t *res = NULL;
   TypedData_Get_Struct(self, semian_resource_t, &semian_resource_type, res);

@@ -46,6 +46,13 @@ module Semian
       yield wait_time
     end
 
+    redefinable def acquire_semaphore
+      0
+    end
+
+    redefinable def release_semaphore
+    end
+
     redefinable def count
       0
     end
