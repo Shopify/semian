@@ -33,9 +33,38 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VAL
  *
  * If no timeout argument is provided, the default timeout passed to Semian.register will be used.
  *
+ * The given block is executed with the semaphore held and, when the block
+ * exits, the semaphore is automatically released.
  */
 VALUE
 semian_resource_acquire(int argc, VALUE *argv, VALUE self);
+
+/*
+ * call-seq:
+ *    resource.acquire_semaphore(timeout: default_timeout) -> wait_time
+ *
+ * Acquires a resource. The call will block for <code>timeout</code> seconds if a ticket
+ * is not available. If no ticket is available within the timeout period, Semian::TimeoutError
+ * will be raised.
+ *
+ * If no timeout argument is provided, the default timeout passed to Semian.register will be used.
+ *
+ * Note: The caller is responsible for releasing the semaphore when done by calling release_semaphore.
+ */
+VALUE
+semian_resource_acquire_semaphore(int argc, VALUE *argv, VALUE self);
+
+/*
+ * call-seq:
+ *    resource.release_semaphore() -> nil
+ *
+ * Releases a resource previously acquired with acquire_semaphore.
+ *
+ * Note: The method is NOT idempotent. The caller must ensure that the method is called exactly
+ * as many times as acquire_semaphore.
+ */
+VALUE
+semian_resource_release_semaphore(VALUE self);
 
 /*
  * call-seq:

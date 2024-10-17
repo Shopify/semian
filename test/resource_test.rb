@@ -140,6 +140,22 @@ class TestResource < Minitest::Test
     assert(acquired)
   end
 
+  def test_acquire_and_release_semaphore
+    resource = create_resource(:testing, tickets: 1)
+
+    assert_equal(1, resource.count)
+
+    begin
+      resource.acquire_semaphore
+
+      assert_equal(0, resource.count)
+    ensure
+      resource.release_semaphore
+
+      assert_equal(1, resource.count)
+    end
+  end
+
   def test_acquire_return_val
     resource = create_resource(:testing, tickets: 1)
     val = resource.acquire { 1234 }
@@ -153,6 +169,38 @@ class TestResource < Minitest::Test
     timeouts = count_worker_timeouts
 
     assert_equal(1, timeouts)
+  end
+
+  def test_acquire_and_release_timeout
+    resource = create_resource(:testing, tickets: 1, timeout: 1)
+    start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+    # Grab the only ticket
+    resource.acquire_semaphore
+
+    # Wait for the timeout trying to get a ticket, then catch the exception
+    assert_raises(Semian::TimeoutError) do
+      resource.acquire_semaphore
+    end
+    end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+    # Should work now
+    resource.release_semaphore
+
+    # Ensure we actually waited for the timeout
+    assert_in_delta(1, end_time - start_time, EPSILON)
+  end
+
+  def test_release_semaphore_without_acquire
+    resource = create_resource(:testing, tickets: 1)
+
+    assert_equal(1, resource.count)
+
+    # Should not raise an error
+    resource.release_semaphore
+
+    # It has now screwed up the semaphore count because we didn't acquire before releasing
+    assert_equal(2, resource.count)
   end
 
   def test_acquire_timeout_override
