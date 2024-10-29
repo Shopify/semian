@@ -275,6 +275,21 @@ module Semian
     @thread_safe = thread_safe
   end
 
+  THREAD_BULKHEAD_DISABLED_VAR = :semian_bulkheads_disabled
+  private_constant(:THREAD_BULKHEAD_DISABLED_VAR)
+
+  def bulkheads_disabled_in_thread?(thread)
+    thread.thread_variable_get(THREAD_BULKHEAD_DISABLED_VAR)
+  end
+
+  def disable_bulkheads_for_thread(thread)
+    old_value = thread.thread_variable_get(THREAD_BULKHEAD_DISABLED_VAR)
+    thread.thread_variable_set(THREAD_BULKHEAD_DISABLED_VAR, true)
+    yield
+  ensure
+    thread.thread_variable_set(THREAD_BULKHEAD_DISABLED_VAR, old_value)
+  end
+
   private
 
   def create_circuit_breaker(name, **options)
@@ -318,7 +333,7 @@ module Semian
   end
 
   def create_bulkhead(name, **options)
-    return if ENV.key?("SEMIAN_BULKHEAD_DISABLED")
+    return if ENV.key?("SEMIAN_BULKHEAD_DISABLED") || bulkheads_disabled_in_thread?(Thread.current)
     return unless options.fetch(:bulkhead, true)
 
     permissions = options[:permissions] || default_permissions

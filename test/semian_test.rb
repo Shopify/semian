@@ -171,6 +171,21 @@ class TestSemian < Minitest::Test
     ENV.delete("SEMIAN_BULKHEAD_DISABLED")
   end
 
+  def test_disabled_bulkhead_via_thread
+    Semian.disable_bulkheads_for_thread(Thread.current) do
+      resource = Semian.register(
+        :disabled_bulkhead_via_env,
+        bulkhead: true,
+        tickets: 1,
+        success_threshold: 1,
+        error_threshold: 1,
+        error_timeout: 1,
+      )
+
+      assert_nil(resource.bulkhead)
+    end
+  end
+
   def test_disabled_circuit_breaker
     resource = Semian.register(
       :disabled_circuit_breaker,
