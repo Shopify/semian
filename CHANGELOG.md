@@ -2,6 +2,7 @@
 
 * Change: semians will trigger on ER_PROXYSQL_MAX_CONN_TIMEOUT (#520)
 * Change: added support for dynamic semian_configurations to the Semian Redis adapter
+* Change: `Semian.disable_bulkheads_for_thread` disables bulkheads for the given thread
 
 # v0.21.3
 
