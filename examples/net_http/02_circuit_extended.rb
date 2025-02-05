@@ -18,7 +18,7 @@ SEMIAN_PARAMETERS = {
   error_threshold: 3,
   error_timeout: 5,
   bulkhead: false,
-}
+}.freeze
 
 puts "> Configure Circuit breaker for Net::HTTP".blue.bold
 Semian::NetHTTP.semian_configuration = proc do |host, port|

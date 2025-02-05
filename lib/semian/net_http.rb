@@ -2,6 +2,7 @@
 
 require "semian/adapter"
 require "net/http"
+require "concurrent"
 
 module Net
   ProtocolError.include(::Semian::AdapterError)
@@ -55,10 +56,12 @@ module Semian
     end
 
     class << self
-      attr_accessor :exceptions
+      attr_accessor :exceptions # rubocop:disable ThreadSafety/ClassAndModuleAttributes
       attr_reader :semian_configuration
 
+      # rubocop:disable ThreadSafety/ClassInstanceVariable
       def semian_configuration=(configuration)
+        # Only allow setting the configuration once in boot time
         raise Semian::NetHTTP::SemianConfigurationChangedError unless @semian_configuration.nil?
 
         @semian_configuration = configuration
@@ -67,9 +70,10 @@ module Semian
       def retrieve_semian_configuration(host, port)
         @semian_configuration.call(host, port) if @semian_configuration.respond_to?(:call)
       end
+      # rubocop:enable ThreadSafety/ClassInstanceVariable
 
       def reset_exceptions
-        self.exceptions = Semian::NetHTTP::DEFAULT_ERRORS.dup
+        self.exceptions = Concurrent::Array.new(DEFAULT_ERRORS.dup)
       end
     end
 

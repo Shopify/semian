@@ -16,7 +16,7 @@ class TestMysql2 < Minitest::Test
     error_threshold: ERROR_THRESHOLD,
     success_threshold: 2,
     error_timeout: ERROR_TIMEOUT,
-  }
+  }.freeze
 
   def setup
     super

@@ -29,6 +29,8 @@ Gem::Specification.new do |s|
 
   s.required_ruby_version = ">= 2.7.0"
 
+  s.add_dependency("concurrent-ruby")
+
   s.files = Dir["{lib,ext}/**/**/*.{rb,h,c}"]
   s.files += ["LICENSE.md", "README.md"]
   s.extensions = ["ext/semian/extconf.rb"]

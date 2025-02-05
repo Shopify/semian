@@ -3,6 +3,7 @@
 require:
   - rubocop-minitest
   - rubocop-rake
+  - rubocop-thread_safety
 
 inherit_from: .rubocop_todo.yml
 
@@ -56,3 +57,17 @@ Style/SpecialGlobalVars:
 
 Minitest/AssertInDelta:
   Enabled: false
+
+ThreadSafety:
+  Enabled: true
+  Exclude:
+    - "**/*.gemspec"
+    # exclude tests from thread safety checks
+    - "**/test_helper.rb"
+    - test/**/*
+
+ThreadSafety/NewThread:
+  Enabled: false
+
+Style/MutableConstant:
+  Enabled: True
