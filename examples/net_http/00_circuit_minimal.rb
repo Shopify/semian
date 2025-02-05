@@ -12,7 +12,7 @@ SEMIAN_PARAMETERS = {
   error_threshold: 3,
   error_timeout: 3,
   bulkhead: false,
-}
+}.freeze
 
 Semian::NetHTTP.semian_configuration = proc do |host, port|
   if host == "example.com" && port == 80

@@ -30,7 +30,7 @@ SEMIAN_PARAMETERS = {
   error_timeout: 5,
   bulkhead: true,
   tickets: 1,
-}
+}.freeze
 
 puts "> Configure Circuit breaker and Bulkhead for Net::HTTP".blue.bold
 puts "  Setup single circuit breaker for all example.com requests".blue

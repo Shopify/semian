@@ -11,7 +11,7 @@ SEMIAN_PARAMETERS = {
   tickets: 1,  # Number of concurent connections
   timeout: 3,  # Wait for the next available ticket
   circuit_breaker: false,
-}
+}.freeze
 
 Semian::NetHTTP.semian_configuration = proc do |host, port|
   if host == "example.com" && port == 80

@@ -101,6 +101,8 @@ GEM
       rubocop (~> 1.0)
     rubocop-shopify (2.15.1)
       rubocop (~> 1.51)
+    rubocop-thread_safety (0.6.0)
+      rubocop (>= 1.48.1)
     ruby-progressbar (1.13.0)
     ruby2_keywords (0.0.5)
     toxiproxy (2.0.2)
@@ -134,10 +136,11 @@ DEPENDENCIES
   rake
   rake-compiler
   redis
-  rubocop
+  rubocop (~> 1.2)
   rubocop-minitest
   rubocop-rake
-  rubocop-shopify
+  rubocop-shopify (~> 2)
+  rubocop-thread_safety
   semian!
   toxiproxy
   trilogy (~> 2.8)

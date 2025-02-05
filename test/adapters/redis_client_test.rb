@@ -20,7 +20,7 @@ module RedisClientTests
     error_threshold: ERROR_THRESHOLD,
     success_threshold: SUCCESS_THRESHOLD,
     error_timeout: ERROR_TIMEOUT,
-  }
+  }.freeze
 
   def setup
     super

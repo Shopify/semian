@@ -19,7 +19,7 @@ SEMIAN_PARAMETERS = {
   tickets: 1,            # Number of concurent connections.
   timeout: 1,            # Timeout in seconds (1 sec) to wait to get a free ticket.
   circuit_breaker: false,
-}
+}.freeze
 
 Semian::NetHTTP.semian_configuration = proc do |host, port|
   pid = Process.pid

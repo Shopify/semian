@@ -94,7 +94,7 @@ module Semian
   end
 
   module RedisClient
-    EXCEPTIONS = [::RedisClient::ConnectionError, ::RedisClient::OutOfMemoryError]
+    EXCEPTIONS = [::RedisClient::ConnectionError, ::RedisClient::OutOfMemoryError].freeze
 
     include Semian::Adapter
     include RedisClientCommon
