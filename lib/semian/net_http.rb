@@ -73,7 +73,7 @@ module Semian
       # rubocop:enable ThreadSafety/ClassInstanceVariable
 
       def reset_exceptions
-        self.exceptions = Concurrent::Array.new(DEFAULT_ERRORS.dup)
+        self.exceptions = Semian::NetHTTP::DEFAULT_ERRORS.dup
       end
     end
 
