@@ -1,3 +1,8 @@
+# 0.22.1
+
+* Change: Enable thread_safety rubocop
+* Change: Freeze constants and remove unused accessor (`@exceptions`) from `Semian::GRPC`
+
 # 0.22.0
 
 * Change: semians will trigger on ER_PROXYSQL_MAX_CONN_TIMEOUT with mysql2 (#522)
