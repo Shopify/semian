@@ -36,10 +36,11 @@ module Semian
     end
 
     class << self
-      attr_accessor :exceptions
       attr_reader :semian_configuration
 
+      # rubocop:disable ThreadSafety/ClassInstanceVariable
       def semian_configuration=(configuration)
+        # Only allow setting the configuration once in boot time
         raise Semian::GRPC::SemianConfigurationChangedError unless @semian_configuration.nil?
 
         @semian_configuration = configuration
@@ -48,6 +49,7 @@ module Semian
       def retrieve_semian_configuration(host)
         @semian_configuration.call(host) if @semian_configuration.respond_to?(:call)
       end
+      # rubocop:enable ThreadSafety/ClassInstanceVariable
     end
 
     def raw_semian_options

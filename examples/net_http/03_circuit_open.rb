@@ -18,7 +18,7 @@ SEMIAN_PARAMETERS = {
   error_threshold: 2,
   error_timeout: 5,
   bulkhead: false,
-}
+}.freeze
 
 puts "> Configure Circuit breaker for Net::HTTP".blue.bold
 puts "  Setup single circuit breaker limited to example.com".blue

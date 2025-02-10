@@ -18,7 +18,7 @@ SEMIAN_PARAMETERS = {
   error_threshold: 2,
   error_timeout: 3,
   bulkhead: false,
-}
+}.freeze
 
 host = ENV.fetch("MYSQL_HOST", "localhost")
 healthy_port = Integer(ENV.fetch("MYSQL_PORT", 3306))

@@ -20,7 +20,7 @@ SEMIAN_PARAMETERS = {
   bulkhead: false,
   dynamic: true,
   open_circuit_server_errors: true,
-}
+}.freeze
 
 uri = URI("http://example.com:80")
 

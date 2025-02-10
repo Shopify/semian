@@ -15,7 +15,7 @@ class TestGRPC < Minitest::Test
     error_threshold: ERROR_THRESHOLD,
     success_threshold: 1,
     error_timeout: 10,
-  }
+  }.freeze
 
   DEFAULT_SEMIAN_CONFIGURATION = proc do |host|
     if host == SemianConfig["toxiproxy_upstream_host"] &&
