@@ -534,7 +534,7 @@ It is possible to disable Circuit Breaker with environment variable
 `SEMIAN_CIRCUIT_BREAKER_DISABLED=1`.
 
 For more information about configuring these parameters, please read
-[this post](https://engineering.shopify.com/blogs/engineering/circuit-breaker-misconfigured).
+[this post](https://shopify.engineering/circuit-breaker-misconfigured).
 
 ### Bulkheading
 
@@ -924,7 +924,7 @@ $ bundle install
 [nethttp-default-errors]: lib/semian/net_http.rb#L35-L45
 [semian-instrumentable]: lib/semian/instrumentable.rb
 [statsd-instrument]: http://github.com/shopify/statsd-instrument
-[resiliency-blog-post]: https://engineering.shopify.com/blogs/engineering/building-and-testing-resilient-ruby-on-rails-applications
+[resiliency-blog-post]: https://shopify.engineering/building-and-testing-resilient-ruby-on-rails-applications
 [toxiproxy]: https://github.com/Shopify/toxiproxy
 [sysv]: http://man7.org/linux/man-pages/man7/svipc.7.html
 [cbp]: https://en.wikipedia.org/wiki/Circuit_breaker_design_pattern
