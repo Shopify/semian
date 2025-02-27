@@ -1,4 +1,4 @@
-ARG RUBY_VERSION=3.2.0
+ARG RUBY_VERSION=3.4.3
 FROM ruby:${RUBY_VERSION} as base
 
 # Avoid warnings by switching to noninteractive
@@ -15,7 +15,7 @@ RUN apt-get -o Acquire::Max-FutureTime=86400 update \
       linux-perf \
       lldb \
       lsb-release \
-      netcat \
+      netcat-openbsd \
       procps \
       xz-utils \
  && gem install bundler rcodetools rubocop ruby-debug-ide fastri

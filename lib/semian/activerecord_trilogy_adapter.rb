@@ -29,7 +29,7 @@ module Semian
     ResourceBusyError = ::ActiveRecord::ConnectionAdapters::TrilogyAdapter::ResourceBusyError
     CircuitOpenError = ::ActiveRecord::ConnectionAdapters::TrilogyAdapter::CircuitOpenError
 
-    QUERY_ALLOWLIST = %r{\A(?:/\*.*?\*/)?\s*(ROLLBACK|COMMIT|RELEASE\s+SAVEPOINT)}i.freeze
+    QUERY_ALLOWLIST = %r{\A(?:/\*.*?\*/)?\s*(ROLLBACK|COMMIT|RELEASE\s+SAVEPOINT)}i
 
     # The common case here is NOT to have transaction management statements, therefore
     # we are exploiting the fact that Active Record will use COMMIT/ROLLBACK as

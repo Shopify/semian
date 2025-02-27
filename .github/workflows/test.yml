@@ -32,10 +32,9 @@ jobs:
       fail-fast: true
       matrix:
         ruby:
+          - "3.4"
+          - "3.3"
           - "3.2"
-          - "3.1"
-          - "3.0"
-          - "2.7"
     services:
       mysql:
         image: mysql:5.7
@@ -54,7 +53,7 @@ jobs:
           --health-timeout=5s
           --health-retries=5
       toxiproxy:
-        image: ghcr.io/shopify/toxiproxy:2.5.0
+        image: ghcr.io/shopify/toxiproxy:2.12.0
     steps:
       -
         name: Checkout
@@ -77,6 +76,7 @@ jobs:
         run: bundle exec rake build
       -
         name: Tests
+        timeout-minutes: 5
         run: |
           bundle exec rake test:semian ||
           (echo "===== Retry Attempt: 2 ====" && bundle exec rake test:semian) || \
@@ -109,10 +109,9 @@ jobs:
       fail-fast: false
       matrix:
         ruby:
+          - "3.4"
+          - "3.3"
           - "3.2"
-          - "3.1"
-          - "3.0"
-          - "2.7"
         gemfile:
           - grpc
           - mysql2
@@ -160,7 +159,7 @@ jobs:
           --health-timeout=5s
           --health-retries=5
       toxiproxy:
-        image: ghcr.io/shopify/toxiproxy:2.5.0
+        image: ghcr.io/shopify/toxiproxy:2.12.0
     steps:
       -
         name: Checkout
@@ -185,6 +184,7 @@ jobs:
           bundle exec rake build
       -
         name: Tests
+        timeout-minutes: 5
         env:
           TEST: test/adapters/${{ matrix.adapter }}_test.rb
         run: |

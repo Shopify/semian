@@ -45,7 +45,7 @@ services:
       - test
 
   toxiproxy:
-    image: ghcr.io/shopify/toxiproxy:2.5.0
+    image: ghcr.io/shopify/toxiproxy:2.12.0
     container_name: toxiproxy
     depends_on:
       - redis

@@ -9,6 +9,6 @@ gem "mocha"
 gem "toxiproxy"
 gem "webrick"
 
-gem "grpc", "1.47.0"
+gem "grpc"
 
 gemspec path: "../"
