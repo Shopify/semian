@@ -39,7 +39,7 @@ module Semian
     DEFAULT_HOST = "localhost"
     DEFAULT_PORT = 3306
 
-    QUERY_ALLOWLIST = %r{\A(?:/\*.*?\*/)?\s*(ROLLBACK|COMMIT|RELEASE\s+SAVEPOINT)}i.freeze
+    QUERY_ALLOWLIST = %r{\A(?:/\*.*?\*/)?\s*(ROLLBACK|COMMIT|RELEASE\s+SAVEPOINT)}i
 
     class << self
       # The naked methods are exposed as `raw_query` and `raw_connect` for instrumentation purpose
