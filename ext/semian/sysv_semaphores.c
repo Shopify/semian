@@ -1,5 +1,6 @@
 #include "sysv_semaphores.h"
 #include <time.h>
+#include <stdbool.h>
 
 static key_t
 generate_key(const char *name);
