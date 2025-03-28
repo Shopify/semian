@@ -4,9 +4,6 @@
 static key_t
 generate_key(const char *name);
 
-static void *
-acquire_semaphore(void *p);
-
 static int
 wait_for_new_semaphore_set(key_t key, long permissions);
 
@@ -108,6 +105,9 @@ perform_semop(int sem_id, short index, short op, short flags, struct timespec *t
   buf.sem_flg = flags;
 
   int num_retries = 3;
+  if (flags & IPC_NOWAIT) {
+    num_retries = 0;
+  }
 
   do {
     result = semtimedop(sem_id, &buf, 1, ts);
@@ -151,17 +151,9 @@ get_semaphore(int key)
   return semget(key, SI_NUM_SEMAPHORES, 0);
 }
 
-void *
-acquire_semaphore_without_gvl(void *p)
+static void
+acquire_semaphore_internal(semian_resource_t *res, short flags)
 {
-  WITHOUT_GVL(acquire_semaphore, p, RUBY_UBF_IO, NULL);
-  return NULL;
-}
-
-static void *
-acquire_semaphore(void *p)
-{
-  semian_resource_t *res = (semian_resource_t *) p;
   res->error = 0;
   res->wait_time = -1;
 #ifdef DEBUG
@@ -170,13 +162,38 @@ acquire_semaphore(void *p)
 
   struct timespec begin, end;
   int benchmark_result = clock_gettime(CLOCK_MONOTONIC, &begin);
-  if (perform_semop(res->sem_id, SI_SEM_TICKETS, -1, SEM_UNDO, &res->timeout) == -1) {
+  if (perform_semop(res->sem_id, SI_SEM_TICKETS, -1, SEM_UNDO | flags, &res->timeout) == -1) {
     res->error = errno;
   }
   if (benchmark_result == 0) {
     if (clock_gettime(CLOCK_MONOTONIC, &end) == 0) {
       res->wait_time = diff_timespec_ms(&end, &begin);
     }
+  }
+}
+
+static void *
+acquire_semaphore(void *p)
+{
+  semian_resource_t *res = (semian_resource_t *) p;
+  acquire_semaphore_internal(res, 0);
+  return NULL;
+}
+
+// Eagerly attempt to acquire the semaphore
+static bool
+try_acquire_semaphore(void *p)
+{
+  semian_resource_t *res = (semian_resource_t *) p;
+  acquire_semaphore_internal(res, IPC_NOWAIT);
+  return !res->error;
+}
+
+void *
+acquire_semaphore_without_gvl(void *p)
+{
+  if (!try_acquire_semaphore(p)) {
+    WITHOUT_GVL(acquire_semaphore, p, RUBY_UBF_IO, NULL);
   }
   return NULL;
 }
