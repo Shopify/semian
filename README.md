@@ -576,6 +576,33 @@ We call this limitation primitive "tickets". In this case, the resource access
 is limited to 5 tickets (see Configuration). The timeout value specifies the
 maximum amount of time to block if no ticket is available.
 
+```mermaid
+
+graph TD;
+    Start[Start]
+    CheckConnection{Request Connection to Resource}
+    AllocateTicket[Allocate Ticket if Available]
+    BlockTimeout[Block until Timeout or Ticket Available]
+    AccessResource[Access Resource]
+    ReleaseTicket[Release Ticket]
+    FailRequest[Fail Request]
+    OpenCircuit[Open Circuit Breaker]
+    
+    Start --> CheckConnection
+    CheckConnection -->|Ticket Available| AllocateTicket
+    AllocateTicket --> AccessResource
+    AccessResource --> ReleaseTicket
+    ReleaseTicket --> CheckConnection
+    
+    CheckConnection -->|No Ticket Available| BlockTimeout
+    BlockTimeout -->|Timeout| FailRequest
+    BlockTimeout -->|Ticket Available| AccessResource
+
+    FailRequest --> OpenCircuit
+    OpenCircuit --> CheckConnection
+
+```
+
 How do we limit the access to a resource for all workers on a server when the
 workers do not directly share memory? This is implemented with [SysV
 semaphores][sysv] to provide server-wide access control.
