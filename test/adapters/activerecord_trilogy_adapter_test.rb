@@ -388,7 +388,7 @@ module ActiveRecord
           end
         end
 
-        raw_connection = adapter.send(:connection)
+        raw_connection = adapter.send(:raw_connection)
 
         assert_equal(2, raw_connection.read_timeout)
         assert_equal(2, raw_connection.write_timeout)

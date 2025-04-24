@@ -18,7 +18,6 @@ module Semian
     def initialize(name, exceptions:, success_threshold:, error_threshold:,
       error_timeout:, implementation:, half_open_resource_timeout: nil,
       error_threshold_timeout: nil, error_threshold_timeout_enabled: true)
-
       @name = name.to_sym
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
