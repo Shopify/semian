@@ -1,3 +1,8 @@
+# 0.23.0
+
+* Change: Attempt acquiring semaphore before releasing GVL (#573)
+* Support only Ruby 3.2 and onward (572)
+
 # 0.22.1
 
 * Change: Enable thread_safety rubocop
