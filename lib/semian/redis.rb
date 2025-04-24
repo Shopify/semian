@@ -163,7 +163,7 @@ module Semian
     end
 
     def dns_resolve_failure?(e)
-      e.to_s.match?(/(can't resolve)|(name or service not known)|(nodename nor servname provided, or not known)|(failure in name resolution)/i) # rubocop:disable Layout/LineLength
+      e.to_s.match?(/(can't resolve)|(name or service not known)|(nodename nor servname provided, or not known)|(failure in name resolution)/i)
     end
   end
 end
