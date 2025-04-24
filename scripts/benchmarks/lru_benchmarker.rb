@@ -55,7 +55,7 @@ class LRUBenchmarker
     # Creates a new resource and will randomly
     # make it a success or a failure
     random = rand(1...100)
-    if random >= 0 && random <= 50
+    if random.between?(0, 50)
       Semian.register(
         "testing_#{i}",
         bulkhead: true,
