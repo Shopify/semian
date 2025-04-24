@@ -129,7 +129,7 @@ GEM
       rubocop (>= 1.72.1)
     rubocop-shopify (2.16.0)
       rubocop (~> 1.62)
-    rubocop-thread_safety (0.7.0)
+    rubocop-thread_safety (0.7.2)
       lint_roller (~> 1.1)
       rubocop (~> 1.72, >= 1.72.1)
     ruby-progressbar (1.13.0)
