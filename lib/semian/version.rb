@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
 module Semian
-  VERSION = "0.22.1"
+  VERSION = "0.23.0-rc2"
 end
