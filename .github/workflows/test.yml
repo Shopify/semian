@@ -57,10 +57,10 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       -
         name: Cache
-        uses: actions/cache@v4
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: vendor/bundle
           key: ${{ runner.os }}-ruby-${{ matrix.ruby }}-gems-${{ hashFiles( format('{0}.lock', env.BUNDLE_GEMFILE) ) }}
@@ -163,10 +163,10 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       -
         name: Cache
-        uses: actions/cache@v4
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: vendor/bundle
           key: ${{ runner.os }}-ruby-${{ matrix.ruby }}-adapter-${{ matrix.gemfile }}-gems-${{ hashFiles( format('{0}.lock', env.BUNDLE_GEMFILE) ) }}
