@@ -310,6 +310,11 @@ module Semian
                                        else
                                          options[:error_threshold_timeout_enabled]
                                        end,
+      lumping_interval: if options[:lumping_interval].nil?
+                          0
+                        else
+                          options[:lumping_interval]
+                        end,
       exceptions: Array(exceptions) + [::Semian::BaseError],
       half_open_resource_timeout: options[:half_open_resource_timeout],
       implementation: implementation(**options),
