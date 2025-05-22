@@ -15,15 +15,15 @@ allowing you to handle errors gracefully.** Semian does this by intercepting
 resource access through heuristic patterns inspired by [Hystrix][hystrix] and
 [Release It][release-it]:
 
-* [**Circuit breaker**](#circuit-breaker). A pattern for limiting the
+- [**Circuit breaker**](#circuit-breaker). A pattern for limiting the
   amount of requests to a dependency that is having issues.
-* [**Bulkheading**](#bulkheading). Controlling the concurrent access to
+- [**Bulkheading**](#bulkheading). Controlling the concurrent access to
   a single resource, access is coordinated server-wide with [SysV
   semaphores][sysv].
 
 Resource drivers are monkey-patched to be aware of Semian, these are called
 [Semian Adapters](#adapters). Thus, every time resource access is requested
-Semian is queried for status on the resource first.  If Semian, through the
+Semian is queried for status on the resource first. If Semian, through the
 patterns above, deems the resource to be unavailable it will raise an exception.
 **The ultimate outcome of Semian is always an exception that can then be rescued
 for a graceful fallback**. Instead of waiting for the timeout, Semian raises
@@ -60,7 +60,7 @@ section](#configuration) on how to configure adapters.
 
 Semian works by intercepting resource access. Every time access is requested,
 Semian is queried, and it will raise an exception if the resource is unavailable
-according to the circuit breaker or bulkheads.  This is done by monkey-patching
+according to the circuit breaker or bulkheads. This is done by monkey-patching
 the resource driver. **The exception raised by the driver always inherits from
 the Base exception class of the driver**, meaning you can always simply rescue
 the base class and catch both Semian and driver errors in the same rescue for
@@ -69,11 +69,11 @@ fallbacks.
 The following adapters are in Semian and tested heavily in production, the
 version is the version of the public gem with the same name:
 
-* [`semian/mysql2`][mysql-semian-adapter] (~> 0.3.16)
-* [`semian/redis`][redis-semian-adapter] (~> 3.2.1)
-* [`semian/net_http`][nethttp-semian-adapter]
-* [`semian/activerecord_trilogy_adapter`][activerecord-trilogy-semian-adapter]
-* [`semian-postgres`][postgres-semian-adapter]
+- [`semian/mysql2`][mysql-semian-adapter] (~> 0.3.16)
+- [`semian/redis`][redis-semian-adapter] (~> 3.2.1)
+- [`semian/net_http`][nethttp-semian-adapter]
+- [`semian/activerecord_trilogy_adapter`][activerecord-trilogy-semian-adapter]
+- [`semian-postgres`][postgres-semian-adapter]
 
 ### Creating Adapters
 
@@ -158,27 +158,27 @@ should be adequate in most environments with reasonably low timeouts.
 
 Internally, semian uses `SEM_UNDO` for several sysv semaphore operations:
 
-* Acquire
-* Worker registration
-* Semaphore metadata state lock
+- Acquire
+- Worker registration
+- Semaphore metadata state lock
 
 The intention behind `SEM_UNDO` is that a semaphore operation is automatically undone when the process exits. This
 is true even if the process exits abnormally - crashes, receives a `SIG_KILL`, etc, because it is handled by
 the operating system and not the process itself.
 
 If, however, a thread performs a semop, the `SEM_UNDO` is on its parent process. This means that the operation
-*will not* be undone when the thread exits. This can result in the following unfavorable behavior when using
+_will not_ be undone when the thread exits. This can result in the following unfavorable behavior when using
 threads:
 
-* Threads acquire a resource, but are killed and the resource ticket is never released. For a process, the
-ticket would be released by `SEM_UNDO`, but since it's a thread there is the potential for ticket starvation.
-This can result in deadlock on the resource.
-* Threads that register workers on a resource but are killed and never unregistered. For a process, the worker
-count would be automatically decremented by `SEM_UNDO`, but for threads the worker count will continue to increment,
-only being undone when the parent process dies. This can cause the number of tickets to dramatically exceed the quota.
-* If a thread acquires the semaphore metadata lock and dies before releasing it, semian will deadlock on anything
-attempting to acquire the metadata lock until the thread's parent process exits. This can prevent the ticket count
-from being updated.
+- Threads acquire a resource, but are killed and the resource ticket is never released. For a process, the
+  ticket would be released by `SEM_UNDO`, but since it's a thread there is the potential for ticket starvation.
+  This can result in deadlock on the resource.
+- Threads that register workers on a resource but are killed and never unregistered. For a process, the worker
+  count would be automatically decremented by `SEM_UNDO`, but for threads the worker count will continue to increment,
+  only being undone when the parent process dies. This can cause the number of tickets to dramatically exceed the quota.
+- If a thread acquires the semaphore metadata lock and dies before releasing it, semian will deadlock on anything
+  attempting to acquire the metadata lock until the thread's parent process exits. This can prevent the ticket count
+  from being updated.
 
 Moreover, a strategy that utilizes `SEM_UNDO` is not compatible with a strategy that attempts to the semaphores tickets manually.
 In order to support threads, operations that currently use `SEM_UNDO` would need to use no semaphore flag, and the calling process
@@ -214,17 +214,19 @@ calculate and adjust ticket counts.
 
 - You must pass **exactly** one of options: `tickets` or `quota`.
 - Tickets available will be the ceiling of the quota ratio to the number of workers
- - So, with one worker, there will always be a minimum of 1 ticket
+- So, with one worker, there will always be a minimum of 1 ticket
 - Workers in different processes will automatically unregister when the process exits.
 - If you have a small number of workers (exactly 2) it's possible that the bulkhead will be too sensitive using quotas.
 - If you use a forking web server (like unicorn) you should call `Semian.unregister_all_resources` before/after forking.
 
 #### Net::HTTP
+
 For the `Net::HTTP` specific Semian adapter, since many external libraries may create
 HTTP connections on the user's behalf, the parameters are instead provided
 by associating callback functions with `Semian::NetHTTP`, perhaps in an initialization file.
 
 ##### Naming and Options
+
 To give Semian parameters, assign a `proc` to `Semian::NetHTTP.semian_configuration`
 that takes a two parameters, `host` and `port` like `127.0.0.1`,`443` or `github_com`,`80`,
 and returns a `Hash` with configuration parameters as follows. The `proc` is used as a
@@ -300,6 +302,7 @@ behavior can be changed to blacklisting or even be completely disabled by varyin
 the use of returning `nil` in the assigned closure.
 
 ##### Additional Exceptions
+
 Since we envision this particular adapter can be used in combination with many
 external libraries, that can raise additional exceptions, we added functionality to
 expand the Exceptions that can be tracked as part of Semian's circuit breaker.
@@ -513,22 +516,23 @@ all workers on a server.
 
 There are four configuration parameters for circuit breakers in Semian:
 
-* **circuit_breaker**. Enable or Disable Circuit Breaker. Defaults to `true` if not set.
-* **error_threshold**. The amount of errors a worker encounters within `error_threshold_timeout`
+- **circuit_breaker**. Enable or Disable Circuit Breaker. Defaults to `true` if not set.
+- **error_threshold**. The amount of errors a worker encounters within `error_threshold_timeout`
   amount of time before opening the circuit,
   that is to start rejecting requests instantly.
-* **error_threshold_timeout**. The amount of time in seconds that `error_threshold`
+- **error_threshold_timeout**. The amount of time in seconds that `error_threshold`
   errors must occur to open the circuit.
   Defaults to `error_timeout` seconds if not set.
-* **error_timeout**. The amount of time in seconds until trying to query the resource
+- **error_timeout**. The amount of time in seconds until trying to query the resource
   again.
-* **error_threshold_timeout_enabled**. If set to false it will disable
+- **error_threshold_timeout_enabled**. If set to false it will disable
   the time window for evicting old exceptions. `error_timeout` is still used and
   will reset the circuit. Defaults to `true` if not set.
-* **success_threshold**. The amount of successes on the circuit until closing it
+- **success_threshold**. The amount of successes on the circuit until closing it
   again, that is to start accepting all requests to the circuit.
-* **half_open_resource_timeout**. Timeout for the resource in seconds when
+- **half_open_resource_timeout**. Timeout for the resource in seconds when
   the circuit is half-open (supported for MySQL, Net::HTTP and Redis).
+- **lumping_interval**. Interval for timeframe of errors to be lumped and recorded as one.
 
 It is possible to disable Circuit Breaker with environment variable
 `SEMIAN_CIRCUIT_BREAKER_DISABLED=1`.
@@ -587,13 +591,13 @@ graph TD;
     ReleaseTicket[Release Ticket]
     FailRequest[Fail Request]
     OpenCircuit[Open Circuit Breaker]
-    
+
     Start --> CheckConnection
     CheckConnection -->|Ticket Available| AllocateTicket
     AllocateTicket --> AccessResource
     AccessResource --> ReleaseTicket
     ReleaseTicket --> CheckConnection
-    
+
     CheckConnection -->|No Ticket Available| BlockTimeout
     BlockTimeout -->|Timeout| FailRequest
     BlockTimeout -->|Ticket Available| AccessResource
@@ -614,9 +618,9 @@ still experimenting with ways to figure out optimal ticket numbers. Generally
 something below half the number of workers on the server for endpoints that are
 queried frequently has worked well for us.
 
-* **bulkhead**. Enable or Disable Bulkhead. Defaults to `true` if not set.
-* **tickets**. Number of workers that can concurrently access a resource.
-* **timeout**. Time to wait in seconds to acquire a ticket if there are no tickets left.
+- **bulkhead**. Enable or Disable Bulkhead. Defaults to `true` if not set.
+- **tickets**. Number of workers that can concurrently access a resource.
+- **timeout**. Time to wait in seconds to acquire a ticket if there are no tickets left.
   We recommend this to be `0` unless you have very few workers running (i.e.
   less than ~5).
 
@@ -626,11 +630,11 @@ It is possible to disable Bulkhead with environment variable
 Note that there are system-wide limitations on how many tickets can be allocated
 on a system. `cat /proc/sys/kernel/sem` will tell you.
 
-> System-wide limit on the number of semaphore sets.  On Linux
-  systems before version 3.19, the default value for this limit
-  was 128.  Since Linux 3.19, the default value is 32,000.  On
-  Linux, this limit can be read and modified via the fourth
-  field of `/proc/sys/kernel/sem`.
+> System-wide limit on the number of semaphore sets. On Linux
+> systems before version 3.19, the default value for this limit
+> was 128. Since Linux 3.19, the default value is 32,000. On
+> Linux, this limit can be read and modified via the fourth
+> field of `/proc/sys/kernel/sem`.
 
 #### Bulkhead debugging on linux
 
@@ -668,10 +672,10 @@ semnum     value      ncount     zcount     pid
 In the above example, we can see each of the semaphores. Looking at the enum code
 in `ext/semian/sysv_semaphores.h` we can see that:
 
-* 0: is the semian meta lock (mutex) protecting updates to the other resources. It's currently free
-* 1: is the number of available tickets - currently no tickets are in use because it's the same as 2
-* 2: is the configured (maximum) number of tickets
-* 3: is the number of registered workers (processes) that would be considered if using the quota strategy.
+- 0: is the semian meta lock (mutex) protecting updates to the other resources. It's currently free
+- 1: is the number of available tickets - currently no tickets are in use because it's the same as 2
+- 2: is the configured (maximum) number of tickets
+- 3: is the number of registered workers (processes) that would be considered if using the quota strategy.
 
 ## Defense line
 
@@ -884,45 +888,47 @@ $ cd semian
 ```
 
 ## Visual Studio Code
-  - Open semian in vscode
-  - Install recommended extensions (one off requirement)
-  - Click `reopen in container` (first boot might take about a minute)
 
-  See https://code.visualstudio.com/docs/remote/containers for more details
+- Open semian in vscode
+- Install recommended extensions (one off requirement)
+- Click `reopen in container` (first boot might take about a minute)
 
+See https://code.visualstudio.com/docs/remote/containers for more details
 
-  If you make any changes to `.devcontainer/` you'd need to recreate the containers:
+If you make any changes to `.devcontainer/` you'd need to recreate the containers:
 
-  - Select `Rebuild Container` from the command palette
+- Select `Rebuild Container` from the command palette
 
+Running Tests:
 
-  Running Tests:
-  - `$ bundle exec rake` Run with `SKIP_FLAKY_TESTS=true` to skip flaky tests (CI runs all tests)
+- `$ bundle exec rake` Run with `SKIP_FLAKY_TESTS=true` to skip flaky tests (CI runs all tests)
 
 ## Everything else
 
-  Test semian in containers:
-  - `$ docker-compose -f .devcontainer/docker-compose.yml up -d`
-  - `$ docker exec -it semian bash`
+Test semian in containers:
 
-  If you make any changes to `.devcontainer/` you'd need to recreate the containers:
+- `$ docker-compose -f .devcontainer/docker-compose.yml up -d`
+- `$ docker exec -it semian bash`
 
-  - `$ docker-compose -f .devcontainer/docker-compose.yml up -d --force-recreate`
+If you make any changes to `.devcontainer/` you'd need to recreate the containers:
 
-  Run tests in containers:
+- `$ docker-compose -f .devcontainer/docker-compose.yml up -d --force-recreate`
 
-  ```shell
-  $ docker-compose -f ./.devcontainer/docker-compose.yml run --rm test
-  ```
+Run tests in containers:
 
-  Running Tests:
-  - `$ bundle exec rake` Run with `SKIP_FLAKY_TESTS=true` to skip flaky tests (CI runs all tests)
+```shell
+$ docker-compose -f ./.devcontainer/docker-compose.yml run --rm test
+```
+
+Running Tests:
+
+- `$ bundle exec rake` Run with `SKIP_FLAKY_TESTS=true` to skip flaky tests (CI runs all tests)
 
 ### Running tests in batches
 
-* *TEST_WORKERS* - Total number of workers or batches.
-  It uses to identify a total number of batches, that would be run in parallel. *Default: 1*
-* *TEST_WORKER_NUM* - Specify which batch to run. The value is between 1 and *TEST_WORKERS*. *Default: 1*
+- _TEST_WORKERS_ - Total number of workers or batches.
+  It uses to identify a total number of batches, that would be run in parallel. _Default: 1_
+- _TEST_WORKER_NUM_ - Specify which batch to run. The value is between 1 and _TEST_WORKERS_. _Default: 1_
 
 ```shell
 $ bundle exec rake test:parallel TEST_WORKERS=5 TEST_WORKER_NUM=1
