@@ -532,7 +532,7 @@ There are four configuration parameters for circuit breakers in Semian:
   again, that is to start accepting all requests to the circuit.
 - **half_open_resource_timeout**. Timeout for the resource in seconds when
   the circuit is half-open (supported for MySQL, Net::HTTP and Redis).
-- **lumping_interval**. Interval for timeframe of errors to be lumped and recorded as one.
+- **lumping_interval**. If provided, errors within this timeframe (in seconds) will be lumped and recorded as one.
 
 It is possible to disable Circuit Breaker with environment variable
 `SEMIAN_CIRCUIT_BREAKER_DISABLED=1`.
