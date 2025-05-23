@@ -600,4 +600,111 @@ class TestCircuitBreaker < Minitest::Test
   ensure
     Semian.unsubscribe(:test_notify_state_transition)
   end
+
+  def test_lumping_interval_prevents_rapid_error_accumulation
+    resource = Semian.register(
+      :lumping_test,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 3,
+      error_timeout: 10,
+      success_threshold: 1,
+      lumping_interval: 2,
+    )
+
+    # Trigger an arbitrary number of errors within lumping interval
+    6.times do
+      trigger_error!(resource)
+    end
+
+    # Should not open circuit since errors are lumped
+    assert_circuit_closed(resource)
+
+    time_travel(3) do
+      6.times do
+        trigger_error!(resource)
+      end
+
+      assert_circuit_closed(resource)
+
+      time_travel(3) do
+        # A single error should open circuit because we have reached the error threshold
+        trigger_error!(resource)
+
+        assert_circuit_opened(resource)
+      end
+    end
+  ensure
+    Semian.destroy(:lumping_test)
+  end
+
+  def test_lumping_interval_respects_error_threshold
+    resource = Semian.register(
+      :lumping_threshold_test,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+      lumping_interval: 1,
+    )
+
+    # First error
+    trigger_error!(resource)
+
+    assert_circuit_closed(resource)
+
+    # Wait past lumping interval
+    time_travel(2) do
+      # Second error should open circuit
+      trigger_error!(resource)
+
+      assert_circuit_opened(resource)
+    end
+  ensure
+    Semian.destroy(:lumping_threshold_test)
+  end
+
+  def test_lumping_interval_with_zero_value
+    resource = Semian.register(
+      :lumping_zero_test,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+      lumping_interval: 0,
+    )
+
+    # First error
+    trigger_error!(resource)
+
+    assert_circuit_closed(resource)
+
+    # Second error should open circuit immediately
+    trigger_error!(resource)
+
+    assert_circuit_opened(resource)
+  ensure
+    Semian.destroy(:lumping_zero_test)
+  end
+
+  def test_lumping_interval_cannot_be_greater_than_error_threshold_timeout
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :lumping_validation_test,
+        bulkhead: false,
+        exceptions: [SomeError],
+        error_threshold: 2,
+        error_timeout: 5,
+        error_threshold_timeout: 3,
+        success_threshold: 1,
+        lumping_interval: 4,
+      )
+    end
+
+    assert_match(/lumping_interval \(4\) must be less than error_threshold_timeout \(3\)/, error.message)
+  ensure
+    Semian.destroy(:lumping_validation_test)
+  end
 end

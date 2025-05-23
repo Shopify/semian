@@ -17,7 +17,8 @@ module Semian
 
     def initialize(name, exceptions:, success_threshold:, error_threshold:,
       error_timeout:, implementation:, half_open_resource_timeout: nil,
-      error_threshold_timeout: nil, error_threshold_timeout_enabled: true)
+      error_threshold_timeout: nil, error_threshold_timeout_enabled: true,
+      lumping_interval: 0)
       @name = name.to_sym
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
@@ -26,6 +27,11 @@ module Semian
       @error_timeout = error_timeout
       @exceptions = exceptions
       @half_open_resource_timeout = half_open_resource_timeout
+      @lumping_interval = lumping_interval
+
+      if @lumping_interval > @error_threshold_timeout
+        raise ArgumentError, "lumping_interval (#{@lumping_interval}) must be less than error_threshold_timeout (#{@error_threshold_timeout})"
+      end
 
       @errors = implementation::SlidingWindow.new(max_size: @error_count_threshold)
       @successes = implementation::Integer.new
@@ -63,7 +69,6 @@ module Semian
 
     def mark_failed(error)
       push_error(error)
-      push_time
       if closed?
         transition_to_open if error_threshold_reached?
       elsif half_open?
@@ -132,16 +137,16 @@ module Semian
     end
 
     def push_error(error)
-      @last_error = error
-    end
-
-    def push_time
       time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
       if error_threshold_timeout_enabled
         @errors.reject! { |err_time| err_time + @error_threshold_timeout < time }
       end
 
-      @errors << time
+      if @errors.empty? || @errors.last <= time - @lumping_interval
+        @last_error = error
+        @errors << time
+      end
     end
 
     def log_state_transition(new_state)
