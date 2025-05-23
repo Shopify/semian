@@ -1,3 +1,7 @@
+# 0.24.0
+
+* Feature: Add `lumping_interval` option that allows lumping errors within a timeframe as a single error (#606)
+
 # 0.23.0
 
 * Change: Attempt acquiring semaphore before releasing GVL (#573)
