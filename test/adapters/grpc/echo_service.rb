@@ -3,10 +3,6 @@
 # A test service with an echo implementation.
 class EchoMsg
   class << self
-    def marshal(_o)
-      ""
-    end
-
     def unmarshal(_o)
       EchoMsg.new
     end
