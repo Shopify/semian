@@ -9,8 +9,6 @@ module GRPC
   GRPC::ResourceExhausted.include(::Semian::AdapterError)
 
   class SemianError < GRPC::Unavailable
-    attr_reader :details
-
     def initialize(semian_identifier, *args)
       super(*args)
       @details = message
