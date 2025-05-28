@@ -19,7 +19,6 @@ class EchoService
   rpc :a_client_streaming_rpc, stream(EchoMsg), EchoMsg
   rpc :a_server_streaming_rpc, EchoMsg, stream(EchoMsg)
   rpc :a_bidi_rpc, stream(EchoMsg), stream(EchoMsg)
-  attr_reader :received_md
 
   def initialize(**kw)
     @trailing_metadata = kw
