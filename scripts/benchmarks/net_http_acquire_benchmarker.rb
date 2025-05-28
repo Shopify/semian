@@ -54,10 +54,6 @@ end
 
 # Benchmarking
 class GCSuite
-  def warming(*)
-    run_gc
-  end
-
   def running(*)
     run_gc
   end
