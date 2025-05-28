@@ -79,16 +79,6 @@ module Semian
       end
       super
     end
-
-    def raw_execute(sql, *)
-      if Semian::ActiveRecordTrilogyAdapter.query_allowlisted?(sql)
-        super
-      else
-        acquire_semian_resource(adapter: :trilogy_adapter, scope: :query) do
-          super
-        end
-      end
-    end
     ruby2_keywords :raw_execute
 
     def active?
