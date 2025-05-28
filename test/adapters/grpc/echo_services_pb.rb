@@ -32,7 +32,5 @@ module Echo
 
       rpc :Echo, EchoRequest, EchoReply
     end
-
-    Stub = Service.rpc_stub_class
   end
 end
