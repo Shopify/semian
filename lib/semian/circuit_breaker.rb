@@ -8,7 +8,6 @@ module Semian
 
     attr_reader(
       :name,
-      :half_open_resource_timeout,
       :error_timeout,
       :state,
       :last_error,
