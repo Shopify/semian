@@ -65,9 +65,6 @@ class GCSuite
   def warmup_stats(*)
   end
 
-  def add_report(*)
-  end
-
   private
 
   def run_gc
