@@ -101,12 +101,6 @@ module Semian
       acquire_semian_resource_grpc(scope: :server_streamer) { super }
     end
 
-    def bidi_streamer(*, **)
-      return super if disabled?
-
-      acquire_semian_resource_grpc(scope: :bidi_streamer) { super }
-    end
-
     def acquire_semian_resource_grpc(scope:)
       acquire_semian_resource(adapter: :grpc, scope: scope) do
         result = yield
