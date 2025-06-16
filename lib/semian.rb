@@ -16,6 +16,7 @@ require "semian/simple_sliding_window"
 require "semian/simple_integer"
 require "semian/simple_state"
 require "semian/lru_hash"
+require "semian/configuration_validator"
 
 #
 # === Overview
@@ -152,46 +153,46 @@ module Semian
   # but the resource must have been previously registered otherwise an error will be raised.
   # Mutually exclusive with the 'quota' argument.
   #
-  # +quota+: Calculate tickets as a ratio of the number of registered workers.
-  # Must be greater than 0, less than or equal to 1. There will always be at least 1 ticket, as it
-  # is calculated as (workers * quota).ceil
-  # Mutually exclusive with the 'ticket' argument.
-  # but the resource must have been previously registered otherwise an error will be raised. (bulkhead)
+  # +quota+: A decimal between 0 and 1 that represents the ratio of tickets to workers.
+  # Mutually exclusive with the 'tickets' argument.
   #
-  # +permissions+: Octal permissions of the resource. Default to +Semian.default_permissions+ (0660). (bulkhead)
+  # +timeout+: The default timeout in seconds for acquiring a ticket. Default 0.
   #
-  # +timeout+: Default timeout in seconds. Default 0. (bulkhead)
+  # +error_threshold+: The number of errors that must occur in the span of error_timeout
+  # before the circuit is opened. Required if circuit_breaker is true.
   #
-  # +error_timeout+: The duration in seconds since the last error after which the error count is reset to 0.
-  # (circuit breaker required)
+  # +error_timeout+: The time in seconds that error_threshold errors must occur in
+  # before the circuit is opened. Required if circuit_breaker is true.
   #
-  # +error_threshold+: The amount of errors that must happen within error_timeout amount of time to open
-  # the circuit. (circuit breaker required)
+  # +success_threshold+: The number of successful acquisitions that must occur
+  # before the circuit is closed. Required if circuit_breaker is true.
   #
-  # +error_threshold_timeout+: The duration in seconds to examine number of errors to compare with error_threshold.
-  # Default same as error_timeout. (circuit breaker)
-  #
-  # +error_threshold_timeout_enabled+: flag to enable/disable filter time window based error eviction
-  # (error_threshold_timeout). Default true. (circuit breaker)
-  #
-  # +success_threshold+: The number of consecutive success after which an half-open circuit will be fully closed.
-  # (circuit breaker required)
-  #
-  # +exceptions+: An array of exception classes that should be accounted as resource errors. Default [].
-  # (circuit breaker)
-  #
-  # Returns the registered resource.
-  def register(name, **options)
-    return UnprotectedResource.new(name) if ENV.key?("SEMIAN_DISABLED")
+  # +adapter+: The adapter type (e.g. :net_http, :grpc) for adapter-specific validations.
+  def register(name, **args)
+    # Validate configuration before proceeding
+    ConfigurationValidator.validate!(args.merge(name: name), adapter: args[:adapter])
 
-    circuit_breaker = create_circuit_breaker(name, **options)
-    bulkhead = create_bulkhead(name, **options)
-
-    if circuit_breaker.nil? && bulkhead.nil?
+    # Check if both bulkhead and circuit breaker are disabled
+    if args[:bulkhead] == false && args[:circuit_breaker] == false
       raise ArgumentError, "Both bulkhead and circuitbreaker cannot be disabled."
     end
 
-    resources[name] = ProtectedResource.new(name, bulkhead, circuit_breaker)
+    # Check for required circuit breaker parameters
+    if args[:circuit_breaker] != false
+      required_args = [:success_threshold, :error_threshold, :error_timeout]
+      missing_args = required_args - args.keys
+      if missing_args.any?
+        raise ArgumentError, "Missing required arguments for Semian: #{missing_args}"
+      end
+    end
+
+    # Create the resource
+    resource = Resource.instance(name, **args)
+
+    # Register the resource
+    resources[name] = resource
+
+    resource
   end
 
   def retrieve_or_register(name, **args)
