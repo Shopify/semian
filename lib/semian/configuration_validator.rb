@@ -2,37 +2,47 @@
 
 module Semian
   class ConfigurationValidator
-    class ValidationError < StandardError; end
-
-    def validate!(configuration, adapter: nil)
-      new(configuration, adapter: adapter).validate!
-    end
-
     def initialize(configuration, adapter: nil)
       @configuration = configuration
       @adapter = adapter
     end
 
     def validate!
+      validate_circuit_breaker_or_bulkhead!
       validate_bulkhead_configuration!
       validate_circuit_breaker_configuration!
       validate_resource_name!
-      validate_adapter_specific_configuration! if @adapter
+      validate_adapter_specific_configuration!
       true
     end
 
     private
 
+    def require_keys!(required, options)
+      diff = required - options.keys
+      unless diff.empty?
+        raise ArgumentError, "Missing required arguments for Semian: #{diff}"
+      end
+    end
+
+    def validate_circuit_breaker_or_bulkhead!
+      if @configuration[:circuit_breaker] == false && @configuration[:bulkhead] == false
+        raise ArgumentError, "Both bulkhead and circuitbreaker cannot be disabled."
+      end
+    end
+
     def validate_bulkhead_configuration!
+      return unless @configuration.fetch(:bulkhead, true)
+
       tickets = @configuration[:tickets]
       quota = @configuration[:quota]
 
       if tickets.nil? && quota.nil?
-        raise ValidationError, "Semian configuration requires either the :tickets or :quota parameter, you provided neither"
+        raise ArgumentError, "Semian configuration require either the :tickets or :quota parameter, you provided neither"
       end
 
       if tickets && quota
-        raise ValidationError, "Semian configuration requires either the :tickets or :quota parameter, you provided both"
+        raise ArgumentError, "Semian configuration require either the :tickets or :quota parameter, you provided both"
       end
 
       validate_quota!(quota) if quota
@@ -40,8 +50,9 @@ module Semian
     end
 
     def validate_circuit_breaker_configuration!
-      return unless @configuration[:circuit_breaker]
+      return unless @configuration.fetch(:circuit_breaker, true)
 
+      require_keys!([:success_threshold, :error_threshold, :error_timeout], @configuration)
       validate_thresholds!
       validate_timeouts!
     end
@@ -51,41 +62,59 @@ module Semian
       error_threshold = @configuration[:error_threshold]
 
       if success_threshold && success_threshold <= 0
-        raise ValidationError, "success_threshold must be positive"
+        raise ArgumentError, "success_threshold must be positive"
       end
 
       if error_threshold && error_threshold <= 0
-        raise ValidationError, "error_threshold must be positive"
+        raise ArgumentError, "error_threshold must be positive"
       end
     end
 
     def validate_timeouts!
       error_timeout = @configuration[:error_timeout]
       error_threshold_timeout = @configuration[:error_threshold_timeout]
+      error_threshold = @configuration[:error_threshold]
       lumping_interval = @configuration[:lumping_interval]
+      half_open_resource_timeout = @configuration[:half_open_resource_timeout]
 
-      if error_timeout && error_timeout < 0
-        raise ValidationError, "error_timeout must be non-negative"
+      unless error_timeout && error_timeout >= 0
+        raise ArgumentError, "error_timeout must be non-negative"
       end
 
-      if error_threshold_timeout && error_threshold_timeout < 0
-        raise ValidationError, "error_threshold_timeout must be non-negative"
+      unless error_threshold_timeout.nil? || error_threshold_timeout >= 0
+        raise ArgumentError, "error_threshold_timeout must be non-negative"
       end
 
-      if lumping_interval && error_threshold_timeout && lumping_interval > error_threshold_timeout
-        raise ValidationError, "lumping_interval (#{lumping_interval}) must be less than error_threshold_timeout (#{error_threshold_timeout})"
+      unless half_open_resource_timeout.nil? || half_open_resource_timeout >= 0
+        raise ArgumentError, "half_open_resource_timeout must be non-negative"
+      end
+
+      unless lumping_interval.nil? || lumping_interval >= 0
+        raise ArgumentError, "lumping_interval must be non-negative"
+      end
+
+      unless lumping_interval.nil? || error_threshold_timeout.nil? || lumping_interval * (error_threshold - 1) <= error_threshold_timeout
+        raise ArgumentError, "constraint violated: lumping_interval * (error_threshold - 1) <= error_threshold_timeout, got lumping_interval: #{lumping_interval}, error_threshold: #{error_threshold}, error_threshold_timeout: #{error_threshold_timeout}"
+      end
+
+      unless half_open_resource_timeout.nil? || half_open_resource_timeout <= error_timeout
+        raise ArgumentError, "constraint violated: half_open_resource_timeout <= error_timeout, got half_open_resource_timeout: #{half_open_resource_timeout}, error_timeout: #{error_timeout}"
+      end
+
+      unless half_open_resource_timeout.nil? || error_threshold_timeout.nil? || half_open_resource_timeout <= error_threshold_timeout
+        raise ArgumentError, "constraint violated: half_open_resource_timeout <= error_threshold_timeout, got half_open_resource_timeout: #{half_open_resource_timeout}, error_threshold_timeout: #{error_threshold_timeout}"
       end
     end
 
     def validate_quota!(quota)
       unless quota.is_a?(Numeric) && quota > 0 && quota <= 1
-        raise ValidationError, "quota must be a decimal between 0 and 1"
+        raise ArgumentError, "quota must be a decimal between 0 and 1"
       end
     end
 
     def validate_tickets!(tickets)
       unless tickets.is_a?(Integer) && tickets >= 0 && tickets <= Semian::MAX_TICKETS
-        raise ValidationError, "ticket count must be a non-negative integer and less than #{Semian::MAX_TICKETS}"
+        raise ArgumentError, "ticket count must be a non-negative integer and less than #{Semian::MAX_TICKETS}"
       end
     end
 
@@ -94,11 +123,11 @@ module Semian
       return unless name
 
       unless name.is_a?(String) || name.is_a?(Symbol)
-        raise ValidationError, "name must be a symbol or string"
+        raise ArgumentError, "name must be a symbol or string"
       end
 
       if Semian.resources[name.to_s]
-        raise ValidationError, "Resource with name #{name} is already registered"
+        raise ArgumentError, "Resource with name #{name} is already registered"
       end
     end
 
@@ -113,13 +142,13 @@ module Semian
 
     def validate_net_http_configuration!
       if @configuration[:dynamic] && !@configuration[:name]
-        raise ValidationError, "Dynamic configuration requires a name parameter"
+        raise ArgumentError, "Dynamic configuration requires a name parameter"
       end
     end
 
     def validate_grpc_configuration!
       if @configuration[:dynamic] && !@configuration[:name]
-        raise ValidationError, "Dynamic configuration requires a name parameter"
+        raise ArgumentError, "Dynamic configuration requires a name parameter"
       end
     end
   end
