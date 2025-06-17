@@ -703,8 +703,156 @@ class TestCircuitBreaker < Minitest::Test
       )
     end
 
-    assert_match(/lumping_interval \(4\) must be less than error_threshold_timeout \(3\)/, error.message)
+    assert_equal("constraint violated: lumping_interval * (error_threshold - 1) <= error_threshold_timeout, got lumping_interval: 4, error_threshold: 2, error_threshold_timeout: 3", error.message)
   ensure
     Semian.destroy(:lumping_validation_test)
+  end
+
+  def test_circuit_breaker_with_invalid_success_threshold
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :testing_invalid_success,
+        circuit_breaker: true,
+        success_threshold: 0,
+        error_threshold: 2,
+        error_timeout: 5,
+        bulkhead: false,
+      )
+    end
+
+    assert_equal("success_threshold must be positive", error.message)
+  end
+
+  def test_circuit_breaker_with_invalid_error_threshold
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :testing_invalid_error,
+        circuit_breaker: true,
+        success_threshold: 2,
+        error_threshold: 0,
+        error_timeout: 5,
+        bulkhead: false,
+      )
+    end
+
+    assert_equal("error_threshold must be positive", error.message)
+  end
+
+  def test_circuit_breaker_with_invalid_error_timeout
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :testing_invalid_timeout,
+        circuit_breaker: true,
+        success_threshold: 2,
+        error_threshold: 2,
+        error_timeout: -1,
+        bulkhead: false,
+      )
+    end
+
+    assert_equal("error_timeout must be non-negative", error.message)
+  end
+
+  def test_circuit_breaker_with_invalid_lumping_interval
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :testing_invalid_lumping,
+        circuit_breaker: true,
+        success_threshold: 2,
+        error_threshold: 2,
+        error_timeout: 5,
+        lumping_interval: 10,
+        error_threshold_timeout: 5,
+        bulkhead: false,
+      )
+    end
+
+    assert_equal("constraint violated: lumping_interval * (error_threshold - 1) <= error_threshold_timeout, got lumping_interval: 10, error_threshold: 2, error_threshold_timeout: 5", error.message)
+  end
+
+  def test_circuit_breaker_with_missing_required_params
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :testing_missing_params,
+        circuit_breaker: true,
+        success_threshold: 2,
+        bulkhead: false,
+      )
+    end
+
+    assert_equal("Missing required arguments for Semian: [:error_threshold, :error_timeout]", error.message)
+  end
+
+  def test_half_open_resource_timeout_negative
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :invalid_half_open_resource_timeout,
+        tickets: 1,
+        error_threshold: 2,
+        error_timeout: 5,
+        success_threshold: 1,
+        half_open_resource_timeout: -1,
+      )
+    end
+    assert_equal("half_open_resource_timeout must be non-negative", error.message)
+  end
+
+  def test_lumping_interval_negative
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :invalid_lumping_interval,
+        tickets: 1,
+        error_threshold: 2,
+        error_timeout: 5,
+        success_threshold: 1,
+        lumping_interval: -1,
+      )
+    end
+    assert_equal("lumping_interval must be non-negative", error.message)
+  end
+
+  def test_lumping_interval_times_threshold_exceeds_error_threshold_timeout
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :invalid_lumping_times_threshold,
+        tickets: 1,
+        error_threshold: 3,
+        error_timeout: 5,
+        success_threshold: 1,
+        lumping_interval: 3,
+        error_threshold_timeout: 4,
+      )
+    end
+    assert_equal("constraint violated: lumping_interval * (error_threshold - 1) <= error_threshold_timeout, got lumping_interval: 3, error_threshold: 3, error_threshold_timeout: 4", error.message)
+  end
+
+  def test_half_open_resource_timeout_greater_than_error_timeout
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :invalid_half_open_gt_error_timeout,
+        tickets: 1,
+        error_threshold: 2,
+        error_timeout: 2,
+        success_threshold: 1,
+        half_open_resource_timeout: 3,
+      )
+    end
+    assert_equal("constraint violated: half_open_resource_timeout <= error_timeout, got half_open_resource_timeout: 3, error_timeout: 2", error.message)
+  end
+
+  def test_half_open_resource_timeout_greater_than_error_threshold_timeout
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :invalid_half_open_gt_error_threshold_timeout,
+        tickets: 1,
+        error_threshold: 2,
+        error_timeout: 2,
+        error_threshold_timeout: 1,
+        success_threshold: 1,
+        half_open_resource_timeout: 2,
+      )
+    end
+
+    assert_equal("constraint violated: half_open_resource_timeout <= error_threshold_timeout, got half_open_resource_timeout: 2, error_threshold_timeout: 1", error.message)
   end
 end

@@ -237,4 +237,197 @@ class TestSemian < Minitest::Test
   ensure
     ENV.delete("SEMIAN_CIRCUIT_BREAKER_DISABLED")
   end
+
+  def test_register_with_quota
+    resource = Semian.register(
+      :testing_quota,
+      bulkhead: true,
+      quota: 0.5,
+      circuit_breaker: false,
+    )
+
+    assert_equal(resource, Semian[:testing_quota])
+  end
+
+  def test_register_with_invalid_quota
+    assert_raises(ArgumentError) do
+      Semian.register(
+        :testing_invalid_quota,
+        bulkhead: true,
+        quota: 1.5,
+        circuit_breaker: false,
+      )
+    end
+  end
+
+  def test_register_with_tickets
+    resource = Semian.register(
+      :testing_tickets,
+      bulkhead: true,
+      tickets: 5,
+      circuit_breaker: false,
+    )
+
+    assert_equal(resource, Semian[:testing_tickets])
+    assert_equal(5, resource.bulkhead.tickets)
+  end
+
+  def test_register_with_invalid_tickets
+    assert_raises(ArgumentError) do
+      Semian.register(
+        :testing_invalid_tickets,
+        bulkhead: true,
+        tickets: -1,
+        circuit_breaker: false,
+      )
+    end
+  end
+
+  def test_register_with_resource_name
+    resource = Semian.register(
+      :testing_named_resource,
+      bulkhead: true,
+      tickets: 5,
+      circuit_breaker: false,
+    )
+
+    assert_equal(resource, Semian[:testing_named_resource])
+  end
+
+  def test_register_with_duplicate_resource_name_error
+    Semian.register(
+      :duplicate_name,
+      bulkhead: true,
+      tickets: 5,
+      circuit_breaker: false,
+    )
+
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :duplicate_name,
+        bulkhead: true,
+        tickets: 5,
+        circuit_breaker: false,
+      )
+    end
+    assert_equal("Resource with name duplicate_name is already registered", error.message)
+  end
+
+  def test_disabled_circuit_breaker_via_env_with_invalid_config
+    ENV["SEMIAN_CIRCUIT_BREAKER_DISABLED"] = "1"
+
+    # Should still validate configuration even though circuit breaker will be disabled
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :testing_invalid_config,
+        bulkhead: false,
+        circuit_breaker: true,
+      )
+    end
+
+    assert_equal("Both bulkhead and circuitbreaker cannot be disabled.", error.message)
+  ensure
+    ENV.delete("SEMIAN_CIRCUIT_BREAKER_DISABLED")
+  end
+
+  def test_bulkhead_with_valid_tickets
+    resource = Semian.register(
+      :testing_bulkhead_tickets,
+      bulkhead: true,
+      tickets: 10,
+      circuit_breaker: false,
+    )
+
+    assert_equal(resource, Semian[:testing_bulkhead_tickets])
+    assert_equal(10, resource.bulkhead.tickets)
+    assert_nil(resource.circuit_breaker)
+  end
+
+  def test_bulkhead_with_valid_quota
+    resource = Semian.register(
+      :testing_bulkhead_quota,
+      bulkhead: true,
+      quota: 0.75,
+      circuit_breaker: false,
+    )
+
+    assert_equal(resource, Semian[:testing_bulkhead_quota])
+  end
+
+  def test_bulkhead_with_invalid_quota_above_one
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :testing_bulkhead_invalid_quota_high,
+        bulkhead: true,
+        quota: 1.5,
+        circuit_breaker: false,
+      )
+    end
+
+    assert_equal("quota must be a decimal between 0 and 1", error.message)
+  end
+
+  def test_bulkhead_with_invalid_quota_zero
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :testing_bulkhead_invalid_quota_zero,
+        bulkhead: true,
+        quota: 0,
+        circuit_breaker: false,
+      )
+    end
+
+    assert_equal("quota must be a decimal between 0 and 1", error.message)
+  end
+
+  def test_bulkhead_with_invalid_quota_negative
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :testing_bulkhead_invalid_quota_negative,
+        bulkhead: true,
+        quota: -0.5,
+        circuit_breaker: false,
+      )
+    end
+
+    assert_equal("quota must be a decimal between 0 and 1", error.message)
+  end
+
+  def test_bulkhead_with_invalid_tickets_negative
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :testing_bulkhead_invalid_tickets_negative,
+        bulkhead: true,
+        tickets: -5,
+        circuit_breaker: false,
+      )
+    end
+
+    assert_equal("ticket count must be a non-negative integer and less than #{Semian::MAX_TICKETS}", error.message)
+  end
+
+  def test_bulkhead_with_invalid_tickets_above_max
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :testing_bulkhead_invalid_tickets_max,
+        bulkhead: true,
+        tickets: Semian::MAX_TICKETS + 1,
+        circuit_breaker: false,
+      )
+    end
+
+    assert_equal("ticket count must be a non-negative integer and less than #{Semian::MAX_TICKETS}", error.message)
+  end
+
+  def test_bulkhead_with_both_circuit_breaker_and_bulkhead_disabled
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :testing_both_disabled,
+        bulkhead: false,
+        circuit_breaker: false,
+      )
+    end
+
+    assert_equal("Both bulkhead and circuitbreaker cannot be disabled.", error.message)
+  end
 end
