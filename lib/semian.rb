@@ -186,7 +186,7 @@ module Semian
     return UnprotectedResource.new(name) if ENV.key?("SEMIAN_DISABLED")
 
     # Validate configuration before proceeding
-    ConfigurationValidator.new(options).validate!
+    ConfigurationValidator.new(name, options).validate!
 
     circuit_breaker = create_circuit_breaker(name, **options)
     bulkhead = create_bulkhead(name, **options)
