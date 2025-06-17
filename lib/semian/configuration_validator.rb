@@ -2,9 +2,10 @@
 
 module Semian
   class ConfigurationValidator
-    def initialize(configuration, adapter: nil)
+    def initialize(name, configuration)
+      @name = name
       @configuration = configuration
-      @adapter = adapter
+      @adapter = configuration[:adapter]
     end
 
     def validate!
@@ -12,7 +13,6 @@ module Semian
       validate_bulkhead_configuration!
       validate_circuit_breaker_configuration!
       validate_resource_name!
-      validate_adapter_specific_configuration!
       true
     end
 
@@ -121,36 +121,12 @@ module Semian
     end
 
     def validate_resource_name!
-      name = @configuration[:name]
-      return unless name
-
-      unless name.is_a?(String) || name.is_a?(Symbol)
+      unless @name.is_a?(String) || @name.is_a?(Symbol)
         raise ArgumentError, "name must be a symbol or string"
       end
 
-      if Semian.resources[name.to_s]
-        raise ArgumentError, "Resource with name #{name} is already registered"
-      end
-    end
-
-    def validate_adapter_specific_configuration!
-      case @adapter
-      when :net_http
-        validate_net_http_configuration!
-      when :grpc
-        validate_grpc_configuration!
-      end
-    end
-
-    def validate_net_http_configuration!
-      if @configuration[:dynamic] && !@configuration[:name]
-        raise ArgumentError, "Dynamic configuration requires a name parameter"
-      end
-    end
-
-    def validate_grpc_configuration!
-      if @configuration[:dynamic] && !@configuration[:name]
-        raise ArgumentError, "Dynamic configuration requires a name parameter"
+      if Semian.resources[@name]
+        raise ArgumentError, "Resource with name #{@name} is already registered"
       end
     end
   end
