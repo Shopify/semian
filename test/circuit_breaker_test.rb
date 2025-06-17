@@ -179,7 +179,7 @@ class TestCircuitBreaker < Minitest::Test
 
   def test_request_allowed_query_doesnt_trigger_transitions
     resource = Semian.register(
-      :testing,
+      :test_request_allowed_query_doesnt_trigger_transitions,
       tickets: 1,
       exceptions: [SomeError],
       error_threshold: 2,

@@ -26,12 +26,13 @@ module Semian
     end
 
     def validate_circuit_breaker_or_bulkhead!
-      if @configuration[:circuit_breaker] == false && @configuration[:bulkhead] == false
+      if (@configuration[:circuit_breaker] == false || ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED")) && (@configuration[:bulkhead] == false || ENV.key?("SEMIAN_BULKHEAD_DISABLED"))
         raise ArgumentError, "Both bulkhead and circuitbreaker cannot be disabled."
       end
     end
 
     def validate_bulkhead_configuration!
+      return if ENV.key?("SEMIAN_BULKHEAD_DISABLED")
       return unless @configuration.fetch(:bulkhead, true)
 
       tickets = @configuration[:tickets]
@@ -50,6 +51,7 @@ module Semian
     end
 
     def validate_circuit_breaker_configuration!
+      return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED")
       return unless @configuration.fetch(:circuit_breaker, true)
 
       require_keys!([:success_threshold, :error_threshold, :error_timeout], @configuration)
