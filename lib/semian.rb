@@ -16,6 +16,7 @@ require "semian/simple_sliding_window"
 require "semian/simple_integer"
 require "semian/simple_state"
 require "semian/lru_hash"
+require "semian/configuration_validator"
 
 #
 # === Overview
@@ -184,12 +185,11 @@ module Semian
   def register(name, **options)
     return UnprotectedResource.new(name) if ENV.key?("SEMIAN_DISABLED")
 
+    # Validate configuration before proceeding
+    ConfigurationValidator.new(name, options).validate!
+
     circuit_breaker = create_circuit_breaker(name, **options)
     bulkhead = create_bulkhead(name, **options)
-
-    if circuit_breaker.nil? && bulkhead.nil?
-      raise ArgumentError, "Both bulkhead and circuitbreaker cannot be disabled."
-    end
 
     resources[name] = ProtectedResource.new(name, bulkhead, circuit_breaker)
   end
@@ -296,8 +296,6 @@ module Semian
     return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED")
     return unless options.fetch(:circuit_breaker, true)
 
-    require_keys!([:success_threshold, :error_threshold, :error_timeout], options)
-
     exceptions = options[:exceptions] || []
     CircuitBreaker.new(
       name,
@@ -350,13 +348,6 @@ module Semian
       permissions: permissions,
       timeout: timeout,
     )
-  end
-
-  def require_keys!(required, options)
-    diff = required - options.keys
-    unless diff.empty?
-      raise ArgumentError, "Missing required arguments for Semian: #{diff}"
-    end
   end
 end
 

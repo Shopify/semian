@@ -29,10 +29,6 @@ module Semian
       @half_open_resource_timeout = half_open_resource_timeout
       @lumping_interval = lumping_interval
 
-      if @lumping_interval > @error_threshold_timeout
-        raise ArgumentError, "lumping_interval (#{@lumping_interval}) must be less than error_threshold_timeout (#{@error_threshold_timeout})"
-      end
-
       @errors = implementation::SlidingWindow.new(max_size: @error_count_threshold)
       @successes = implementation::Integer.new
       @state = implementation::State.new
