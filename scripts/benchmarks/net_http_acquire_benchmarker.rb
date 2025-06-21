@@ -58,10 +58,6 @@ class GCSuite
     run_gc
   end
 
-  def running(*)
-    run_gc
-  end
-
   def warmup_stats(*)
   end
 
