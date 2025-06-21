@@ -22,10 +22,6 @@ class LRUHash
       true
     end
 
-    def locked?
-      true
-    end
-
     def owned?
       true
     end
