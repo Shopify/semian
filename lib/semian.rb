@@ -109,6 +109,10 @@ module Semian
   self.minimum_lru_time = 300 # 300 seconds / 5 minutes
   self.default_permissions = 0660
 
+  attr_accessor :force_config_validation
+
+  self.force_config_validation = false
+
   def issue_disabled_semaphores_warning
     return if defined?(@warning_issued)
 
