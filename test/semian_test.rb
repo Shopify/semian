@@ -5,6 +5,13 @@ require "test_helper"
 class TestSemian < Minitest::Test
   def setup
     destroy_all_semian_resources
+    # Ensure validation errors are raised for all tests to maintain existing behavior
+    Semian.force_config_validation = true
+  end
+
+  def teardown
+    # Reset to default value after each test
+    Semian.force_config_validation = false
   end
 
   def test_unsupported_acquire_yields
@@ -66,8 +73,8 @@ class TestSemian < Minitest::Test
       )
     end
 
-    assert_equal(
-      "Semian configuration require either the :tickets or :quota parameter, you provided neither",
+    assert_match(
+      "configuration require either the :tickets or :quota parameter, you provided neither",
       exception.message,
     )
   end
@@ -82,8 +89,8 @@ class TestSemian < Minitest::Test
       )
     end
 
-    assert_equal(
-      "Semian configuration require either the :tickets or :quota parameter, you provided both",
+    assert_match(
+      "configuration require either the :tickets or :quota parameter, you provided both",
       exception.message,
     )
   end
@@ -310,7 +317,8 @@ class TestSemian < Minitest::Test
         circuit_breaker: false,
       )
     end
-    assert_equal("Resource with name duplicate_name is already registered", error.message)
+
+    assert_match("Resource with name duplicate_name is already registered", error.message)
   end
 
   def test_disabled_circuit_breaker_via_env_with_invalid_config
@@ -354,17 +362,17 @@ class TestSemian < Minitest::Test
     assert_equal(resource, Semian[:testing_bulkhead_quota])
   end
 
-  def test_bulkhead_with_invalid_quota_above_one
+  def test_bulkhead_with_invalid_quota_equal_to_one
     error = assert_raises(ArgumentError) do
       Semian.register(
         :testing_bulkhead_invalid_quota_high,
         bulkhead: true,
-        quota: 1.5,
+        quota: 1,
         circuit_breaker: false,
       )
     end
 
-    assert_equal("quota must be a decimal between 0 and 1", error.message)
+    assert_match("Are you sure that this is what you want? This is the same as assigning all workers to the resource, disabling the bulkhead!", error.message)
   end
 
   def test_bulkhead_with_invalid_quota_zero
@@ -377,7 +385,7 @@ class TestSemian < Minitest::Test
       )
     end
 
-    assert_equal("quota must be a decimal between 0 and 1", error.message)
+    assert_match("Are you sure that this is what you want? This is the same as assigning no workers to the resource, disabling the resource!", error.message)
   end
 
   def test_bulkhead_with_invalid_quota_negative
@@ -390,20 +398,20 @@ class TestSemian < Minitest::Test
       )
     end
 
-    assert_equal("quota must be a decimal between 0 and 1", error.message)
+    assert_match("quota must be a decimal between 0 and 1", error.message)
   end
 
-  def test_bulkhead_with_invalid_tickets_negative
+  def test_bulkhead_with_invalid_tickets_zero
     error = assert_raises(ArgumentError) do
       Semian.register(
         :testing_bulkhead_invalid_tickets_negative,
         bulkhead: true,
-        tickets: -5,
+        tickets: 0,
         circuit_breaker: false,
       )
     end
 
-    assert_equal("ticket count must be a non-negative integer and less than #{Semian::MAX_TICKETS}", error.message)
+    assert_match("ticket count must be a positive integer and less than #{Semian::MAX_TICKETS}", error.message)
   end
 
   def test_bulkhead_with_invalid_tickets_above_max
@@ -413,10 +421,13 @@ class TestSemian < Minitest::Test
         bulkhead: true,
         tickets: Semian::MAX_TICKETS + 1,
         circuit_breaker: false,
+        success_threshold: 1,
+        error_threshold: 1,
+        error_timeout: 1,
       )
     end
 
-    assert_equal("ticket count must be a non-negative integer and less than #{Semian::MAX_TICKETS}", error.message)
+    assert_match("ticket count must be a positive integer and less than #{Semian::MAX_TICKETS}", error.message)
   end
 
   def test_bulkhead_with_both_circuit_breaker_and_bulkhead_disabled
@@ -425,9 +436,149 @@ class TestSemian < Minitest::Test
         :testing_both_disabled,
         bulkhead: false,
         circuit_breaker: false,
+        success_threshold: 1,
+        error_threshold: 1,
+        error_timeout: 1,
       )
     end
 
     assert_equal("Both bulkhead and circuitbreaker cannot be disabled.", error.message)
+  end
+
+  # Tests for force_config_validation flag functionality
+  def test_force_config_validation_flag_defaults_to_false
+    # Temporarily override the setup to test default behavior
+    Semian.force_config_validation = false
+
+    # Should not raise error, only log warning
+    resource = Semian.register(
+      :testing_force_validation_default,
+      bulkhead: false,
+      success_threshold: 1,
+      error_threshold: 1,
+      error_timeout: 1,
+      lumping_interval: -1,
+      circuit_breaker: true,
+    )
+
+    assert_instance_of(Semian::ProtectedResource, resource)
+  end
+
+  def test_force_config_validation_flag_when_true_raises_errors
+    Semian.force_config_validation = true
+
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :testing_force_validation_true,
+        bulkhead: false,
+        success_threshold: 1,
+        error_threshold: 1,
+        error_timeout: 1,
+        lumping_interval: -1,
+        circuit_breaker: true,
+      )
+    end
+
+    assert_match("lumping_interval must be non-negative", error.message)
+  end
+
+  def test_force_config_validation_flag_when_false_only_logs_warnings
+    # Capture log output
+    log_output = StringIO.new
+    original_logger = Semian.logger
+    Semian.logger = Logger.new(log_output)
+    Semian.force_config_validation = false
+
+    resource = Semian.register(
+      :testing_force_validation_false,
+      bulkhead: false,
+      success_threshold: 1,
+      error_threshold: 1,
+      error_timeout: 1,
+      lumping_interval: -1,
+      circuit_breaker: true,
+    )
+
+    assert_instance_of(Semian::ProtectedResource, resource)
+    assert_match("lumping_interval must be non-negative", log_output.string)
+  ensure
+    Semian.logger = original_logger
+  end
+
+  def test_force_config_validation_flag_can_be_changed_runtime
+    # Test with false first
+    Semian.force_config_validation = false
+    resource = Semian.register(
+      :testing_force_validation_runtime_1,
+      bulkhead: false,
+      success_threshold: 1,
+      error_threshold: 1,
+      error_timeout: 1,
+      lumping_interval: -1,
+      circuit_breaker: true,
+    )
+
+    assert_instance_of(Semian::ProtectedResource, resource)
+
+    # Change to true
+    Semian.force_config_validation = true
+
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :testing_force_validation_runtime_2,
+        bulkhead: false,
+        success_threshold: 1,
+        error_threshold: 1,
+        error_timeout: 1,
+        lumping_interval: -1,
+        circuit_breaker: true,
+      )
+    end
+
+    assert_match("lumping_interval must be non-negative", error.message)
+
+    # Change back to false
+    Semian.force_config_validation = false
+
+    resource = Semian.register(
+      :testing_force_validation_runtime_3,
+      bulkhead: false,
+      success_threshold: 1,
+      error_threshold: 1,
+      error_timeout: 1,
+      circuit_breaker: true,
+    )
+
+    assert_instance_of(Semian::ProtectedResource, resource)
+  end
+
+  def test_force_config_validation_with_valid_configuration
+    # Valid configurations should work regardless of the flag
+    Semian.force_config_validation = false
+
+    resource = Semian.register(
+      :testing_valid_config,
+      success_threshold: 1,
+      error_threshold: 1,
+      error_timeout: 1,
+      bulkhead: false,
+      circuit_breaker: true,
+    )
+
+    assert_instance_of(Semian::ProtectedResource, resource)
+
+    # Should also work with flag enabled
+    Semian.force_config_validation = true
+
+    resource = Semian.register(
+      :testing_valid_config_2,
+      success_threshold: 1,
+      error_threshold: 1,
+      error_timeout: 1,
+      bulkhead: false,
+      circuit_breaker: true,
+    )
+
+    assert_instance_of(Semian::ProtectedResource, resource)
   end
 end

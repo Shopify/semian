@@ -18,6 +18,18 @@ module Semian
 
     private
 
+    def hint_format(message)
+      "\n\nHINT: #{message}\n---"
+    end
+
+    def raise_or_log_validation_required!(message)
+      if Semian.force_config_validation
+        raise ArgumentError, message
+      else
+        Semian.logger.warn(message)
+      end
+    end
+
     def require_keys!(required, options)
       diff = required - options.keys
       unless diff.empty?
@@ -39,11 +51,11 @@ module Semian
       quota = @configuration[:quota]
 
       if tickets.nil? && quota.nil?
-        raise ArgumentError, "Semian configuration require either the :tickets or :quota parameter, you provided neither"
+        raise ArgumentError, "Bulkhead configuration require either the :tickets or :quota parameter, you provided neither"
       end
 
       if tickets && quota
-        raise ArgumentError, "Semian configuration require either the :tickets or :quota parameter, you provided both"
+        raise ArgumentError, "Bulkhead configuration require either the :tickets or :quota parameter, you provided both"
       end
 
       validate_quota!(quota) if quota
@@ -64,11 +76,23 @@ module Semian
       error_threshold = @configuration[:error_threshold]
 
       if success_threshold && success_threshold <= 0
-        raise ArgumentError, "success_threshold must be positive"
+        err = "success_threshold must be positive, got #{success_threshold}"
+
+        if success_threshold == 0
+          err += hint_format("Are you sure that this is what you want? This will close the circuit breaker immediately after `error_timeout` seconds without checking the resource!")
+        end
+
+        raise_or_log_validation_required!(err)
       end
 
       if error_threshold && error_threshold <= 0
-        raise ArgumentError, "error_threshold must be positive"
+        err = "error_threshold must be positive, got #{error_threshold}"
+
+        if error_threshold == 0
+          err += hint_format("Are you sure that this is what you want? This will open the circuit breaker indefinitely!")
+        end
+
+        raise_or_log_validation_required!(err)
       end
     end
 
@@ -79,54 +103,108 @@ module Semian
       lumping_interval = @configuration[:lumping_interval]
       half_open_resource_timeout = @configuration[:half_open_resource_timeout]
 
-      unless error_timeout && error_timeout >= 0
-        raise ArgumentError, "error_timeout must be non-negative"
+      unless error_timeout && error_timeout > 0
+        err = "error_timeout must be positive, got #{error_timeout}"
+
+        if error_timeout == 0
+          err += hint_format("Are you sure that this is what you want? This will close the circuit breaker immediately after opening it!")
+        end
+
+        raise_or_log_validation_required!(err)
       end
 
-      unless error_threshold_timeout.nil? || error_threshold_timeout >= 0
-        raise ArgumentError, "error_threshold_timeout must be non-negative"
+      unless error_threshold_timeout.nil? || error_threshold_timeout > 0
+        err = "error_threshold_timeout must be positive, got #{error_threshold_timeout}"
+
+        if error_threshold_timeout == 0
+          err += hint_format("Are you sure that this is what you want? This will almost never open the circuit breaker since the time interval to catch errors is 0!")
+        end
+
+        raise_or_log_validation_required!(err)
       end
 
-      unless half_open_resource_timeout.nil? || half_open_resource_timeout >= 0
-        raise ArgumentError, "half_open_resource_timeout must be non-negative"
+      unless half_open_resource_timeout.nil? || half_open_resource_timeout > 0
+        err = "half_open_resource_timeout must be positive, got #{half_open_resource_timeout}"
+
+        if half_open_resource_timeout == 0
+          err += hint_format("Are you sure that this is what you want? This will never half-open the circuit breaker!")
+        end
+
+        raise_or_log_validation_required!(err)
       end
 
       unless lumping_interval.nil? || lumping_interval >= 0
-        raise ArgumentError, "lumping_interval must be non-negative"
+        raise_or_log_validation_required!("lumping_interval must be non-negative, got #{lumping_interval}")
       end
+
+      if lumping_interval && lumping_interval == 0
+        Semian.logger.warn("lumping_interval is 0, this means lumping is disabled!")
+      end
+
+      # You might be wondering why not check just check lumping_interval * error_threshold <= error_threshold_timeout
+      # The reason being is that since the lumping_interval starts at the first error, we count the first error
+      # at second 0. So we need to subtract 1 from the error_threshold to get the correct minimum time to reach the
+      # error threshold. error_threshold_timeout cannot be less than this minimum time.
+      #
+      # For example,
+      #
+      # error_threshold = 3
+      # error_threshold_timeout = 10
+      # lumping_interval = 4
+      #
+      # The first error could be counted at second 0, the second error could be counted at second 4, and the third
+      # error could be counted at second 8. So this is a valid configuration.
 
       unless lumping_interval.nil? || error_threshold_timeout.nil? || lumping_interval * (error_threshold - 1) <= error_threshold_timeout
-        raise ArgumentError, "constraint violated: lumping_interval * (error_threshold - 1) <= error_threshold_timeout, got lumping_interval: #{lumping_interval}, error_threshold: #{error_threshold}, error_threshold_timeout: #{error_threshold_timeout}"
-      end
+        err = "constraint violated: lumping_interval * (error_threshold - 1) <= error_threshold_timeout, got lumping_interval: #{lumping_interval}, error_threshold: #{error_threshold}, error_threshold_timeout: #{error_threshold_timeout}"
+        err += hint_format("lumping_interval starts from the first error and not in a fixed window. So you can fit n errors in n-1 seconds, since error 0 starts at 0 seconds. Ensure that you can fit `error_threshold` errors lumped in `lumping_interval` seconds within `error_threshold_timeout` seconds.")
 
-      unless half_open_resource_timeout.nil? || half_open_resource_timeout <= error_timeout
-        raise ArgumentError, "constraint violated: half_open_resource_timeout <= error_timeout, got half_open_resource_timeout: #{half_open_resource_timeout}, error_timeout: #{error_timeout}"
-      end
-
-      unless half_open_resource_timeout.nil? || error_threshold_timeout.nil? || half_open_resource_timeout <= error_threshold_timeout
-        raise ArgumentError, "constraint violated: half_open_resource_timeout <= error_threshold_timeout, got half_open_resource_timeout: #{half_open_resource_timeout}, error_threshold_timeout: #{error_threshold_timeout}"
+        raise_or_log_validation_required!(err)
       end
     end
 
     def validate_quota!(quota)
-      unless quota.is_a?(Numeric) && quota > 0 && quota <= 1
-        raise ArgumentError, "quota must be a decimal between 0 and 1"
+      unless quota.is_a?(Numeric) && quota > 0 && quota < 1
+        err = "quota must be a decimal between 0 and 1, got #{quota}"
+
+        if quota == 0
+          err += hint_format("Are you sure that this is what you want? This is the same as assigning no workers to the resource, disabling the resource!")
+        elsif quota == 1
+          err += hint_format("Are you sure that this is what you want? This is the same as assigning all workers to the resource, disabling the bulkhead!")
+          raise_or_log_validation_required!(err)
+          return
+        end
+
+        raise ArgumentError, err
       end
     end
 
     def validate_tickets!(tickets)
-      unless tickets.is_a?(Integer) && tickets >= 0 && tickets <= Semian::MAX_TICKETS
-        raise ArgumentError, "ticket count must be a non-negative integer and less than #{Semian::MAX_TICKETS}"
+      unless tickets.is_a?(Integer) && tickets > 0 && tickets < Semian::MAX_TICKETS
+        err = "ticket count must be a positive integer and less than #{Semian::MAX_TICKETS}, got #{tickets}"
+
+        if tickets == 0
+          err += hint_format("Are you sure that this is what you want? This is the same as assigning no workers to the resource, disabling the resource!")
+        elsif tickets == Semian::MAX_TICKETS
+          err += hint_format("Are you sure that this is what you want? This is the same as assigning all workers to the resource, disabling the bulkhead!")
+          raise_or_log_validation_required!(err)
+          return
+        end
+
+        raise ArgumentError, err
       end
     end
 
     def validate_resource_name!
       unless @name.is_a?(String) || @name.is_a?(Symbol)
-        raise ArgumentError, "name must be a symbol or string"
+        raise_or_log_validation_required!("name must be a symbol or string, got #{@name}")
       end
 
       if Semian.resources[@name]
-        raise ArgumentError, "Resource with name #{@name} is already registered"
+        err = "Resource with name #{@name} is already registered"
+        err += hint_format("Are you sure that this is what you want? This will override an existing resource with the same name!")
+
+        raise_or_log_validation_required!(err)
       end
     end
   end
