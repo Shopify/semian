@@ -11,7 +11,7 @@ class TestCircuitBreaker < Minitest::Test
     Semian.logger = Logger.new(@strio)
     destroy_all_semian_resources
     # Ensure validation errors are raised for all tests to maintain existing behavior
-    Semian.force_config_validation = true
+    Semian.default_force_config_validation = true
     Semian.register(
       :testing,
       tickets: 1,
@@ -25,7 +25,7 @@ class TestCircuitBreaker < Minitest::Test
 
   def teardown
     # Reset to default value after each test
-    Semian.force_config_validation = false
+    Semian.default_force_config_validation = false
   end
 
   def test_acquire_yield_when_the_circuit_is_closed
