@@ -6,6 +6,7 @@ module Semian
       @name = name
       @configuration = configuration
       @adapter = configuration[:adapter]
+      @force_config_validation = force_config_validation?
     end
 
     def validate!
@@ -23,7 +24,7 @@ module Semian
     end
 
     def raise_or_log_validation_required!(message)
-      if Semian.force_config_validation
+      if @force_config_validation
         raise ArgumentError, message
       else
         Semian.logger.warn(message)
@@ -205,6 +206,14 @@ module Semian
         err += hint_format("Are you sure that this is what you want? This will override an existing resource with the same name!")
 
         raise_or_log_validation_required!(err)
+      end
+    end
+
+    def force_config_validation?
+      if @configuration[:force_config_validation].nil?
+        Semian.default_force_config_validation
+      else
+        @configuration[:force_config_validation]
       end
     end
   end

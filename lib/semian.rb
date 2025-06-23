@@ -103,15 +103,12 @@ module Semian
   OpenCircuitError = Class.new(BaseError)
   SemaphoreMissingError = Class.new(BaseError)
 
-  attr_accessor :maximum_lru_size, :minimum_lru_time, :default_permissions, :namespace
+  attr_accessor :maximum_lru_size, :minimum_lru_time, :default_permissions, :namespace, :default_force_config_validation
 
   self.maximum_lru_size = 500
   self.minimum_lru_time = 300 # 300 seconds / 5 minutes
   self.default_permissions = 0660
-
-  attr_accessor :force_config_validation
-
-  self.force_config_validation = false
+  self.default_force_config_validation = false
 
   def issue_disabled_semaphores_warning
     return if defined?(@warning_issued)
