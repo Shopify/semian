@@ -6,12 +6,12 @@ class TestSemian < Minitest::Test
   def setup
     destroy_all_semian_resources
     # Ensure validation errors are raised for all tests to maintain existing behavior
-    Semian.force_config_validation = true
+    Semian.default_force_config_validation = true
   end
 
   def teardown
     # Reset to default value after each test
-    Semian.force_config_validation = false
+    Semian.default_force_config_validation = false
   end
 
   def test_unsupported_acquire_yields
@@ -447,9 +447,6 @@ class TestSemian < Minitest::Test
 
   # Tests for force_config_validation flag functionality
   def test_force_config_validation_flag_defaults_to_false
-    # Temporarily override the setup to test default behavior
-    Semian.force_config_validation = false
-
     # Should not raise error, only log warning
     resource = Semian.register(
       :testing_force_validation_default,
@@ -457,6 +454,7 @@ class TestSemian < Minitest::Test
       success_threshold: 1,
       error_threshold: 1,
       error_timeout: 1,
+      force_config_validation: false,
       lumping_interval: -1,
       circuit_breaker: true,
     )
@@ -465,8 +463,6 @@ class TestSemian < Minitest::Test
   end
 
   def test_force_config_validation_flag_when_true_raises_errors
-    Semian.force_config_validation = true
-
     error = assert_raises(ArgumentError) do
       Semian.register(
         :testing_force_validation_true,
@@ -475,6 +471,7 @@ class TestSemian < Minitest::Test
         error_threshold: 1,
         error_timeout: 1,
         lumping_interval: -1,
+        force_config_validation: true,
         circuit_breaker: true,
       )
     end
@@ -487,7 +484,6 @@ class TestSemian < Minitest::Test
     log_output = StringIO.new
     original_logger = Semian.logger
     Semian.logger = Logger.new(log_output)
-    Semian.force_config_validation = false
 
     resource = Semian.register(
       :testing_force_validation_false,
@@ -495,6 +491,7 @@ class TestSemian < Minitest::Test
       success_threshold: 1,
       error_threshold: 1,
       error_timeout: 1,
+      force_config_validation: false,
       lumping_interval: -1,
       circuit_breaker: true,
     )
@@ -507,13 +504,13 @@ class TestSemian < Minitest::Test
 
   def test_force_config_validation_flag_can_be_changed_runtime
     # Test with false first
-    Semian.force_config_validation = false
     resource = Semian.register(
       :testing_force_validation_runtime_1,
       bulkhead: false,
       success_threshold: 1,
       error_threshold: 1,
       error_timeout: 1,
+      force_config_validation: false,
       lumping_interval: -1,
       circuit_breaker: true,
     )
@@ -521,8 +518,6 @@ class TestSemian < Minitest::Test
     assert_instance_of(Semian::ProtectedResource, resource)
 
     # Change to true
-    Semian.force_config_validation = true
-
     error = assert_raises(ArgumentError) do
       Semian.register(
         :testing_force_validation_runtime_2,
@@ -531,6 +526,7 @@ class TestSemian < Minitest::Test
         error_threshold: 1,
         error_timeout: 1,
         lumping_interval: -1,
+        force_config_validation: true,
         circuit_breaker: true,
       )
     end
@@ -538,14 +534,13 @@ class TestSemian < Minitest::Test
     assert_match("lumping_interval must be non-negative", error.message)
 
     # Change back to false
-    Semian.force_config_validation = false
-
     resource = Semian.register(
       :testing_force_validation_runtime_3,
       bulkhead: false,
       success_threshold: 1,
       error_threshold: 1,
       error_timeout: 1,
+      force_config_validation: false,
       circuit_breaker: true,
     )
 
@@ -554,13 +549,12 @@ class TestSemian < Minitest::Test
 
   def test_force_config_validation_with_valid_configuration
     # Valid configurations should work regardless of the flag
-    Semian.force_config_validation = false
-
     resource = Semian.register(
       :testing_valid_config,
       success_threshold: 1,
       error_threshold: 1,
       error_timeout: 1,
+      force_config_validation: false,
       bulkhead: false,
       circuit_breaker: true,
     )
@@ -568,13 +562,12 @@ class TestSemian < Minitest::Test
     assert_instance_of(Semian::ProtectedResource, resource)
 
     # Should also work with flag enabled
-    Semian.force_config_validation = true
-
     resource = Semian.register(
       :testing_valid_config_2,
       success_threshold: 1,
       error_threshold: 1,
       error_timeout: 1,
+      force_config_validation: true,
       bulkhead: false,
       circuit_breaker: true,
     )
