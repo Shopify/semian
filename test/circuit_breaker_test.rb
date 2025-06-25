@@ -87,8 +87,17 @@ class TestCircuitBreaker < Minitest::Test
     )
     half_open_cicuit!(resource)
 
+    STDERR.puts "resource.errors: #{resource.circuit_breaker.instance_variable_get(:@errors).size}"
+    STDERR.puts "circuit state: #{resource.circuit_breaker.state.value}"
+    STDERR.puts "error timeout expired: #{resource.circuit_breaker.send(:error_timeout_expired?)}"
+    STDERR.puts "half open: #{resource.circuit_breaker.send(:half_open?)}"
+
     assert_circuit_closed(resource)
     trigger_error!(resource)
+
+    STDERR.puts "resource.errors: #{resource.circuit_breaker.instance_variable_get(:@errors).size}"
+    STDERR.puts "circuit state: #{resource.circuit_breaker.state.value}"
+    STDERR.puts "error timeout expired: #{resource.circuit_breaker.send(:error_timeout_expired?)}"
 
     assert_circuit_closed(resource)
     trigger_error!(resource)

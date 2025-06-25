@@ -22,7 +22,27 @@ module CircuitBreakerHelper
 
   def assert_circuit_closed(resource = @resource)
     block_called = false
+
+    circuit_breaker = resource.circuit_breaker
+
+    old_errors = create_sliding_window_copy(circuit_breaker.instance_variable_get(:@errors))
+    previously_open = circuit_breaker&.send(:open?)
+    previously_half_open = circuit_breaker&.send(:half_open?)
+
     resource.acquire { block_called = true }
+
+    now_closed = !circuit_breaker&.send(:open?)
+
+    STDERR.puts "old_errors: #{old_errors ? old_errors.size : "nil"}"
+    STDERR.puts "new_errors: #{circuit_breaker.instance_variable_get(:@errors) ? circuit_breaker.instance_variable_get(:@errors).size : "nil"}"
+
+    unless previously_half_open || previously_open && now_closed || circuit_breaker.instance_variable_get(:@error_threshold_timeout_enabled).nil? || circuit_breaker.instance_variable_get(:@error_threshold_timeout_enabled)
+      circuit_breaker.instance_variable_set(:@errors, old_errors)
+    end
+
+    STDERR.puts "previously_half_open: #{previously_half_open}"
+    STDERR.puts "error_threshold_timeout_enabled: #{circuit_breaker.instance_variable_get(:@error_threshold_timeout_enabled)}"
+    STDERR.puts "errors: #{circuit_breaker.instance_variable_get(:@errors) ? circuit_breaker.instance_variable_get(:@errors).size : "nil"}"
 
     assert(block_called, "Expected the circuit to be closed, but it was open")
   end
@@ -36,5 +56,22 @@ module CircuitBreakerHelper
     end
 
     assert(open, "Expected the circuit to be open, but it was closed")
+  end
+
+  def create_sliding_window_copy(sliding_window)
+    return if sliding_window.nil?
+
+    implementation_class = sliding_window.class
+
+    new_window = implementation_class.new(max_size: sliding_window.max_size)
+
+    if sliding_window.respond_to?(:size) && !sliding_window.empty?
+      original_data = sliding_window.instance_variable_get(:@window)
+      if original_data.is_a?(Array)
+        new_window.instance_variable_set(:@window, original_data.dup)
+      end
+    end
+
+    new_window
   end
 end
