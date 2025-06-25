@@ -22,7 +22,22 @@ module CircuitBreakerHelper
 
   def assert_circuit_closed(resource = @resource)
     block_called = false
+
+    circuit_breaker = resource.circuit_breaker
+
+    # Check if the circuit allows requests before trying to acquire
+    unless circuit_breaker.request_allowed?
+      assert(false, "Expected the circuit to be closed, but it was open")
+      return
+    end
+
+    old_errors = create_sliding_window_copy(circuit_breaker.instance_variable_get(:@errors))
+
     resource.acquire { block_called = true }
+
+    if circuit_breaker.instance_variable_get(:@error_threshold_timeout_enabled)
+      circuit_breaker.instance_variable_set(:@errors, old_errors)
+    end
 
     assert(block_called, "Expected the circuit to be closed, but it was open")
   end
@@ -36,5 +51,22 @@ module CircuitBreakerHelper
     end
 
     assert(open, "Expected the circuit to be open, but it was closed")
+  end
+
+  def create_sliding_window_copy(sliding_window)
+    return if sliding_window.nil?
+
+    implementation_class = sliding_window.class
+
+    new_window = implementation_class.new(max_size: sliding_window.max_size)
+
+    if sliding_window.respond_to?(:size) && !sliding_window.empty?
+      original_data = sliding_window.instance_variable_get(:@window)
+      if original_data.is_a?(Array)
+        new_window.instance_variable_set(:@window, original_data.dup)
+      end
+    end
+
+    new_window
   end
 end
