@@ -113,12 +113,20 @@ Semian.maximum_lru_size = 0
 
 # Minimum time in seconds a resource should be resident in the LRU cache (default: 300s)
 Semian.minimum_lru_time = 60
+
+# If true, raise exceptions in case of a validation / constraint failure
+# Otherwise, log in output
+Semian.default_force_config_validation = false
 ```
 
 Note: `minimum_lru_time` is a stronger guarantee than `maximum_lru_size`. That
 is, if a resource has been updated more recently than `minimum_lru_time` it
 will not be garbage collected, even if it would cause the LRU cache to grow
 larger than `maximum_lru_size`.
+
+Note: `default_force_config_validation` set to `true` is a 
+**_potentially breaking change_**. Misconfigured Semians will raise errors, so 
+make sure that this is what you want. See more in [Configuration Validation](#configuration-validation).
 
 When instantiating a resource it now needs to be configured for Semian. This is
 done by passing `semian` as an argument when initializing the client. Examples
@@ -132,7 +140,8 @@ client = Mysql2::Client.new(host: "localhost", username: "root", semian: {
   tickets: 8, # See the Understanding Semian section on picking these values
   success_threshold: 2,
   error_threshold: 3,
-  error_timeout: 10
+  error_timeout: 10,
+  force_config_validation: false
 })
 
 # Redis client
@@ -144,6 +153,20 @@ client = Redis.new(semian: {
   error_timeout: 20
 })
 ```
+
+#### Configuration Validation
+
+Semian now provides a flag to specifiy log-based and exception-based configuration validation. To
+explicitly force the Semian to validate it's configurations, pass `force_config_validation: true`
+into your resource. This will raise an error in the case of a misconfigured or illegal Semian. Otherwise,
+if it is set to `false`, it will log misconfigured parameters verbosely in output.
+
+If not specified, it will use `Semian.default_force_config_validation` as 
+the flag. 
+
+**IMPORTANT**: Future releases will deprecate and eventually remove this flag, making explicit configuration
+validation the default. **Please make changes as soon as possible** to ensure that your Semian does not break
+in a future version.
 
 #### Thread Safety
 
