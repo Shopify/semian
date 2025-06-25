@@ -77,10 +77,14 @@ module Semian
     end
 
     def mark_success
-      return unless half_open?
-
-      @successes.increment
-      transition_to_close if success_threshold_reached?
+      if half_open?
+        @successes.increment
+        if success_threshold_reached?
+          transition_to_close
+        end
+      else
+        @errors.clear unless error_threshold_timeout_enabled
+      end
     end
 
     def reset
