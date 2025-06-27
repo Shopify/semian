@@ -707,4 +707,38 @@ class TestCircuitBreaker < Minitest::Test
   ensure
     Semian.destroy(:lumping_validation_test)
   end
+
+  def test_consecutive_errors_only_when_error_threshold_timeout_enabled_false
+    resource = Semian.register(
+      :consecutive_errors_test,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+      error_threshold_timeout_enabled: false,
+    )
+
+    # First error
+    trigger_error!(resource)
+
+    assert_circuit_closed(resource)
+
+    # Many successful requests
+    100.times do
+      resource.acquire { true }
+    end
+
+    # Second error should NOT open the circuit because it's not consecutive
+    trigger_error!(resource)
+
+    assert_circuit_closed(resource)
+
+    # Third error should open the circuit (we now have 2 consecutive errors)
+    trigger_error!(resource)
+
+    assert_circuit_opened(resource)
+  ensure
+    Semian.destroy(:consecutive_errors_test)
+  end
 end

@@ -77,6 +77,7 @@ module Semian
     end
 
     def mark_success
+      @errors.clear unless error_threshold_timeout_enabled
       return unless half_open?
 
       @successes.increment
@@ -131,7 +132,7 @@ module Semian
 
     def error_timeout_expired?
       last_error_time = @errors.last
-      return false unless last_error_time
+      return true unless last_error_time
 
       last_error_time + @error_timeout < Process.clock_gettime(Process::CLOCK_MONOTONIC)
     end
