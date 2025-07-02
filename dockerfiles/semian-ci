@@ -7,7 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install --no-install-recommends -y \
       build-essential \
       libssl-dev \
-      netcat \
+      default-mysql-client \
  && rm -rf /var/lib/apt/lists/* \
  && gem install bundler
 

@@ -30,6 +30,9 @@ puts "  " + "Bulkhead is DISABLED.".blue.underline
 configuration = {
   adapter: "trilogy",
   username: "root",
+  password: "root",
+  ssl: true,
+  ssl_mode: 3,
   host: host,
   port: unhealthy_port,
   database: "mysql",

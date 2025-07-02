@@ -41,8 +41,6 @@ services:
       - -c
       - |-
           ./scripts/run_tests.sh
-    profiles:
-      - test
 
   toxiproxy:
     image: ghcr.io/shopify/toxiproxy:2.12.0
@@ -58,8 +56,7 @@ services:
 
   mysql:
     container_name: mysql
-    image: mysql
-    command: --default-authentication-plugin=mysql_native_password
+    image: mysql:9.3
     environment:
-      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_ROOT_PASSWORD: root
       MYSQL_ROOT_HOST: "%"

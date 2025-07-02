@@ -17,6 +17,9 @@ SEMIAN_PARAMETERS = {
 configuration = {
   adapter: "trilogy",
   username: "root",
+  password: "root",
+  ssl: true,
+  ssl_mode: 3,
   host: ENV.fetch("MYSQL_HOST", "localhost"),
   port: Integer(ENV.fetch("MYSQL_PORT", 3306)),
   database: "mysql",

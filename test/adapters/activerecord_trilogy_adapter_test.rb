@@ -27,6 +27,9 @@ module ActiveRecord
         @configuration = {
           adapter: "trilogy",
           username: "root",
+          password: "root",
+          ssl: true,
+          ssl_mode: 3,
           host: SemianConfig["toxiproxy_upstream_host"],
           port: SemianConfig["mysql_toxiproxy_port"],
           read_timeout: 2,
@@ -395,7 +398,7 @@ module ActiveRecord
       end
 
       def test_trilogy_default_read_timeout
-        client = ::Trilogy.new(@configuration.slice(:username, :host, :port))
+        client = ::Trilogy.new(@configuration.slice(:username, :password, :ssl, :ssl_mode, :host, :port))
 
         assert_equal(0, client.read_timeout)
       end

@@ -27,6 +27,10 @@ module RailsTests
       prepared_statements: false,
       host: SemianConfig["toxiproxy_upstream_host"],
       port: SemianConfig["mysql_toxiproxy_port"],
+      username: "root",
+      password: "root",
+      ssl: true,
+      ssl_mode: 3,
       semian: SEMIAN_OPTIONS,
     }
 

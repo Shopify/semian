@@ -37,9 +37,9 @@ jobs:
           - "3.2"
     services:
       mysql:
-        image: mysql:5.7
+        image: mysql:9.3
         env:
-          MYSQL_ALLOW_EMPTY_PASSWORD: "true"
+          MYSQL_ROOT_PASSWORD: root
         options: >-
           --health-cmd="mysqladmin ping"
           --health-interval=10s
@@ -144,9 +144,9 @@ jobs:
             adapter: activerecord_trilogy_adapter
     services:
       mysql:
-        image: mysql:5.7
+        image: mysql:9.3
         env:
-          MYSQL_ALLOW_EMPTY_PASSWORD: "true"
+          MYSQL_ROOT_PASSWORD: root
         options: >-
           --health-cmd="mysqladmin ping"
           --health-interval=10s
