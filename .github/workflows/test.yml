@@ -21,10 +21,10 @@ jobs:
       ports:
         - 31150:31050
         - 31050:31050
-      # NOTE: Container required be accessed by hostname semian,
+      # NOTE: Container required be accessed by hostname http-server,
       #       because upstream to toxiproxy should have access
       #       to the same container
-      options: --hostname semian
+      options: --hostname http-server
     env:
       CI: "1"
       BUNDLE_GEMFILE: Gemfile
@@ -37,9 +37,9 @@ jobs:
           - "3.2"
     services:
       mysql:
-        image: mysql:5.7
+        image: mysql:9.3
         env:
-          MYSQL_ALLOW_EMPTY_PASSWORD: "true"
+          MYSQL_ROOT_PASSWORD: root
         options: >-
           --health-cmd="mysqladmin ping"
           --health-interval=10s
@@ -97,10 +97,10 @@ jobs:
       ports:
         - 31150:31050
         - 31050:31050
-      # NOTE: Container required be accessed by hostname semian,
+      # NOTE: Container required be accessed by hostname http-server,
       #       because upstream to toxiproxy should have access
       #       to the same container
-      options: --hostname semian
+      options: --hostname http-server
     env:
       CI: "1"
       SEED: 58485
@@ -144,9 +144,9 @@ jobs:
             adapter: activerecord_trilogy_adapter
     services:
       mysql:
-        image: mysql:5.7
+        image: mysql:9.3
         env:
-          MYSQL_ALLOW_EMPTY_PASSWORD: "true"
+          MYSQL_ROOT_PASSWORD: root
         options: >-
           --health-cmd="mysqladmin ping"
           --health-interval=10s

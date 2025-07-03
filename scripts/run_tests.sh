@@ -18,7 +18,7 @@ fi
 
 echo "Waiting for MySQL to start."
 attempts=0
-while ! nc -w 1 mysql 3306 | grep -q "mysql"; do
+while ! mysql -h mysql -uroot -proot -e "SELECT 0 as id;"; do
   sleep 1
   attempts=$((attempts + 1))
   if (( attempts > 60 )); then

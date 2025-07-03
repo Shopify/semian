@@ -35,6 +35,8 @@ class TestMysql2 < Minitest::Test
     resource = Mysql2::Client.new(
       host: SemianConfig["toxiproxy_upstream_host"],
       port: SemianConfig["mysql_toxiproxy_port"],
+      username: "root",
+      password: "root",
       semian: false,
     ).semian_resource
 
@@ -310,6 +312,8 @@ class TestMysql2 < Minitest::Test
     client = Mysql2::Client.new(
       host: SemianConfig["toxiproxy_upstream_host"],
       port: SemianConfig["mysql_toxiproxy_port"],
+      username: "root",
+      password: "root",
     )
 
     assert_equal(2, client.query("SELECT 1 + 1 as sum;").to_a.first["sum"])
@@ -405,6 +409,8 @@ class TestMysql2 < Minitest::Test
       reconnect: true,
       host: SemianConfig["toxiproxy_upstream_host"],
       port: SemianConfig["mysql_toxiproxy_port"],
+      username: "root",
+      password: "root",
       semian: SEMIAN_OPTIONS.merge(semian_options),
     )
   end
