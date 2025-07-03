@@ -917,7 +917,7 @@ If you make any changes to `.devcontainer/` you'd need to recreate the container
 Run tests in containers:
 
 ```shell
-$ docker-compose -f ./.devcontainer/docker-compose.yml run --rm test
+$ docker-compose -f ./.devcontainer/docker-compose.yml --profile test run --rm test
 ```
 
 Running Tests:

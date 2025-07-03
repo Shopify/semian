@@ -33,6 +33,7 @@ services:
   test:
     <<: *base
     container_name: semian-tests
+    hostname: http-server  # this is important because it's also serving as an http server
     build:
       context: ../
       dockerfile: dockerfiles/semian-ci
@@ -41,6 +42,8 @@ services:
       - -c
       - |-
           ./scripts/run_tests.sh
+    profiles:
+      - test
 
   toxiproxy:
     image: ghcr.io/shopify/toxiproxy:2.12.0

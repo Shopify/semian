@@ -21,10 +21,10 @@ jobs:
       ports:
         - 31150:31050
         - 31050:31050
-      # NOTE: Container required be accessed by hostname semian,
+      # NOTE: Container required be accessed by hostname http-server,
       #       because upstream to toxiproxy should have access
       #       to the same container
-      options: --hostname semian
+      options: --hostname http-server
     env:
       CI: "1"
       BUNDLE_GEMFILE: Gemfile
@@ -97,10 +97,10 @@ jobs:
       ports:
         - 31150:31050
         - 31050:31050
-      # NOTE: Container required be accessed by hostname semian,
+      # NOTE: Container required be accessed by hostname http-server,
       #       because upstream to toxiproxy should have access
       #       to the same container
-      options: --hostname semian
+      options: --hostname http-server
     env:
       CI: "1"
       SEED: 58485
