@@ -41,7 +41,14 @@ services:
       - bash
       - -c
       - |-
-          ./scripts/run_tests.sh
+          if [ -f .env ]; then
+            set -a
+            source .env
+            set +a
+          fi
+          ./scripts/run_tests.sh ${DEBUG:+--with-debugger}
+    ports:
+      - 12345:12345  # Debugger port
     profiles:
       - test
 
