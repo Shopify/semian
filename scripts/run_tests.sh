@@ -30,7 +30,14 @@ echo "MySQL has started!"
 
 echo "Running Tests"
 attempts=0
-while ! bundle exec rake test 2>&1; do
+cmd="bundle exec rake test"
+
+if [[ "$1" == "--with-debugger" ]]; then
+  echo "Running Tests with debugger"
+  cmd="bundle exec rdbg --open --host 0.0.0.0 --port 12345 --stop-at-load -- -Ilib:test -r rake/rake_test_loader.rb --verbose test/*_test.rb test/**/*_test.rb"
+fi
+
+while ! $cmd 2>&1; do
   attempts=$((attempts + 1))
   if (( attempts > 2 )); then
     echo "Running Tests failed"

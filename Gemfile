@@ -25,6 +25,7 @@ group :test do
   # NOTE: v0.12.0 required for ruby 3.2.0. https://github.com/redis-rb/redis-client/issues/58
   gem "hiredis-client", ">= 0.12.0"
   gem "redis"
+  gem "debug"
 end
 
 group :lint do

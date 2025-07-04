@@ -1,9 +1,11 @@
 .bundle
+.env
 .byebug_history
 .rubocop-*
 .vagrant
 .vscode-server
 .vscode/ipch
+.vscode/launch.json
 *.gem
 *.swo
 *.swp
