@@ -903,6 +903,46 @@ Running Tests:
 
 - `$ bundle exec rake` Run with `SKIP_FLAKY_TESTS=true` to skip flaky tests (CI runs all tests)
 
+### Interactive Test Debugging
+
+To use the interactive debugger on vscode:
+- Open semian in vscode
+- Create an `.env` file (if it doesn't exist)
+- Set up a `DEBUG` ENV variable (ex; `DEBUG=true`)
+- Under the `.vscode/` subdirectory, create a `launch.json` file, and include the following:
+
+```json
+{
+  "configurations": [
+    {
+      "type": "rdbg",
+      "name": "Attach to Ruby rdbg",
+      "request": "attach",
+      "debugPort": "12345",
+    }
+  ]
+}
+```
+
+- For universal support, for any lines you would like to add breakpoints to in your `_test.rb` file (under `test/`), include the following snippet near the line of interest:
+
+```rb
+require "debug"
+binding.break if ENV["DEBUG"]
+```
+
+**Note:** unless you are using an vscode extension such as [Dev Container](https://code.visualstudio.com/docs/devcontainers/tutorial), **do not use the built-in vscode breakpoints -- they will not work!**
+
+- Start up the test container
+
+```shell
+$ docker-compose -f .devcontainer/docker-compose.yml --profile test up -d
+```
+
+- When the process indicates that it is waiting for the debugger connection, go to the `Run and Debug` tab, and execute the `Attach to Ruby rdbg` debugger
+
+- Use the vscode debugging tools (such as step in, step out, pause, resume) as normal
+
 ## Everything else
 
 Test semian in containers:
