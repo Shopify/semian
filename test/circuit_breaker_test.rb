@@ -87,8 +87,16 @@ class TestCircuitBreaker < Minitest::Test
     )
     half_open_cicuit!(resource)
 
+    STDERR.puts "resource.errors: #{resource.circuit_breaker.instance_variable_get(:@errors).size}"
+    STDERR.puts "circuit state: #{resource.circuit_breaker.state.value}"
+    STDERR.puts "error timeout expired: #{resource.circuit_breaker.send(:error_timeout_expired?)}"
+
     assert_circuit_closed(resource)
     trigger_error!(resource)
+
+    STDERR.puts "resource.errors: #{resource.circuit_breaker.instance_variable_get(:@errors).size}"
+    STDERR.puts "circuit state: #{resource.circuit_breaker.state.value}"
+    STDERR.puts "error timeout expired: #{resource.circuit_breaker.send(:error_timeout_expired?)}"
 
     assert_circuit_closed(resource)
     trigger_error!(resource)
@@ -706,5 +714,39 @@ class TestCircuitBreaker < Minitest::Test
     assert_match(/lumping_interval \(4\) must be less than error_threshold_timeout \(3\)/, error.message)
   ensure
     Semian.destroy(:lumping_validation_test)
+  end
+
+  def test_consecutive_errors_only_when_error_threshold_timeout_enabled_false
+    resource = Semian.register(
+      :consecutive_errors_test,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+      error_threshold_timeout_enabled: false,
+    )
+
+    # First error
+    trigger_error!(resource)
+
+    assert_circuit_closed(resource)
+
+    # Many successful requests
+    100.times do
+      resource.acquire { true }
+    end
+
+    # Second error should NOT open the circuit because it's not consecutive
+    trigger_error!(resource)
+
+    assert_circuit_closed(resource)
+
+    # Third error should open the circuit (we now have 2 consecutive errors)
+    trigger_error!(resource)
+
+    assert_circuit_opened(resource)
+  ensure
+    Semian.destroy(:consecutive_errors_test)
   end
 end
