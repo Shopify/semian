@@ -33,16 +33,9 @@ module CircuitBreakerHelper
 
     now_closed = !circuit_breaker&.send(:open?)
 
-    STDERR.puts "old_errors: #{old_errors ? old_errors.size : "nil"}"
-    STDERR.puts "new_errors: #{circuit_breaker.instance_variable_get(:@errors) ? circuit_breaker.instance_variable_get(:@errors).size : "nil"}"
-
     unless previously_half_open || previously_open && now_closed || circuit_breaker.instance_variable_get(:@error_threshold_timeout_enabled).nil? || circuit_breaker.instance_variable_get(:@error_threshold_timeout_enabled)
       circuit_breaker.instance_variable_set(:@errors, old_errors)
     end
-
-    STDERR.puts "previously_half_open: #{previously_half_open}"
-    STDERR.puts "error_threshold_timeout_enabled: #{circuit_breaker.instance_variable_get(:@error_threshold_timeout_enabled)}"
-    STDERR.puts "errors: #{circuit_breaker.instance_variable_get(:@errors) ? circuit_breaker.instance_variable_get(:@errors).size : "nil"}"
 
     assert(block_called, "Expected the circuit to be closed, but it was open")
   end
