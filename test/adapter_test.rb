@@ -25,9 +25,9 @@ class TestSemianAdapter < Minitest::Test
     resource = Semian.register(
       :testing_unregister,
       tickets: 2,
-      error_threshold: 0,
-      error_timeout: 0,
-      success_threshold: 0,
+      error_threshold: 1,
+      error_timeout: 1,
+      success_threshold: 1,
     )
 
     assert_equal(Semian.resources[:testing_unregister], resource)
