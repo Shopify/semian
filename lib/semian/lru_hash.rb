@@ -14,11 +14,11 @@ class LRUHash
       yield
     end
 
-    def try_lock
+    def try_lock # rubocop:disable Naming/PredicateMethod
       true
     end
 
-    def unlock
+    def unlock # rubocop:disable Naming/PredicateMethod
       true
     end
 
