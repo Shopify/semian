@@ -19,6 +19,7 @@ class TestCircuitBreaker < Minitest::Test
       error_threshold: 2,
       error_timeout: 5,
       success_threshold: 1,
+      error_threshold_timeout: 5,
     )
     @resource = Semian[:testing]
   end
@@ -91,6 +92,7 @@ class TestCircuitBreaker < Minitest::Test
       error_timeout: 5,
       success_threshold: 1,
       error_threshold_timeout_enabled: false,
+      force_config_validation: false,
     )
     half_open_cicuit!(resource)
 
@@ -134,6 +136,7 @@ class TestCircuitBreaker < Minitest::Test
       error_timeout: 5,
       success_threshold: 1,
       error_threshold_timeout_enabled: false,
+      force_config_validation: false,
     )
 
     time_travel(-6) do
@@ -251,6 +254,7 @@ class TestCircuitBreaker < Minitest::Test
       error_timeout: 5,
       success_threshold: 2,
       error_threshold_timeout_enabled: false,
+      force_config_validation: false,
     )
 
     open_circuit!(resource)
@@ -320,6 +324,7 @@ class TestCircuitBreaker < Minitest::Test
       success_threshold: 1,
       error_threshold_timeout: 10,
       error_threshold_timeout_enabled: false,
+      force_config_validation: false,
     )
 
     time_travel(-6) do
@@ -409,6 +414,7 @@ class TestCircuitBreaker < Minitest::Test
       error_timeout: 5,
       success_threshold: 1,
       error_threshold_timeout_enabled: false,
+      force_config_validation: false,
     )
 
     time_travel(-6) do
@@ -831,5 +837,20 @@ class TestCircuitBreaker < Minitest::Test
       )
     end
     assert_match("constraint violated: lumping_interval * (error_threshold - 1) <= error_threshold_timeout", error.message)
+  end
+
+  def test_error_threshold_timeout_enabled_and_error_threshold_timeout_contradiction
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :contradiction_test,
+        tickets: 1,
+        error_threshold: 2,
+        error_timeout: 5,
+        success_threshold: 1,
+        error_threshold_timeout_enabled: false,
+        error_threshold_timeout: 10,
+      )
+    end
+    assert_match("error_threshold_timeout_enabled and error_threshold_timeout must not contradict each other", error.message)
   end
 end

@@ -15,7 +15,7 @@ module Semian
       end
     end
 
-    def validate!
+    def validate?
       validate_circuit_breaker_or_bulkhead!
       validate_bulkhead_configuration!
       validate_circuit_breaker_configuration!
@@ -105,7 +105,8 @@ module Semian
 
     def validate_timeouts!
       error_timeout = @configuration[:error_timeout]
-      error_threshold_timeout = @configuration[:error_threshold_timeout]
+      error_threshold_timeout = @configuration[:error_threshold_timeout] || error_timeout
+      error_threshold_timeout_enabled = @configuration[:error_threshold_timeout_enabled].nil? ? true : @configuration[:error_threshold_timeout_enabled]
       error_threshold = @configuration[:error_threshold]
       lumping_interval = @configuration[:lumping_interval]
       half_open_resource_timeout = @configuration[:half_open_resource_timeout]
@@ -120,7 +121,15 @@ module Semian
         raise_or_log_validation_required!(err)
       end
 
-      unless error_threshold_timeout.nil? || error_threshold_timeout > 0
+      # This state checks for contradictions between error_threshold_timeout_enabled and error_threshold_timeout.
+      unless error_threshold_timeout_enabled || !error_threshold_timeout
+        err = "error_threshold_timeout_enabled and error_threshold_timeout must not contradict each other, got error_threshold_timeout_enabled: #{error_threshold_timeout_enabled}, error_threshold_timeout: #{error_threshold_timeout}"
+        err += hint_format("Are you sure this is what you want? This will set error_threshold_timeout_enabled to #{error_threshold_timeout_enabled} while error_threshold_timeout is #{!!error_threshold_timeout ? "truthy" : "falsy"}")
+
+        raise_or_log_validation_required!(err)
+      end
+
+      unless error_threshold_timeout && error_threshold_timeout > 0
         err = "error_threshold_timeout must be positive, got #{error_threshold_timeout}"
 
         if error_threshold_timeout == 0
