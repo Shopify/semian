@@ -11,7 +11,6 @@ class TestCircuitBreaker < Minitest::Test
     Semian.logger = Logger.new(@strio)
     destroy_all_semian_resources
     # Ensure validation errors are raised for all tests to maintain existing behavior
-    Semian.default_force_config_validation = true
     Semian.register(
       :testing,
       tickets: 1,
@@ -20,13 +19,13 @@ class TestCircuitBreaker < Minitest::Test
       error_timeout: 5,
       success_threshold: 1,
       error_threshold_timeout: 5,
+      force_config_validation: true,
     )
     @resource = Semian[:testing]
   end
 
   def teardown
-    # Reset to default value after each test
-    Semian.default_force_config_validation = false
+    # unregister all the semians
   end
 
   def test_acquire_yield_when_the_circuit_is_closed
@@ -91,8 +90,6 @@ class TestCircuitBreaker < Minitest::Test
       error_threshold: 2,
       error_timeout: 5,
       success_threshold: 1,
-      error_threshold_timeout_enabled: false,
-      force_config_validation: false,
     )
     half_open_cicuit!(resource)
 
@@ -136,7 +133,6 @@ class TestCircuitBreaker < Minitest::Test
       error_timeout: 5,
       success_threshold: 1,
       error_threshold_timeout_enabled: false,
-      force_config_validation: false,
     )
 
     time_travel(-6) do
@@ -254,7 +250,6 @@ class TestCircuitBreaker < Minitest::Test
       error_timeout: 5,
       success_threshold: 2,
       error_threshold_timeout_enabled: false,
-      force_config_validation: false,
     )
 
     open_circuit!(resource)
@@ -324,7 +319,6 @@ class TestCircuitBreaker < Minitest::Test
       success_threshold: 1,
       error_threshold_timeout: 10,
       error_threshold_timeout_enabled: false,
-      force_config_validation: false,
     )
 
     time_travel(-6) do
@@ -414,7 +408,6 @@ class TestCircuitBreaker < Minitest::Test
       error_timeout: 5,
       success_threshold: 1,
       error_threshold_timeout_enabled: false,
-      force_config_validation: false,
     )
 
     time_travel(-6) do
@@ -706,6 +699,7 @@ class TestCircuitBreaker < Minitest::Test
     error = assert_raises(ArgumentError) do
       Semian.register(
         :lumping_validation_test,
+        force_config_validation: true,
         bulkhead: false,
         exceptions: [SomeError],
         error_threshold: 2,
@@ -716,7 +710,7 @@ class TestCircuitBreaker < Minitest::Test
       )
     end
 
-    assert_match("constraint violated: lumping_interval * (error_threshold - 1) <= error_threshold_timeout", error.message)
+    assert_match("constraint violated, this circuit breaker can never open! lumping_interval * (error_threshold - 1) should be <= error_threshold_timeout", error.message)
   ensure
     Semian.destroy(:lumping_validation_test)
   end
@@ -725,6 +719,7 @@ class TestCircuitBreaker < Minitest::Test
     error = assert_raises(ArgumentError) do
       Semian.register(
         :testing_invalid_success,
+        force_config_validation: true,
         circuit_breaker: true,
         success_threshold: 0,
         error_threshold: 2,
@@ -733,13 +728,14 @@ class TestCircuitBreaker < Minitest::Test
       )
     end
 
-    assert_match("success_threshold must be positive", error.message)
+    assert_match("success_threshold must be a positive integer", error.message)
   end
 
   def test_circuit_breaker_with_invalid_error_threshold
     error = assert_raises(ArgumentError) do
       Semian.register(
         :testing_invalid_error,
+        force_config_validation: true,
         circuit_breaker: true,
         success_threshold: 2,
         error_threshold: 0,
@@ -748,13 +744,14 @@ class TestCircuitBreaker < Minitest::Test
       )
     end
 
-    assert_match("error_threshold must be positive", error.message)
+    assert_match("error_threshold must be a positive integer", error.message)
   end
 
   def test_circuit_breaker_with_invalid_error_timeout
     error = assert_raises(ArgumentError) do
       Semian.register(
         :testing_invalid_timeout,
+        force_config_validation: true,
         circuit_breaker: true,
         success_threshold: 2,
         error_threshold: 2,
@@ -763,13 +760,14 @@ class TestCircuitBreaker < Minitest::Test
       )
     end
 
-    assert_match("error_timeout must be positive", error.message)
+    assert_match("error_timeout must be a positive number", error.message)
   end
 
   def test_circuit_breaker_with_invalid_lumping_interval
     error = assert_raises(ArgumentError) do
       Semian.register(
         :testing_invalid_lumping,
+        force_config_validation: true,
         circuit_breaker: true,
         success_threshold: 2,
         error_threshold: 2,
@@ -780,13 +778,14 @@ class TestCircuitBreaker < Minitest::Test
       )
     end
 
-    assert_match("constraint violated: lumping_interval * (error_threshold - 1) <= error_threshold_timeout", error.message)
+    assert_match("constraint violated, this circuit breaker can never open! lumping_interval * (error_threshold - 1) should be <= error_threshold_timeout", error.message)
   end
 
   def test_circuit_breaker_with_missing_required_params
     error = assert_raises(ArgumentError) do
       Semian.register(
         :testing_missing_params,
+        force_config_validation: true,
         circuit_breaker: true,
         success_threshold: 2,
         bulkhead: false,
@@ -800,6 +799,7 @@ class TestCircuitBreaker < Minitest::Test
     error = assert_raises(ArgumentError) do
       Semian.register(
         :invalid_half_open_resource_timeout,
+        force_config_validation: true,
         tickets: 1,
         error_threshold: 2,
         error_timeout: 5,
@@ -807,13 +807,14 @@ class TestCircuitBreaker < Minitest::Test
         half_open_resource_timeout: -1,
       )
     end
-    assert_match("half_open_resource_timeout must be positive", error.message)
+    assert_match("half_open_resource_timeout must be a positive number", error.message)
   end
 
   def test_lumping_interval_negative
     error = assert_raises(ArgumentError) do
       Semian.register(
         :invalid_lumping_interval,
+        force_config_validation: true,
         tickets: 1,
         error_threshold: 2,
         error_timeout: 5,
@@ -821,13 +822,14 @@ class TestCircuitBreaker < Minitest::Test
         lumping_interval: -1,
       )
     end
-    assert_match("lumping_interval must be non-negative", error.message)
+    assert_match("lumping_interval must be a positive number", error.message)
   end
 
   def test_lumping_interval_times_threshold_exceeds_error_threshold_timeout
     error = assert_raises(ArgumentError) do
       Semian.register(
         :invalid_lumping_times_threshold,
+        force_config_validation: true,
         tickets: 1,
         error_threshold: 3,
         error_timeout: 5,
@@ -836,13 +838,15 @@ class TestCircuitBreaker < Minitest::Test
         error_threshold_timeout: 4,
       )
     end
-    assert_match("constraint violated: lumping_interval * (error_threshold - 1) <= error_threshold_timeout", error.message)
+
+    assert_match("constraint violated, this circuit breaker can never open! lumping_interval * (error_threshold - 1) should be <= error_threshold_timeout", error.message)
   end
 
   def test_error_threshold_timeout_enabled_and_error_threshold_timeout_contradiction
     error = assert_raises(ArgumentError) do
       Semian.register(
         :contradiction_test,
+        force_config_validation: true,
         tickets: 1,
         error_threshold: 2,
         error_timeout: 5,

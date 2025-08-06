@@ -6,12 +6,6 @@ class TestSemian < Minitest::Test
   def setup
     destroy_all_semian_resources
     # Ensure validation errors are raised for all tests to maintain existing behavior
-    Semian.default_force_config_validation = true
-  end
-
-  def teardown
-    # Reset to default value after each test
-    Semian.default_force_config_validation = false
   end
 
   def test_unsupported_acquire_yields
@@ -29,6 +23,7 @@ class TestSemian < Minitest::Test
         error_threshold: 2,
         error_timeout: 5,
         bulkhead: false,
+        force_config_validation: true,
       )
     end
 
@@ -70,6 +65,7 @@ class TestSemian < Minitest::Test
       Semian.register(
         :testing,
         circuit_breaker: false,
+        force_config_validation: true,
       )
     end
 
@@ -86,6 +82,7 @@ class TestSemian < Minitest::Test
         tickets: 42,
         quota: 42,
         circuit_breaker: false,
+        force_config_validation: true,
       )
     end
 
@@ -125,6 +122,7 @@ class TestSemian < Minitest::Test
         :disabled_bulkhead_and_circuit_breaker,
         bulkhead: false,
         circuit_breaker: false,
+        force_config_validation: true,
       )
     end
 
@@ -263,6 +261,7 @@ class TestSemian < Minitest::Test
         bulkhead: true,
         quota: 1.5,
         circuit_breaker: false,
+        force_config_validation: true,
       )
     end
   end
@@ -286,6 +285,7 @@ class TestSemian < Minitest::Test
         bulkhead: true,
         tickets: -1,
         circuit_breaker: false,
+        force_config_validation: true,
       )
     end
   end
@@ -315,6 +315,7 @@ class TestSemian < Minitest::Test
         bulkhead: true,
         tickets: 5,
         circuit_breaker: false,
+        force_config_validation: true,
       )
     end
 
@@ -330,6 +331,7 @@ class TestSemian < Minitest::Test
         :testing_invalid_config,
         bulkhead: false,
         circuit_breaker: true,
+        force_config_validation: true,
       )
     end
 
@@ -369,6 +371,7 @@ class TestSemian < Minitest::Test
         bulkhead: true,
         quota: 1,
         circuit_breaker: false,
+        force_config_validation: true,
       )
     end
 
@@ -382,6 +385,7 @@ class TestSemian < Minitest::Test
         bulkhead: true,
         quota: 0,
         circuit_breaker: false,
+        force_config_validation: true,
       )
     end
 
@@ -395,6 +399,7 @@ class TestSemian < Minitest::Test
         bulkhead: true,
         quota: -0.5,
         circuit_breaker: false,
+        force_config_validation: true,
       )
     end
 
@@ -408,6 +413,7 @@ class TestSemian < Minitest::Test
         bulkhead: true,
         tickets: 0,
         circuit_breaker: false,
+        force_config_validation: true,
       )
     end
 
@@ -424,6 +430,7 @@ class TestSemian < Minitest::Test
         success_threshold: 1,
         error_threshold: 1,
         error_timeout: 1,
+        force_config_validation: true,
       )
     end
 
@@ -439,6 +446,7 @@ class TestSemian < Minitest::Test
         success_threshold: 1,
         error_threshold: 1,
         error_timeout: 1,
+        force_config_validation: true,
       )
     end
 
@@ -471,12 +479,12 @@ class TestSemian < Minitest::Test
         error_threshold: 1,
         error_timeout: 1,
         lumping_interval: -1,
-        force_config_validation: true,
         circuit_breaker: true,
+        force_config_validation: true,
       )
     end
 
-    assert_match("lumping_interval must be non-negative", error.message)
+    assert_match("lumping_interval must be a positive number", error.message)
   end
 
   def test_force_config_validation_flag_when_false_only_logs_warnings
@@ -497,7 +505,7 @@ class TestSemian < Minitest::Test
     )
 
     assert_instance_of(Semian::ProtectedResource, resource)
-    assert_match("lumping_interval must be non-negative", log_output.string)
+    assert_match("lumping_interval must be a positive number", log_output.string)
   ensure
     Semian.logger = original_logger
   end
@@ -526,12 +534,12 @@ class TestSemian < Minitest::Test
         error_threshold: 1,
         error_timeout: 1,
         lumping_interval: -1,
-        force_config_validation: true,
         circuit_breaker: true,
+        force_config_validation: true,
       )
     end
 
-    assert_match("lumping_interval must be non-negative", error.message)
+    assert_match("lumping_interval must be a positive number", error.message)
 
     # Change back to false
     resource = Semian.register(

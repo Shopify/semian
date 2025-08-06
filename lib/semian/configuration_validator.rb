@@ -15,12 +15,11 @@ module Semian
       end
     end
 
-    def validate?
+    def validate!
       validate_circuit_breaker_or_bulkhead!
       validate_bulkhead_configuration!
       validate_circuit_breaker_configuration!
       validate_resource_name!
-      true
     end
 
     private
@@ -40,13 +39,13 @@ module Semian
     def require_keys!(required, options)
       diff = required - options.keys
       unless diff.empty?
-        raise ArgumentError, "Missing required arguments for Semian: #{diff}"
+        raise_or_log_validation_required!("Missing required arguments for Semian: #{diff}")
       end
     end
 
     def validate_circuit_breaker_or_bulkhead!
       if (@configuration[:circuit_breaker] == false || ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED")) && (@configuration[:bulkhead] == false || ENV.key?("SEMIAN_BULKHEAD_DISABLED"))
-        raise ArgumentError, "Both bulkhead and circuitbreaker cannot be disabled."
+        raise_or_log_validation_required!("Both bulkhead and circuitbreaker cannot be disabled.")
       end
     end
 
@@ -58,11 +57,11 @@ module Semian
       quota = @configuration[:quota]
 
       if tickets.nil? && quota.nil?
-        raise ArgumentError, "Bulkhead configuration require either the :tickets or :quota parameter, you provided neither"
+        raise_or_log_validation_required!("Bulkhead configuration require either the :tickets or :quota parameter, you provided neither")
       end
 
       if tickets && quota
-        raise ArgumentError, "Bulkhead configuration require either the :tickets or :quota parameter, you provided both"
+        raise_or_log_validation_required!("Bulkhead configuration require either the :tickets or :quota parameter, you provided both")
       end
 
       validate_quota!(quota) if quota
@@ -82,8 +81,8 @@ module Semian
       success_threshold = @configuration[:success_threshold]
       error_threshold = @configuration[:error_threshold]
 
-      if success_threshold && success_threshold <= 0
-        err = "success_threshold must be positive, got #{success_threshold}"
+      unless success_threshold.is_a?(Integer) && success_threshold > 0
+        err = "success_threshold must be a positive integer, got #{success_threshold}"
 
         if success_threshold == 0
           err += hint_format("Are you sure that this is what you want? This will close the circuit breaker immediately after `error_timeout` seconds without checking the resource!")
@@ -92,11 +91,11 @@ module Semian
         raise_or_log_validation_required!(err)
       end
 
-      if error_threshold && error_threshold <= 0
-        err = "error_threshold must be positive, got #{error_threshold}"
+      unless error_threshold.is_a?(Integer) && error_threshold > 0
+        err = "error_threshold must be a positive integer, got #{error_threshold}"
 
         if error_threshold == 0
-          err += hint_format("Are you sure that this is what you want? This will open the circuit breaker indefinitely!")
+          err += hint_format("Are you sure that this is what you want? This can result in the circuit opening up at unpredicatable times!")
         end
 
         raise_or_log_validation_required!(err)
@@ -105,14 +104,13 @@ module Semian
 
     def validate_timeouts!
       error_timeout = @configuration[:error_timeout]
-      error_threshold_timeout = @configuration[:error_threshold_timeout] || error_timeout
       error_threshold_timeout_enabled = @configuration[:error_threshold_timeout_enabled].nil? ? true : @configuration[:error_threshold_timeout_enabled]
       error_threshold = @configuration[:error_threshold]
       lumping_interval = @configuration[:lumping_interval]
       half_open_resource_timeout = @configuration[:half_open_resource_timeout]
 
-      unless error_timeout && error_timeout > 0
-        err = "error_timeout must be positive, got #{error_timeout}"
+      unless error_timeout.is_a?(Numeric) && error_timeout > 0
+        err = "error_timeout must be a positive number, got #{error_timeout}"
 
         if error_timeout == 0
           err += hint_format("Are you sure that this is what you want? This will close the circuit breaker immediately after opening it!")
@@ -122,15 +120,17 @@ module Semian
       end
 
       # This state checks for contradictions between error_threshold_timeout_enabled and error_threshold_timeout.
-      unless error_threshold_timeout_enabled || !error_threshold_timeout
-        err = "error_threshold_timeout_enabled and error_threshold_timeout must not contradict each other, got error_threshold_timeout_enabled: #{error_threshold_timeout_enabled}, error_threshold_timeout: #{error_threshold_timeout}"
-        err += hint_format("Are you sure this is what you want? This will set error_threshold_timeout_enabled to #{error_threshold_timeout_enabled} while error_threshold_timeout is #{!!error_threshold_timeout ? "truthy" : "falsy"}")
+      unless error_threshold_timeout_enabled || !@configuration[:error_threshold_timeout]
+        err = "error_threshold_timeout_enabled and error_threshold_timeout must not contradict each other, got error_threshold_timeout_enabled: #{error_threshold_timeout_enabled}, error_threshold_timeout: #{@configuration[:error_threshold_timeout]}"
+        err += hint_format("Are you sure this is what you want? This will set error_threshold_timeout_enabled to #{error_threshold_timeout_enabled} while error_threshold_timeout is #{@configuration[:error_threshold_timeout] ? "truthy" : "falsy"}")
 
         raise_or_log_validation_required!(err)
       end
 
-      unless error_threshold_timeout && error_threshold_timeout > 0
-        err = "error_threshold_timeout must be positive, got #{error_threshold_timeout}"
+      # Only set this after we have checked the error_threshold_timeout_enabled condition
+      error_threshold_timeout = @configuration[:error_threshold_timeout] || error_timeout
+      unless error_threshold_timeout.is_a?(Numeric) && error_threshold_timeout > 0
+        err = "error_threshold_timeout must be a positive number, got #{error_threshold_timeout}"
 
         if error_threshold_timeout == 0
           err += hint_format("Are you sure that this is what you want? This will almost never open the circuit breaker since the time interval to catch errors is 0!")
@@ -139,22 +139,24 @@ module Semian
         raise_or_log_validation_required!(err)
       end
 
-      unless half_open_resource_timeout.nil? || half_open_resource_timeout > 0
-        err = "half_open_resource_timeout must be positive, got #{half_open_resource_timeout}"
+      unless half_open_resource_timeout.nil? || (half_open_resource_timeout.is_a?(Numeric) && half_open_resource_timeout > 0)
+        err = "half_open_resource_timeout must be a positive number, got #{half_open_resource_timeout}"
 
         if half_open_resource_timeout == 0
-          err += hint_format("Are you sure that this is what you want? This will never half-open the circuit breaker!")
+          err += hint_format("Are you sure that this is what you want? This will never half-open the circuit breaker! If that's what you want, you can omit the option instead")
         end
 
         raise_or_log_validation_required!(err)
       end
 
-      unless lumping_interval.nil? || lumping_interval >= 0
-        raise_or_log_validation_required!("lumping_interval must be non-negative, got #{lumping_interval}")
-      end
+      unless lumping_interval.nil? || (lumping_interval.is_a?(Numeric) && lumping_interval > 0)
+        err = "lumping_interval must be a positive number, got #{lumping_interval}"
 
-      if lumping_interval && lumping_interval == 0
-        Semian.logger.warn("lumping_interval is 0, this means lumping is disabled!")
+        if lumping_interval == 0
+          err += hint_format("Are you sure that this is what you want? This will never lump errors! If that's what you want, you can omit the option instead")
+        end
+
+        raise_or_log_validation_required!(err)
       end
 
       # You might be wondering why not check just check lumping_interval * error_threshold <= error_threshold_timeout
@@ -172,7 +174,7 @@ module Semian
       # error could be counted at second 8. So this is a valid configuration.
 
       unless lumping_interval.nil? || error_threshold_timeout.nil? || lumping_interval * (error_threshold - 1) <= error_threshold_timeout
-        err = "constraint violated: lumping_interval * (error_threshold - 1) <= error_threshold_timeout, got lumping_interval: #{lumping_interval}, error_threshold: #{error_threshold}, error_threshold_timeout: #{error_threshold_timeout}"
+        err = "constraint violated, this circuit breaker can never open! lumping_interval * (error_threshold - 1) should be <= error_threshold_timeout, got lumping_interval: #{lumping_interval}, error_threshold: #{error_threshold}, error_threshold_timeout: #{error_threshold_timeout}"
         err += hint_format("lumping_interval starts from the first error and not in a fixed window. So you can fit n errors in n-1 seconds, since error 0 starts at 0 seconds. Ensure that you can fit `error_threshold` errors lumped in `lumping_interval` seconds within `error_threshold_timeout` seconds.")
 
         raise_or_log_validation_required!(err)
@@ -187,11 +189,9 @@ module Semian
           err += hint_format("Are you sure that this is what you want? This is the same as assigning no workers to the resource, disabling the resource!")
         elsif quota == 1
           err += hint_format("Are you sure that this is what you want? This is the same as assigning all workers to the resource, disabling the bulkhead!")
-          raise_or_log_validation_required!(err)
-          return
         end
 
-        raise ArgumentError, err
+        raise_or_log_validation_required!(err)
       end
     end
 
@@ -203,11 +203,9 @@ module Semian
           err += hint_format("Are you sure that this is what you want? This is the same as assigning no workers to the resource, disabling the resource!")
         elsif tickets == Semian::MAX_TICKETS
           err += hint_format("Are you sure that this is what you want? This is the same as assigning all workers to the resource, disabling the bulkhead!")
-          raise_or_log_validation_required!(err)
-          return
         end
 
-        raise ArgumentError, err
+        raise_or_log_validation_required!(err)
       end
     end
 
