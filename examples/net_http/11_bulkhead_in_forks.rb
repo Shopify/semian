@@ -25,26 +25,26 @@ Semian::NetHTTP.semian_configuration = proc do |host, port|
   pid = Process.pid
   puts "[pid=#{pid}][semian/http] invoked config for host=#{host}(#{host.class}) port=#{port}(#{port.class})".gray
 
-  if host == "example.com"
-    SEMIAN_PARAMETERS.merge(name: "example_com")
+  if host == "shopify.com"
+    SEMIAN_PARAMETERS.merge(name: "shopify_com")
   end
 end
 
 puts "> Test requests in forks".blue.bold
 
 pid = Process.pid
-puts "[pid=#{pid}] >> Request to http://example.com:80/index.html - success".cyan.bold
-uri = URI("http://example.com:80/index.html")
+puts "[pid=#{pid}] >> Request to http://shopify.com:80/index.html - success".cyan.bold
+uri = URI("http://shopify.com:80/index.html")
 Net::HTTP.get_response(uri)
 
 workers = []
 
 workers << fork do
   pid = Process.pid
-  puts "[pid=#{pid}] >> Request to http://example.com:81/index.html to use all Tickets - fail".magenta.bold
+  puts "[pid=#{pid}] >> Request to http://shopify.com:81/index.html to use all Tickets - fail".magenta.bold
   puts "[pid=#{pid}]   !!! Semian starting use the single available ticket. No more tickets for next 5 seconds. !!!".red.bold
   puts
-  Net::HTTP.start("example.com", 81, open_timeout: 5) do |http|
+  Net::HTTP.start("shopify.com", 81, open_timeout: 5) do |http|
     http.request_get(bad_host)
   end
 rescue Errno::EADDRNOTAVAIL, Net::OpenTimeout => e
@@ -54,7 +54,7 @@ end
 2.times do
   workers << fork do
     pid = Process.pid
-    puts "[pid=#{pid}] >> Request to HEALTHY http://example.com/index.html in a separate FORK - fail".magenta.bold
+    puts "[pid=#{pid}] >> Request to HEALTHY http://shopify.com/index.html in a separate FORK - fail".magenta.bold
     Net::HTTP.get_response(uri)
     raise "Should not get to this line."
   rescue Net::ResourceBusyError => e
@@ -66,8 +66,8 @@ workers.each do |w|
   Process.waitpid(w)
 end
 
-puts "[pid=#{pid}] >> Request to HEALTHY http://example.com:80/index.html - success".cyan.bold
-uri = URI("http://example.com:80/index.html")
+puts "[pid=#{pid}] >> Request to HEALTHY http://shopify.com:80/index.html - success".cyan.bold
+uri = URI("http://shopify.com:80/index.html")
 Net::HTTP.get_response(uri)
 
 puts "> That's all Folks!".green

@@ -25,13 +25,13 @@ Semian::NetHTTP.semian_configuration = proc do |host, port|
   pid = Process.pid
   puts "[pid=#{pid}][semian/http] invoked config for host=#{host}(#{host.class}) port=#{port}(#{port.class})".gray
 
-  if host == "example.com"
-    SEMIAN_PARAMETERS.merge(name: "example_com")
+  if host == "shopify.com"
+    SEMIAN_PARAMETERS.merge(name: "shopify_com")
   end
 end
 
 def print_semaphore_information(resource = nil)
-  resource ||= Semian["nethttp_example_com"]
+  resource ||= Semian["nethttp_shopify_com"]
   return if resource.nil?
 
   sem_key = resource.bulkhead.key
@@ -39,8 +39,8 @@ def print_semaphore_information(resource = nil)
 end
 
 pid = Process.pid
-puts "[pid=#{pid}] >> Request to http://example.com:80/index.html - success".cyan.bold
-uri = URI("http://example.com:80/index.html")
+puts "[pid=#{pid}] >> Request to http://shopify.com:80/index.html - success".cyan.bold
+uri = URI("http://shopify.com:80/index.html")
 Net::HTTP.get_response(uri)
 
 puts "> Bulkhead's semaphore information:".blue.bold
@@ -58,16 +58,16 @@ puts
 puts "> Test requests in forks".blue.bold
 
 pid = Process.pid
-puts "[pid=#{pid}] >> Request to http://example.com:80/index.html - success".cyan.bold
-uri = URI("http://example.com:80/index.html")
+puts "[pid=#{pid}] >> Request to http://shopify.com:80/index.html - success".cyan.bold
+uri = URI("http://shopify.com:80/index.html")
 Net::HTTP.get_response(uri)
 
 workers = []
 
 workers << fork do
   pid = Process.pid
-  puts "[pid=#{pid}] >> Request to http://example.com:81/index.html to use all Tickets - fail".magenta.bold
-  Net::HTTP.start("example.com", 81, open_timeout: 5) do |http|
+  puts "[pid=#{pid}] >> Request to http://shopify.com:81/index.html to use all Tickets - fail".magenta.bold
+  Net::HTTP.start("shopify.com", 81, open_timeout: 5) do |http|
     http.request_get(bad_host)
   end
   raise "Should not get to this line."
@@ -80,7 +80,7 @@ end
     pid = Process.pid
     puts "[pid=#{pid}] > Unregister resources to make sure other workers know about new worker appeared.".blue.bold
     Semian.unregister_all_resources
-    puts "[pid=#{pid}] >> Request to http://example.com/index.html to use all Tickets - success".cyan
+    puts "[pid=#{pid}] >> Request to http://shopify.com/index.html to use all Tickets - success".cyan
     Net::HTTP.get_response(uri)
   end
 end

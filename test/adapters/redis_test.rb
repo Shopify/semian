@@ -36,8 +36,8 @@ module RedisTests
       new_redis(semian: { name: nil })._client.semian_identifier,
     )
     assert_equal(
-      :"redis_example.com:42/1",
-      new_redis(host: "example.com", port: 42, semian: { name: nil })._client.semian_identifier,
+      :"redis_shopify.com:42/1",
+      new_redis(host: "shopify.com", port: 42, semian: { name: nil })._client.semian_identifier,
     )
   end
 
@@ -229,9 +229,9 @@ module RedisTests
 
   [
     "Temporary failure in name resolution",
-    "Can't resolve example.com",
+    "Can't resolve shopify.com",
     "name or service not known",
-    "Could not resolve hostname example.com: nodename nor servname provided, or not known",
+    "Could not resolve hostname shopify.com: nodename nor servname provided, or not known",
   ].each do |message|
     test_suffix = message.gsub(/\W/, "_").downcase
     define_method(:"test_dns_resolution_failure_#{test_suffix}") do
@@ -242,7 +242,7 @@ module RedisTests
       end
 
       assert_resolve_error do
-        connect_to_redis!(host: "example.com")
+        connect_to_redis!(host: "shopify.com")
       end
     end
   end

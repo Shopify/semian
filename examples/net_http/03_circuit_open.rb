@@ -21,15 +21,15 @@ SEMIAN_PARAMETERS = {
 }.freeze
 
 puts "> Configure Circuit breaker for Net::HTTP".blue.bold
-puts "  Setup single circuit breaker limited to example.com".blue
+puts "  Setup single circuit breaker limited to shopify.com".blue
 puts "  and single port 81 (Integer).".blue
 puts "  " + "Bulkhead is DISABLED.".blue.underline
 Semian::NetHTTP.semian_configuration = proc do |host, port|
   puts "[semian/http] invoked config for host=#{host}(#{host.class}) port=#{port}(#{port.class})".gray
 
-  if host == "example.com" && port == 81
-    puts "  [semian/http] set resource name example_com_81".gray
-    SEMIAN_PARAMETERS.merge(name: "example_com_81")
+  if host == "shopify.com" && port == 81
+    puts "  [semian/http] set resource name shopify_com_81".gray
+    SEMIAN_PARAMETERS.merge(name: "shopify_com_81")
   else
     puts "  [semian/http] skip semian initialization".gray
     nil
@@ -38,11 +38,11 @@ end
 
 puts "> Test requests".blue.bold
 
-uri = URI("http://example.com:81/index.html")
+uri = URI("http://shopify.com:81/index.html")
 
-puts " >> 1. Request to http://example.com:81/index.html - fail".magenta
+puts " >> 1. Request to http://shopify.com:81/index.html - fail".magenta
 begin
-  Net::HTTP.start("example.com", 81, open_timeout: 3) do |http|
+  Net::HTTP.start("shopify.com", 81, open_timeout: 3) do |http|
     http.request_get(uri)
   end
 rescue => e
@@ -50,9 +50,9 @@ rescue => e
 end
 puts
 
-puts " >> 2. Request to http://example.com:81/index.html - fail".magenta
+puts " >> 2. Request to http://shopify.com:81/index.html - fail".magenta
 begin
-  Net::HTTP.start("example.com", 81, open_timeout: 3) do |http|
+  Net::HTTP.start("shopify.com", 81, open_timeout: 3) do |http|
     http.request_get(uri)
   end
 rescue => e
@@ -62,29 +62,29 @@ puts "   !!! Semian changed state from `closed` to `open` and record last error 
 puts
 
 puts " >> Review semian state:".blue
-resource = Semian["nethttp_example_com_81"]
+resource = Semian["nethttp_shopify_com_81"]
 puts "resource_name=#{resource.name} resource=#{resource} " \
   "closed=#{resource.closed?} open=#{resource.open?} " \
   "half_open=#{resource.half_open?}".gray
 puts
 
-puts " >> 3. Request to http://example.com:81/index.html - fail".magenta
+puts " >> 3. Request to http://shopify.com:81/index.html - fail".magenta
 begin
-  Net::HTTP.start("example.com", 81, open_timeout: 3) do |http|
+  Net::HTTP.start("shopify.com", 81, open_timeout: 3) do |http|
     http.request_get(uri)
   end
 rescue Net::CircuitOpenError => e
   puts "   >> Semian is open: #{e.message}".brown
-  puts "   !!! Semian open and no request made to example.com:81 !!!".red.bold
+  puts "   !!! Semian open and no request made to shopify.com:81 !!!".red.bold
 end
 puts
 
 puts " >> 4. Requests to other ports are still working".cyan
-response = Net::HTTP.get_response("example.com", "/index.html")
+response = Net::HTTP.get_response("shopify.com", "/index.html")
 puts "  > Response status: #{response.code}"
 puts
 puts " >> Review semian state:".blue
-resource = Semian["nethttp_example_com_81"]
+resource = Semian["nethttp_shopify_com_81"]
 puts "resource_name=#{resource.name} resource=#{resource} " \
   "closed=#{resource.closed?} open=#{resource.open?} " \
   "half_open=#{resource.half_open?}".gray
@@ -96,7 +96,7 @@ puts
 
 puts " >> 6. Try to connect to host and switch back to open circuit".magenta
 begin
-  Net::HTTP.start("example.com", 81, open_timeout: 3) do |http|
+  Net::HTTP.start("shopify.com", 81, open_timeout: 3) do |http|
     http.request_get(uri)
   end
 rescue => e

@@ -479,9 +479,9 @@ class TestNetHTTP < Minitest::Test
     ENV["SEMIAN_DISABLED"] = "1"
     with_server do
       with_semian_configuration do
-        http = Net::HTTP.new("example.com", 80)
+        http = Net::HTTP.new("shopify.com", 80)
 
-        assert_equal("nethttp_example.com_80", http.semian_identifier)
+        assert_equal("nethttp_shopify.com_80", http.semian_identifier)
       end
     end
   ensure

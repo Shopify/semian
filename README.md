@@ -124,8 +124,8 @@ is, if a resource has been updated more recently than `minimum_lru_time` it
 will not be garbage collected, even if it would cause the LRU cache to grow
 larger than `maximum_lru_size`.
 
-Note: `default_force_config_validation` set to `true` is a 
-**_potentially breaking change_**. Misconfigured Semians will raise errors, so 
+Note: `default_force_config_validation` set to `true` is a
+**_potentially breaking change_**. Misconfigured Semians will raise errors, so
 make sure that this is what you want. See more in [Configuration Validation](#configuration-validation).
 
 When instantiating a resource it now needs to be configured for Semian. This is
@@ -161,8 +161,8 @@ explicitly force the Semian to validate it's configurations, pass `force_config_
 into your resource. This will raise an error in the case of a misconfigured or illegal Semian. Otherwise,
 if it is set to `false`, it will log misconfigured parameters verbosely in output.
 
-If not specified, it will use `Semian.default_force_config_validation` as 
-the flag. 
+If not specified, it will use `Semian.default_force_config_validation` as
+the flag.
 
 **IMPORTANT**: Future releases will deprecate and eventually remove this flag, making explicit configuration
 validation the default. **Please make changes as soon as possible** to ensure that your Semian does not break
@@ -307,11 +307,11 @@ Semian::NetHTTP.semian_configuration = proc do |host, port|
   SEMIAN_PARAMETERS.merge(name: name)
 end
 
-# Two requests to example.com can use two different semian resources,
+# Two requests to shopify.com can use two different semian resources,
 # as long as `CurrentSemianSubResource.sub_name` is set accordingly:
-# CurrentSemianSubResource.set(sub_name: "sub_resource_1") { Net::HTTP.get_response(URI("http://example.com")) }
+# CurrentSemianSubResource.set(sub_name: "sub_resource_1") { Net::HTTP.get_response(URI("http://shopify.com")) }
 # and:
-# CurrentSemianSubResource.set(sub_name: "sub_resource_2") { Net::HTTP.get_response(URI("http://example.com")) }
+# CurrentSemianSubResource.set(sub_name: "sub_resource_2") { Net::HTTP.get_response(URI("http://shopify.com")) }
 ```
 
 For most purposes, `"#{host}_#{port}"` is a good default `name`. Custom `name` formats
