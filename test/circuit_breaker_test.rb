@@ -24,10 +24,6 @@ class TestCircuitBreaker < Minitest::Test
     @resource = Semian[:testing]
   end
 
-  def teardown
-    # unregister all the semians
-  end
-
   def test_acquire_yield_when_the_circuit_is_closed
     block_called = false
     @resource.acquire { block_called = true }
