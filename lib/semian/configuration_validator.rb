@@ -32,7 +32,7 @@ module Semian
       if @force_config_validation
         raise ArgumentError, message
       else
-        Semian.logger.warn(message)
+        Semian.logger.warn("[SEMIAN_CONFIG_WARNING]: #{message}")
       end
     end
 
@@ -95,7 +95,7 @@ module Semian
         err = "error_threshold must be a positive integer, got #{error_threshold}"
 
         if error_threshold == 0
-          err += hint_format("Are you sure that this is what you want? This can result in the circuit opening up at unpredicatable times!")
+          err += hint_format("Are you sure that this is what you want? This can result in the circuit opening up at unpredictable times!")
         end
 
         raise_or_log_validation_required!(err)

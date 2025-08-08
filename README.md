@@ -156,7 +156,7 @@ client = Redis.new(semian: {
 
 #### Configuration Validation
 
-Semian now provides a flag to specifiy log-based and exception-based configuration validation. To
+Semian now provides a flag to specify log-based and exception-based configuration validation. To
 explicitly force the Semian to validate it's configurations, pass `force_config_validation: true`
 into your resource. This will raise an error in the case of a misconfigured or illegal Semian. Otherwise,
 if it is set to `false`, it will log misconfigured parameters verbosely in output.
@@ -167,6 +167,22 @@ the flag.
 **IMPORTANT**: Future releases will deprecate and eventually remove this flag, making explicit configuration
 validation the default. **Please make changes as soon as possible** to ensure that your Semian does not break
 in a future version.
+
+##### Migration Strategy for Force Config Validation
+
+When migrating to use `force_config_validation: true`, follow these steps:
+
+1. **Deploy with it turned off**: Start with `force_config_validation: false` in your configuration
+2. **Look for logs with prefix**: Monitor your application logs for entries with the `[SEMIAN_CONFIG_WARNING]:` prefix. These logs will indicate misconfigured Semian resources
+3. **Iterate to fix**: Address each configuration issue identified in the logs by updating your Semian configurations
+4. **Enable**: Once all configuration issues are resolved, set `force_config_validation: true` to enable strict validation
+
+Example log entries to look for:
+```
+[SEMIAN_CONFIG_WARNING]: Missing required arguments for Semian: [:success_threshold, :error_threshold, :error_timeout]
+[SEMIAN_CONFIG_WARNING]: Both bulkhead and circuitbreaker cannot be disabled.
+[SEMIAN_CONFIG_WARNING]: Bulkhead configuration require either the :tickets or :quota parameter, you provided neither
+```
 
 #### Thread Safety
 
