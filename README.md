@@ -164,10 +164,6 @@ if it is set to `false`, it will log misconfigured parameters verbosely in outpu
 If not specified, it will use `Semian.default_force_config_validation` as
 the flag.
 
-**IMPORTANT**: Future releases will deprecate and eventually remove this flag, making explicit configuration
-validation the default. **Please make changes as soon as possible** to ensure that your Semian does not break
-in a future version.
-
 ##### Migration Strategy for Force Config Validation
 
 When migrating to use `force_config_validation: true`, follow these steps:
