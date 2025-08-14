@@ -33,16 +33,16 @@ SEMIAN_PARAMETERS = {
 }.freeze
 
 puts "> Configure Circuit breaker and Bulkhead for Net::HTTP".blue.bold
-puts "  Setup single circuit breaker for all example.com requests".blue
+puts "  Setup single circuit breaker for all shopify.com requests".blue
 puts "  without limitation per port.".blue
 Semian::NetHTTP.semian_configuration = proc do |host, port|
   pid = Process.pid
   puts "[pid=#{pid}]   [semian/http] invoked config in for " \
     "host=#{host}(#{host.class}) port=#{port}(#{port.class})".gray
 
-  if host == "example.com"
-    puts "[pid=#{pid}]   [semian/http] set resource name example_com with any port".gray
-    SEMIAN_PARAMETERS.merge(name: "example_com")
+  if host == "shopify.com"
+    puts "[pid=#{pid}]   [semian/http] set resource name shopify_com with any port".gray
+    SEMIAN_PARAMETERS.merge(name: "shopify_com")
   else
     puts "[pid=#{pid}]   [semian/http] skip semian initialization".gray
     nil
@@ -50,7 +50,7 @@ Semian::NetHTTP.semian_configuration = proc do |host, port|
 end
 
 puts "> Initialize Circuit breaker reosources".blue.bold
-Net::HTTP.start("example.com", 80) do |http|
+Net::HTTP.start("shopify.com", 80) do |http|
   bulkhead = http.semian_resource.bulkhead
   circuit_breaker = http.semian_resource.circuit_breaker
   puts "[pid=#{pid}]  [semian/http] http.semian_identifier = #{http.semian_identifier} " \
@@ -67,17 +67,17 @@ puts
 
 puts "> Test requests in forks".blue.bold
 
-success_host = URI("http://example.com/index.html")
-bad_host = URI("http://example.com:81/index.html")
+success_host = URI("http://shopify.com/index.html")
+bad_host = URI("http://shopify.com:81/index.html")
 
 workers = []
 
 workers << fork do
   pid = Process.pid
-  puts "[pid=#{pid}] >> 1. Request to http://example.com:81/index.html to use all Tickets - fail".magenta.bold
+  puts "[pid=#{pid}] >> 1. Request to http://shopify.com:81/index.html to use all Tickets - fail".magenta.bold
   puts "[pid=#{pid}]   !!! Semian starting use the single available ticket. No more tickets for next 5 seconds. !!!".red.bold
   puts
-  Net::HTTP.start("example.com", 81, open_timeout: 5) do |http|
+  Net::HTTP.start("shopify.com", 81, open_timeout: 5) do |http|
     http.request_get(bad_host)
   end
 rescue Errno::EADDRNOTAVAIL => e
@@ -88,13 +88,13 @@ puts
 sleep 1
 
 begin
-  puts "[pid=#{pid}] >> 2. Request to HEALTHY http://example.com/index.html in a separate FORK - fail".magenta.bold
+  puts "[pid=#{pid}] >> 2. Request to HEALTHY http://shopify.com/index.html in a separate FORK - fail".magenta.bold
   Net::HTTP.get_response(success_host)
 rescue Net::ResourceBusyError => e
   puts "[pid=#{pid}] Out of tickets: #{e.class}: #{e.message}\n    #{e.backtrace.join("\n    ")}".brown
 end
 puts "[pid=#{pid}] >> Review semian state:".blue
-resource = Semian["nethttp_example_com"]
+resource = Semian["nethttp_shopify_com"]
 puts "[pid=#{pid}] resource_name=#{resource.name} resource=#{resource} " \
   "closed=#{resource.circuit_breaker.closed?} " \
   "open=#{resource.circuit_breaker.open?} " \
@@ -105,13 +105,13 @@ puts "[pid=#{pid}] resource_name=#{resource.name} resource=#{resource} " \
 puts
 
 begin
-  puts "[pid=#{pid}] >> 3. Request to HEALTHY http://example.com/index.html in a separate FORK - fail".magenta.bold
+  puts "[pid=#{pid}] >> 3. Request to HEALTHY http://shopify.com/index.html in a separate FORK - fail".magenta.bold
   Net::HTTP.get_response(success_host)
 rescue Net::ResourceBusyError => e
   puts "[pid=#{pid}] Out of tickets: #{e.class}: #{e.message}\n    #{e.backtrace.join("\n    ")}".brown
 end
 puts "[pid=#{pid}]  >> Review semian state:".blue
-resource = Semian["nethttp_example_com"]
+resource = Semian["nethttp_shopify_com"]
 puts "[pid=#{pid}] resource_name=#{resource.name} resource=#{resource} " \
   "closed=#{resource.circuit_breaker.closed?} " \
   "open=#{resource.circuit_breaker.open?} " \
@@ -123,12 +123,12 @@ puts "[pid=#{pid}]   !!! Semian changed state from `closed` to `open` and record
 puts
 
 begin
-  puts "[pid=#{pid}] >> 4. Request to HEALTHY http://example.com/index.html in a separate FORK - fail".magenta.bold
+  puts "[pid=#{pid}] >> 4. Request to HEALTHY http://shopify.com/index.html in a separate FORK - fail".magenta.bold
   Net::HTTP.get_response(success_host)
 rescue Net::CircuitOpenError => e
   puts "[pid=#{pid}] Circuit breaker is open: #{e.class}: #{e.message}\n    #{e.backtrace.join("\n    ")}".brown
   puts "[pid=#{pid}]  >> Review semian state:".blue
-  resource = Semian["nethttp_example_com"]
+  resource = Semian["nethttp_shopify_com"]
   puts "[pid=#{pid}] resource_name=#{resource.name} resource=#{resource} " \
     "closed=#{resource.circuit_breaker.closed?} " \
     "open=#{resource.circuit_breaker.open?} " \
@@ -146,12 +146,12 @@ end
 puts "[pid=#{pid}]   !!! Bulkhead got ticket available !!!".red.bold
 
 begin
-  puts "[pid=#{pid}] >> 5. Request to HEALTHY http://example.com/index.html - failed".magenta.bold
+  puts "[pid=#{pid}] >> 5. Request to HEALTHY http://shopify.com/index.html - failed".magenta.bold
   Net::HTTP.get_response(success_host)
 rescue Net::CircuitOpenError => e
   puts "[pid=#{pid}] Circuit breaker is open: #{e.class}: #{e.message}\n    #{e.backtrace.join("\n    ")}".brown
   puts "[pid=#{pid}]  >> Review semian state:".blue
-  resource = Semian["nethttp_example_com"]
+  resource = Semian["nethttp_shopify_com"]
   puts "[pid=#{pid}] resource_name=#{resource.name} resource=#{resource} " \
     "closed=#{resource.circuit_breaker.closed?} " \
     "open=#{resource.circuit_breaker.open?} " \
@@ -165,7 +165,7 @@ puts
 
 sleep 2
 
-puts "[pid=#{pid}] >> 5. Request to HEALTHY http://example.com/index.html - success".cyan.bold
+puts "[pid=#{pid}] >> 5. Request to HEALTHY http://shopify.com/index.html - success".cyan.bold
 Net::HTTP.get_response(success_host)
 puts "[pid=#{pid}]   !!! Circuit breaker changed state from `open` to `half_open`, because of error_timeout !!!".red.bold
 puts

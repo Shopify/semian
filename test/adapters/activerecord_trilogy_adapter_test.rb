@@ -51,9 +51,9 @@ module ActiveRecord
 
         assert_equal(:"mysql_127.0.0.1:13306", adapter.semian_identifier)
 
-        adapter = trilogy_adapter(host: "example.com", port: 42, semian: { name: nil })
+        adapter = trilogy_adapter(host: "shopify.com", port: 42, semian: { name: nil })
 
-        assert_equal(:"mysql_example.com:42", adapter.semian_identifier)
+        assert_equal(:"mysql_shopify.com:42", adapter.semian_identifier)
       end
 
       def test_semian_can_be_disabled

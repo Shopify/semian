@@ -58,9 +58,9 @@ class TestResource < Minitest::Test
     resource = Semian.register(
       :testing,
       tickets: workers * 2,
-      error_threshold: 0,
-      error_timeout: 0,
-      success_threshold: 0,
+      error_threshold: 1,
+      error_timeout: 1,
+      success_threshold: 1,
     )
 
     fork_workers(count: workers, tickets: 0, timeout: 0.5, wait_for_timeout: true)
@@ -74,7 +74,7 @@ class TestResource < Minitest::Test
 
   def test_reset_registered_workers
     workers = 10
-    resource = Semian.register(:testing, tickets: 1, error_threshold: 0, error_timeout: 0, success_threshold: 0)
+    resource = Semian.register(:testing, tickets: 1, error_threshold: 1, error_timeout: 1, success_threshold: 1)
 
     fork_workers(count: workers - 1, tickets: 0, timeout: 0.5, wait_for_timeout: true)
 

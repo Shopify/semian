@@ -35,8 +35,8 @@ module RedisClientTests
       new_config(semian: { name: nil }).semian_identifier,
     )
     assert_equal(
-      :"redis_example.com:42/1",
-      new_config(host: "example.com", port: 42, semian: { name: nil }).semian_identifier,
+      :"redis_shopify.com:42/1",
+      new_config(host: "shopify.com", port: 42, semian: { name: nil }).semian_identifier,
     )
 
     config = new_config(semian: { name: "foo" })

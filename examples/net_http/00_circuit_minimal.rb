@@ -15,9 +15,9 @@ SEMIAN_PARAMETERS = {
 }.freeze
 
 Semian::NetHTTP.semian_configuration = proc do |host, port|
-  if host == "example.com" && port == 80
-    SEMIAN_PARAMETERS.merge(name: "example_com_80")
+  if host == "shopify.com" && port == 80
+    SEMIAN_PARAMETERS.merge(name: "shopify_com_80")
   end
 end
 
-Net::HTTP.get_response("example.com", "/index.html")
+Net::HTTP.get_response("shopify.com", "/index.html")
