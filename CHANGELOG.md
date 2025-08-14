@@ -1,3 +1,7 @@
+# 0.25.0
+
+* Feature: Add logging for invalid configurations, and raise an exception if `force_config_validation` is set to `true` (#646)
+
 # 0.24.0
 
 * Feature: Add `lumping_interval` option that allows lumping errors within a timeframe as a single error (#606)
