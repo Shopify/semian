@@ -1,22 +1,26 @@
-# 0.25.0
+# v0.25.1
+
+* Fix log level for initial boot-up message for configuration validation to info, and modify message for correctness.
+
+# v0.25.0
 
 * Feature: Add logging for invalid configurations, and raise an exception if `force_config_validation` is set to `true` (#646)
 
-# 0.24.0
+# v0.24.0
 
 * Feature: Add `lumping_interval` option that allows lumping errors within a timeframe as a single error (#606)
 
-# 0.23.0
+# v0.23.0
 
 * Change: Attempt acquiring semaphore before releasing GVL (#573)
 * Support only Ruby 3.2 and onward (572)
 
-# 0.22.1
+# v0.22.1
 
 * Change: Enable thread_safety rubocop
 * Change: Freeze constants and remove unused accessor (`@exceptions`) from `Semian::GRPC`
 
-# 0.22.0
+# v0.22.0
 
 * Change: semians will trigger on ER_PROXYSQL_MAX_CONN_TIMEOUT with mysql2 (#522)
 * Change: added support for dynamic semian_configurations to the Semian Redis adapter
