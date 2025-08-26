@@ -1,3 +1,7 @@
+# v0.25.2
+
+* Stop bulkhead config validation if sysv_semaphores are not enabled
+
 # v0.25.1
 
 * Fix log level for initial boot-up message for configuration validation to info, and modify message for correctness.
