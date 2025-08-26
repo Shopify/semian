@@ -50,7 +50,7 @@ module Semian
     end
 
     def validate_bulkhead_configuration!
-      return if ENV.key?("SEMIAN_BULKHEAD_DISABLED")
+      return if ENV.key?("SEMIAN_BULKHEAD_DISABLED") || !Semian.semaphores_enabled?
       return unless @configuration.fetch(:bulkhead, true)
 
       tickets = @configuration[:tickets]
