@@ -14,7 +14,7 @@ class TestSemianAdapter < Minitest::Test
     resource = client.semian_resource
 
     assert_equal(resource, Semian.resources[client.semian_identifier])
-    assert_equal(client, Semian.consumers[client.semian_identifier].first)
+    assert_equal(client, Semian.consumers[client.semian_identifier].keys.first)
   end
 
   def test_unregister
@@ -54,7 +54,7 @@ class TestSemianAdapter < Minitest::Test
     resource = client.semian_resource
 
     assert_equal(resource, Semian.resources[client.semian_identifier])
-    assert_equal(client, Semian.consumers[client.semian_identifier].first)
+    assert_equal(client, Semian.consumers[client.semian_identifier].keys.first)
 
     # need to disable GC to ensure client weak reference is alive for assertion below
     without_gc do
@@ -71,24 +71,20 @@ class TestSemianAdapter < Minitest::Test
   end
 
   def test_consumer_registration_does_not_prevent_gc
-    client = Semian::AdapterTestClient.new(quota: 0.5)
-    client.semian_resource
-    identifier = client.semian_identifier
-
-    # Release the only strong reference to the client object
-    # so that it will be cleared on the forced GC run below
-    client = nil # rubocop:disable Lint/UselessAssignment
-    weak_ref = Semian.consumers[identifier].first
-
-    assert_predicate(weak_ref, :weakref_alive?)
-
-    GC.start(full_mark: true, immediate_sweep: true)
-
-    assert_nil(weak_ref.weakref_alive?)
-
-    assert_raises(WeakRef::RefError) do
-      weak_ref.any_method_call
+    clients = 10.times.map do
+      client = Semian::AdapterTestClient.new(quota: 0.5)
+      client.semian_resource
+      client
     end
+
+    identifier = clients[0].semian_identifier
+
+    assert_equal 10, Semian.consumers[identifier].size
+
+    clients.clear
+    2.times { GC.start }
+
+    assert_equal 0, Semian.consumers[identifier].size
   end
 
   def test_does_not_memoize_dynamic_options
