@@ -199,7 +199,7 @@ module Semian
     # If consumer who retrieved / registered by a Semian::Adapter, keep track
     # of who the consumer was so that we can clear the resource reference if needed.
     consumer = args.delete(:consumer)
-    if consumer&.class&.include?(Semian::Adapter)
+    if consumer&.class&.include?(Semian::Adapter) && !args[:dynamic]
       consumer_set = (consumers[name] ||= ObjectSpace::WeakMap.new)
       consumer_set[consumer] = true
     end

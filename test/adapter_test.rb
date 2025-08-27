@@ -96,6 +96,16 @@ class TestSemianAdapter < Minitest::Test
     assert_nil(dynamic_client.instance_variable_get("@semian_options"))
   end
 
+  def test_dynamic_adapter_not_registered_as_consumer
+    assert_empty(Semian.consumers)
+
+    dynamic_client = Semian::DynamicAdapterTestClient.new(quota: 0.5)
+    resource = dynamic_client.semian_resource
+
+    assert_equal(resource, Semian.resources[dynamic_client.semian_identifier])
+    assert_empty(Semian.consumers)
+  end
+
   class MyAdapterError < StandardError
     include Semian::AdapterError
   end
