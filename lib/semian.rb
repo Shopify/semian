@@ -234,9 +234,7 @@ module Semian
     if resource
       resource.bulkhead&.unregister_worker
       consumers_for_resource = consumers.delete(name) || {}
-      consumers_for_resource.each_key do |consumer|
-        consumer.clear_semian_resource
-      end
+      consumers_for_resource.each_key(&:clear_semian_resource)
     end
   end
 

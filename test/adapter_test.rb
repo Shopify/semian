@@ -79,12 +79,12 @@ class TestSemianAdapter < Minitest::Test
 
     identifier = clients[0].semian_identifier
 
-    assert_equal 10, Semian.consumers[identifier].size
+    assert_equal(10, Semian.consumers[identifier].size)
 
     clients.clear
     2.times { GC.start }
 
-    assert_equal 0, Semian.consumers[identifier].size
+    assert_equal(0, Semian.consumers[identifier].size)
   end
 
   def test_does_not_memoize_dynamic_options
