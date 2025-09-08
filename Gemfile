@@ -31,7 +31,7 @@ end
 group :lint do
   gem "rubocop-minitest", require: false
   gem "rubocop-rake", require: false
-  gem "rubocop", "~> 1.78", require: false
+  gem "rubocop", "~> 1.80", require: false
   gem "rubocop-shopify", "~> 2", require: false
   gem "rubocop-thread_safety", require: false
 end
