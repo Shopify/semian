@@ -126,7 +126,7 @@ module Semian
 
   module RedisClientPool
     include RedisClientCommon
-    
+
     define_method(:semian_resource, Semian::Adapter.instance_method(:semian_resource))
     define_method(:clear_semian_resource, Semian::Adapter.instance_method(:clear_semian_resource))
   end
