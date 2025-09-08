@@ -15,6 +15,7 @@ end
 
 class EchoService
   include GRPC::GenericService
+
   rpc :an_rpc, EchoMsg, EchoMsg
   rpc :a_client_streaming_rpc, stream(EchoMsg), EchoMsg
   rpc :a_server_streaming_rpc, EchoMsg, stream(EchoMsg)
