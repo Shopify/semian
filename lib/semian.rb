@@ -199,9 +199,9 @@ module Semian
     # If consumer who retrieved / registered by a Semian::Adapter, keep track
     # of who the consumer was so that we can clear the resource reference if needed.
     consumer = args.delete(:consumer)
-    if consumer&.class&.include?(Semian::Adapter)
-      consumers[name] ||= []
-      consumers[name] << WeakRef.new(consumer)
+    if consumer&.class&.include?(Semian::Adapter) && !args[:dynamic]
+      consumer_set = (consumers[name] ||= ObjectSpace::WeakMap.new)
+      consumer_set[consumer] = true
     end
     self[name] || register(name, **args)
   end
@@ -233,14 +233,8 @@ module Semian
     resource = resources.delete(name)
     if resource
       resource.bulkhead&.unregister_worker
-      consumers_for_resource = consumers.delete(name) || []
-      consumers_for_resource.each do |consumer|
-        if consumer.weakref_alive?
-          consumer.clear_semian_resource
-        end
-      rescue WeakRef::RefError
-        next
-      end
+      consumers_for_resource = consumers.delete(name) || {}
+      consumers_for_resource.each_key(&:clear_semian_resource)
     end
   end
 
