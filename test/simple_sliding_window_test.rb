@@ -39,7 +39,12 @@ class TestSimpleSlidingWindow < Minitest::Test
 
   def assert_sliding_window(sliding_window, array, max_size)
     # Get private member, the sliding_window doesn't expose the entire array
-    data = sliding_window.instance_variable_get("@window")
+    # Handle both old (@window) and new (@window_atom) implementations
+    if sliding_window.instance_variable_defined?("@window_atom")
+      data = sliding_window.instance_variable_get("@window_atom").value
+    else
+      data = sliding_window.instance_variable_get("@window")
+    end
 
     assert_equal(array, data)
     assert_equal(max_size, sliding_window.max_size)
