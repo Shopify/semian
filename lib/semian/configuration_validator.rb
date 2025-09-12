@@ -3,6 +3,7 @@
 module Semian
   class ConfigurationValidator
     def initialize(name, configuration)
+      Semian.logger.warn("[TEST]: ConfigurationValidator initialized warning")
       @name = name
       @configuration = configuration
       @adapter = configuration[:adapter]
