@@ -4,6 +4,7 @@ require "forwardable"
 require "logger"
 require "weakref"
 require "thread"
+require "concurrent-ruby"
 
 require "semian/version"
 require "semian/instrumentable"
@@ -252,11 +253,11 @@ module Semian
 
   # Retrieves a hash of all registered resource consumers.
   def consumers
-    @consumers ||= {}
+    @consumers ||= Concurrent::Map.new
   end
 
   def reset!
-    @consumers = {}
+    @consumers = Concurrent::Map.new
     @resources = LRUHash.new
   end
 
