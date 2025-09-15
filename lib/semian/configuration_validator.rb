@@ -32,7 +32,7 @@ module Semian
       if @force_config_validation
         raise ArgumentError, message
       else
-        Semian.logger.warn("[SEMIAN_CONFIG_WARNING]: #{message}")
+        Semian.logger.warn("[SEMIAN_CONFIG_WARNING]: Semian Adapter #{@name}: #{message}")
       end
     end
 
