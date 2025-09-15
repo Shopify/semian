@@ -10,7 +10,7 @@ module Semian
 
       unless @force_config_validation
         Semian.logger.info(
-          "Semian is running in log-mode for configuration validation. This means that Semian will not raise an error if the configuration is invalid. This is not recommended for production environments.\n\n[IMPORTANT] PLEASE UPDATE YOUR CONFIGURATION TO USE `force_config_validation: true` TO ENABLE STRICT CONFIGURATION VALIDATION.\n---\n",
+          "Semian Resource #{@name} is running in log-mode for configuration validation. This means that Semian will not raise an error if the configuration is invalid. This is not recommended for production environments.\n\n[IMPORTANT] PLEASE UPDATE YOUR CONFIGURATION TO USE `force_config_validation: true` TO ENABLE STRICT CONFIGURATION VALIDATION.\n---\n",
         )
       end
     end
@@ -25,14 +25,15 @@ module Semian
     private
 
     def hint_format(message)
-      "\n\nHINT: #{message}\n---"
+      "\n\nSemian Resource #{@name} HINT: #{message}\n---"
     end
 
     def raise_or_log_validation_required!(message)
+      message = "Semian Resource #{@name}: #{message}"
       if @force_config_validation
         raise ArgumentError, message
       else
-        Semian.logger.warn("[SEMIAN_CONFIG_WARNING]: Semian Resource #{@name}: #{message}")
+        Semian.logger.warn("[SEMIAN_CONFIG_WARNING]: #{message}")
       end
     end
 
