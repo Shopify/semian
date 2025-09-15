@@ -27,7 +27,7 @@ class TestSemian < Minitest::Test
       )
     end
 
-    assert_equal("Missing required arguments for Semian: [:success_threshold]", exception.message)
+    assert_equal("Semian Resource testing: Missing required arguments for Semian: [:success_threshold]", exception.message)
   end
 
   def test_register_with_thread_safety_enabled
@@ -127,7 +127,7 @@ class TestSemian < Minitest::Test
     end
 
     assert_equal(
-      "Both bulkhead and circuitbreaker cannot be disabled.",
+      "Semian Resource disabled_bulkhead_and_circuit_breaker: Both bulkhead and circuitbreaker cannot be disabled.",
       exception.message,
     )
   end
@@ -335,7 +335,7 @@ class TestSemian < Minitest::Test
       )
     end
 
-    assert_equal("Both bulkhead and circuitbreaker cannot be disabled.", error.message)
+    assert_equal("Semian Resource testing_invalid_config: Both bulkhead and circuitbreaker cannot be disabled.", error.message)
   ensure
     ENV.delete("SEMIAN_CIRCUIT_BREAKER_DISABLED")
   end
@@ -450,7 +450,7 @@ class TestSemian < Minitest::Test
       )
     end
 
-    assert_equal("Both bulkhead and circuitbreaker cannot be disabled.", error.message)
+    assert_equal("Semian Resource testing_both_disabled: Both bulkhead and circuitbreaker cannot be disabled.", error.message)
   end
 
   # Tests for force_config_validation flag functionality
