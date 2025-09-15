@@ -39,7 +39,7 @@ module Semian
     def acquire(resource = nil, &block)
       transition_to_half_open if transition_to_half_open?
 
-      raise OpenCircuitError unless request_allowed?
+      raise OpenCircuitError, "Circuit breaker is open for resource: #{@name}" unless request_allowed?
 
       result = nil
       begin
