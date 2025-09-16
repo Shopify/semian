@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require "concurrent"
+# require "concurrent"
 
 class TestConcurrency < Minitest::Test
   def test_concurrent_access
