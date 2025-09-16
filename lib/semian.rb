@@ -4,6 +4,7 @@ require "forwardable"
 require "logger"
 require "weakref"
 require "thread"
+require "concurrent-ruby"
 
 require "semian/version"
 require "semian/instrumentable"

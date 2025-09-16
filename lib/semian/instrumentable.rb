@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "concurrent-ruby"
+
 module Semian
   module Instrumentable
     def subscribe(name = rand, &block)
