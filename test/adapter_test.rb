@@ -78,24 +78,18 @@ class TestSemianAdapter < Minitest::Test
     end
 
     identifier = clients[0].semian_identifier
-    consumer_map = Semian.consumers[identifier]
 
     assert_kind_of(
       ObjectSpace::WeakMap,
-      consumer_map,
+      Semian.consumers[identifier],
       "Consumers must be stored in WeakMap to allow garbage collection",
     )
-    assert_equal(10, consumer_map.size, "All consumers should be registered")
+    assert_equal(10, Semian.consumers[identifier].size, "All consumers should be registered")
 
     clients.clear
     Semian.unregister(identifier)
 
-    remaining_consumers = Semian.consumers[identifier]
-
-    assert(
-      remaining_consumers.nil? || remaining_consumers.empty?,
-      "Unregister should clean up consumer references - got #{remaining_consumers}",
-    )
+    assert_nil(Semian.consumers[identifier], "Unregister should remove consumer map entirely")
   end
 
   def test_does_not_memoize_dynamic_options
