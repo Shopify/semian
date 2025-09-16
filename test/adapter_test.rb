@@ -82,7 +82,7 @@ class TestSemianAdapter < Minitest::Test
     assert_equal(10, Semian.consumers[identifier].size)
 
     clients.clear
-    
+
     2.times { GC.start(full_mark: true, immediate_sweep: true) }
 
     assert_equal(0, Semian.consumers[identifier].size)
