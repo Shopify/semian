@@ -49,7 +49,8 @@ module Semian
       last_error = nil unless last_error.is_a?(Exception) # Net::HTTPServerError is not an exception
       raise self.class::CircuitOpenError.new(semian_identifier, message), cause: last_error
     rescue ::Semian::BaseError => error
-      raise self.class::ResourceBusyError.new(semian_identifier, error.message)
+      message = "Semian Resource #{semian_identifier}: #{error.message}"
+      raise self.class::ResourceBusyError.new(semian_identifier, message)
     rescue *resource_exceptions => error
       error.semian_identifier = semian_identifier if error.respond_to?(:semian_identifier=)
       raise
