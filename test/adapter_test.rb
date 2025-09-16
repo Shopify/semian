@@ -122,6 +122,58 @@ class TestSemianAdapter < Minitest::Test
     assert_equal("[my_service] Same Prefix", error.message)
   end
 
+  def test_concurrent_consumer_registration
+    threads = []
+    thread_count = 5
+    clients_created = Concurrent::Array.new
+    exceptions_caught = Concurrent::AtomicFixnum.new(0)
+
+    thread_count.times do |i|
+      threads << Thread.new do
+        client = Semian::AdapterTestClient.new(
+          quota: 0.5,
+          name: "thread_test_#{i}",
+        )
+
+        resource = client.semian_resource
+
+        clients_created << {
+          client: client,
+          resource: resource,
+          identifier: client.semian_identifier,
+          thread_id: i,
+        }
+      rescue
+        exceptions_caught.increment
+      end
+    end
+
+    threads.each(&:join)
+
+    assert_equal(0, exceptions_caught.value, "No exceptions should occur during concurrent consumer registration")
+
+    assert_equal(thread_count, clients_created.size, "All clients should be registered")
+
+    clients_created.each do |client_data|
+      client = client_data[:client]
+      identifier = client_data[:identifier]
+
+      assert(Semian.consumers.key?(identifier), "Consumer should be registered for identifier: #{identifier}")
+
+      consumer_map = Semian.consumers[identifier]
+
+      assert_kind_of(ObjectSpace::WeakMap, consumer_map, "Consumer map should be a WeakMap")
+      assert(consumer_map.key?(client), "Client should be registered in consumer map")
+    end
+
+    clients_created.each do |client_data|
+      resource = client_data[:resource]
+      identifier = client_data[:identifier]
+
+      assert_equal(resource, Semian.resources[identifier], "Resource should match registered resource")
+    end
+  end
+
   def without_gc
     GC.disable
     yield
