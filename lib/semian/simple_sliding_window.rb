@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "thread"
+require "concurrent"
 
 module Semian
   module Simple
@@ -45,26 +46,50 @@ module Semian
   end
 
   module ThreadSafe
-    class SlidingWindow < Simple::SlidingWindow
-      def initialize(**)
-        super
-        @lock = Mutex.new
+    class SlidingWindow
+      extend Forwardable
+
+      attr_reader :max_size
+
+      def initialize(max_size:)
+        @max_size = max_size
+        @window_atom = Concurrent::Atom.new([])
       end
 
-      # #size, #last, and #clear are not wrapped in a mutex. For the first two,
-      # the worst-case is a thread-switch at a timing where they'd receive an
-      # out-of-date value--which could happen with a mutex as well.
-      #
-      # As for clear, it's an all or nothing operation. Doesn't matter if we
-      # have the lock or not.
-
-      def reject!(*)
-        @lock.synchronize { super }
+      def size
+        @window_atom.value.size
       end
 
-      def push(*)
-        @lock.synchronize { super }
+      def last
+        @window_atom.value.last
       end
+
+      def empty?
+        @window_atom.value.empty?
+      end
+
+      def reject!(&block)
+        @window_atom.swap do |window|
+          window.reject(&block)
+        end
+      end
+
+      def push(value)
+        @window_atom.swap do |window|
+          new_window = window.dup
+          new_window = new_window.last(@max_size - 1) if new_window.size >= @max_size
+          new_window << value
+          new_window
+        end
+        self
+      end
+      alias_method :<<, :push
+
+      def clear
+        @window_atom.reset([])
+        self
+      end
+      alias_method :destroy, :clear
     end
   end
 end
