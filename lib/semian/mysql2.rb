@@ -73,7 +73,7 @@ module Semian
       result = nil
       acquire_semian_resource(adapter: :mysql, scope: :ping) do
         result = raw_ping
-        raise PingFailure, "Ping failed for resource #{semian_identifier}: #{result}" unless result
+        raise PingFailure, result.to_s unless result
       end
       result
     rescue ResourceBusyError, CircuitOpenError, PingFailure

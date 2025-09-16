@@ -159,7 +159,7 @@ module Semian
       return unless reply.is_a?(::Redis::CommandError)
       return unless reply.message =~ /OOM command not allowed when used memory > 'maxmemory'/
 
-      raise ::Redis::OutOfMemoryError, "Out of memory for resource #{semian_identifier}: #{reply.message}"
+      raise ::Redis::OutOfMemoryError, reply.message
     end
 
     def dns_resolve_failure?(e)
