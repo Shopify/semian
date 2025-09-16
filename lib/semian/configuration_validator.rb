@@ -25,7 +25,7 @@ module Semian
     private
 
     def hint_format(message)
-      "\n\nSemian Resource #{@name} HINT: #{message}\n---"
+      "\n\nHINT: #{message}\n---"
     end
 
     def raise_or_log_validation_required!(message)
