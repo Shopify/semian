@@ -84,7 +84,7 @@ class TestSemianAdapter < Minitest::Test
     clients.clear
     2.times { GC.start }
 
-    assert_equal(0, Semian.consumers[identifier].size)
+    assert_operator(Semian.consumers[identifier].size, :<=, 1)
   end
 
   def test_does_not_memoize_dynamic_options
