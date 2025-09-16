@@ -233,7 +233,7 @@ module Semian
     resource = resources.delete(name)
     if resource
       resource.bulkhead&.unregister_worker
-      consumers_for_resource = consumers.delete(name) || {}
+      consumers_for_resource = consumers.delete(name) || Concurrent::Map.new
       consumers_for_resource.each_key(&:clear_semian_resource)
     end
   end
@@ -252,11 +252,11 @@ module Semian
 
   # Retrieves a hash of all registered resource consumers.
   def consumers
-    @consumers ||= {}
+    @consumers ||= Concurrent::Map.new
   end
 
   def reset!
-    @consumers = {}
+    @consumers = Concurrent::Map.new
     @resources = LRUHash.new
   end
 
