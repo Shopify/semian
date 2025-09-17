@@ -4,6 +4,7 @@ require "forwardable"
 require "logger"
 require "weakref"
 require "thread"
+require "concurrent-ruby"
 
 require "semian/version"
 require "semian/instrumentable"
@@ -200,7 +201,7 @@ module Semian
     # of who the consumer was so that we can clear the resource reference if needed.
     consumer = args.delete(:consumer)
     if consumer&.class&.include?(Semian::Adapter) && !args[:dynamic]
-      consumer_set = (consumers[name] ||= ObjectSpace::WeakMap.new)
+      consumer_set = consumers.compute_if_absent(name) { ObjectSpace::WeakMap.new }
       consumer_set[consumer] = true
     end
     self[name] || register(name, **args)
@@ -233,8 +234,7 @@ module Semian
     resource = resources.delete(name)
     if resource
       resource.bulkhead&.unregister_worker
-      consumers_for_resource = consumers.delete(name) || {}
-      consumers_for_resource.each_key(&:clear_semian_resource)
+      consumers.delete(name)&.each_key(&:clear_semian_resource)
     end
   end
 
@@ -252,11 +252,11 @@ module Semian
 
   # Retrieves a hash of all registered resource consumers.
   def consumers
-    @consumers ||= {}
+    @consumers ||= Concurrent::Map.new
   end
 
   def reset!
-    @consumers = {}
+    @consumers = Concurrent::Map.new
     @resources = LRUHash.new
   end
 

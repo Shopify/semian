@@ -33,4 +33,5 @@ Gem::Specification.new do |s|
   s.files += ["LICENSE.md", "README.md"]
   s.extensions = ["ext/semian/extconf.rb"]
   s.require_paths = ["lib"]
+  s.add_development_dependency("concurrent-ruby")
 end
