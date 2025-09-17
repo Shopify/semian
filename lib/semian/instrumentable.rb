@@ -24,7 +24,7 @@ module Semian
     private
 
     def subscribers
-      @subscribers ||= {}
+      @subscribers ||= Concurrent::Map.new
     end
   end
 end
