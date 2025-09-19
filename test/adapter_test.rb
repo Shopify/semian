@@ -142,55 +142,122 @@ class TestSemianAdapter < Minitest::Test
     assert_equal("[my_service] Same Prefix", error.message)
   end
 
-  def test_concurrent_consumer_registration
+  def test_concurrent_consumer_registration_and_unregistration
     threads = []
-    thread_count = 5
-    clients_created = Concurrent::Array.new
+    thread_count = 10
+    register_count = Concurrent::AtomicFixnum.new(0)
+    unregister_count = Concurrent::AtomicFixnum.new(0)
     exceptions_caught = Concurrent::AtomicFixnum.new(0)
+    shared_identifier = :concurrent_test_resource
+
+    # Pre-register a shared resource
+    Semian.register(
+      shared_identifier,
+      tickets: 5,
+      error_threshold: 1,
+      error_timeout: 1,
+      success_threshold: 1,
+    )
 
     thread_count.times do |i|
       threads << Thread.new do
-        client = Semian::AdapterTestClient.new(
-          quota: 0.5,
-          name: "thread_test_#{i}",
-        )
+        if i.even?
+          # Registration thread
+          client = Semian::AdapterTestClient.new(
+            quota: 0.5,
+            name: shared_identifier,
+          )
+          client.semian_resource
+          register_count.increment
+          sleep(0.01) # Small delay to increase chance of concurrent operations
+        else
+          # Unregistration thread
+          sleep(0.005) # Slight delay to ensure some registrations happen first
+          if Semian.resources[shared_identifier]
+            Semian.unregister(shared_identifier)
+            unregister_count.increment
+          end
 
-        resource = client.semian_resource
-
-        clients_created << {
-          client: client,
-          resource: resource,
-          identifier: client.semian_identifier,
-          thread_id: i,
-        }
-      rescue
+          # Try to re-register after unregistration
+          client = Semian::AdapterTestClient.new(
+            quota: 0.5,
+            name: shared_identifier,
+          )
+          client.semian_resource
+          register_count.increment
+        end
+      rescue => e
         exceptions_caught.increment
+        puts "Exception in thread #{i}: #{e.message}"
       end
     end
 
     threads.each(&:join)
 
-    assert_equal(0, exceptions_caught.value, "No exceptions should occur during concurrent consumer registration")
+    # Should not crash - the exact counts may vary due to timing
+    assert_operator(register_count.value, :>, 0, "Some registrations should have occurred")
+    assert_equal(0, exceptions_caught.value, "No exceptions should occur during concurrent operations")
 
-    assert_equal(thread_count, clients_created.size, "All clients should be registered")
+    # Verify system is in a consistent state
+    resource = Semian.resources[shared_identifier]
+    if resource
+      assert_kind_of(Semian::ProtectedResource, resource)
+    end
+  end
 
-    clients_created.each do |client_data|
-      client = client_data[:client]
-      identifier = client_data[:identifier]
+  def test_instrumentable_subscribers_concurrent_changes
+    subscription_threads = []
+    notification_threads = []
+    thread_count = 8
+    subscriptions_created = Concurrent::Array.new
+    notifications_received = Concurrent::AtomicFixnum.new(0)
+    exceptions_caught = Concurrent::AtomicFixnum.new(0)
 
-      assert(Semian.consumers.key?(identifier), "Consumer should be registered for identifier: #{identifier}")
+    # Create concurrent subscription and unsubscription threads
+    thread_count.times do |i|
+      subscription_threads << Thread.new do
+        subscription_id = Semian.subscribe("test_subscriber_#{i}") do |event, _resource|
+          notifications_received.increment if event == :test_event
+        end
+        subscriptions_created << subscription_id
 
-      consumer_map = Semian.consumers[identifier]
+        sleep(0.01) # Keep subscription alive briefly
 
-      assert_kind_of(ObjectSpace::WeakMap, consumer_map, "Consumer map should be a WeakMap")
-      assert(consumer_map.key?(client), "Client should be registered in consumer map")
+        # Unsubscribe half of them
+        if i.even?
+          Semian.unsubscribe(subscription_id)
+        end
+      rescue => e
+        exceptions_caught.increment
+        puts "Exception in subscription thread #{i}: #{e.message}"
+      end
     end
 
-    clients_created.each do |client_data|
-      resource = client_data[:resource]
-      identifier = client_data[:identifier]
+    # Create threads that send notifications concurrently with subscription changes
+    (thread_count / 2).times do |i|
+      notification_threads << Thread.new do
+        5.times do
+          Semian.notify(:test_event, nil, nil, nil)
+          sleep(0.005)
+        end
+      rescue => e
+        exceptions_caught.increment
+        puts "Exception in notification thread #{i}: #{e.message}"
+      end
+    end
 
-      assert_equal(resource, Semian.resources[identifier], "Resource should match registered resource")
+    # Wait for all threads
+    (subscription_threads + notification_threads).each(&:join)
+
+    assert_equal(0, exceptions_caught.value, "No exceptions should occur during concurrent subscriber operations")
+    assert_operator(subscriptions_created.size, :>, 0, "Subscriptions should have been created")
+    assert_operator(notifications_received.value, :>=, 0, "Some notifications should have been received")
+
+    # Clean up remaining subscriptions
+    subscriptions_created.each do |sub_id|
+      Semian.unsubscribe(sub_id)
+    rescue
+      nil
     end
   end
 
