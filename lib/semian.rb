@@ -201,7 +201,11 @@ module Semian
     # of who the consumer was so that we can clear the resource reference if needed.
     consumer = args.delete(:consumer)
     if consumer&.class&.include?(Semian::Adapter) && !args[:dynamic]
-      consumer_set = (consumers[name] ||= ObjectSpace::WeakMap.new)
+      consumer_set = consumers[name]
+      unless consumer_set
+        consumer_set = ObjectSpace::WeakMap.new
+        consumers[name] = consumer_set
+      end
       consumer_set[consumer] = true
     end
     self[name] || register(name, **args)
@@ -234,7 +238,7 @@ module Semian
     resource = resources.delete(name)
     if resource
       resource.bulkhead&.unregister_worker
-      consumers_for_resource = consumers.delete(name) || Concurrent::Map.new
+      consumers_for_resource = consumers.delete(name) || ObjectSpace::WeakMap.new
       consumers_for_resource.each_key(&:clear_semian_resource)
     end
   end
@@ -253,11 +257,11 @@ module Semian
 
   # Retrieves a hash of all registered resource consumers.
   def consumers
-    @consumers ||= Concurrent::Map.new
+    @consumers ||= ObjectSpace::WeakMap.new
   end
 
   def reset!
-    @consumers = Concurrent::Map.new
+    @consumers = ObjectSpace::WeakMap.new
     @resources = LRUHash.new
   end
 

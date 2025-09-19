@@ -9,7 +9,7 @@ class TestSemianAdapter < Minitest::Test
 
   def test_adapter_registers_consumer
     assert_empty(Semian.resources)
-    assert_empty(Semian.consumers)
+    assert_equal(0, Semian.consumers.size)
     client = Semian::AdapterTestClient.new(quota: 0.5)
     resource = client.semian_resource
 
@@ -40,7 +40,7 @@ class TestSemianAdapter < Minitest::Test
       assert_equal(0, resource.registered_workers)
 
       assert_empty(Semian.resources)
-      assert_empty(Semian.consumers)
+      assert_equal(0, Semian.consumers.size)
 
       # The first call to client.semian_resource after unregistering all resources,
       # should return a *different* (new) resource.
@@ -62,7 +62,7 @@ class TestSemianAdapter < Minitest::Test
       Semian.unregister_all_resources
 
       assert_empty(Semian.resources)
-      assert_empty(Semian.consumers)
+      assert_equal(0, Semian.consumers.size)
 
       # The first call to client.semian_resource after unregistering all resources,
       # should return a *different* (new) resource.
@@ -79,12 +79,26 @@ class TestSemianAdapter < Minitest::Test
 
     identifier = clients[0].semian_identifier
 
-    assert_equal(10, Semian.consumers[identifier].size)
+    consumer_map = Semian.consumers[identifier]
+
+    refute_nil(consumer_map)
+    assert_equal(10, consumer_map.size)
 
     clients.clear
     2.times { GC.start }
 
-    assert_operator(Semian.consumers[identifier].size, :<=, 1)
+    final_size = Semian.consumers[identifier].size
+
+    # If concurrent-ruby is loaded, we expect it might hold onto one reference
+    if defined?(Concurrent)
+      # Allow for concurrent-ruby to hold onto a small number of references.
+      # The important thing is that MOST consumers are garbage collected, proving that
+      # Semian's WeakMap doesn't prevent GC.
+      assert_operator(final_size, :<=, 1, "Expected at most 1 consumer to remain after GC with concurrent-ruby loaded, but found #{final_size}")
+    else
+      # Without concurrent-ruby, all should be collected
+      assert_equal(0, final_size, "Without concurrent-ruby, all consumers should be collected")
+    end
   end
 
   def test_does_not_memoize_dynamic_options
@@ -97,13 +111,13 @@ class TestSemianAdapter < Minitest::Test
   end
 
   def test_dynamic_adapter_not_registered_as_consumer
-    assert_empty(Semian.consumers)
+    assert_equal(0, Semian.consumers.size)
 
     dynamic_client = Semian::DynamicAdapterTestClient.new(quota: 0.5)
     resource = dynamic_client.semian_resource
 
     assert_equal(resource, Semian.resources[dynamic_client.semian_identifier])
-    assert_empty(Semian.consumers)
+    assert_equal(0, Semian.consumers.size)
   end
 
   class MyAdapterError < StandardError
