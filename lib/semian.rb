@@ -241,7 +241,12 @@ module Semian
       consumers_for_resource = consumers[name]
       if consumers_for_resource
         consumers_for_resource.each_key(&:clear_semian_resource)
-        consumers[name] = nil
+        # Remove the entry by creating new WeakMap without this key
+        new_consumers = ObjectSpace::WeakMap.new
+        consumers.each_pair do |key, value|
+          new_consumers[key] = value unless key == name
+        end
+        @consumers = new_consumers
       end
     end
   end
