@@ -4,6 +4,7 @@ source "https://rubygems.org"
 
 gem "rake"
 gem "rake-compiler"
+gem "concurrent-ruby"
 
 group :test do
   gem "benchmark-memory"

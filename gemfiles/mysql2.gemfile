@@ -10,6 +10,7 @@ gem "minitest"
 gem "mocha"
 gem "toxiproxy"
 gem "webrick"
+gem "concurrent-ruby"
 
 gem "mysql2", "~> 0.5"
 

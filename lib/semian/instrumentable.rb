@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "concurrent-ruby"
+
 module Semian
   module Instrumentable
     def subscribe(name = rand, &block)
@@ -24,7 +26,7 @@ module Semian
     private
 
     def subscribers
-      @subscribers ||= {}
+      @subscribers ||= Concurrent::Map.new
     end
   end
 end
