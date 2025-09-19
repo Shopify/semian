@@ -238,8 +238,11 @@ module Semian
     resource = resources.delete(name)
     if resource
       resource.bulkhead&.unregister_worker
-      consumers_for_resource = consumers.delete(name) || ObjectSpace::WeakMap.new
-      consumers_for_resource.each_key(&:clear_semian_resource)
+      consumers_for_resource = consumers[name]
+      if consumers_for_resource
+        consumers_for_resource.each_key(&:clear_semian_resource)
+        consumers[name] = nil
+      end
     end
   end
 
