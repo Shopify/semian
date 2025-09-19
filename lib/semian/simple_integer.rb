@@ -29,7 +29,7 @@ module Semian
   module ThreadSafe
     class Integer
       def initialize
-        @atom = Concurrent::Atom.new(0)
+        @atom = Concurrent::AtomicFixnum.new(0)
       end
 
       def value
@@ -37,7 +37,7 @@ module Semian
       end
 
       def value=(new_value)
-        @atom.reset(new_value)
+        @atom.value = new_value
       end
 
       def increment(val = 1)
@@ -45,7 +45,7 @@ module Semian
       end
 
       def reset
-        @atom.reset(0)
+        @atom.value = 0
       end
 
       def destroy
