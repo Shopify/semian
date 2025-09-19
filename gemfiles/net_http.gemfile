@@ -9,5 +9,6 @@ gem "minitest"
 gem "mocha"
 gem "toxiproxy"
 gem "webrick"
+gem "concurrent-ruby"
 
 gemspec path: "../"

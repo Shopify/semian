@@ -14,6 +14,7 @@ group :test do
   gem "pry-byebug", require: false
   gem "toxiproxy"
   gem "webrick"
+  gem "concurrent-ruby"
 
   gem "bigdecimal"
   gem "mutex_m"

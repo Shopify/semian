@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "thread"
+require "concurrent"
 
 module Semian
   module Simple
