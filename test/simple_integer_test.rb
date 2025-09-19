@@ -4,7 +4,7 @@ require "test_helper"
 
 class TestSimpleInteger < Minitest::Test
   def setup
-    @integer = ::Semian::ThreadSafe::Integer.new
+    @integer = ::Semian::Simple::Integer.new
   end
 
   def teardown
@@ -52,54 +52,6 @@ class TestSimpleInteger < Minitest::Test
       assert_equal(0, @integer.value)
     end
 
-    def test_concurrent_increment_and_access
-      threads = []
-      thread_count = 5
-      values_read = Concurrent::Array.new
-
-      thread_count.times do |_i|
-        threads << Thread.new do
-          @integer.increment(1)
-          current_value = @integer.value
-          values_read << current_value
-        end
-      end
-
-      threads.each(&:join)
-
-      assert_equal(thread_count, @integer.value)
-      assert_equal(thread_count, values_read.size)
-
-      values_read.each do |value|
-        assert_operator(value, :>=, 1, "Read value #{value} should be at least 1")
-        assert_operator(value, :<=, thread_count, "Read value #{value} should be at most #{thread_count}")
-      end
-    end
-
-    def test_concurrent_reset
-      threads = []
-
-      assert_equal(0, @integer.value, "Integer should be initialized to 0")
-
-      4.times do
-        threads << Thread.new do
-          10.times { @integer.increment(1) }
-        end
-      end
-
-      threads << Thread.new do
-        sleep(0.01) # Let some increments happen first
-        @integer.reset
-      end
-
-      threads.each(&:join)
-
-      assert_equal(0, @integer.value, "Integer should be 0 after reset")
-
-      @integer.increment(5)
-
-      assert_equal(5, @integer.value, "Integer should work normally after reset")
-    end
   end
 
   include IntegerTestCases
