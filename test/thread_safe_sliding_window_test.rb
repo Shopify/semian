@@ -43,11 +43,7 @@ class TestThreadSafeSlidingWindow < Minitest::Test
 
     assert_equal(thread_count, @sliding_window.size)
 
-    final_window_data = if @sliding_window.instance_variable_defined?("@window_atom")
-      @sliding_window.instance_variable_get("@window_atom").value
-    else
-      @sliding_window.instance_variable_get("@window")
-    end
+    final_window_data = @sliding_window.instance_variable_get("@window_atom").value
 
     assert_kind_of(Array, final_window_data)
     assert_equal(thread_count, final_window_data.size)
@@ -76,11 +72,7 @@ class TestThreadSafeSlidingWindow < Minitest::Test
 
     assert_equal(@sliding_window.max_size, @sliding_window.size)
 
-    final_window_data = if @sliding_window.instance_variable_defined?("@window_atom")
-      @sliding_window.instance_variable_get("@window_atom").value
-    else
-      @sliding_window.instance_variable_get("@window")
-    end
+    final_window_data = @sliding_window.instance_variable_get("@window_atom").value
 
     assert_kind_of(Array, final_window_data)
     assert_equal(@sliding_window.max_size, final_window_data.size)
@@ -129,12 +121,7 @@ class TestThreadSafeSlidingWindow < Minitest::Test
 
   def assert_sliding_window(sliding_window, array, max_size)
     # Get private member, the sliding_window doesn't expose the entire array
-    # Handle both old (@window) and new (@window_atom) implementations
-    data = if sliding_window.instance_variable_defined?("@window_atom")
-      sliding_window.instance_variable_get("@window_atom").value
-    else
-      sliding_window.instance_variable_get("@window")
-    end
+    data = sliding_window.instance_variable_get("@window_atom").value
 
     assert_equal(array, data)
     assert_equal(max_size, sliding_window.max_size)
