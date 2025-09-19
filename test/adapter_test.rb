@@ -122,71 +122,42 @@ class TestSemianAdapter < Minitest::Test
     assert_equal("[my_service] Same Prefix", error.message)
   end
 
-  def test_concurrent_consumer_registration_and_unregistration
+  def test_concurrent_consumer_registration
     threads = []
     thread_count = 10
     clients_created = Concurrent::Array.new
-    unregistrations_performed = Concurrent::Array.new
     exceptions_caught = Concurrent::AtomicFixnum.new(0)
-
-    # Create some initial resources to unregister
-    initial_resources = []
-    5.times do |i|
-      Semian.register(
-        "initial_resource_#{i}".to_sym,
-        tickets: 2,
-        error_threshold: 1,
-        error_timeout: 1,
-        success_threshold: 1,
-      )
-      initial_resources << "initial_resource_#{i}".to_sym
-    end
 
     thread_count.times do |i|
       threads << Thread.new do
-        if i < thread_count / 2
-          # First half of threads: register new consumers
-          client = Semian::AdapterTestClient.new(
-            quota: 0.5,
-            name: "concurrent_test_#{i}",
-          )
+        client = Semian::AdapterTestClient.new(
+          quota: 0.5,
+          name: "concurrent_test_#{i}",
+        )
 
-          # Override the semian_identifier to make each client unique
-          client.define_singleton_method(:semian_identifier) do
-            "concurrent_test_#{i}".to_sym
-          end
-
-          resource = client.semian_resource
-
-          clients_created << {
-            client: client,
-            resource: resource,
-            identifier: client.semian_identifier,
-            thread_id: i,
-          }
-        else
-          # Second half of threads: unregister existing resources
-          resource_to_unregister = initial_resources[(i - thread_count / 2) % initial_resources.size]
-          if Semian.resources[resource_to_unregister]
-            Semian.unregister(resource_to_unregister)
-            unregistrations_performed << {
-              identifier: resource_to_unregister,
-              thread_id: i,
-            }
-          end
+        # Override the semian_identifier to make each client unique
+        client.define_singleton_method(:semian_identifier) do
+          "concurrent_test_#{i}".to_sym
         end
+
+        resource = client.semian_resource
+
+        clients_created << {
+          client: client,
+          resource: resource,
+          identifier: client.semian_identifier,
+          thread_id: i,
+        }
       rescue => e
         exceptions_caught.increment
-        puts "Exception in thread #{i}: #{e.class}: #{e.message}"
+        puts "Exception in registration thread #{i}: #{e.class}: #{e.message}"
       end
     end
 
     threads.each(&:join)
 
-    assert_equal(0, exceptions_caught.value, "No exceptions should occur during concurrent operations")
-
-    # Verify registration results
-    assert_equal(thread_count / 2, clients_created.size, "All registration clients should be created")
+    assert_equal(0, exceptions_caught.value, "No exceptions should occur during concurrent registration")
+    assert_equal(thread_count, clients_created.size, "All registration clients should be created")
 
     clients_created.each do |client_data|
       client = client_data[:client]
@@ -200,8 +171,47 @@ class TestSemianAdapter < Minitest::Test
       assert(consumer_map.key?(client), "Client should be registered in consumer map")
       assert_equal(client_data[:resource], Semian.resources[identifier], "Resource should match")
     end
+  end
 
-    # Verify unregistration results
+  def test_concurrent_resource_unregistration
+    threads = []
+    thread_count = 10
+    unregistrations_performed = Concurrent::Array.new
+    exceptions_caught = Concurrent::AtomicFixnum.new(0)
+
+    # Create initial resources to unregister
+    initial_resources = []
+    thread_count.times do |i|
+      Semian.register(
+        "initial_resource_#{i}".to_sym,
+        tickets: 2,
+        error_threshold: 1,
+        error_timeout: 1,
+        success_threshold: 1,
+      )
+      initial_resources << "initial_resource_#{i}".to_sym
+    end
+
+    thread_count.times do |i|
+      threads << Thread.new do
+        resource_to_unregister = initial_resources[i]
+        Semian.unregister(resource_to_unregister)
+        unregistrations_performed << {
+          identifier: resource_to_unregister,
+          thread_id: i,
+        }
+      rescue => e
+        exceptions_caught.increment
+        puts "Exception in unregistration thread #{i}: #{e.class}: #{e.message}"
+      end
+    end
+
+    threads.each(&:join)
+
+    assert_equal(0, exceptions_caught.value, "No exceptions should occur during concurrent unregistration")
+    assert_equal(thread_count, unregistrations_performed.size, "All unregistrations should be performed")
+
+    # Verify all resources were unregistered
     unregistrations_performed.each do |unregistration_data|
       identifier = unregistration_data[:identifier]
 
@@ -213,38 +223,23 @@ class TestSemianAdapter < Minitest::Test
   def test_instrumentable_subscribers_change
     notifications_received = Concurrent::Array.new
 
-    subscriber1 = ->(event, resource, scope, adapter, *payload) do
-      notifications_received << {
-        subscriber: :subscriber1,
-        event: event,
-        resource: resource,
-        scope: scope,
-        adapter: adapter,
-        payload: payload,
-      }
+    # Helper method to create subscribers with different names
+    create_subscriber = ->(name) do
+      ->(event, resource, scope, adapter, *payload) do
+        notifications_received << {
+          subscriber: name,
+          event: event,
+          resource: resource,
+          scope: scope,
+          adapter: adapter,
+          payload: payload,
+        }
+      end
     end
 
-    subscriber2 = ->(event, resource, scope, adapter, *payload) do
-      notifications_received << {
-        subscriber: :subscriber2,
-        event: event,
-        resource: resource,
-        scope: scope,
-        adapter: adapter,
-        payload: payload,
-      }
-    end
-
-    subscriber3 = ->(event, resource, scope, adapter, *payload) do
-      notifications_received << {
-        subscriber: :subscriber3,
-        event: event,
-        resource: resource,
-        scope: scope,
-        adapter: adapter,
-        payload: payload,
-      }
-    end
+    subscriber1 = create_subscriber.call(:subscriber1)
+    subscriber2 = create_subscriber.call(:subscriber2)
+    subscriber3 = create_subscriber.call(:subscriber3)
 
     initial_subscribers_size = Semian.send(:subscribers).size
 
