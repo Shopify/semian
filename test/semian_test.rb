@@ -589,8 +589,13 @@ class TestSemian < Minitest::Test
     begin
       # Test with thread_safe = true (default)
       Semian.thread_safe = true
-      resource = Semian.register(:test_threadsafe,
-        success_threshold: 1, error_threshold: 2, error_timeout: 5, bulkhead: false)
+      resource = Semian.register(
+        :test_threadsafe,
+        success_threshold: 1,
+        error_threshold: 2,
+        error_timeout: 5,
+        bulkhead: false,
+      )
 
       # Access private instance variables to check implementation
       errors = resource.circuit_breaker.instance_variable_get(:@errors)
@@ -601,8 +606,13 @@ class TestSemian < Minitest::Test
 
       # Test with thread_safe = false
       Semian.thread_safe = false
-      resource2 = Semian.register(:test_simple,
-        success_threshold: 1, error_threshold: 2, error_timeout: 5, bulkhead: false)
+      resource2 = Semian.register(
+        :test_simple,
+        success_threshold: 1,
+        error_threshold: 2,
+        error_timeout: 5,
+        bulkhead: false,
+      )
 
       errors2 = resource2.circuit_breaker.instance_variable_get(:@errors)
       successes2 = resource2.circuit_breaker.instance_variable_get(:@successes)
@@ -623,9 +633,14 @@ class TestSemian < Minitest::Test
       Semian.thread_safe = true
 
       # With thread_safety_disabled: true, should use Simple implementation
-      resource = Semian.register(:test_override_to_simple,
-        success_threshold: 1, error_threshold: 2, error_timeout: 5, 
-        bulkhead: false, thread_safety_disabled: true)
+      resource = Semian.register(
+        :test_override_to_simple,
+        success_threshold: 1,
+        error_threshold: 2,
+        error_timeout: 5,
+        bulkhead: false,
+        thread_safety_disabled: true,
+      )
 
       errors = resource.circuit_breaker.instance_variable_get(:@errors)
       successes = resource.circuit_breaker.instance_variable_get(:@successes)
@@ -634,9 +649,14 @@ class TestSemian < Minitest::Test
       assert_instance_of(Semian::Simple::Integer, successes)
 
       # With thread_safety_disabled: false, should use ThreadSafe implementation
-      resource2 = Semian.register(:test_override_to_threadsafe,
-        success_threshold: 1, error_threshold: 2, error_timeout: 5, 
-        bulkhead: false, thread_safety_disabled: false)
+      resource2 = Semian.register(
+        :test_override_to_threadsafe,
+        success_threshold: 1,
+        error_threshold: 2,
+        error_timeout: 5,
+        bulkhead: false,
+        thread_safety_disabled: false,
+      )
 
       errors2 = resource2.circuit_breaker.instance_variable_get(:@errors)
       successes2 = resource2.circuit_breaker.instance_variable_get(:@successes)

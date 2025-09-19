@@ -51,7 +51,6 @@ class TestSimpleInteger < Minitest::Test
 
       assert_equal(0, @integer.value)
     end
-
   end
 
   include IntegerTestCases
