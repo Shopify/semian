@@ -1,3 +1,12 @@
+# v0.25.4
+
+* Remove redundant semian resource name from OpenCircuitError and ResourceBusyError
+
+# v0.25.3
+
+* Fix unbound growth of consumers WeakRef Array
+* Add semian resource name to semian exception logs
+
 # v0.25.2
 
 * Stop bulkhead config validation if sysv_semaphores are not enabled
