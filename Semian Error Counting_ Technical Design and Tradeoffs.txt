@@ -1,0 +1,318 @@
+The current method to configure when a circuit should open is by providing a number of errors (`error_threshold`) within a time window (`error_threshold_timeout`). If errors exceed this threshold, the circuit breaker opens.
+Problems with this approach
+1. Engineering time: to find a good number for error threshold, engineers need to analyze the health of the dependency over a period of time and see how many errors it throws when it’s healthy. They also need to arbitrarily choose a time window for this evaluation. Another approach is for them to run gamedays in staging, testing different values until they find one that makes sense
+2. Getting it wrong: It’s very likely to do the analysis wrong, the engineer has to know for example that they should measure the error count per process per pod. Moreover, discrepancies between staging and production could mean ending up with a wrong value even with the right calculation
+3. Varying throughput: This error counting highly depends on throughput, which could change between environments, times of day, etc.
+4. Update cycles: Engineers either update their semians pre-BFCM or after incidents (when it’s too late).
+5. Copy-pasta: The above assumes that configurations are not just copied from other sources
+Evidence
+Collected in this sheet
+
+
+Suggested solutions
+Maintain the status quo (Rejected)
+Keep things as they are, but improve documentation on how to configure semians
+Pros
+* No need for a project!
+* The circuit breakers do work. They are often configured incorrectly resulting in increased incident impact (todo: collect some evidence), but we haven’t seen them be a major contributor to incidents
+Cons
+ Already mentioned above, but can be summarized as:
+* Wasted engineering time with configuration, testing, as well as going in loops sometimes trying to figure out how to configure.
+* Incorrect configuration means increasing incident impact
+* There are situations where it is literally impossible to get a correct semian configuration out of pure error count.
+Count Consecutive Errors (Rejected)
+Instead of counting the absolute number of errors within a time window. We could switch to counting consecutive errors: Consecutive errors are usually a much better indicator of an overloaded service
+Pros
+* Easy to implement: In fact, it already exists on semian, but with a broken implementation.
+* Easier to configure: Deciding “3 consecutive errors open the circuit breaker” is easier than deciding “3 errors within 20 seconds open the circuit breaker”
+   * The latter requires you to do a much deeper analysis of your dependency timeouts, error distribution, etc.
+Cons
+* It’s still unclear how to choose that number
+* A dependency that has alternates between extremely fast queries and slow queries would never open the circuit
+Move to using a percentage (Rejected)
+Instead of counting absolute numbers, count error percentages
+Pros
+* Easy to implement
+* Throughput-agnostic
+Cons
+* Assumes that there is an accepted internal SLA for dependencies, which is often not the case.
+* So it would have all the same cons as the status quo, except those that relate to throughput
+Stop-the-world autoconfiguration (Rejected)
+For every time period of X, Semian disables itself for a time interval of Y, to do an unbiased analysis of requests (using errors, successes, latencies) and revises the active configuration and makes it active for a time period of X.
+Pros
+* Easier to implement than live autoconfiguration
+* Significantly decreased engineering time spent on configuration
+* Configuration is updating based on system performance and improvements
+* Configuration is throughput-agnostic
+Cons
+* You would end up with the wrong configuration if the configuration cycle happens during an incident or low volume periods.
+   * We could potentially mitigate that through setting sane defaults if the values seem way off
+   * Safeguard turning evaluation on if incoming values are outside acceptable range
+* It might not be easy to get an interval with a statistically significant number of calls to the dependency
+   * Engineers might still need to run some analysis to figure out what a reasonable evaluation window is.
+* During the evaluation window, semian is incapable of protecting the service
+* Active incident where the circuit is open will be closed during evaluation, adding cascading failures to resource
+* Might still require a definition of safeguard defaults by user
+Live autoconfiguration (Accepted)
+The general idea is to have semian constantly monitoring a health metric, and opening the circuit incrementally as this health metric degrades.
+Pros
+* Easiest to configure for engineers
+* Configuration is always up-to-date
+* Configuration is throughput-agnostic
+* No dangerous periods where the service is not protected
+* No risk of running an evaluation period during an incident
+Cons
+* Most complex to implement. We will likely have to implement it fully separately and call it an “adaptive circuit breaker”
+
+
+We discuss the details and various implementation options in the appendix, but the agreed-upon implementation is the following
+Implementation
+Semian would use a PID controller pattern to decide whether and how much to open the circuit. The PID controller, in simple terms, monitors a health function P, and adjusts whenever P deviates away from its ideal value.
+
+
+The health function[a][b][c] P that we chose is the following:
+
+
+
+
+
+Note: this implementation requires semian to send ungated pings. That is, pings that are not gated by Semian’s rejection
+
+
+The first term is the difference between the actual and ideal error rate (will talk about ideal error rate in a second), and it causes the P value to increase, which causes Semian to start rejecting requests. The second term is the difference between ping failure rate and rejection rate, and it causes semian to decrease the rejection rate if we notice that pings are succeeding. The second term is important, because otherwise semian could start rejecting the majority of requests, and not have any incentive to decrease rejection if the error rate is equal to the ideal error rate. 
+
+
+A good way to think about it is with scenarios:
+1. Semian is not rejecting anything, error rate == ideal error rate and no ping failures: P would be 0, no changes
+2. Error rate gets lower: P would become negative, but we’re already not rejecting anything, so no changes
+3. Error rate gets higher, or ping failure goes up: P becomes positive, semian opens proportionally
+4. After rejecting a portion of requests, error rate goes back to the ideal error rate: Semian would still be open as long as there are still ping failures
+5. Ping failures decrease: This causes semian to start trying to close the circuit. However, if the error rate grows back up as a result. Semian would reopen
+6. If the error rate does not go back up, and ping failure recovers, this would eventually drive semian to fully close the circuit.
+
+
+Regarding the ideal error rate: We make it be the historical error rate: a good suggestion is: the p90 of the error rate during the past hour. That is, the error rate limit during 90% the evaluation periods during the past hour. Obviously, this would pose problems on boot, especially if we boot during an incident, to accommodate for that, we are looking into options with either prefilling data with meaningful defaults, storing on disk, etc.
+
+
+Appendix
+Research on live configuration
+In general, the idea for live configuration is to follow a “controller pattern”, a controller’s job is usually to keep a variable within a certain range. For example, if a controller is controlling the water level in a tank, it opens up the faucet if the level is too low, and opens up the drain if the level is too high.
+
+
+In Uber’s paper mentioned above, the equation they try to maintain is this:
+
+
+(Queue_In - Queue_Out) -  free connections = 0
+
+
+This follows a typical pattern of:
+
+
+Term_to_increase_on - term_to_decrease_on = 0
+
+
+The first term (in - out) having a positive value signifies that we are accepting more requests than we can process. So our goal is to only accept as much as we can process. However, one way to do that is by simply rejecting everything, so the second term comes in: if you’re rejecting everything, your free_connections would be too high, so you’ll have to adjust the rejection rate down.
+
+
+Similarly for semian, our goal is to have an error rate to a dependency be 0:
+
+
+Error_rate = 0
+
+
+However, one way to achieve this would be to just reject all requests, so we would need a corrective term that tells semian that it has rejected too much:
+
+
+Error_rate - term_to_decrease_rejection_on[d] = 0
+
+
+Now what could we use for this term?
+Proposal
+
+
+P = e% - e_target%[e]
+
+
+Basically, P would be the difference between the observed error rate, and ideal error rate. If the error rate is higher, reject more requests, if it is lower, reject fewer requests.
+
+
+However, where do we get e_target% from?
+
+
+e_target% could be the long term average of errors, or perhaps the p90 of errors (that is, 90% of the time, the error rate has been x). If we are constantly calculating the number of errors and updating that average, the e_target% would converge towards the ideal.[f][g][h][i]
+
+
+Questions
+* What do we do if the target error is too high on boot (e.g. if we boot up during an incident, or if some bad code ships that introduces a slow query)?
+   * We could start e_target with a value of 0% and the power of 10 samples (or some number). That is, we assume we already have 10 samples that average to 0%. That way the high error rate will only count as a single sample.
+* But if the incident continues, and for that matter, if any incident continues, the ability of semian to protect will decrease with time
+   * Not really, the semians opening are expected to bring that error rate down, so it would not affect e_target as much
+* But wait, then the opposite thing would happen. Say you have a dependency with a natural error rate of 5%, semians would open, so how would they eventually reach that 5% error rate and stop opening?
+   * If the 5% error rate is natural, then the rejection will not have a positive effect on the error rate (it will change the absolute numbers, but not the rate). So it will end up converging
+* But there is a problem here. Say we calculate e_target for a while, and find out that the e_target truly is 0%. But then something happens that causes us to open the circuits. We open them, which brings the e down back to 0. Now we are in a perfect state, and semian will not want to close the circuits
+   * We could modify P to become e% - (e_target% + rejected%)
+      * No, that probably doesn’t work. This function could stabilize with e_target being 0, but then both e% and rejected% being 5%
+      * Starting to feel PID pattern does not work well for circuit breaking
+   * I think we will always need a peeking baked into semian, that tries to drop the rejection rate regardless of any setting, and then observes the effect
+      * A lot of the complexity we are facing here is because semian is error_rate-driven, not latency/queueing driven. Most of these algorithms we see are latency/queueing driven
+   * We could potentially prevent error_target from being 0%, giving it a minimum that would always force a an attempt to decrease the rejection rate, e.g. 0.1% or something
+      * But that just sounds like the peaking mentioned above with extra steps
+* How do we tune parameters (K_P, K_I, K_D) across different dependencies? 
+   * Since Semain instances are independent of each other, they can each run a tuning algorithm like Ziegler-Nichols or Cohen-Coon
+      * If the dependencies are few in number and well-defined (e.g., Redis, MySQL only) we can run a batch of experiments for each and manually tune. This is more tedious but is most common in practice and leads most predictable and optimal performance
+      * This doesn’t look to be the case, as evidence shows numerous dependencies already (e.g., MySQL, Spanner, SFR, Magellan, Elastic Search)
+Alternative Approaches
+* Latency based approach
+   * Defining a target latency instead of target error rate
+   * This is the approach taken by Uber Cinnamon, where their P is a function for input rate into the request queue
+   * Inspiration: Elastic thread pools via. SEDA paper
+      * https://people.eecs.berkeley.edu/~brewer/papers/SEDA-sosp.pdf
+         *            * Resource controllers peek the queue length and determine the appropriate number events to be processed
+         * PID controller is controlling concurrency (Little’s Law)
+         * Takes in latency, controls concurrency
+   * Interesting experiment I found on HackerNews
+   * https://github.com/stevana/elastically-scalable-thread-pools
+   * https://doi.org/10.1016/j.array.2025.100488
+   * TLDR: Adaptive data streaming in iOT environment is subject to network noise, processing sensor data becomes a bottleneck. What should the sample rate be? A PID controller was defined s.t. `e(t) = L_t - L(t)` (Target latency - actual latency), using this output adjusted the sample rate of the sensor signals
+   * PID controller is controlling sample rate
+   * Takes in latency, controls sample rate
+   * Node utilization based approach
+   * https://dropbox.tech/infrastructure/robinhood-in-house-load-balancing-service
+   * SRECon talk (not so much about the load balancer, but how Dropbox deals with scale in general) https://www.usenix.org/conference/srecon19americas/presentation/nigmatullin
+   * Dropbox’s internal load balancing service uses a PID controller to control utilization
+   * Each node gets its own PID controller that measures node utilization, and adjusts it based on a target utilization rate
+   * Takes in node utilization, controls node utilization
+   * https://github.com/Pankajtanwarbanna/mini-robinhood
+   * https://www.usenix.org/system/files/hotedge20_paper_zhang.pdf
+   * Dynamic load balancing using a PID controller
+   * Takes in predicted CPU utilization and predicted average CPU utilization, controls CPU utilization (offloads excess utilization to other nodes)
+   * Volume based approach
+   * https://medium.com/pinterest-engineering/nep-notification-system-and-relevance-a7fff21986c7
+   * NEP (Notification Event Processor) is the notification system for Pinterest
+   * Uses ML model to make decisions on what notifications to send, tracks various metrics such as content selection, target recipient, optimal timing
+   *         * PID controller in the Policy section (notification send decision-making component)
+      * PID controls notification volume (e.g., sending too many or too few notifications to users)
+      * Input into PID is current volume, target volume, threshold at time `t, hyper-parameter `i` and learning rate
+      * Their PID controller uses an ML model as well (Ranker model), but it’s a good case study into seeing how we can add > 1 inputs into our P function
+Considerations
+Semian was built as a circuit breaker and the main philosophy around it is that there are 3 main states the system can be in: Closed, Open, and Half-Open[j][k][l]
+
+
+  
+
+
+
+If we are proposing the use of a controller approach, we have to ask ourselves whether we are revising Semian to be a circuit breaker (with the 3 states) or whether we are implementing something more like a rate limiter where requests are kept to an optimal level[m][n].
+Tracking Additional Metrics
+For proposed solutions of stop-the-world configuration and live autoconfiguration, the solutions would benefit from leveraging additional metrics during calculation[o][p].
+
+
+Metrics such as:
+      * Request latency
+      * Success rate in a closed circuit
+      * Calculations on values (average, p50, p99)
+      * Effect on worker utilization
+      * Request volume to dependency
+
+
+A naive approach to extracting latency can be embed it within the acquire_semian_resource block
+
+
+module Semian
+  module NetHTTP
+    def transport_request(*)
+      ...
+      # Capture timing and metrics
+      start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      cpu_start = Process.times
+      
+      begin
+        acquire_semian_resource(adapter: :http, scope: :query) do
+          ...
+          # Capture response metrics
+          latency = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000
+          cpu_time = calculate_cpu_usage(cpu_start, Process.times)
+        end
+      rescue => error
+        # Capture error metrics
+        latency = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000
+        raise
+      end
+    end
+  end
+end
+
+
+
+Or extending the circuit breaker to calculate metrics. A possible approach could look like:
+
+
+
+
+module Semian
+  class MetricsAwareCircuitBreaker < CircuitBreaker
+    ...
+    def acquire(resource = nil, &block)
+      start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      
+      begin
+        result = super
+        record_success(start_time)
+        result
+      rescue => error
+        record_failure(start_time, error)
+        raise
+      end
+    end
+    ...
+    def record_success(start_time)
+      latency = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000
+      @latencies << latency
+      @request_counts[:success] += 1
+    end
+  end
+end
+
+
+
+Log Option
+Adding a log-mode or dry-run option to Semian would be beneficial. This would allow engineers to observe when circuits would open or close based on a given configuration without actually impacting live traffic, aiding in configuration validation and debugging.        
+[a]Depending on the burstiness of the error rate and PingFailureRate, it may be worth dropping the D in the PID controller, simplifying our model to a PI controller
+[b]https://eng.libretexts.org/Bookshelves/Industrial_and_Systems_Engineering/Chemical_Process_Dynamics_and_Controls_(Woolf)/09%3A_Proportional-Integral-Derivative_(PID)_Control/9.02%3A_P_I_D_PI_PD_and_PID_control
+[c]If our "sensors" (error rate, PingFailureRate) are too noisy, D may not be as helpful in adjusting the opening of circuit breaker
+1 total reaction
+Abdulrahman Alhamali reacted with 👍 at 2025-09-22 19:40 PM
+[d]If we follow this logic the natural thing here would be to use a success_rate value
+[e]note: we will probably have to work something around the edge condition where target_e% = 0. Because then e% could never get lower, and the semians would never close up.
+Maybe including some throughput term in there would resolve that
+[f]Using arithmetic mean vs. EWMA treats all events equally but requires O(n) memory usage compared to O(1) for EWMA. Depending on the window size (i.e., upper limit of our integrating interval, 10s, 30s, etc) the performance hit could be negligible.
+
+
+https://community.deeplearning.ai/t/advantage-of-exponentially-weighted-average-ewma-over-sliding-window/137283
+
+
+https://community.silabs.com/s/article/exponentially-weighted-moving-averages?language=en_US&utm_source=chatgpt.com
+[g]As mentioned on Slack: The difference is not only in time/space complexity: EWMA is a different algorithm that gives more importance to recent data, making the value more sensitive to changes. This might be desired for some cases, but e_target is supposed to be the ideal error rate. So we don't want it to be too sensitive
+[h]As per Slack, Welford's online algorithm for computing mean was proposed. It can also calculate `e_target` concurrently which is helpful for different dependencies 
+
+
+https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
+
+
+https://justinwillmert.com/articles/2022/notes-on-calculating-online-statistics/
+[i]btw I'm also thinking that e_target could be the p90 of error rate: in other words: during 90% of the time, our error threshold was below x. That would also make it less sensitive to bursts
+[j]Would this suggest something like a "conditional" P function? E.g., If `Closed`, P function will perform X, elif `Open` perform Y? As the states are static (can't be halfway between closed and half-open)
+[k]Yea we may have different functions based on the whether the system is in a certain state. Depending on the state, we may want to over emphasize different signals into the function(if it's used for all states) or have the if/else and have different logic
+
+
+I've attached the image of the circuit breaker pattern. You can go from Half Open -> Closed, but not the other away around.
+[l]👍
+[m]If this is the case, perhaps it would be more worthwhile to take an approach based on latency and concurrency control (SEDA paper)
+[n]it's a good callout that indeed we would be deviating from the closed/open/half-open model, but does not necessarily mean that we need to change to using latency instead
+1 total reaction
+Kris Gaudel reacted with 👍 at 2025-09-22 18:26 PM
+[o]May be worthwhile to add a note about how additional metrics would change our interpretation of P function
+[p]If you could put something together that would be great. I've been avoiding that because simplicity is a virtue. I'm tempted to only look at error rate, and see if this gives us a satisfactory behaviour. That would be better than developing a complex function that we cannot easily understand its behaviour.
+That said, if we ended up with unsatisfactory results, then something more complex might be needed
+1 total reaction
+Kris Gaudel reacted with 👍 at 2025-09-22 21:03 PM
