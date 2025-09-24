@@ -47,8 +47,6 @@ module Semian
 
   module ThreadSafe
     class SlidingWindow
-      extend Forwardable
-
       attr_reader :max_size
 
       def initialize(max_size:)
