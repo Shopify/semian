@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/rails/rails.git
-  revision: 7af1254170c852e92b293ed8ecc4e2fcb3c27a1e
+  revision: 07db688eda60ce0e57432f2299be0abf75da953f
   branch: main
   specs:
     activemodel (8.1.0.beta1)
