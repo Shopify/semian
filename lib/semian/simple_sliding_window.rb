@@ -75,10 +75,11 @@ module Semian
 
       def push(value)
         @window_atom.swap do |window|
-          new_window = window.dup
-          new_window = resize_to(new_window, @max_size - 1) # make room
-          new_window << value
-          new_window
+          if window.size < @max_size
+            window + [value]
+          else
+            window.last(@max_size - 1) + [value]
+          end
         end
         self
       end
@@ -89,12 +90,6 @@ module Semian
         self
       end
       alias_method :destroy, :clear
-
-      private
-
-      def resize_to(window, size)
-        window.size >= size ? window.last(size) : window
-      end
     end
   end
 end
