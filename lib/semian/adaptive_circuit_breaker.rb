@@ -90,6 +90,12 @@ module Semian
       @pid_controller.reset
     end
 
+    # Destroy the adaptive circuit breaker (compatible with ProtectedResource interface)
+    def destroy
+      stop
+      @pid_controller.reset
+    end
+
     # Get current metrics for monitoring
     def metrics
       @pid_controller.metrics
