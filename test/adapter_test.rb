@@ -255,8 +255,6 @@ class TestSemianAdapter < Minitest::Test
 
     Semian.notify("test_event", "test_resource", "test_scope", "test_adapter", extra: "payload")
 
-    sleep(0.01)
-
     assert_equal(3, notifications_received.size)
 
     received_subscribers = notifications_received.map { |n| n[:subscriber] }.sort
@@ -280,8 +278,6 @@ class TestSemianAdapter < Minitest::Test
     assert_equal(initial_subscribers_size + 2, Semian.send(:subscribers).size)
 
     Semian.notify("test_event2", "test_resource2", "test_scope2", "test_adapter2")
-
-    sleep(0.01)
 
     assert_equal(2, notifications_received.size)
 

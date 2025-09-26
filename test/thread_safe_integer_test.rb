@@ -88,7 +88,6 @@ class TestThreadSafeInteger < Minitest::Test
       end
 
       threads << Thread.new do
-        sleep(0.01) # Let some increments happen first
         @integer.reset
       end
 
