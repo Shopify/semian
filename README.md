@@ -575,6 +575,52 @@ It is possible to disable Circuit Breaker with environment variable
 For more information about configuring these parameters, please read
 [this post](https://shopify.engineering/circuit-breaker-misconfigured).
 
+#### Adaptive Circuit Breaker (Experimental)
+
+Semian also includes an experimental adaptive circuit breaker that uses a PID controller
+to dynamically adjust the rejection rate based on real-time health metrics. Unlike the
+traditional circuit breaker with fixed thresholds, the adaptive circuit breaker continuously
+monitors error rates and adjusts its behavior accordingly.
+
+##### How It Works
+
+The adaptive circuit breaker uses the health function:
+```
+P = (error_rate - ideal_error_rate) - (rejection_rate - ping_failure_rate)
+```
+
+This formula ensures that:
+- Rejection rate increases when the service is unhealthy (high error rate or ping failures)
+- Rejection rate decreases when the service recovers (successful pings, low error rate)
+- The system finds an equilibrium that protects against cascading failures while allowing recovery
+
+##### Adaptive Circuit Breaker Configuration
+
+To enable the adaptive circuit breaker, simply set:
+
+- **adaptive_circuit_breaker**. Enable adaptive circuit breaker instead of traditional. Defaults to `false`.
+
+Example configuration:
+```ruby
+Semian.register(
+  :my_service,
+  adaptive_circuit_breaker: true,  # Use adaptive instead of traditional
+  bulkhead: false                   # Can be combined with bulkhead
+)
+```
+
+The adaptive circuit breaker uses carefully tuned internal parameters based on extensive testing:
+- PID controller gains optimized for stability and responsiveness
+- 10-second window for rate calculations
+- 1-hour history for ideal error rate calculation (p90)
+- 1-second interval for background health checks
+
+The adaptive circuit breaker can be disabled with the environment variable
+`SEMIAN_ADAPTIVE_CIRCUIT_BREAKER_DISABLED=1`.
+
+**Note**: When `adaptive_circuit_breaker: true` is set, traditional circuit breaker
+parameters (`error_threshold`, `error_timeout`, etc.) are ignored.
+
 ### Bulkheading
 
 For some applications, circuit breakers are not enough. This is best illustrated
