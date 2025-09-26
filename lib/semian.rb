@@ -259,16 +259,6 @@ module Semian
     end
   end
 
-  # # Retrieves a hash of all registered resources.
-  # def resources
-  #   @resources ||= LRUHash.new
-  # end
-
-  # Retrieves a hash of all registered resource consumers.
-  # def consumers
-  #   @consumers ||= Concurrent::Map.new
-  # end
-
   def reset!
     self.consumers = Concurrent::Map.new
     self.resources = LRUHash.new

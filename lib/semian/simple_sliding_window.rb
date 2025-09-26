@@ -4,8 +4,6 @@ require "thread"
 require "concurrent"
 
 module Semian
-  # Shared sliding window behavior that can be mixed into classes
-  # that provide different underlying storage mechanisms
   module SlidingWindowBehavior
     extend Forwardable
 
