@@ -4,6 +4,10 @@ require "concurrent-ruby"
 
 module Semian
   module Instrumentable
+    extend self
+
+    self.subscribers = Concurrent::Map.new
+
     def subscribe(name = rand, &block)
       subscribers[name] = block
       name
@@ -26,7 +30,7 @@ module Semian
     private
 
     def subscribers
-      @subscribers ||= Concurrent::Map.new
+      self.class.subscribers
     end
   end
 end

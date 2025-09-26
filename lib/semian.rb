@@ -104,12 +104,15 @@ module Semian
   OpenCircuitError = Class.new(BaseError)
   SemaphoreMissingError = Class.new(BaseError)
 
-  attr_accessor :maximum_lru_size, :minimum_lru_time, :default_permissions, :namespace, :default_force_config_validation
+  attr_accessor :maximum_lru_size, :minimum_lru_time, :default_permissions, :namespace, :default_force_config_validation, :resources, :consumers
 
   self.maximum_lru_size = 500
   self.minimum_lru_time = 300 # 300 seconds / 5 minutes
   self.default_permissions = 0660
   self.default_force_config_validation = false
+
+  self.resources = LRUHash.new
+  self.consumers = Concurrent::Map.new
 
   def issue_disabled_semaphores_warning
     return if defined?(@warning_issued)
@@ -246,19 +249,19 @@ module Semian
     end
   end
 
-  # Retrieves a hash of all registered resources.
-  def resources
-    @resources ||= LRUHash.new
-  end
+  # # Retrieves a hash of all registered resources.
+  # def resources
+  #   @resources ||= LRUHash.new
+  # end
 
   # Retrieves a hash of all registered resource consumers.
-  def consumers
-    @consumers ||= Concurrent::Map.new
-  end
+  # def consumers
+  #   @consumers ||= Concurrent::Map.new
+  # end
 
   def reset!
-    @consumers = Concurrent::Map.new
-    @resources = LRUHash.new
+    self.consumers = Concurrent::Map.new
+    self.resources = LRUHash.new
   end
 
   def thread_safe?
