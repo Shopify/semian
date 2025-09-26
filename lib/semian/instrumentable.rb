@@ -15,6 +15,10 @@ module Semian
       SUBSCRIBERS.delete(name)
     end
 
+    def subscribers
+      SUBSCRIBERS
+    end
+
     # Args:
     #   event (string)
     #   resource (Object)
