@@ -10,6 +10,7 @@ require "semian/instrumentable"
 require "semian/platform"
 require "semian/resource"
 require "semian/circuit_breaker"
+require "semian/adaptive_circuit_breaker"
 require "semian/protected_resource"
 require "semian/unprotected_resource"
 require "semian/simple_sliding_window"
@@ -182,6 +183,10 @@ module Semian
   # +exceptions+: An array of exception classes that should be accounted as resource errors. Default [].
   # (circuit breaker)
   #
+  # +adaptive_circuit_breaker+: Enable adaptive circuit breaker using PID controller. Default false.
+  # When enabled, this replaces the traditional circuit breaker with an adaptive version
+  # that dynamically adjusts rejection rates based on service health. (adaptive circuit breaker)
+  #
   # Returns the registered resource.
   def register(name, **options)
     return UnprotectedResource.new(name) if ENV.key?("SEMIAN_DISABLED")
@@ -189,7 +194,12 @@ module Semian
     # Validate configuration before proceeding
     ConfigurationValidator.new(name, options).validate!
 
-    circuit_breaker = create_circuit_breaker(name, **options)
+    circuit_breaker = if options[:adaptive_circuit_breaker]
+      create_adaptive_circuit_breaker(name, **options)
+    else
+      create_circuit_breaker(name, **options)
+    end
+
     bulkhead = create_bulkhead(name, **options)
 
     resources[name] = ProtectedResource.new(name, bulkhead, circuit_breaker)
@@ -286,6 +296,23 @@ module Semian
   end
 
   private
+
+  def create_adaptive_circuit_breaker(name, **options)
+    return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED") || ENV.key?("SEMIAN_ADAPTIVE_CIRCUIT_BREAKER_DISABLED")
+
+    # Fixed parameters based on design document recommendations
+    AdaptiveCircuitBreaker.new(
+      name: name,
+      kp: 1.0,                      # Standard proportional gain
+      ki: 0.1,                      # Moderate integral gain
+      kd: 0.01,                     # Small derivative gain (as per design doc)
+      window_size: 10,              # 10-second window for rate calculation
+      history_duration: 3600,       # 1 hour of history for p90 calculation
+      ping_interval: 1.0,           # 1 second between health checks
+      thread_safe: Semian.thread_safe?,
+      enable_background_ping: true, # Always enabled for proper recovery detection
+    )
+  end
 
   def create_circuit_breaker(name, **options)
     return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED")
