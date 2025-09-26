@@ -47,14 +47,11 @@ def main
 
   # Create dependency and circuit breaker
   dependency = MockDependency.new(failure_rate: 0.0)
+
+  # NOTE: In production, you would use Semian.register with adaptive_circuit_breaker: true
+  # This direct instantiation is for demonstration purposes only
   breaker = Semian::AdaptiveCircuitBreaker.new(
     name: "demo_breaker",
-    kp: 2.0,      # Aggressive proportional response
-    ki: 0.5,      # Moderate integral response
-    kd: 0.05,     # Small derivative response (as per design doc)
-    window_size: 5,
-    ping_interval: 0.5,
-    enable_background_ping: true,
   )
 
   puts "\nPhase 1: Healthy dependency (0% failure rate)"

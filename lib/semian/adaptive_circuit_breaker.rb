@@ -7,7 +7,7 @@ module Semian
   class AdaptiveCircuitBreaker
     attr_reader :name, :pid_controller, :ping_thread
 
-    def initialize(name:, kp: 1.0, ki: 0.1, kd: 0.0,
+    def initialize(name:, kp: 1.0, ki: 0.1, kd: 0.01,
       window_size: 10, history_duration: 3600,
       ping_interval: 1.0, thread_safe: true, enable_background_ping: true)
       @name = name
@@ -76,11 +76,17 @@ module Semian
       @resource = nil
     end
 
-    # Stop the background ping thread
+    # Stop the background ping thread (called by destroy)
     def stop
       @stopped = true
       @ping_thread&.kill
       @ping_thread = nil
+    end
+
+    # Destroy the adaptive circuit breaker (compatible with ProtectedResource interface)
+    def destroy
+      stop
+      @pid_controller.reset
     end
 
     # Get current metrics for monitoring
