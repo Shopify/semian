@@ -111,6 +111,16 @@ module Semian
   self.default_permissions = 0660
   self.default_force_config_validation = false
 
+  def thread_safe?
+    return @thread_safe if defined?(@thread_safe)
+
+    @thread_safe = true
+  end
+
+  def thread_safe=(thread_safe)
+    @thread_safe = thread_safe
+  end
+
   self.resources = LRUHash.new
   self.consumers = Concurrent::Map.new
 
@@ -262,16 +272,6 @@ module Semian
   def reset!
     self.consumers = Concurrent::Map.new
     self.resources = LRUHash.new
-  end
-
-  def thread_safe?
-    return @thread_safe if defined?(@thread_safe)
-
-    @thread_safe = true
-  end
-
-  def thread_safe=(thread_safe)
-    @thread_safe = thread_safe
   end
 
   THREAD_BULKHEAD_DISABLED_VAR = :semian_bulkheads_disabled
