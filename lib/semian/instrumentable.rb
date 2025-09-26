@@ -6,6 +6,8 @@ module Semian
   module Instrumentable
     extend self
 
+    attr_accessor :subscribers
+
     self.subscribers = Concurrent::Map.new
 
     def subscribe(name = rand, &block)
