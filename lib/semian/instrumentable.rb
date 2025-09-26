@@ -28,11 +28,5 @@ module Semian
     def notify(*args)
       subscribers.values.each { |subscriber| subscriber.call(*args) }
     end
-
-    private
-
-    def subscribers
-      self.class.subscribers
-    end
   end
 end
