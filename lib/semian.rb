@@ -124,6 +124,8 @@ module Semian
   self.resources = LRUHash.new
   self.consumers = Concurrent::Map.new
 
+  @reset_mutex = Mutex.new
+
   def issue_disabled_semaphores_warning
     return if defined?(@warning_issued)
 
@@ -260,8 +262,10 @@ module Semian
   end
 
   def reset!
-    self.consumers = Concurrent::Map.new
-    self.resources = LRUHash.new
+    @reset_mutex.synchronize do
+      self.consumers = Concurrent::Map.new
+      self.resources = LRUHash.new
+    end
   end
 
   THREAD_BULKHEAD_DISABLED_VAR = :semian_bulkheads_disabled
