@@ -4,19 +4,15 @@ require "concurrent-ruby"
 
 module Semian
   module Instrumentable
-    extend self
-
-    attr_accessor :subscribers
-
-    self.subscribers = Concurrent::Map.new
+    SUBSCRIBERS = Concurrent::Map.new
 
     def subscribe(name = rand, &block)
-      subscribers[name] = block
+      SUBSCRIBERS[name] = block
       name
     end
 
     def unsubscribe(name)
-      subscribers.delete(name)
+      SUBSCRIBERS.delete(name)
     end
 
     # Args:
@@ -26,7 +22,7 @@ module Semian
     #   adapter (string)
     #   payload (optional)
     def notify(*args)
-      subscribers.values.each { |subscriber| subscriber.call(*args) }
+      SUBSCRIBERS.values.each { |subscriber| subscriber.call(*args) }
     end
   end
 end
