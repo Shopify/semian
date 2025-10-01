@@ -111,6 +111,8 @@ module Semian
   self.default_permissions = 0660
   self.default_force_config_validation = false
 
+  # We only allow disabling thread-safety for parts of the code that are on the hot path.
+  # Since locking there could have a significant impact. Everything else is enforced thread safety
   def thread_safe?
     return @thread_safe if defined?(@thread_safe)
 
