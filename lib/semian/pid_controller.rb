@@ -187,8 +187,8 @@ module Semian
 
   # Thread-safe version of PIDController
   class ThreadSafePIDController < PIDController
-    def initialize(*)
-      super
+    def initialize(**kwargs)
+      super(**kwargs)
       @lock = Mutex.new
     end
 
@@ -212,10 +212,6 @@ module Semian
       @lock.synchronize { super }
     end
 
-    def metrics
-      @lock.synchronize { super }
-    end
-
     def calculate_error_rate
       @lock.synchronize { super }
     end
@@ -223,5 +219,9 @@ module Semian
     def calculate_ping_failure_rate
       @lock.synchronize { super }
     end
+
+    # NOTE: metrics is not overridden to avoid deadlock when it calls
+    # calculate_error_rate and calculate_ping_failure_rate internally.
+    # The data it reads is protected by synchronization on the write methods.
   end
 end
