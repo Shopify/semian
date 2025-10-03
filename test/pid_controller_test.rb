@@ -20,6 +20,7 @@ class TestPIDController < Minitest::Test
 
   def teardown
     @controller.reset
+    Process.unstub(:clock_gettime)
   end
 
   def test_initialization
@@ -38,6 +39,8 @@ class TestPIDController < Minitest::Test
         health_metric: -0.01,
         integral: 0.0,
         previous_error: 0.0,
+        current_window_requests: { success: 0, error: 0, rejected: 0 },
+        current_window_pings: { success: 0, failure: 0 },
       },
       metrics,
     )
@@ -48,9 +51,19 @@ class TestPIDController < Minitest::Test
     @controller.record_request(:success)
     @controller.record_request(:success)
 
+    # Metrics still 0 until window completes
     metrics = @controller.metrics
 
     assert_equal(0.0, metrics[:error_rate])
+    assert_equal({ success: 3, error: 0, rejected: 0 }, metrics[:current_window_requests])
+
+    # Move time forward past window size and update
+    time_travel(6.0) do
+      @controller.update
+      metrics = @controller.metrics
+
+      assert_equal(0.0, metrics[:error_rate])
+    end
   end
 
   def test_record_request_errors
@@ -58,9 +71,19 @@ class TestPIDController < Minitest::Test
     @controller.record_request(:success)
     @controller.record_request(:error)
 
+    # Metrics still 0 until window completes
     metrics = @controller.metrics
 
-    assert_in_delta(0.666, metrics[:error_rate], 0.01)
+    assert_equal(0.0, metrics[:error_rate])
+    assert_equal({ success: 1, error: 2, rejected: 0 }, metrics[:current_window_requests])
+
+    # Move time forward past window size and update
+    time_travel(6.0) do
+      @controller.update
+      metrics = @controller.metrics
+
+      assert_in_delta(0.666, metrics[:error_rate], 0.01)
+    end
   end
 
   def test_ping_failure_rate_calculation
@@ -69,9 +92,19 @@ class TestPIDController < Minitest::Test
     @controller.record_ping(:success)
     @controller.record_ping(:failure)
 
+    # Metrics still 0 until window completes
     metrics = @controller.metrics
 
-    assert_equal(0.5, metrics[:ping_failure_rate])
+    assert_equal(0.0, metrics[:ping_failure_rate])
+    assert_equal({ success: 2, failure: 2 }, metrics[:current_window_pings])
+
+    # Move time forward past window size and update
+    time_travel(6.0) do
+      @controller.update
+      metrics = @controller.metrics
+
+      assert_equal(0.5, metrics[:ping_failure_rate])
+    end
   end
 
   def test_health_metric_calculation
@@ -83,15 +116,19 @@ class TestPIDController < Minitest::Test
     3.times { @controller.record_ping(:failure) }
     2.times { @controller.record_ping(:success) }
 
-    metrics = @controller.metrics
-    error_rate = metrics[:error_rate] # 0.5
-    ping_failure_rate = metrics[:ping_failure_rate] # 0.6
+    # Move time forward past window size and update
+    time_travel(6.0) do
+      @controller.update
+      metrics = @controller.metrics
+      error_rate = metrics[:error_rate] # 0.5
+      ping_failure_rate = metrics[:ping_failure_rate] # 0.6
 
-    # P = (error_rate - ideal_error_rate) - (rejection_rate - ping_failure_rate)
-    # P = (0.5 - 0.01) - (0.0 - 0.6) = 0.49 - (-0.6) = 0.49 + 0.6 = 1.09
-    health_metric = @controller.calculate_health_metric(error_rate, ping_failure_rate)
+      # P = (error_rate - ideal_error_rate) - (rejection_rate - ping_failure_rate)
+      # P = (0.5 - 0.01) - (0.0 - 0.6) = 0.49 - (-0.6) = 0.49 + 0.6 = 1.09
+      health_metric = @controller.calculate_health_metric(error_rate, ping_failure_rate)
 
-    assert_in_delta(1.09, health_metric, 0.01)
+      assert_in_delta(1.09, health_metric, 0.01)
+    end
   end
 
   def test_rejection_rate_increases_with_errors
@@ -224,50 +261,59 @@ class TestPIDController < Minitest::Test
     assert_equal(0.1, ideal_rate)
   end
 
-  def test_old_data_cleanup
-    # Record data at initial time
+  def test_discrete_window_behavior
+    # Record data in first window
+    @controller.record_request(:error)
     @controller.record_request(:error)
     @controller.record_ping(:failure)
 
+    # Metrics should be 0 before window completes
+    assert_equal(0.0, @controller.metrics[:error_rate])
+
     # Move forward in time past the window size (5 seconds)
     time_travel(6.0) do
-      # Record new data (triggers cleanup of old data)
+      @controller.update
+
+      # First window metrics are now available
+      assert_equal(1.0, @controller.metrics[:error_rate])
+      assert_equal(1.0, @controller.metrics[:ping_failure_rate])
+
+      # Record data in second window
       @controller.record_request(:success)
+      @controller.record_request(:success)
+      @controller.record_ping(:success)
 
-      # Old data should be cleaned up
-      outcomes = @controller.instance_variable_get(:@request_outcomes)
+      # Second window not complete yet, still showing first window metrics
+      assert_equal(1.0, @controller.metrics[:error_rate])
 
-      assert_equal(1, outcomes.size)
-      assert_equal(:success, outcomes.first[1])
+      # Complete second window
+      time_travel(6.0) do
+        @controller.update
 
-      # Same for ping outcomes
-      ping_outcomes = @controller.instance_variable_get(:@ping_outcomes)
-
-      assert_equal(0, ping_outcomes.size) # No recent pings
+        # Now showing second window metrics
+        assert_equal(0.0, @controller.metrics[:error_rate])
+        assert_equal(0.0, @controller.metrics[:ping_failure_rate])
+      end
     end
   end
 
-  def test_data_preserved_within_window
-    # Record data outside the window
+  def test_current_window_counters_visible
+    # Record data in current window
     @controller.record_request(:error)
+    @controller.record_request(:success)
+    @controller.record_request(:error)
+    @controller.record_ping(:failure)
+    @controller.record_ping(:success)
 
-    # Record data at different times within the window
-    time_travel(4.0) do
-      @controller.record_request(:success)
+    # Current window counters should be visible in metrics
+    metrics = @controller.metrics
 
-      time_travel(2.0) do
-        @controller.record_request(:error)
+    assert_equal({ success: 1, error: 2, rejected: 0 }, metrics[:current_window_requests])
+    assert_equal({ success: 1, failure: 1 }, metrics[:current_window_pings])
 
-        # All data should still be present (all within 5-second window)
-        outcomes = @controller.instance_variable_get(:@request_outcomes)
-
-        assert_equal(2, outcomes.size)
-
-        metrics = @controller.metrics
-        # 1 error, 1 success = 0.5 error rate
-        assert_in_delta(0.5, metrics[:error_rate], 0.01)
-      end
-    end
+    # But calculated rates are still from last completed window (0 initially)
+    assert_equal(0.0, metrics[:error_rate])
+    assert_equal(0.0, metrics[:ping_failure_rate])
   end
 
   def test_metrics_output
