@@ -126,14 +126,28 @@ module Semian
     end
 
     def send_background_ping
-      return unless @resource&.respond_to?(:ping)
+      # Use unprotected_ping if available, otherwise fall back to ping
+      return unless @resource
+
+      ping_method = if @resource.respond_to?(:unprotected_ping)
+        :unprotected_ping
+      elsif @resource.respond_to?(:ping)
+        :ping
+      else
+        return
+      end
 
       # Send ungated ping (not affected by rejection)
       begin
-        @resource.ping
-        @pid_controller.record_ping(:success)
-      rescue
+        result = @resource.send(ping_method)
+        if result
+          @pid_controller.record_ping(:success)
+        else
+          @pid_controller.record_ping(:failure)
+        end
+      rescue => e
         @pid_controller.record_ping(:failure)
+        Semian.logger&.debug("[#{@name}] Background ping failed: #{e.message}")
       end
     end
 

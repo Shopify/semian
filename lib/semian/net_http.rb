@@ -124,6 +124,33 @@ module Semian
       end
     end
 
+    def unprotected_ping
+      # Perform a simple HEAD request to check connectivity
+      # First ensure we're connected
+      return false unless started?
+
+      begin
+        # Create a simple HEAD request
+        req = Net::HTTP::Head.new("/")
+
+        # Temporarily save semian state and disable it
+        saved_semian_enabled = @semian_enabled
+        @semian_enabled = false
+
+        # Make the request directly without going through Semian
+        # We just need to verify we can reach the server
+        request(req)
+
+        # Any response (even error responses) means the server is reachable
+        true
+      rescue => e
+        Semian.logger&.debug("[net_http] Unprotected ping failed: #{e.message}")
+        false
+      ensure
+        @semian_enabled = saved_semian_enabled
+      end
+    end
+
     private
 
     def handle_error_responses(result)
