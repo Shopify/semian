@@ -115,19 +115,19 @@ class TestPIDController < Minitest::Test
 
     time_travel(1.0) do
       @controller.update
+
+      initial_rejection = @controller.rejection_rate
+
+      # Now simulate successful pings and lower error rate
+      10.times { @controller.record_request(:success) }
+      5.times { @controller.record_ping(:success) }
+
+      time_travel(1.0) do
+        @controller.update
+
+        assert_operator(@controller.rejection_rate, :<, initial_rejection)
+      end
     end
-    initial_rejection = @controller.rejection_rate
-
-    # Now simulate successful pings and lower error rate
-    10.times { @controller.record_request(:success) }
-    5.times { @controller.record_ping(:success) }
-
-    time_travel(1.0) do
-      @controller.update
-    end
-
-    # Rejection rate should decrease
-    assert_operator(@controller.rejection_rate, :<, initial_rejection)
   end
 
   def test_rejection_rate_clamped_between_0_and_1
