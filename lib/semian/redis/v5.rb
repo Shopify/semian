@@ -39,6 +39,11 @@ module Semian
     def semian_identifier
       _client.semian_identifier
     end
+
+    def unprotected_ping
+      # Delegate to the underlying RedisClient's unprotected_ping
+      _client.unprotected_ping
+    end
   end
 
   module RedisV5Client
