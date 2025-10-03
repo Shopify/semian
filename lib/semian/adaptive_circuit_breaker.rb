@@ -5,7 +5,7 @@ require_relative "pid_controller"
 module Semian
   # Adaptive Circuit Breaker that uses PID controller for dynamic rejection
   class AdaptiveCircuitBreaker
-    attr_reader :name, :pid_controller, :ping_thread, :update_thread
+    attr_reader :name, :pid_controller, :ping_thread, :update_thread, :last_error
 
     def initialize(name:, kp: 1.0, ki: 0.1, kd: 0.01,
       window_size: 10, history_duration: 3600,
@@ -17,6 +17,7 @@ module Semian
       @enable_background_ping = enable_background_ping
       @resource = nil
       @stopped = false
+      @last_error = nil
 
       # Create PID controller (thread-safe by default)
       @pid_controller = if thread_safe
@@ -62,6 +63,7 @@ module Semian
         result
       rescue => error
         @pid_controller.record_request(:error)
+        @last_error = error # Store the error for reporting
         raise error
       end
     end
@@ -70,6 +72,7 @@ module Semian
     def reset
       @pid_controller.reset
       @resource = nil
+      @last_error = nil
     end
 
     # Stop the background threads (called by destroy)
@@ -105,6 +108,27 @@ module Semian
     # Check if circuit is partially open
     def half_open?
       !open? && !closed?
+    end
+
+    # Mark a request as failed (for compatibility with ProtectedResource)
+    def mark_failed(error)
+      @last_error = error
+      @pid_controller.record_request(:error)
+    end
+
+    # Mark a request as successful (for compatibility with ProtectedResource)
+    def mark_success
+      @pid_controller.record_request(:success)
+    end
+
+    # Check if requests are allowed (for compatibility with ProtectedResource)
+    def request_allowed?
+      !@pid_controller.should_reject?
+    end
+
+    # Check if the circuit breaker is in use (for compatibility with ProtectedResource)
+    def in_use?
+      true
     end
 
     private

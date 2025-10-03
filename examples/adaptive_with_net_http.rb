@@ -14,42 +14,44 @@ puts "=" * 60
 
 # Configure a mock HTTP server endpoint
 # In real usage, this would be your actual service endpoint
-TEST_HOST = "httpbin.org"
-TEST_PORT = 443
+TEST_HOST = "localhost"
+TEST_PORT = 80
 
 # Configure Semian for the HTTP endpoint with adaptive circuit breaker
 puts "\nConfiguring Semian with adaptive circuit breaker..."
 
 # The Net::HTTP adapter will automatically use this configuration
 # when making requests to the specified host
-Semian.register(
-  "httpbin_service",
-  adaptive_circuit_breaker: true, # Enable adaptive circuit breaker
-  bulkhead: true,
-  tickets: 5,
-  timeout: 1,
-)
+SEMIAN_PARAMETERS = {
+  adaptive_circuit_breaker: true,
+  open_circuit_server_errors: true,
+}.freeze
+
+Semian::NetHTTP.semian_configuration = proc do |host, port|
+  if host == "localhost" && port == 80
+    SEMIAN_PARAMETERS.merge(name: "localhost_80")
+  end
+end
 
 # Helper method to make HTTP requests
 def make_request(path = "/status/200")
-  uri = URI("https://#{TEST_HOST}#{path}")
+  uri = URI("http://#{TEST_HOST}#{path}")
   http = Net::HTTP.new(uri.host, uri.port)
-  http.use_ssl = true
   http.read_timeout = 2
   http.open_timeout = 2
 
-  # Configure semian for this connection
-  # This would typically be done in your HTTP client configuration
-  http.singleton_class.class_eval do
-    def semian_identifier
-      "httpbin_service"
-    end
+  # # Configure semian for this connection
+  # # This would typically be done in your HTTP client configuration
+  # http.singleton_class.class_eval do
+  #   def semian_identifier
+  #     "httpbin_service"
+  #   end
 
-    def semian_options
-      # Return the resource name to use the registered configuration
-      { name: "httpbin_service" }
-    end
-  end
+  #   def semian_options
+  #     # Return the resource name to use the registered configuration
+  #     { name: "httpbin_service" }
+  #   end
+  # end
 
   request = Net::HTTP::Get.new(uri)
   response = http.request(request)
@@ -68,6 +70,7 @@ puts "-" * 40
     puts "Request #{i + 1}: Success (HTTP #{code})"
   rescue => e
     puts "Request #{i + 1}: Error - #{e.class}: #{e.message}"
+    puts e.backtrace
   end
   sleep(0.5)
 end
