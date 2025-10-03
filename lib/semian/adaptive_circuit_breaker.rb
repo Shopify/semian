@@ -5,12 +5,13 @@ require_relative "pid_controller"
 module Semian
   # Adaptive Circuit Breaker that uses PID controller for dynamic rejection
   class AdaptiveCircuitBreaker
-    attr_reader :name, :pid_controller, :ping_thread
+    attr_reader :name, :pid_controller, :ping_thread, :update_thread
 
     def initialize(name:, kp: 1.0, ki: 0.1, kd: 0.01,
       window_size: 10, history_duration: 3600,
       ping_interval: 1.0, thread_safe: true, enable_background_ping: true)
       @name = name
+      @window_size = window_size
       @ping_interval = ping_interval
       @last_ping_time = 0
       @enable_background_ping = enable_background_ping
@@ -38,8 +39,9 @@ module Semian
         )
       end
 
-      # Start background ping thread if enabled
+      # Start background threads
       start_ping_thread if @enable_background_ping
+      start_update_thread
     end
 
     # Main acquire method compatible with existing Semian interface
@@ -50,8 +52,6 @@ module Semian
       # Check if we should reject based on current rejection rate
       if @pid_controller.should_reject?
         @pid_controller.record_request(:rejected)
-        # Update controller after rejection
-        @pid_controller.update
         raise OpenCircuitError, "Rejected by adaptive circuit breaker (rejection_rate: #{@pid_controller.rejection_rate})"
       end
 
@@ -59,13 +59,9 @@ module Semian
       begin
         result = block.call
         @pid_controller.record_request(:success)
-        # Update controller after success
-        @pid_controller.update
         result
       rescue => error
         @pid_controller.record_request(:error)
-        # Update controller after error
-        @pid_controller.update
         raise error
       end
     end
@@ -76,11 +72,13 @@ module Semian
       @resource = nil
     end
 
-    # Stop the background ping thread (called by destroy)
+    # Stop the background threads (called by destroy)
     def stop
       @stopped = true
       @ping_thread&.kill
       @ping_thread = nil
+      @update_thread&.kill
+      @update_thread = nil
     end
 
     # Destroy the adaptive circuit breaker (compatible with ProtectedResource interface)
@@ -136,6 +134,22 @@ module Semian
         @pid_controller.record_ping(:success)
       rescue
         @pid_controller.record_ping(:failure)
+      end
+    end
+
+    def start_update_thread
+      @update_thread = Thread.new do
+        loop do
+          break if @stopped
+
+          sleep(@window_size)
+
+          # Update PID controller at the end of each window
+          @pid_controller.update
+        end
+      rescue => e
+        # Log error if logger is available
+        Semian.logger&.warn("[#{@name}] Background update thread error: #{e.message}")
       end
     end
   end

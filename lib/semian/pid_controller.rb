@@ -31,12 +31,19 @@ module Semian
 
       # Metrics tracking
       @error_rate_history = []
-      @max_history_size = history_duration # Duration in seconds to keep history
+      @max_history_size = history_duration / window_size # Number of windows to keep
 
-      # Request tracking for rate calculation
-      @window_size = window_size # Time window in seconds for rate calculation
-      @request_outcomes = [] # Array of [timestamp, :success/:error/:rejected]
-      @ping_outcomes = [] # Array of [timestamp, :success/:failure]
+      # Discrete window tracking
+      @window_size = window_size # Time window in seconds
+      @window_start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+      # Current window counters
+      @current_window_requests = { success: 0, error: 0, rejected: 0 }
+      @current_window_pings = { success: 0, failure: 0 }
+
+      # Last completed window metrics (used between updates)
+      @last_error_rate = 0.0
+      @last_ping_failure_rate = 0.0
     end
 
     # Calculate the current health metric P
@@ -51,29 +58,48 @@ module Semian
 
     # Record a request outcome
     def record_request(outcome)
-      timestamp = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      @request_outcomes << [timestamp, outcome]
-      cleanup_old_data(timestamp)
+      case outcome
+      when :success
+        @current_window_requests[:success] += 1
+      when :error
+        @current_window_requests[:error] += 1
+      when :rejected
+        @current_window_requests[:rejected] += 1
+      end
     end
 
     # Record a ping outcome (ungated health check)
     def record_ping(outcome)
-      timestamp = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      @ping_outcomes << [timestamp, outcome]
-      cleanup_old_data(timestamp)
+      case outcome
+      when :success
+        @current_window_pings[:success] += 1
+      when :failure
+        @current_window_pings[:failure] += 1
+      end
     end
 
-    # Update the controller with new measurements
+    # Update the controller at the end of each time window
     def update(current_error_rate = nil, ping_failure_rate = nil)
       current_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      dt = current_time - @last_update_time
 
-      # Use calculated rates if not provided
-      current_error_rate ||= calculate_error_rate
-      ping_failure_rate ||= calculate_ping_failure_rate
+      # Calculate rates for the current window
+      @last_error_rate = calculate_window_error_rate
+      @last_ping_failure_rate = calculate_window_ping_failure_rate
 
       # Store error rate for historical analysis
-      store_error_rate(current_error_rate)
+      store_error_rate(@last_error_rate)
+
+      # Reset window counters for next window
+      @current_window_requests = { success: 0, error: 0, rejected: 0 }
+      @current_window_pings = { success: 0, failure: 0 }
+      @window_start_time = current_time
+
+      # Use provided rates or calculated rates
+      current_error_rate ||= @last_error_rate
+      ping_failure_rate ||= @last_ping_failure_rate
+
+      # dt is always window_size since we update once per window
+      dt = @window_size
 
       # Calculate the current error (health metric)
       error = calculate_health_metric(current_error_rate, ping_failure_rate)
@@ -82,8 +108,7 @@ module Semian
       proportional = @kp * error
       @integral += error * dt
       integral = @ki * @integral
-      derivative = @kd * (error - @previous_error) / dt if dt > 0
-      derivative ||= 0.0
+      derivative = @kd * (error - @previous_error) / dt
 
       # Calculate the control signal (change in rejection rate)
       control_signal = proportional + integral + derivative
@@ -109,8 +134,11 @@ module Semian
       @integral = 0.0
       @previous_error = 0.0
       @last_update_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      @request_outcomes.clear
-      @ping_outcomes.clear
+      @window_start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      @current_window_requests = { success: 0, error: 0, rejected: 0 }
+      @current_window_pings = { success: 0, failure: 0 }
+      @last_error_rate = 0.0
+      @last_ping_failure_rate = 0.0
       @error_rate_history.clear
     end
 
@@ -118,37 +146,31 @@ module Semian
     def metrics
       {
         rejection_rate: @rejection_rate,
-        error_rate: calculate_error_rate,
-        ping_failure_rate: calculate_ping_failure_rate,
+        error_rate: @last_error_rate,
+        ping_failure_rate: @last_ping_failure_rate,
         ideal_error_rate: @target_error_rate || calculate_ideal_error_rate,
-        health_metric: calculate_health_metric(calculate_error_rate, calculate_ping_failure_rate),
+        health_metric: calculate_health_metric(@last_error_rate, @last_ping_failure_rate),
         integral: @integral,
         previous_error: @previous_error,
+        current_window_requests: @current_window_requests.dup,
+        current_window_pings: @current_window_pings.dup,
       }
     end
 
     private
 
-    def calculate_error_rate
-      current_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      cutoff_time = current_time - @window_size
+    def calculate_window_error_rate
+      total_requests = @current_window_requests[:success] + @current_window_requests[:error]
+      return 0.0 if total_requests == 0
 
-      recent_requests = @request_outcomes.select { |t, _| t >= cutoff_time }
-      return 0.0 if recent_requests.empty?
-
-      errors = recent_requests.count { |_, outcome| outcome == :error }
-      errors.to_f / recent_requests.size
+      @current_window_requests[:error].to_f / total_requests
     end
 
-    def calculate_ping_failure_rate
-      current_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      cutoff_time = current_time - @window_size
+    def calculate_window_ping_failure_rate
+      total_pings = @current_window_pings[:success] + @current_window_pings[:failure]
+      return 0.0 if total_pings == 0
 
-      recent_pings = @ping_outcomes.select { |t, _| t >= cutoff_time }
-      return 0.0 if recent_pings.empty?
-
-      failures = recent_pings.count { |_, outcome| outcome == :failure }
-      failures.to_f / recent_pings.size
+      @current_window_pings[:failure].to_f / total_pings
     end
 
     def store_error_rate(error_rate)
@@ -167,18 +189,6 @@ module Semian
 
       # Cap at 10% to prevent bootstrapping issues
       [p90_value, 0.1].min
-    end
-
-    def cleanup_old_data(current_time)
-      cutoff_time = current_time - @window_size
-
-      # Clean up old request outcomes
-      @request_outcomes.reject! { |timestamp, _| timestamp < cutoff_time }
-
-      # Clean up old ping outcomes
-      @ping_outcomes.reject! { |timestamp, _| timestamp < cutoff_time }
-
-      # NOTE: error_rate_history is cleaned up in store_error_rate
     end
   end
 
