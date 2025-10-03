@@ -7,10 +7,6 @@ class TestPIDController < Minitest::Test
   include TimeHelper
 
   def setup
-    # Fix the initial time for all tests
-    @initial_time = 1000.0
-    Process.stubs(:clock_gettime).with(Process::CLOCK_MONOTONIC).returns(@initial_time)
-
     @controller = Semian::PIDController.new(
       name: "test_controller",
       kp: 1.0,
@@ -23,7 +19,6 @@ class TestPIDController < Minitest::Test
 
   def teardown
     @controller.reset
-    Process.unstub(:clock_gettime) if Process.stubbed?(:clock_gettime)
   end
 
   def test_initialization
