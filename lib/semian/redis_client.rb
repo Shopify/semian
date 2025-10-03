@@ -99,6 +99,17 @@ module Semian
     include Semian::Adapter
     include RedisClientCommon
 
+    def unprotected_ping
+      # Send a PING command directly without Semian protection
+
+      # Use call_v to bypass the normal flow
+      result = call_v(["PING"])
+      result == "PONG"
+    rescue => e
+      Semian.logger&.debug("[redis_client] Unprotected ping failed: #{e.message}")
+      false
+    end
+
     private
 
     def resource_exceptions
@@ -129,6 +140,18 @@ module Semian
 
     define_method(:semian_resource, Semian::Adapter.instance_method(:semian_resource))
     define_method(:clear_semian_resource, Semian::Adapter.instance_method(:clear_semian_resource))
+
+    def unprotected_ping
+      # For pooled connections, use with to get a client and ping
+
+      with do |client|
+        result = client.call_v(["PING"])
+        result == "PONG"
+      end
+    rescue => e
+      Semian.logger&.debug("[redis_client_pool] Unprotected ping failed: #{e.message}")
+      false
+    end
   end
 end
 
