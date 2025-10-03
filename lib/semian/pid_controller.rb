@@ -162,8 +162,11 @@ module Semian
 
       # Calculate p90 of error rates
       sorted = @error_rate_history.sort
-      index = (sorted.size * 0.9).floor
-      sorted[index] || sorted.last
+      index = (sorted.size * 0.9).floor - 1
+      p90_value = sorted[index] || sorted.last
+
+      # Cap at 10% to prevent bootstrapping issues
+      [p90_value, 0.1].min
     end
 
     def cleanup_old_data(current_time)
