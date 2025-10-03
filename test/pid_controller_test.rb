@@ -45,7 +45,9 @@ class TestPIDController < Minitest::Test
     @controller.record_request(:success)
     @controller.record_request(:success)
 
-    assert_equal(0.0, @controller.calculate_error_rate)
+    metrics = @controller.metrics
+
+    assert_equal(0.0, metrics[:error_rate])
   end
 
   def test_record_request_errors
@@ -53,7 +55,9 @@ class TestPIDController < Minitest::Test
     @controller.record_request(:success)
     @controller.record_request(:error)
 
-    assert_in_delta(0.666, @controller.calculate_error_rate, 0.01)
+    metrics = @controller.metrics
+
+    assert_in_delta(0.666, metrics[:error_rate], 0.01)
   end
 
   def test_ping_failure_rate_calculation
@@ -62,7 +66,9 @@ class TestPIDController < Minitest::Test
     @controller.record_ping(:success)
     @controller.record_ping(:failure)
 
-    assert_equal(0.5, @controller.calculate_ping_failure_rate)
+    metrics = @controller.metrics
+
+    assert_equal(0.5, metrics[:ping_failure_rate])
   end
 
   def test_health_metric_calculation
@@ -74,8 +80,9 @@ class TestPIDController < Minitest::Test
     3.times { @controller.record_ping(:failure) }
     2.times { @controller.record_ping(:success) }
 
-    error_rate = @controller.calculate_error_rate # 0.5
-    ping_failure_rate = @controller.calculate_ping_failure_rate # 0.6
+    metrics = @controller.metrics
+    error_rate = metrics[:error_rate] # 0.5
+    ping_failure_rate = metrics[:ping_failure_rate] # 0.6
 
     # P = (error_rate - ideal_error_rate) - (rejection_rate - ping_failure_rate)
     # P = (0.5 - 0.01) - (0.0 - 0.6) = 0.49 - (-0.6) = 0.49 + 0.6 = 1.09
@@ -144,8 +151,10 @@ class TestPIDController < Minitest::Test
     @controller.reset
 
     assert_equal(0.0, @controller.rejection_rate)
-    assert_equal(0.0, @controller.calculate_error_rate)
-    assert_equal(0.0, @controller.calculate_ping_failure_rate)
+    metrics = @controller.metrics
+
+    assert_equal(0.0, metrics[:error_rate])
+    assert_equal(0.0, metrics[:ping_failure_rate])
   end
 
   def test_ideal_error_rate_calculation_p90
@@ -157,7 +166,7 @@ class TestPIDController < Minitest::Test
 
     # Simulate error rates over time: [0.1, 0.2, 0.3, ..., 1.0]
     10.times do |i|
-      error_rate = (i + 1) * 0.1
+      error_rate = i * 0.1
       controller.send(:store_error_rate, error_rate)
     end
 
@@ -281,7 +290,6 @@ class TestThreadSafePIDController < Minitest::Test
       Thread.new do
         100.times do
           @controller.metrics
-          @controller.calculate_error_rate
         end
       end
     end
