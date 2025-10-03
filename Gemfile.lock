@@ -184,6 +184,7 @@ DEPENDENCIES
   benchmark-ips
   benchmark-memory
   bigdecimal
+  concurrent-ruby
   debug
   grpc (= 1.74.1)
   hiredis (~> 0.6)

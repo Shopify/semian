@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "thread"
+require "concurrent"
 
 module Semian
   module Simple
@@ -26,14 +27,29 @@ module Semian
   end
 
   module ThreadSafe
-    class Integer < Simple::Integer
-      def initialize(*)
-        super
-        @lock = Mutex.new
+    class Integer
+      def initialize
+        @atom = Concurrent::AtomicFixnum.new(0)
       end
 
-      def increment(*)
-        @lock.synchronize { super }
+      def value
+        @atom.value
+      end
+
+      def value=(new_value)
+        @atom.value = new_value
+      end
+
+      def increment(val = 1)
+        @atom.increment(val)
+      end
+
+      def reset
+        @atom.value = 0
+      end
+
+      def destroy
+        reset
       end
     end
   end
