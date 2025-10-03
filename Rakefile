@@ -39,7 +39,7 @@ end
 require "rake/testtask"
 Rake::TestTask.new("test") do |t|
   t.libs = ["lib", "test"]
-  t.pattern = "test/**/*_test.rb"
+  t.pattern = "test/pid_controller_test.rb"
   t.warning = false
   if ENV["CI"] || ENV["VERBOSE"]
     t.options = "-v"

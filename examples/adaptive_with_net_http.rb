@@ -62,7 +62,7 @@ puts "Configuration complete!"
 puts "\nPhase 1: Normal operation (successful requests)"
 puts "-" * 40
 
-3.times do |i|
+60.times do |i|
   begin
     code = make_request("/status/200")
     puts "Request #{i + 1}: Success (HTTP #{code})"
@@ -75,10 +75,10 @@ end
 puts "\nPhase 2: Simulating errors (requesting error status codes)"
 puts "-" * 40
 
-5.times do |i|
+60.times do |i|
   begin
     # Request error status codes to trigger circuit breaker logic
-    code = make_request("/status/500")
+    code = make_request("/status/503")
     puts "Request #{i + 1}: Got HTTP #{code}"
   rescue Net::HTTPServerException => e
     puts "Request #{i + 1}: HTTP Error - #{e.message}"
@@ -104,7 +104,7 @@ end
 puts "\nPhase 3: Recovery (back to successful requests)"
 puts "-" * 40
 
-3.times do |i|
+60.times do |i|
   begin
     code = make_request("/status/200")
     puts "Request #{i + 1}: Success (HTTP #{code})"
