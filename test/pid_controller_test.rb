@@ -4,7 +4,13 @@ require "test_helper"
 require "semian/pid_controller"
 
 class TestPIDController < Minitest::Test
+  include TimeHelper
+
   def setup
+    # Fix the initial time for all tests
+    @initial_time = 1000.0
+    Process.stubs(:clock_gettime).with(Process::CLOCK_MONOTONIC).returns(@initial_time)
+
     @controller = Semian::PIDController.new(
       name: "test_controller",
       kp: 1.0,
@@ -17,6 +23,7 @@ class TestPIDController < Minitest::Test
 
   def teardown
     @controller.reset
+    Process.unstub(:clock_gettime) if Process.stubbed?(:clock_gettime)
   end
 
   def test_initialization
@@ -96,7 +103,11 @@ class TestPIDController < Minitest::Test
     10.times { @controller.record_request(:error) }
 
     initial_rejection_rate = @controller.rejection_rate
-    @controller.update
+
+    # Advance time to ensure dt > 0 for PID calculations
+    time_travel(1.0) do
+      @controller.update
+    end
 
     # Rejection rate should increase
     assert_operator(@controller.rejection_rate, :>, initial_rejection_rate)
@@ -105,13 +116,19 @@ class TestPIDController < Minitest::Test
   def test_rejection_rate_decreases_with_successful_pings
     # Set up initial rejection rate
     10.times { @controller.record_request(:error) }
-    @controller.update
+
+    time_travel(1.0) do
+      @controller.update
+    end
     initial_rejection = @controller.rejection_rate
 
     # Now simulate successful pings and lower error rate
     10.times { @controller.record_request(:success) }
     5.times { @controller.record_ping(:success) }
-    @controller.update
+
+    time_travel(1.0) do
+      @controller.update
+    end
 
     # Rejection rate should decrease
     assert_operator(@controller.rejection_rate, :<, initial_rejection)
@@ -121,7 +138,10 @@ class TestPIDController < Minitest::Test
     # Try to drive rejection rate very high
     100.times { @controller.record_request(:error) }
     100.times { @controller.record_ping(:failure) }
-    @controller.update
+
+    time_travel(1.0) do
+      @controller.update
+    end
 
     assert_operator(@controller.rejection_rate, :<=, 1.0)
     assert_operator(@controller.rejection_rate, :>=, 0.0)
@@ -131,21 +151,34 @@ class TestPIDController < Minitest::Test
     # Set rejection rate to 0.5 by manipulating the controller state
     @controller.instance_variable_set(:@rejection_rate, 0.5)
 
-    # Test probabilistic rejection over many attempts
-    rejections = 0
-    1000.times do
-      rejections += 1 if @controller.should_reject?
-    end
+    # Mock rand to return deterministic values
+    sequence = [0.3, 0.7, 0.4, 0.6, 0.2, 0.8, 0.5, 0.1, 0.9, 0.45]
+    index = 0
 
-    # Should be around 500 rejections (50%)
-    assert_in_delta(500, rejections, 100)
+    @controller.stub(:rand, -> {
+      val = sequence[index % sequence.length]
+      index += 1
+      val
+    }) do
+      rejections = 0
+      10.times do
+        rejections += 1 if @controller.should_reject?
+      end
+
+      # With rejection_rate = 0.5, values < 0.5 should be rejected
+      # From sequence: 0.3, 0.4, 0.2, 0.1, 0.45 = 5 rejections
+      assert_equal(5, rejections)
+    end
   end
 
   def test_reset_clears_all_state
     # Add some data
     @controller.record_request(:error)
     @controller.record_ping(:failure)
-    @controller.update
+
+    time_travel(1.0) do
+      @controller.update
+    end
 
     # Reset
     @controller.reset
@@ -178,26 +211,58 @@ class TestPIDController < Minitest::Test
   end
 
   def test_old_data_cleanup
-    # Record old data
-    old_time = Process.clock_gettime(Process::CLOCK_MONOTONIC) - 10
-    @controller.instance_variable_get(:@request_outcomes) << [old_time, :error]
-    @controller.instance_variable_get(:@ping_outcomes) << [old_time, :failure]
+    # Record data at initial time
+    @controller.record_request(:error)
+    @controller.record_ping(:failure)
 
-    # Record new data (triggers cleanup)
-    @controller.record_request(:success)
+    # Move forward in time past the window size (5 seconds)
+    time_travel(6.0) do
+      # Record new data (triggers cleanup of old data)
+      @controller.record_request(:success)
 
-    # Old data should be cleaned up
-    outcomes = @controller.instance_variable_get(:@request_outcomes)
+      # Old data should be cleaned up
+      outcomes = @controller.instance_variable_get(:@request_outcomes)
 
-    assert_equal(1, outcomes.size)
-    assert_equal(:success, outcomes.first[1])
+      assert_equal(1, outcomes.size)
+      assert_equal(:success, outcomes.first[1])
+
+      # Same for ping outcomes
+      ping_outcomes = @controller.instance_variable_get(:@ping_outcomes)
+
+      assert_equal(0, ping_outcomes.size) # No recent pings
+    end
+  end
+
+  def test_data_preserved_within_window
+    # Record data at different times within the window
+    @controller.record_request(:error)
+
+    time_travel(2.0) do
+      @controller.record_request(:success)
+    end
+
+    time_travel(4.0) do
+      @controller.record_request(:error)
+
+      # All data should still be present (all within 5-second window)
+      outcomes = @controller.instance_variable_get(:@request_outcomes)
+
+      assert_equal(3, outcomes.size)
+
+      metrics = @controller.metrics
+      # 2 errors, 1 success = 0.666... error rate
+      assert_in_delta(0.666, metrics[:error_rate], 0.01)
+    end
   end
 
   def test_metrics_output
     @controller.record_request(:error)
     @controller.record_request(:success)
     @controller.record_ping(:failure)
-    @controller.update
+
+    time_travel(1.0) do
+      @controller.update
+    end
 
     metrics = @controller.metrics
 
@@ -213,30 +278,47 @@ class TestPIDController < Minitest::Test
   def test_pid_integration_behavior
     # Simulate a scenario where dependency starts failing
     5.times { @controller.record_request(:success) }
-    @controller.update
+
+    time_travel(1.0) do
+      @controller.update
+    end
     initial_rejection = @controller.rejection_rate
 
     # Errors start occurring
-    10.times { @controller.record_request(:error) }
-    3.times { @controller.record_ping(:failure) }
-    @controller.update
+    time_travel(1.0) do
+      10.times { @controller.record_request(:error) }
+      3.times { @controller.record_ping(:failure) }
+    end
+
+    time_travel(1.0) do
+      @controller.update
+    end
 
     # Rejection rate should increase
-    assert_operator(@controller.rejection_rate, :>, initial_rejection)
+    mid_rejection = @controller.rejection_rate
+
+    assert_operator(mid_rejection, :>, initial_rejection)
 
     # Now dependency recovers
-    20.times { @controller.record_request(:success) }
-    10.times { @controller.record_ping(:success) }
-    @controller.update
+    time_travel(1.0) do
+      20.times { @controller.record_request(:success) }
+      10.times { @controller.record_ping(:success) }
+    end
+
+    time_travel(1.0) do
+      @controller.update
+    end
 
     # Rejection rate should decrease
     final_rejection = @controller.rejection_rate
 
-    assert_operator(final_rejection, :<, @controller.metrics[:rejection_rate])
+    assert_operator(final_rejection, :<, mid_rejection)
   end
 end
 
 class TestThreadSafePIDController < Minitest::Test
+  include TimeHelper
+
   def setup
     @controller = Semian::ThreadSafePIDController.new(
       name: "thread_safe_test",
