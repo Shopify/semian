@@ -196,5 +196,21 @@ module Semian
         Semian.logger&.warn("[#{@name}] Background update thread error: #{e.message}")
       end
     end
+
+    def start_update_thread
+      @update_thread = Thread.new do
+        loop do
+          break if @stopped
+
+          sleep(@window_size)
+
+          # Update PID controller at the end of each window
+          @pid_controller.update
+        end
+      rescue => e
+        # Log error if logger is available
+        Semian.logger&.warn("[#{@name}] Background update thread error: #{e.message}")
+      end
+    end
   end
 end
