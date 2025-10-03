@@ -7,6 +7,7 @@ class TestPIDController < Minitest::Test
   include TimeHelper
 
   def setup
+    Process.stubs(:clock_gettime).with(Process::CLOCK_MONOTONIC).returns(1000)
     @controller = Semian::PIDController.new(
       name: "test_controller",
       kp: 1.0,
@@ -192,17 +193,35 @@ class TestPIDController < Minitest::Test
       history_duration: 100,
     )
 
-    # Simulate error rates over time: [0.1, 0.2, 0.3, ..., 1.0]
-    10.times do |i|
-      error_rate = i * 0.1
-      controller.send(:store_error_rate, error_rate)
+    5.times do
+      controller.send(:store_error_rate, 0.05)
     end
+    4.times do
+      controller.send(:store_error_rate, 0.09)
+    end
+    controller.send(:store_error_rate, 0.99)
 
-    # p90 of [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-    # Index 9 * 0.9 = 8.1, floor = 8, which is 0.9
     ideal_rate = controller.send(:calculate_ideal_error_rate)
 
-    assert_equal(0.9, ideal_rate)
+    assert_equal(0.09, ideal_rate)
+  end
+
+  def test_ideal_error_rate_cap
+    controller = Semian::PIDController.new(
+      name: "test_cap",
+      window_size: 1,
+      history_duration: 100,
+    )
+
+    # Simulate high error rates
+    10.times do
+      controller.send(:store_error_rate, 0.5) # 50% error rate
+    end
+
+    ideal_rate = controller.send(:calculate_ideal_error_rate)
+
+    # Should be capped at 10%
+    assert_equal(0.1, ideal_rate)
   end
 
   def test_old_data_cleanup
@@ -229,24 +248,25 @@ class TestPIDController < Minitest::Test
   end
 
   def test_data_preserved_within_window
-    # Record data at different times within the window
+    # Record data outside the window
     @controller.record_request(:error)
 
-    time_travel(2.0) do
-      @controller.record_request(:success)
-    end
-
+    # Record data at different times within the window
     time_travel(4.0) do
-      @controller.record_request(:error)
+      @controller.record_request(:success)
 
-      # All data should still be present (all within 5-second window)
-      outcomes = @controller.instance_variable_get(:@request_outcomes)
+      time_travel(2.0) do
+        @controller.record_request(:error)
 
-      assert_equal(3, outcomes.size)
+        # All data should still be present (all within 5-second window)
+        outcomes = @controller.instance_variable_get(:@request_outcomes)
 
-      metrics = @controller.metrics
-      # 2 errors, 1 success = 0.666... error rate
-      assert_in_delta(0.666, metrics[:error_rate], 0.01)
+        assert_equal(2, outcomes.size)
+
+        metrics = @controller.metrics
+        # 1 error, 1 success = 0.5 error rate
+        assert_in_delta(0.5, metrics[:error_rate], 0.01)
+      end
     end
   end
 
@@ -276,38 +296,39 @@ class TestPIDController < Minitest::Test
 
     time_travel(1.0) do
       @controller.update
+
+      initial_rejection = @controller.rejection_rate
+
+      # Errors start occurring
+      time_travel(1.0) do
+        10.times { @controller.record_request(:error) }
+        3.times { @controller.record_ping(:failure) }
+
+        time_travel(1.0) do
+          @controller.update
+
+          # Rejection rate should increase
+          mid_rejection = @controller.rejection_rate
+
+          assert_operator(mid_rejection, :>, initial_rejection)
+
+          # Now dependency recovers
+          time_travel(1.0) do
+            20.times { @controller.record_request(:success) }
+            10.times { @controller.record_ping(:success) }
+
+            time_travel(1.0) do
+              @controller.update
+
+              # Rejection rate should decrease
+              final_rejection = @controller.rejection_rate
+
+              assert_operator(final_rejection, :<, mid_rejection)
+            end
+          end
+        end
+      end
     end
-    initial_rejection = @controller.rejection_rate
-
-    # Errors start occurring
-    time_travel(1.0) do
-      10.times { @controller.record_request(:error) }
-      3.times { @controller.record_ping(:failure) }
-    end
-
-    time_travel(1.0) do
-      @controller.update
-    end
-
-    # Rejection rate should increase
-    mid_rejection = @controller.rejection_rate
-
-    assert_operator(mid_rejection, :>, initial_rejection)
-
-    # Now dependency recovers
-    time_travel(1.0) do
-      20.times { @controller.record_request(:success) }
-      10.times { @controller.record_ping(:success) }
-    end
-
-    time_travel(1.0) do
-      @controller.update
-    end
-
-    # Rejection rate should decrease
-    final_rejection = @controller.rejection_rate
-
-    assert_operator(final_rejection, :<, mid_rejection)
   end
 end
 
