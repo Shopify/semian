@@ -63,30 +63,6 @@ module Semian
       cleanup_old_data(timestamp)
     end
 
-    # Calculate current error rate from recent requests
-    def calculate_error_rate
-      current_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      cutoff_time = current_time - @window_size
-
-      recent_requests = @request_outcomes.select { |t, _| t >= cutoff_time }
-      return 0.0 if recent_requests.empty?
-
-      errors = recent_requests.count { |_, outcome| outcome == :error }
-      errors.to_f / recent_requests.size
-    end
-
-    # Calculate current ping failure rate
-    def calculate_ping_failure_rate
-      current_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      cutoff_time = current_time - @window_size
-
-      recent_pings = @ping_outcomes.select { |t, _| t >= cutoff_time }
-      return 0.0 if recent_pings.empty?
-
-      failures = recent_pings.count { |_, outcome| outcome == :failure }
-      failures.to_f / recent_pings.size
-    end
-
     # Update the controller with new measurements
     def update(current_error_rate = nil, ping_failure_rate = nil)
       current_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
@@ -113,7 +89,7 @@ module Semian
       control_signal = proportional + integral + derivative
 
       # Update rejection rate (clamped between 0 and 1)
-      @rejection_rate = clamp(@rejection_rate + control_signal, 0.0, 1.0)
+      @rejection_rate = (@rejection_rate + control_signal).clamp(0.0, 1.0)
 
       # Update state for next iteration
       @previous_error = error
@@ -153,6 +129,28 @@ module Semian
 
     private
 
+    def calculate_error_rate
+      current_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      cutoff_time = current_time - @window_size
+
+      recent_requests = @request_outcomes.select { |t, _| t >= cutoff_time }
+      return 0.0 if recent_requests.empty?
+
+      errors = recent_requests.count { |_, outcome| outcome == :error }
+      errors.to_f / recent_requests.size
+    end
+
+    def calculate_ping_failure_rate
+      current_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      cutoff_time = current_time - @window_size
+
+      recent_pings = @ping_outcomes.select { |t, _| t >= cutoff_time }
+      return 0.0 if recent_pings.empty?
+
+      failures = recent_pings.count { |_, outcome| outcome == :failure }
+      failures.to_f / recent_pings.size
+    end
+
     def store_error_rate(error_rate)
       @error_rate_history << error_rate
       # Keep only the last hour of data
@@ -178,10 +176,6 @@ module Semian
       @ping_outcomes.reject! { |timestamp, _| timestamp < cutoff_time }
 
       # NOTE: error_rate_history is cleaned up in store_error_rate
-    end
-
-    def clamp(value, min, max)
-      [[value, min].max, max].min
     end
   end
 
@@ -212,16 +206,8 @@ module Semian
       @lock.synchronize { super }
     end
 
-    def calculate_error_rate
-      @lock.synchronize { super }
-    end
-
-    def calculate_ping_failure_rate
-      @lock.synchronize { super }
-    end
-
-    # NOTE: metrics is not overridden to avoid deadlock when it calls
-    # calculate_error_rate and calculate_ping_failure_rate internally.
-    # The data it reads is protected by synchronization on the write methods.
+    # NOTE: metrics, calculate_error_rate, and calculate_ping_failure_rate are not overridden
+    # to avoid deadlock. calculate_error_rate and calculate_ping_failure_rate are private methods
+    # only called internally from update (synchronized) and metrics (not synchronized).
   end
 end
