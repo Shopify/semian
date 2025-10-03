@@ -37,15 +37,15 @@ module Semian
       end
 
       def value=(new_value)
-        @atom.value = new_value
+        @atom.update { |_| new_value }
       end
 
       def increment(val = 1)
-        @atom.increment(val)
+        @atom.update { |current| current + val }
       end
 
       def reset
-        @atom.value = 0
+        @atom.update { |_| 0 }
       end
 
       def destroy
