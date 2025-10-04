@@ -4,6 +4,7 @@ require "forwardable"
 require "logger"
 require "weakref"
 require "thread"
+require "concurrent-ruby"
 
 require "semian/version"
 require "semian/instrumentable"
@@ -103,12 +104,29 @@ module Semian
   OpenCircuitError = Class.new(BaseError)
   SemaphoreMissingError = Class.new(BaseError)
 
-  attr_accessor :maximum_lru_size, :minimum_lru_time, :default_permissions, :namespace, :default_force_config_validation
+  attr_accessor :maximum_lru_size, :minimum_lru_time, :default_permissions, :namespace, :default_force_config_validation, :resources, :consumers
 
   self.maximum_lru_size = 500
   self.minimum_lru_time = 300 # 300 seconds / 5 minutes
   self.default_permissions = 0660
   self.default_force_config_validation = false
+
+  # We only allow disabling thread-safety for parts of the code that are on the hot path.
+  # Since locking there could have a significant impact. Everything else is enforced thread safety
+  def thread_safe?
+    return @thread_safe if defined?(@thread_safe)
+
+    @thread_safe = true
+  end
+
+  def thread_safe=(thread_safe)
+    @thread_safe = thread_safe
+  end
+
+  self.resources = LRUHash.new
+  self.consumers = Concurrent::Map.new
+
+  @reset_mutex = Mutex.new
 
   def issue_disabled_semaphores_warning
     return if defined?(@warning_issued)
@@ -200,7 +218,7 @@ module Semian
     # of who the consumer was so that we can clear the resource reference if needed.
     consumer = args.delete(:consumer)
     if consumer&.class&.include?(Semian::Adapter) && !args[:dynamic]
-      consumer_set = (consumers[name] ||= ObjectSpace::WeakMap.new)
+      consumer_set = consumers.compute_if_absent(name) { ObjectSpace::WeakMap.new }
       consumer_set[consumer] = true
     end
     self[name] || register(name, **args)
@@ -233,7 +251,7 @@ module Semian
     resource = resources.delete(name)
     if resource
       resource.bulkhead&.unregister_worker
-      consumers_for_resource = consumers.delete(name) || {}
+      consumers_for_resource = consumers.delete(name) || ObjectSpace::WeakMap.new
       consumers_for_resource.each_key(&:clear_semian_resource)
     end
   end
@@ -245,29 +263,11 @@ module Semian
     end
   end
 
-  # Retrieves a hash of all registered resources.
-  def resources
-    @resources ||= LRUHash.new
-  end
-
-  # Retrieves a hash of all registered resource consumers.
-  def consumers
-    @consumers ||= {}
-  end
-
   def reset!
-    @consumers = {}
-    @resources = LRUHash.new
-  end
-
-  def thread_safe?
-    return @thread_safe if defined?(@thread_safe)
-
-    @thread_safe = true
-  end
-
-  def thread_safe=(thread_safe)
-    @thread_safe = thread_safe
+    @reset_mutex.synchronize do
+      self.consumers = Concurrent::Map.new
+      self.resources = LRUHash.new
+    end
   end
 
   THREAD_BULKHEAD_DISABLED_VAR = :semian_bulkheads_disabled
