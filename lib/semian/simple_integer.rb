@@ -41,7 +41,7 @@ module Semian
       end
 
       def increment(val = 1)
-        @atom.update { |current| current + val }
+        @atom.increment(val)
       end
 
       def reset
