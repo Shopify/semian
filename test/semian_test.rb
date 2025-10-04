@@ -582,4 +582,85 @@ class TestSemian < Minitest::Test
 
     assert_instance_of(Semian::ProtectedResource, resource)
   end
+
+  def test_implementation_selection_respects_thread_safe_setting
+    original_thread_safe = Semian.thread_safe?
+
+    begin
+      Semian.thread_safe = true
+      resource = Semian.register(
+        :test_threadsafe,
+        success_threshold: 1,
+        error_threshold: 2,
+        error_timeout: 5,
+        bulkhead: false,
+      )
+
+      errors = resource.circuit_breaker.instance_variable_get(:@errors)
+      successes = resource.circuit_breaker.instance_variable_get(:@successes)
+
+      assert_instance_of(Semian::ThreadSafe::SlidingWindow, errors)
+      assert_instance_of(Semian::ThreadSafe::Integer, successes)
+
+      # Test with thread_safe = false
+      Semian.thread_safe = false
+      resource2 = Semian.register(
+        :test_simple,
+        success_threshold: 1,
+        error_threshold: 2,
+        error_timeout: 5,
+        bulkhead: false,
+      )
+
+      errors2 = resource2.circuit_breaker.instance_variable_get(:@errors)
+      successes2 = resource2.circuit_breaker.instance_variable_get(:@successes)
+
+      assert_instance_of(Semian::Simple::SlidingWindow, errors2)
+      assert_instance_of(Semian::Simple::Integer, successes2)
+    ensure
+      Semian.thread_safe = original_thread_safe
+    end
+  end
+
+  def test_implementation_selection_with_thread_safety_disabled_option
+    original_thread_safe = Semian.thread_safe?
+
+    begin
+      Semian.thread_safe = true
+
+      # With thread_safety_disabled: true, should use Simple implementation
+      resource = Semian.register(
+        :test_override_to_simple,
+        success_threshold: 1,
+        error_threshold: 2,
+        error_timeout: 5,
+        bulkhead: false,
+        thread_safety_disabled: true,
+      )
+
+      errors = resource.circuit_breaker.instance_variable_get(:@errors)
+      successes = resource.circuit_breaker.instance_variable_get(:@successes)
+
+      assert_instance_of(Semian::Simple::SlidingWindow, errors)
+      assert_instance_of(Semian::Simple::Integer, successes)
+
+      # With thread_safety_disabled: false, should use ThreadSafe implementation
+      resource2 = Semian.register(
+        :test_override_to_threadsafe,
+        success_threshold: 1,
+        error_threshold: 2,
+        error_timeout: 5,
+        bulkhead: false,
+        thread_safety_disabled: false,
+      )
+
+      errors2 = resource2.circuit_breaker.instance_variable_get(:@errors)
+      successes2 = resource2.circuit_breaker.instance_variable_get(:@successes)
+
+      assert_instance_of(Semian::ThreadSafe::SlidingWindow, errors2)
+      assert_instance_of(Semian::ThreadSafe::Integer, successes2)
+    ensure
+      Semian.thread_safe = original_thread_safe
+    end
+  end
 end

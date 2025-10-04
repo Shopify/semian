@@ -8,6 +8,7 @@ gem "minitest"
 gem "mocha"
 gem "toxiproxy"
 gem "webrick"
+gem "concurrent-ruby"
 
 gem "trilogy", "~> 2.4"
 # we can share the Gemfile with rails mysql2 once activerecord is released with the trilogy adapter
