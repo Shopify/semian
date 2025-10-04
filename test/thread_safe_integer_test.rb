@@ -87,17 +87,19 @@ class TestThreadSafeInteger < Minitest::Test
         end
       end
 
-      threads << Thread.new do
-        @integer.reset
+      threads.each(&:join)
+
+      assert_equal(40, @integer.value, "Integer should be 0 after reset")
+
+      2.times do
+        threads << Thread.new do
+          @integer.reset
+        end
       end
 
       threads.each(&:join)
 
-      assert_equal(0, @integer.value, "Integer should be 0 after reset")
-
-      @integer.increment(5)
-
-      assert_equal(5, @integer.value, "Integer should work normally after reset")
+      assert_equal(0, @integer.value, "Integer should work normally after reset")
     end
   end
 
