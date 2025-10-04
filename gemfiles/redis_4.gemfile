@@ -8,6 +8,7 @@ gem "minitest"
 gem "mocha"
 gem "toxiproxy"
 gem "webrick"
+gem "concurrent-ruby"
 
 gem "hiredis-client"
 gem "hiredis", "~> 0.6"
