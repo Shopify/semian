@@ -1,0 +1,328 @@
+# frozen_string_literal: true
+
+require "set"
+
+# Add lib to load path if not already there
+lib_path = File.expand_path("../lib", __dir__)
+$LOAD_PATH.unshift(lib_path) unless $LOAD_PATH.include?(lib_path)
+
+require "semian/adapter"
+
+module Semian
+  module Experiments
+    # ExperimentalResource is a simulated resource adapter for running experiments
+    # with configurable endpoints, latencies, and statistical distributions.
+    # It allows testing degradation scenarios and various latency patterns.
+    class ExperimentalResource
+      include Semian::Adapter
+
+      attr_reader :endpoints_count, :min_latency, :max_latency, :distribution, :endpoint_latencies, :timeout, :base_error_rate
+
+      # Initialize the experimental resource
+      # @param name [String] The identifier for this resource
+      # @param endpoints_count [Integer] Number of available endpoints
+      # @param min_latency [Float] Minimum latency in seconds
+      # @param max_latency [Float] Maximum latency in seconds
+      # @param distribution [Hash] Statistical distribution configuration
+      #   For log-normal: { type: :log_normal, mean: Float, std_dev: Float }
+      # @param timeout [Float, nil] Maximum time to wait for a request (in seconds). If nil, no timeout is enforced.
+      # @param error_rate [Float] Baseline error rate (0.0 to 1.0). Probability that any request will fail.
+      # @param options [Hash] Additional Semian options
+      def initialize(name:, endpoints_count:, min_latency:, max_latency:, distribution:, timeout: nil, error_rate: 0.0, **options)
+        @name = name
+        @endpoints_count = endpoints_count
+        @min_latency = min_latency
+        @max_latency = max_latency
+        @distribution = validate_distribution(distribution)
+        @timeout = timeout
+        @base_error_rate = validate_error_rate(error_rate)
+        @raw_semian_options = options[:semian]
+
+        # Initialize service degradation state
+        @latency_degradation = { amount: 0.0, target: 0.0, ramp_start: nil, ramp_duration: 0 }
+        @error_rate_degradation = { rate: @base_error_rate, target: @base_error_rate, ramp_start: nil, ramp_duration: 0 }
+
+        # Assign fixed latencies to each endpoint
+        @endpoint_latencies = generate_endpoint_latencies
+      end
+
+      # Required by Adapter
+      def semian_identifier
+        @name.to_sym
+      end
+
+      # Simulate making a request to a specific endpoint
+      # @param endpoint_index [Integer] The index of the endpoint to request (0-based)
+      # @raises [TimeoutError] if the request would exceed the configured timeout
+      # @raises [RequestError] if the request fails based on error rate
+      def request(endpoint_index, &block)
+        validate_endpoint_index(endpoint_index)
+
+        acquire_semian_resource(scope: :request, adapter: :experimental) do
+          perform_request(endpoint_index, &block)
+        end
+      end
+
+      private
+
+      def perform_request(endpoint_index, &block)
+        # Calculate latency with degradation
+        base_latency = @endpoint_latencies[endpoint_index]
+        latency = base_latency + current_latency_degradation
+
+        # Check if request should fail based on current error rate
+        current_rate = current_error_rate
+        if should_fail?(current_rate)
+          # Sleep for partial latency to simulate some processing before error
+          error_latency = latency * 0.3 # Fail after 30% of expected latency
+          sleep(error_latency) if error_latency > 0
+
+          raise RequestError.new(
+            "Request to endpoint #{endpoint_index} failed (error rate: #{(current_rate * 100).round(1)}%)",
+          )
+        end
+
+        # Check if request would timeout
+        if @timeout && latency > @timeout
+          # Sleep for the timeout period, then raise exception
+          sleep(@timeout) if @timeout > 0
+          raise TimeoutError.new(
+            "Request to endpoint #{endpoint_index} timed out after #{@timeout}s " \
+              "(would have taken #{latency.round(3)}s)",
+          )
+        end
+
+        # Simulate the request with calculated latency
+        sleep(latency) if latency > 0
+
+        if block_given?
+          yield(endpoint_index, latency)
+        else
+          { endpoint: endpoint_index, latency: latency }
+        end
+      end
+
+      public
+
+      # Add fixed latency to all requests with optional ramp-up time
+      # @param amount [Float] Amount of latency to add (in seconds)
+      # @param ramp_time [Float] Time to ramp up to the target latency (in seconds), 0 for immediate
+      def add_latency(amount, ramp_time: 0)
+        raise ArgumentError, "Latency amount must be non-negative" if amount < 0
+        raise ArgumentError, "Ramp time must be non-negative" if ramp_time < 0
+
+        @latency_degradation[:target] = amount
+        @latency_degradation[:ramp_start] = Time.now
+        @latency_degradation[:ramp_duration] = ramp_time
+
+        # If no ramp time, apply immediately
+        @latency_degradation[:amount] = amount if ramp_time == 0
+      end
+
+      # Change the error rate with optional ramp-up time
+      # @param rate [Float] New error rate (0.0 to 1.0)
+      # @param ramp_time [Float] Time to ramp up to the target error rate (in seconds), 0 for immediate
+      def set_error_rate(rate, ramp_time: 0)
+        validate_error_rate(rate)
+        raise ArgumentError, "Ramp time must be non-negative" if ramp_time < 0
+
+        @error_rate_degradation[:target] = rate
+        @error_rate_degradation[:ramp_start] = Time.now
+        @error_rate_degradation[:ramp_duration] = ramp_time
+
+        # If no ramp time, apply immediately
+        @error_rate_degradation[:rate] = rate if ramp_time == 0
+      end
+
+      # Reset service to baseline (remove all degradation)
+      def reset_degradation
+        @latency_degradation = { amount: 0.0, target: 0.0, ramp_start: nil, ramp_duration: 0 }
+        @error_rate_degradation = { rate: @base_error_rate, target: @base_error_rate, ramp_start: nil, ramp_duration: 0 }
+      end
+
+      # Get current latency degradation (accounting for ramp-up)
+      def current_latency_degradation
+        return @latency_degradation[:amount] unless @latency_degradation[:ramp_start] && @latency_degradation[:ramp_duration] > 0
+
+        elapsed = Time.now - @latency_degradation[:ramp_start]
+        if elapsed >= @latency_degradation[:ramp_duration]
+          # Ramp complete
+          @latency_degradation[:amount] = @latency_degradation[:target]
+          @latency_degradation[:ramp_start] = nil
+          @latency_degradation[:target]
+        else
+          # Still ramping
+          progress = elapsed / @latency_degradation[:ramp_duration]
+          current = @latency_degradation[:amount]
+          target = @latency_degradation[:target]
+          current + (target - current) * progress
+        end
+      end
+
+      # Get current error rate (accounting for ramp-up)
+      def current_error_rate
+        return @error_rate_degradation[:rate] unless @error_rate_degradation[:ramp_start] && @error_rate_degradation[:ramp_duration] > 0
+
+        elapsed = Time.now - @error_rate_degradation[:ramp_start]
+        if elapsed >= @error_rate_degradation[:ramp_duration]
+          # Ramp complete
+          @error_rate_degradation[:rate] = @error_rate_degradation[:target]
+          @error_rate_degradation[:ramp_start] = nil
+          @error_rate_degradation[:target]
+        else
+          # Still ramping
+          progress = elapsed / @error_rate_degradation[:ramp_duration]
+          current = @error_rate_degradation[:rate]
+          target = @error_rate_degradation[:target]
+          current + (target - current) * progress
+        end
+      end
+
+      # Get the base latency for an endpoint (without degradation effects)
+      def base_latency(endpoint_index)
+        validate_endpoint_index(endpoint_index)
+        @endpoint_latencies[endpoint_index]
+      end
+
+      # Check if a specific endpoint would timeout with current settings
+      def would_timeout?(endpoint_index)
+        return false unless @timeout
+
+        validate_endpoint_index(endpoint_index)
+        get_effective_latency(endpoint_index) > @timeout
+      end
+
+      # Get all endpoints that would timeout with current settings
+      def timeout_endpoints
+        return [] unless @timeout
+
+        endpoints = []
+        @endpoint_latencies.each_with_index do |_, idx|
+          endpoints << idx if would_timeout?(idx)
+        end
+        endpoints
+      end
+
+      private
+
+      attr_reader :raw_semian_options
+
+      def resource_exceptions
+        [RequestError, TimeoutError] # Exceptions that should trigger circuit breaker
+      end
+
+      def validate_distribution(dist)
+        unless dist.is_a?(Hash) && dist[:type]
+          raise ArgumentError, "Distribution must be a Hash with :type key"
+        end
+
+        case dist[:type]
+        when :log_normal
+          validate_log_normal_distribution(dist)
+        else
+          raise ArgumentError, "Unsupported distribution type: #{dist[:type]}. Only :log_normal is currently supported."
+        end
+
+        dist
+      end
+
+      def validate_error_rate(rate)
+        unless rate.is_a?(Numeric) && rate >= 0.0 && rate <= 1.0
+          raise ArgumentError, "Error rate must be a number between 0.0 and 1.0, got #{rate}"
+        end
+
+        rate
+      end
+
+      def validate_log_normal_distribution(dist)
+        unless dist[:mean] && dist[:std_dev]
+          raise ArgumentError, "Log-normal distribution requires :mean and :std_dev parameters"
+        end
+
+        unless dist[:mean].is_a?(Numeric) && dist[:mean] > 0
+          raise ArgumentError, "Log-normal mean must be a positive number"
+        end
+
+        unless dist[:std_dev].is_a?(Numeric) && dist[:std_dev] >= 0
+          raise ArgumentError, "Log-normal std_dev must be a non-negative number"
+        end
+      end
+
+      def validate_endpoint_index(endpoint_index)
+        unless endpoint_index.is_a?(Integer) && endpoint_index >= 0 && endpoint_index < @endpoints_count
+          raise ArgumentError, "Invalid endpoint index: #{endpoint_index}. Must be between 0 and #{@endpoints_count - 1}"
+        end
+      end
+
+      def generate_endpoint_latencies
+        Array.new(@endpoints_count) do
+          latency = sample_from_distribution
+          # Clamp to min/max bounds
+          [[latency, @min_latency].max, @max_latency].min
+        end
+      end
+
+      def should_fail?(error_rate)
+        return false if error_rate <= 0
+
+        rand < error_rate
+      end
+
+      def sample_from_distribution
+        case @distribution[:type]
+        when :log_normal
+          sample_log_normal(@distribution[:mean], @distribution[:std_dev])
+        else
+          # Fallback to mean value
+          @distribution[:mean] || (@min_latency + @max_latency) / 2.0
+        end
+      end
+
+      def sample_log_normal(mean, std_dev)
+        # Convert mean and std_dev of the log-normal to the underlying normal distribution
+        # Using method of moments conversion
+        variance = std_dev**2
+        mean_squared = mean**2
+
+        # Calculate parameters for underlying normal distribution
+        mu = Math.log(mean_squared / Math.sqrt(variance + mean_squared))
+        sigma = Math.sqrt(Math.log(1 + variance / mean_squared))
+
+        # Generate log-normal sample using Box-Muller transform
+        u1 = rand
+        u2 = rand
+        z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math::PI * u2)
+
+        # Transform to log-normal
+        Math.exp(mu + sigma * z0)
+      end
+
+      # Error classes specific to this adapter
+      class CircuitOpenError < ::Semian::BaseError
+        def initialize(semian_identifier, *args)
+          super(*args)
+          @semian_identifier = semian_identifier
+        end
+      end
+
+      class ResourceBusyError < ::Semian::BaseError
+        def initialize(semian_identifier, *args)
+          super(*args)
+          @semian_identifier = semian_identifier
+        end
+      end
+
+      class TimeoutError < StandardError
+        def marks_semian_circuits?
+          true  # This error should trigger circuit breaker
+        end
+      end
+
+      class RequestError < StandardError
+        def marks_semian_circuits?
+          true  # This error should trigger circuit breaker
+        end
+      end
+    end
+  end
+end
