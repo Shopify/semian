@@ -77,19 +77,17 @@ module Semian
           error_latency = latency * 0.3 # Fail after 30% of expected latency
           sleep(error_latency) if error_latency > 0
 
-          raise RequestError.new(
-            "Request to endpoint #{endpoint_index} failed (error rate: #{(current_rate * 100).round(1)}%)",
-          )
+          raise RequestError, "Request to endpoint #{endpoint_index} failed " \
+            "(error rate: #{(current_rate * 100).round(1)}%)"
         end
 
         # Check if request would timeout
         if @timeout && latency > @timeout
           # Sleep for the timeout period, then raise exception
           sleep(@timeout) if @timeout > 0
-          raise TimeoutError.new(
+          raise TimeoutError,
             "Request to endpoint #{endpoint_index} timed out after #{@timeout}s " \
-              "(would have taken #{latency.round(3)}s)",
-          )
+              "(would have taken #{latency.round(3)}s)"
         end
 
         # Simulate the request with calculated latency
@@ -258,7 +256,7 @@ module Semian
         Array.new(@endpoints_count) do
           latency = sample_from_distribution
           # Clamp to min/max bounds
-          [[latency, @min_latency].max, @max_latency].min
+          latency.clamp(@min_latency, @max_latency)
         end
       end
 
