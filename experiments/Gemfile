@@ -1,0 +1,9 @@
+# frozen_string_literal: true
+
+source "https://rubygems.org"
+
+# Graphing library for visualization
+gem "gruff", "~> 0.23"
+
+# Alternative: Use rubyplot for pure Ruby plotting (no ImageMagick dependency)
+# gem 'rubyplot', '~> 0.1'
