@@ -84,8 +84,8 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
     # Give the resource to the breaker
     begin
       @breaker.acquire(failing_resource) { "success" }
-    rescue
-      # Ignore any errors
+    rescue StandardError
+      # Ignore any errors for testing
     end
 
     # Wait for a ping interval
@@ -125,7 +125,8 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
     @breaker.acquire(@resource) { "success" }
     begin
       @breaker.acquire(@resource) { raise "Error" }
-    rescue
+    rescue RuntimeError
+      # Expected error for testing
     end
 
     # Reset
@@ -155,7 +156,8 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
     # Simulate dependency failures
     10.times do
       @breaker.acquire(@resource) { raise "Error" }
-    rescue
+    rescue RuntimeError
+      # Expected error for testing
     end
 
     # Rejection rate should increase
