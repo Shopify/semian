@@ -4,7 +4,7 @@ require "test_helper"
 
 class TestSimpleSlidingWindow < Minitest::Test
   def setup
-    @sliding_window = ::Semian::ThreadSafe::SlidingWindow.new(max_size: 6)
+    @sliding_window = ::Semian::Simple::SlidingWindow.new(max_size: 6)
     @sliding_window.clear
   end
 
@@ -27,12 +27,6 @@ class TestSimpleSlidingWindow < Minitest::Test
     @sliding_window << 0 << 1 << 2 << 3 << 4 << 5 << 6 << 7
 
     assert_sliding_window(@sliding_window, [2, 3, 4, 5, 6, 7], 6)
-  end
-
-  def resize_to_less_than_1_raises
-    assert_raises(ArgumentError) do
-      @sliding_window.resize_to(0)
-    end
   end
 
   private

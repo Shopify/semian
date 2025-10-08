@@ -8,6 +8,7 @@ gem "minitest"
 gem "mocha"
 gem "toxiproxy"
 gem "webrick"
+gem "concurrent-ruby"
 
 gem "trilogy", "~> 2.4"
 gem "activerecord", github: "rails/rails"
