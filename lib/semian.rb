@@ -300,14 +300,17 @@ module Semian
   def create_adaptive_circuit_breaker(name, **options)
     return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED") || ENV.key?("SEMIAN_ADAPTIVE_CIRCUIT_BREAKER_DISABLED")
 
+    exceptions = options[:exceptions] || []
+
     # Fixed parameters based on design document recommendations
     AdaptiveCircuitBreaker.new(
-      name: name,
+      name,
+      exceptions: Array(exceptions) + [::Semian::BaseError],
       kp: 1.0,                      # Standard proportional gain
       ki: 0.1,                      # Moderate integral gain
       kd: 0.01,                     # Small derivative gain (as per design doc)
       window_size: 10,              # 10-second window for rate calculation and update interval
-      history_duration: 3600,       # 1 hour of history for p90 calculation
+      target_error_rate: nil,       # Use adaptive P90
       ping_interval: 1.0,           # 1 second between health checks
       thread_safe: Semian.thread_safe?,
       enable_background_ping: true, # Always enabled for proper recovery detection
