@@ -428,6 +428,7 @@ class TestThreadSafePIDController < Minitest::Test
         @controller.record_request([:success, :error].sample)
         @controller.update
       end
+      "finished"
     end
 
     read_threads = 5.times.map do
@@ -435,13 +436,12 @@ class TestThreadSafePIDController < Minitest::Test
         100.times do
           @controller.metrics
         end
+        "read_finished"
       end
     end
 
-    write_thread.join
-    read_threads.each(&:join)
-
     # Should complete without deadlock or errors
-    assert(true)
+    assert_equal("finished", write_thread.value)
+    read_threads.each { |thread| assert_equal("read_finished", thread.value) }
   end
 end

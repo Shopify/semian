@@ -30,9 +30,7 @@ class MockDependency
     "Pong"
   end
 
-  def set_failure_rate(rate)
-    @failure_rate = rate
-  end
+  attr_writer :failure_rate
 
   def stats
     { requests: @request_count, pings: @ping_count }
@@ -73,7 +71,7 @@ def main
 
   puts "\nPhase 2: Dependency starts failing (80% failure rate)"
   puts "-" * 40
-  dependency.set_failure_rate(0.8)
+  dependency.failure_rate = 0.8
 
   10.times do |i|
     result = breaker.acquire(dependency) { dependency.call }
@@ -97,7 +95,7 @@ def main
 
   puts "\nPhase 3: Dependency recovers (0% failure rate)"
   puts "-" * 40
-  dependency.set_failure_rate(0.0)
+  dependency.failure_rate = 0.0
 
   # Background pings will detect recovery
   sleep(2)

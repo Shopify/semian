@@ -94,7 +94,7 @@ puts "-" * 40
 end
 
 # Get metrics from the resource
-if resource = Semian["httpbin_service"]
+if (resource = Semian["httpbin_service"])
   if resource.circuit_breaker.respond_to?(:metrics)
     puts "\nCircuit breaker metrics:"
     metrics = resource.circuit_breaker.metrics
