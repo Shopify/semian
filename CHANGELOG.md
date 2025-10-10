@@ -1,3 +1,8 @@
+# v0.25.5
+
+* Fixed thread safety issues (#566)
+* Added experimental resource for experimentation
+
 # v0.25.4
 
 * Remove redundant semian resource name from OpenCircuitError and ResourceBusyError
