@@ -144,6 +144,9 @@ semian_resource_unregister_worker(VALUE self)
     // Otherwise, we might block forever or throw an unintended timeout
     if (errno != EAGAIN) {
       rb_raise(eInternal, "error decreasing registered workers, errno: %d (%s)", errno, strerror(errno));
+    } else {
+      // EAGAIN means all workers were already unregistered, so we can return success
+      printf("EAGAIN means all workers were already unregistered, so we can return success\n");
     }
   }
 
