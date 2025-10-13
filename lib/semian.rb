@@ -298,6 +298,8 @@ module Semian
     end
   end
 
+  private
+
   def create_circuit_breaker(name, **options)
     return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED")
     return unless options.fetch(:circuit_breaker, true)
