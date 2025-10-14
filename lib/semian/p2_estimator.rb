@@ -24,9 +24,9 @@ module Semian
   class P2QuantileEstimator
     def initialize(quantile = 0.9)
       @quantile = quantile.to_f
-      @n = (0...5).to_a
-      @ns = (0...5).map(&:to_f)
-      @q = (0...5).map(&:to_f)
+      @actual_marker_positions = (0...5).to_a
+      @desired_marker_positions = (0...5).map(&:to_f)
+      @marker_heights = (0...5).map(&:to_f)
       @count = 0
     end
 
@@ -34,81 +34,81 @@ module Semian
       raise "Sequence contains no elements" if @count == 0
 
       if @count <= 5
-        sorted_q = @q[0...@count].sort
+        sorted_marker_heights = @marker_heights[0...@count].sort
         index = ((@count - 1) * @quantile).round
-        return sorted_q[index]
+        return sorted_marker_heights[index]
       end
 
-      @q[2]
+      @marker_heights[2]
     end
 
     def reset
       @count = 0
-      @n = (0...5).to_a
-      @ns = (0...5).map(&:to_f)
-      @q = (0...5).map(&:to_f)
+      @actual_marker_positions = (0...5).to_a
+      @desired_marker_positions = (0...5).map(&:to_f)
+      @marker_heights = (0...5).map(&:to_f)
     end
 
     def state
       {
         observations: @count,
-        markers: @q.dup,
-        positions: @n.dup,
+        markers: @marker_heights.dup,
+        positions: @actual_marker_positions.dup,
         quantile: @quantile,
       }
     end
 
     def add_observation(value)
       if @count < 5
-        @q[@count] = value
+        @marker_heights[@count] = value
         @count += 1
         if @count == 5
-          @q.sort!
-          (0...5).each { |i| @n[i] = i }
+          @marker_heights.sort!
+          (0...5).each { |i| @actual_marker_positions[i] = i }
 
-          @ns[0] = 0
-          @ns[1] = 2 * @quantile
-          @ns[2] = 4 * @quantile
-          @ns[3] = 2 + 2 * @quantile
-          @ns[4] = 4
+          @desired_marker_positions[0] = 0
+          @desired_marker_positions[1] = 2 * @quantile
+          @desired_marker_positions[2] = 4 * @quantile
+          @desired_marker_positions[3] = 2 + 2 * @quantile
+          @desired_marker_positions[4] = 4
         end
         return
       end
 
-      @k = 0
-      if value < @q[0]
-        @q[0] = value
-        @k = 0
-      elsif value < @q[1]
-        @k = 1
-      elsif value < @q[2]
-        @k = 2
-      elsif value < @q[3]
-        @k = 3
+      @marker_interval_index = 0
+      if value < @marker_heights[0]
+        @marker_heights[0] = value
+        @marker_interval_index = 0
+      elsif value < @marker_heights[1]
+        @marker_interval_index = 1
+      elsif value < @marker_heights[2]
+        @marker_interval_index = 2
+      elsif value < @marker_heights[3]
+        @marker_interval_index = 3
       else
-        @q[4] = value
-        @k = 3
+        @marker_heights[4] = value
+        @marker_interval_index = 3
       end
 
-      ((@k + 1)...5).each { |i| @n[i] += 1 }
+      ((@marker_interval_index + 1)...5).each { |i| @actual_marker_positions[i] += 1 }
 
-      @ns[1] = @count * @quantile / 2
-      @ns[2] = @count * @quantile
-      @ns[3] = @count * ((1 + @quantile) / 2)
-      @ns[4] = @count
+      @desired_marker_positions[1] = @count * @quantile / 2
+      @desired_marker_positions[2] = @count * @quantile
+      @desired_marker_positions[3] = @count * ((1 + @quantile) / 2)
+      @desired_marker_positions[4] = @count
 
       (1..3).each do |i|
-        @d = @ns[i] - @n[i]
-        next unless @d >= 1 && @n[i + 1] - @n[i] > 1 || @d <= -1 && @n[i - 1] - @n[i] < -1 # rubocop:disable Style
+        @position_difference = @desired_marker_positions[i] - @actual_marker_positions[i]
+        next unless @position_difference >= 1 && @actual_marker_positions[i + 1] - @actual_marker_positions[i] > 1 || @position_difference <= -1 && @actual_marker_positions[i - 1] - @actual_marker_positions[i] < -1 # rubocop:disable Style
 
-        @d_int = @d <=> 0
-        @qs = parabolic(i, @d_int)
-        @q[i] = if @q[i - 1] < @qs && @qs < @q[i + 1]
-          @qs
+        @adjustment_direction = @position_difference <=> 0
+        @parabolic_estimate = parabolic(i, @adjustment_direction)
+        @marker_heights[i] = if @marker_heights[i - 1] < @parabolic_estimate && @parabolic_estimate < @marker_heights[i + 1]
+          @parabolic_estimate
         else
-          linear(i, @d_int)
+          linear(i, @adjustment_direction)
         end
-        @n[i] += @d_int
+        @actual_marker_positions[i] += @adjustment_direction
       end
       @count += 1
     end
@@ -116,14 +116,14 @@ module Semian
     private
 
     def parabolic(i, d)
-      @q[i] + d / (@n[i + 1] - @n[i - 1]) * (
-        (@n[i] - @n[i - 1] + d) * (@q[i + 1] - @q[i]) / (@n[i + 1] - @n[i]) +
-        (@n[i + 1] - @n[i] - d) * (@q[i] - @q[i - 1]) / (@n[i] - @n[i - 1])
+      @marker_heights[i] + d / (@actual_marker_positions[i + 1] - @actual_marker_positions[i - 1]) * (
+        (@actual_marker_positions[i] - @actual_marker_positions[i - 1] + d) * (@marker_heights[i + 1] - @marker_heights[i]) / (@actual_marker_positions[i + 1] - @actual_marker_positions[i]) +
+        (@actual_marker_positions[i + 1] - @actual_marker_positions[i] - d) * (@marker_heights[i] - @marker_heights[i - 1]) / (@actual_marker_positions[i] - @actual_marker_positions[i - 1])
       )
     end
 
     def linear(i, d)
-      @q[i] + d * (@q[i + d] - @q[i]) / (@n[i + d] - @n[i])
+      @marker_heights[i] + d * (@marker_heights[i + d] - @marker_heights[i]) / (@actual_marker_positions[i + d] - @actual_marker_positions[i])
     end
   end
 end
