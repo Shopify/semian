@@ -35,8 +35,20 @@ module Semian
 
       if @count <= 5
         sorted_marker_heights = @marker_heights[0...@count].sort
-        index = ((@count - 1) * @quantile).round
-        return sorted_marker_heights[index]
+        exact_index = (@count - 1) * @quantile
+
+        if exact_index == exact_index.to_i
+          return sorted_marker_heights[exact_index.to_i]
+        else
+          lower_index = exact_index.floor
+          upper_index = exact_index.ceil
+          fractional_part = exact_index - lower_index
+
+          lower_value = sorted_marker_heights[lower_index]
+          upper_value = sorted_marker_heights[upper_index]
+
+          return lower_value + fractional_part * (upper_value - lower_value)
+        end
       end
 
       @marker_heights[2]
