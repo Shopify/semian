@@ -104,7 +104,7 @@ module Semian
   OpenCircuitError = Class.new(BaseError)
   SemaphoreMissingError = Class.new(BaseError)
 
-  attr_accessor :maximum_lru_size, :minimum_lru_time, :default_permissions, :namespace, :default_force_config_validation, :resources, :consumers
+  attr_accessor :maximum_lru_size, :minimum_lru_time, :default_permissions, :namespace, :default_force_config_validation
 
   self.maximum_lru_size = 500
   self.minimum_lru_time = 300 # 300 seconds / 5 minutes
@@ -122,9 +122,6 @@ module Semian
   def thread_safe=(thread_safe)
     @thread_safe = thread_safe
   end
-
-  self.resources = LRUHash.new
-  self.consumers = Concurrent::Map.new
 
   @reset_mutex = Mutex.new
 
@@ -265,8 +262,8 @@ module Semian
 
   def reset!
     @reset_mutex.synchronize do
-      self.consumers = Concurrent::Map.new
-      self.resources = LRUHash.new
+      @consumers = Concurrent::Map.new
+      @resources = LRUHash.new
     end
   end
 
@@ -283,6 +280,22 @@ module Semian
     yield
   ensure
     thread.thread_variable_set(THREAD_BULKHEAD_DISABLED_VAR, old_value)
+  end
+
+  def resources
+    return @resources if defined?(@resources) && @resources
+
+    @reset_mutex.synchronize do
+      @resources ||= LRUHash.new
+    end
+  end
+
+  def consumers
+    return @consumers if defined?(@consumers) && @consumers
+
+    @reset_mutex.synchronize do
+      @consumers ||= Concurrent::Map.new
+    end
   end
 
   private
