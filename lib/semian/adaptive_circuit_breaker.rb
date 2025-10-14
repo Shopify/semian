@@ -1,15 +1,18 @@
 # frozen_string_literal: true
 
 require_relative "pid_controller"
+require_relative "circuit_breaker"
 
 module Semian
   # Adaptive Circuit Breaker that uses PID controller for dynamic rejection
-  class AdaptiveCircuitBreaker
+  class AdaptiveCircuitBreaker < CircuitBreaker
     attr_reader :name, :pid_controller, :ping_thread, :update_thread, :last_error
 
     def initialize(name:, kp: 1.0, ki: 0.1, kd: 0.01,
       window_size: 10, history_duration: 3600,
-      ping_interval: 1.0, thread_safe: true, enable_background_ping: true)
+      ping_interval: 1.0, thread_safe: true, enable_background_ping: true,
+      exceptions: [StandardError], success_threshold: 1, error_threshold: 3,
+      error_timeout: 10, implementation: nil, **circuit_breaker_options)
       @name = name
       @window_size = window_size
       @ping_interval = ping_interval
@@ -39,6 +42,13 @@ module Semian
           history_duration: history_duration,
         )
       end
+
+      implementation ||= thread_safe ? ::Semian::ThreadSafe : ::Semian::Simple
+
+      super(
+        name, exceptions: exceptions, success_threshold: success_threshold,
+            error_threshold: error_threshold, error_timeout: error_timeout,
+            implementation: implementation, **circuit_breaker_options)
 
       # Start background threads
       start_ping_thread if @enable_background_ping
