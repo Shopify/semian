@@ -4,6 +4,7 @@ source "https://rubygems.org"
 
 # Graphing library for visualization
 gem "gruff", "~> 0.23"
+gem "concurrent-ruby"
 
 # Alternative: Use rubyplot for pure Ruby plotting (no ImageMagick dependency)
 # gem 'rubyplot', '~> 0.1'

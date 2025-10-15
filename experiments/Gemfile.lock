@@ -2,6 +2,7 @@ GEM
   remote: https://rubygems.org/
   specs:
     bigdecimal (3.3.0)
+    concurrent-ruby (1.3.5)
     gruff (0.29.0)
       bigdecimal (>= 3.0)
       histogram
@@ -18,6 +19,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  concurrent-ruby
   gruff (~> 0.23)
 
 BUNDLED WITH
