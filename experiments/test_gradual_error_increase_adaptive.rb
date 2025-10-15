@@ -17,6 +17,7 @@ resource = Semian::Experiments::ExperimentalResource.new(
     std_dev: 0.1,
   },
   error_rate: 0.01, # 1% baseline error rate
+  deterministic_errors: true, # Use exact counter-based error injection
   timeout: 5, # 5 seconds timeout
   semian: {
     adaptive_circuit_breaker: true,  # Use adaptive circuit breaker instead of traditional
@@ -64,14 +65,14 @@ error_rates.each_with_index do |rate, index|
   rate_percent = rate / 100.0
   puts "\n--- Phase #{index + 1}: Error rate = #{rate}% ---"
   resource.set_error_rate(rate_percent)
-  
+
   phase_start = Time.now.to_i
-  
+
   # Give it a moment to make sure at least one request has been made
   sleep 1 if index == 0
-  
+
   sleep phase_duration
-  
+
   # Get reference to the circuit breaker's PID controller (after first request has been made)
   begin
     semian_resource = Semian["protected_service_adaptive".to_sym]
@@ -88,15 +89,29 @@ error_rates.each_with_index do |rate, index|
     # If we can't get metrics, that's okay, continue
     puts "Warning: Could not capture metrics - #{e.message}"
   end
-  
+
+  # Calculate request statistics for this phase
+  phase_data = outcomes.select { |time, _| time >= phase_start && time < phase_start + phase_duration }
+  phase_total_requests = phase_data.values.sum { |d| d[:success] + d[:circuit_open] + d[:error] }
+  phase_errors = phase_data.values.sum { |d| d[:error] }
+  phase_circuit_opens = phase_data.values.sum { |d| d[:circuit_open] }
+  phase_successes = phase_data.values.sum { |d| d[:success] }
+
+  actual_error_rate = phase_total_requests > 0 ? (phase_errors.to_f / phase_total_requests * 100).round(2) : 0.0
+
+  puts "📊 Phase #{index + 1} Summary:"
+  puts "   Total Requests: #{phase_total_requests}"
+  puts "   ✅ Successes: #{phase_successes}"
+  puts "   ❌ Errors: #{phase_errors}"
+  puts "   ⚡ Circuit Opens: #{phase_circuit_opens}"
+  puts "   🎯 Target Error Rate: #{rate}%"
+  puts "   📈 Actual Error Rate: #{actual_error_rate}%"
+  puts ""
+
   # Check if circuit opened during this phase
-  if circuit_opened_at_rate.nil?
-    phase_data = outcomes.select { |time, _| time >= phase_start && time < phase_start + phase_duration }
-    circuit_opens = phase_data.values.sum { |d| d[:circuit_open] }
-    if circuit_opens > 0 && circuit_opened_at_rate.nil?
-      circuit_opened_at_rate = rate
-      puts "🔴 Circuit breaker started rejecting at #{rate}% error rate!"
-    end
+  if circuit_opened_at_rate.nil? && phase_circuit_opens > 0
+    circuit_opened_at_rate = rate
+    puts "🔴 Circuit breaker started rejecting at #{rate}% error rate!"
   end
 end
 
@@ -129,15 +144,15 @@ puts "\n=== Phase-by-Phase Breakdown ==="
 error_rates.each_with_index do |rate, index|
   phase_start_time = outcomes.keys[0] + (index * phase_duration)
   phase_data = outcomes.select { |time, _| time >= phase_start_time && time < phase_start_time + phase_duration }
-  
+
   phase_success = phase_data.values.sum { |d| d[:success] }
   phase_errors = phase_data.values.sum { |d| d[:error] }
   phase_circuit = phase_data.values.sum { |d| d[:circuit_open] }
   phase_total = phase_success + phase_errors + phase_circuit
-  
+
   actual_error_pct = phase_total > 0 ? ((phase_errors.to_f / phase_total) * 100).round(2) : 0
   rejection_pct = phase_total > 0 ? ((phase_circuit.to_f / phase_total) * 100).round(2) : 0
-  
+
   status = phase_circuit > 0 ? "⚡ REJECTING (#{rejection_pct}%)" : "✓"
   puts "Phase #{index + 1} (#{rate}%): #{status}"
   puts "  Requests: #{phase_total} | Success: #{phase_success} | Errors: #{phase_errors} (#{actual_error_pct}%) | Rejected: #{phase_circuit}"
@@ -151,19 +166,19 @@ if !phase_metrics.empty?
   puts "-" * 120
   phase_metrics.each do |pm|
   m = pm[:metrics]
-  
+
   # Calculate the individual terms
   kp = 1.0
   ki = 0.1
   kd = 0.01
-  
+
   health_p = m[:health_metric]
   p_term = kp * health_p
   i_term = ki * m[:integral]
   # D term is calculated during update: kd * (current_error - previous_error) / dt
   # We can approximate it from the previous_error stored
   d_term_approx = kd * m[:previous_error]
-  
+
   puts "\nPhase #{pm[:phase]} (#{pm[:error_rate]}%):"
   puts "  Current Error Rate: #{(m[:error_rate] * 100).round(3)}%"
   puts "  Ideal Error Rate: #{(m[:ideal_error_rate] * 100).round(3)}%"
@@ -198,7 +213,7 @@ bucketed_data = []
 error_rates.each_with_index do |rate, index|
   phase_start_time = outcomes.keys[0] + (index * phase_duration)
   phase_data = outcomes.select { |time, _| time >= phase_start_time && time < phase_start_time + phase_duration }
-  
+
   bucketed_data << {
     success: phase_data.values.sum { |d| d[:success] },
     circuit_open: phase_data.values.sum { |d| d[:circuit_open] },
