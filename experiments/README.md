@@ -1,14 +1,18 @@
-# Semian Experimental Resource
+# Semian Experimental Resources
 
-This directory contains an experimental resource adapter for running complex experiments with Semian.
+This directory contains experimental resource adapters for running complex experiments with Semian.
 
 ## Overview
 
-The `ExperimentalResource` class simulates a distributed service with multiple endpoints, each with configurable latencies following statistical distributions. This allows for testing various failure scenarios and performance characteristics.
+Two resource types are available:
+
+1. **ExperimentalResource** - Simulates a distributed service with multiple endpoints, each with configurable latencies following statistical distributions. Ideal for testing various failure scenarios and performance characteristics with synthetic traffic.
+
+2. **TrafficReplayExperimentalResource** - Replays real production traffic patterns from Grafana exports, allowing you to test how your system would behave during actual incidents by simulating the exact latency patterns observed in production.
 
 ## Features
 
-### Current Implementation
+### ExperimentalResource (Synthetic Traffic)
 
 1. **Multiple Endpoints**: Configure any number of endpoints, each with its own fixed latency
 2. **Statistical Distributions**: Latencies are assigned based on statistical distributions
@@ -25,10 +29,16 @@ The `ExperimentalResource` class simulates a distributed service with multiple e
    - **Latency degradation**: Add fixed latency to all requests
    - **Error rate changes**: Modify error rate for the entire service
    - **Gradual ramp-up**: Both degradations support gradual transitions over time
-8. **Traffic Replay Mode**: Replay real production traffic patterns from Grafana exports
-   - Load latency patterns from JSON log files
-   - Simulate requests as though an incident were happening in real-time
-   - Automatically stops when the timeline is exceeded
+
+### TrafficReplayExperimentalResource (Production Traffic Replay)
+
+1. **Real Traffic Patterns**: Load and replay latency patterns from Grafana JSON exports
+2. **Time-Based Simulation**: Simulates requests as though an incident were happening in real-time
+   - Matches request latencies to timeline offsets
+   - Uses elapsed time since service start to find corresponding latencies
+3. **Automatic Completion**: Stops accepting requests when timeline is exceeded
+4. **Request Timeouts**: Configure a maximum timeout for requests
+5. **Simple Interface**: No need to configure endpoints, distributions, or error rates - everything comes from the log file
 
 ## Usage
 
@@ -75,14 +85,10 @@ If a request doesn't have `attrs.db.sql.total_duration_ms`, it's treated as 0ms 
 #### Example Usage
 
 ```ruby
-resource = Semian::Experiments::ExperimentalResource.new(
+resource = Semian::Experiments::TrafficReplayExperimentalResource.new(
   name: "my_service",
-  endpoints_count: 1,
-  min_latency: 0.0,
-  max_latency: 1.0,
-  distribution: { type: :log_normal, mean: 0.1, std_dev: 0.05 },
+  traffic_log_path: "path/to/grafana_export.json",
   timeout: 30.0,
-  traffic_log_path: "path/to/grafana_export.json",  # Enable traffic replay
   semian: {
     circuit_breaker: true,
     success_threshold: 2,
@@ -93,10 +99,10 @@ resource = Semian::Experiments::ExperimentalResource.new(
 
 # Make requests - they'll be served with latencies from the log
 begin
-  resource.request(0) do |endpoint, latency|
+  resource.request do |latency|
     puts "Request completed with latency: #{(latency * 1000).round(2)}ms"
   end
-rescue Semian::Experiments::ExperimentalResource::TrafficReplayCompleteError
+rescue Semian::Experiments::TrafficReplayExperimentalResource::TrafficReplayCompleteError
   puts "Traffic replay completed!"
 end
 ```

@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 require "set"
-require "json"
-require "time"
 
 # Add lib to load path if not already there
 lib_path = File.expand_path("../lib", __dir__)
@@ -18,7 +16,7 @@ module Semian
     class ExperimentalResource
       include Semian::Adapter
 
-      attr_reader :endpoints_count, :min_latency, :max_latency, :distribution, :endpoint_latencies, :timeout, :base_error_rate, :traffic_log_path
+      attr_reader :endpoints_count, :min_latency, :max_latency, :distribution, :endpoint_latencies, :timeout, :base_error_rate
 
       # Initialize the experimental resource
       # @param name [String] The identifier for this resource
@@ -29,9 +27,8 @@ module Semian
       #   For log-normal: { type: :log_normal, mean: Float, std_dev: Float }
       # @param timeout [Float, nil] Maximum time to wait for a request (in seconds). If nil, no timeout is enforced.
       # @param error_rate [Float] Baseline error rate (0.0 to 1.0). Probability that any request will fail.
-      # @param traffic_log_path [String, nil] Path to Grafana JSON export for traffic replay. When provided, uses real traffic patterns.
       # @param options [Hash] Additional Semian options
-      def initialize(name:, endpoints_count:, min_latency:, max_latency:, distribution:, timeout: nil, error_rate: 0.0, traffic_log_path: nil, **options)
+      def initialize(name:, endpoints_count:, min_latency:, max_latency:, distribution:, timeout: nil, error_rate: 0.0, **options)
         @name = name
         @endpoints_count = endpoints_count
         @min_latency = min_latency
@@ -40,23 +37,12 @@ module Semian
         @timeout = timeout
         @base_error_rate = validate_error_rate(error_rate)
         @raw_semian_options = options[:semian]
-        @traffic_log_path = traffic_log_path
 
         # Initialize service degradation state
         @latency_degradation = { amount: 0.0, target: 0.0, ramp_start: nil, ramp_duration: 0 }
         @error_rate_degradation = { rate: @base_error_rate, target: @base_error_rate, ramp_start: nil, ramp_duration: 0 }
 
-        # Traffic replay mode initialization
-        if @traffic_log_path
-          @traffic_timeline = parse_traffic_log(@traffic_log_path)
-          @service_start_time = Time.now
-          puts "Traffic replay mode enabled. Timeline duration: #{@traffic_timeline.last[:offset].round(2)}s with #{@traffic_timeline.size} requests"
-        else
-          @traffic_timeline = nil
-          @service_start_time = nil
-        end
-
-        # Assign fixed latencies to each endpoint (only used in synthetic mode)
+        # Assign fixed latencies to each endpoint
         @endpoint_latencies = generate_endpoint_latencies
       end
 
@@ -80,32 +66,19 @@ module Semian
       private
 
       def perform_request(endpoint_index, &block)
-        # In traffic replay mode, use timeline-based latency
-        if @traffic_timeline
-          latency = get_latency_from_timeline
+        # Calculate latency with degradation
+        base_latency = @endpoint_latencies[endpoint_index]
+        latency = base_latency + current_latency_degradation
 
-          # Check if we've exceeded the log timeline
-          if latency.nil?
-            puts "\n=== Traffic replay completed ==="
-            puts "Service has been running longer than the traffic log timeline."
-            puts "No more requests will be processed."
-            raise TrafficReplayCompleteError, "Traffic replay has completed - timeline exceeded"
-          end
-        else
-          # Calculate latency with degradation (synthetic mode)
-          base_latency = @endpoint_latencies[endpoint_index]
-          latency = base_latency + current_latency_degradation
+        # Check if request should fail based on current error rate
+        current_rate = current_error_rate
+        if should_fail?(current_rate)
+          # Sleep for partial latency to simulate some processing before error
+          error_latency = latency * 0.3 # Fail after 30% of expected latency
+          sleep(error_latency) if error_latency > 0
 
-          # Check if request should fail based on current error rate
-          current_rate = current_error_rate
-          if should_fail?(current_rate)
-            # Sleep for partial latency to simulate some processing before error
-            error_latency = latency * 0.3 # Fail after 30% of expected latency
-            sleep(error_latency) if error_latency > 0
-
-            raise RequestError, "Request to endpoint #{endpoint_index} failed " \
-              "(error rate: #{(current_rate * 100).round(1)}%)"
-          end
+          raise RequestError, "Request to endpoint #{endpoint_index} failed " \
+            "(error rate: #{(current_rate * 100).round(1)}%)"
         end
 
         # Check if request would timeout
@@ -233,79 +206,7 @@ module Semian
       attr_reader :raw_semian_options
 
       def resource_exceptions
-        [RequestError, TimeoutError, TrafficReplayCompleteError] # Exceptions that should trigger circuit breaker
-      end
-
-      # Parse the traffic log JSON file and build a timeline
-      # @param file_path [String] Path to the Grafana JSON export
-      # @return [Array<Hash>] Array of { offset: Float, latency: Float } sorted by offset
-      def parse_traffic_log(file_path)
-        unless File.exist?(file_path)
-          raise ArgumentError, "Traffic log file not found: #{file_path}"
-        end
-
-        entries = []
-        first_timestamp = nil
-
-        File.foreach(file_path) do |line|
-          line = line.strip
-          next if line.empty?
-
-          begin
-            entry = JSON.parse(line)
-            timestamp_str = entry["timestamp"]
-
-            unless timestamp_str
-              warn("Warning: Entry missing timestamp field, skipping")
-              next
-            end
-
-            timestamp = Time.parse(timestamp_str)
-
-            # Track the first timestamp to calculate offsets
-            first_timestamp ||= timestamp
-
-            # Calculate offset from start in seconds
-            offset = timestamp - first_timestamp
-
-            # Get latency in milliseconds, default to 0 if not present
-            latency_ms = entry.dig("attrs.db.sql.total_duration_ms") || 0
-            latency_seconds = latency_ms / 1000.0
-
-            entries << { offset: offset, latency: latency_seconds }
-          rescue JSON::ParserError => e
-            warn("Warning: Failed to parse JSON line: #{e.message}")
-            next
-          rescue ArgumentError => e
-            warn("Warning: Failed to parse timestamp: #{e.message}")
-            next
-          end
-        end
-
-        if entries.empty?
-          raise ArgumentError, "No valid entries found in traffic log file: #{file_path}"
-        end
-
-        # Sort by offset to ensure timeline is in order
-        entries.sort_by { |e| e[:offset] }
-      end
-
-      # Get latency for current elapsed time from the traffic timeline
-      # @return [Float, nil] Latency in seconds, or nil if timeline exceeded
-      def get_latency_from_timeline
-        elapsed = Time.now - @service_start_time
-
-        # Check if we've exceeded the timeline
-        if elapsed > @traffic_timeline.last[:offset]
-          return
-        end
-
-        # Find the entry with the closest offset to elapsed time
-        # Using binary search would be more efficient, but linear search is simpler
-        # and fine for most use cases
-        closest_entry = @traffic_timeline.min_by { |entry| (entry[:offset] - elapsed).abs }
-
-        closest_entry[:latency]
+        [RequestError, TimeoutError] # Exceptions that should trigger circuit breaker
       end
 
       def validate_distribution(dist)
@@ -418,12 +319,6 @@ module Semian
       class RequestError < StandardError
         def marks_semian_circuits?
           true  # This error should trigger circuit breaker
-        end
-      end
-
-      class TrafficReplayCompleteError < StandardError
-        def marks_semian_circuits?
-          false # This is not a real error, just indicates replay is complete
         end
       end
     end

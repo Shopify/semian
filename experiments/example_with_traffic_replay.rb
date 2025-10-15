@@ -1,9 +1,9 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require_relative "experimental_resource"
+require_relative "traffic_replay_experimental_resource"
 
-# Example usage of ExperimentalResource with traffic replay
+# Example usage of TrafficReplayExperimentalResource with traffic replay
 
 puts "=== Semian ExperimentalResource - Traffic Replay Example ==="
 puts
@@ -39,14 +39,10 @@ end
 
 begin
   # Create resource with traffic replay
-  resource = Semian::Experiments::ExperimentalResource.new(
+  resource = Semian::Experiments::TrafficReplayExperimentalResource.new(
     name: "my_service",
-    endpoints_count: 1,  # For traffic replay, we typically use 1 endpoint
-    min_latency: 0.0,    # These are not used in traffic replay mode
-    max_latency: 1.0,
-    distribution: { type: :log_normal, mean: 0.1, std_dev: 0.05 },
-    timeout: 30.0,       # 30 second timeout
-    traffic_log_path: traffic_log_path, # Enable traffic replay mode
+    traffic_log_path: traffic_log_path, # Path to Grafana JSON export
+    timeout: 30.0,                      # 30 second timeout
     semian: {
       circuit_breaker: true,
       success_threshold: 2,
@@ -64,21 +60,21 @@ begin
   # Make requests continuously until the timeline is exhausted
   request_count = 0
   loop do
-    result = resource.request(0) do |endpoint, latency|
+    result = resource.request do |latency|
       request_count += 1
       puts "[#{Time.now.strftime("%H:%M:%S")}] Request ##{request_count} - " \
-        "Endpoint: #{endpoint}, Latency: #{(latency * 1000).round(2)}ms"
-      { endpoint: endpoint, latency: latency, request_number: request_count }
+        "Latency: #{(latency * 1000).round(2)}ms"
+      { latency: latency, request_number: request_count }
     end
 
     # Small delay between requests to avoid overwhelming the output
     sleep(0.1)
-  rescue Semian::Experiments::ExperimentalResource::TrafficReplayCompleteError => e
+  rescue Semian::Experiments::TrafficReplayExperimentalResource::TrafficReplayCompleteError => e
     puts
     puts "Traffic replay completed!"
     puts "Total requests processed: #{request_count}"
     break
-  rescue Semian::Experiments::ExperimentalResource::CircuitOpenError => e
+  rescue Semian::Experiments::TrafficReplayExperimentalResource::CircuitOpenError => e
     puts "[#{Time.now.strftime("%H:%M:%S")}] Circuit breaker is OPEN - #{e.message}"
     sleep(1)
   rescue => e
