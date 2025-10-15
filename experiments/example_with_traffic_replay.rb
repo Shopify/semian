@@ -42,12 +42,13 @@ begin
   resource = Semian::Experiments::TrafficReplayExperimentalResource.new(
     name: "my_service",
     traffic_log_path: traffic_log_path, # Path to Grafana JSON export
-    timeout: 30.0,                      # 30 second timeout
+    timeout: 0.1, # 100ms timeout
     semian: {
       circuit_breaker: true,
       success_threshold: 2,
       error_threshold: 3,
       error_threshold_timeout: 10,
+      error_timeout: 0.2,
     },
   )
 
@@ -76,6 +77,12 @@ begin
     break
   rescue Semian::Experiments::TrafficReplayExperimentalResource::CircuitOpenError => e
     puts "[#{Time.now.strftime("%H:%M:%S")}] Circuit breaker is OPEN - #{e.message}"
+    sleep(1)
+  rescue Semian::Experiments::TrafficReplayExperimentalResource::TimeoutError => e
+    puts "[#{Time.now.strftime("%H:%M:%S")}] Timeout: #{e.message}"
+    sleep(1)
+  rescue Semian::Experiments::TrafficReplayExperimentalResource::ResourceBusyError => e
+    puts "[#{Time.now.strftime("%H:%M:%S")}] Resource busy: #{e.message}"
     sleep(1)
   rescue => e
     puts "[#{Time.now.strftime("%H:%M:%S")}] Error: #{e.class} - #{e.message}"
