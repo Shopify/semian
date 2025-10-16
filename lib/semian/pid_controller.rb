@@ -11,6 +11,33 @@ module Semian
   class PIDController
     attr_reader :name, :rejection_rate
 
+    # Factory method to create appropriate PID controller implementation
+    #
+    # Automatically selects between:
+    # - SharedPIDControllerWrapper: Uses shared memory (host-wide coordination)
+    # - ThreadSafePIDController: In-memory with thread safety
+    # - PIDController: In-memory without thread safety
+    #
+    # @param name [String, Symbol] Resource name
+    # @param thread_safe [Boolean] Whether to use thread-safe implementation (default: true)
+    # @param kwargs [Hash] Additional configuration options
+    # @return [PIDController] Appropriate implementation
+    def self.new(name:, thread_safe: true, **kwargs)
+      # Use shared memory if:
+      # 1. Semaphores are enabled (Linux platform with SysV support)
+      # 2. Not explicitly disabled via environment variable
+      # 3. C extension is available
+      if Semian.semaphores_enabled? &&
+         !ENV['SEMIAN_PID_SHARED_DISABLED'] &&
+         defined?(Semian::SharedPIDController)
+        SharedPIDControllerWrapper.new(name: name, **kwargs)
+      elsif thread_safe
+        ThreadSafePIDController.new(name: name, **kwargs)
+      else
+        allocate.tap { |instance| instance.send(:initialize, name: name, **kwargs) }
+      end
+    end
+
     def initialize(name:, kp: 1.0, ki: 0.1, kd: 0.0, target_error_rate: nil,
       window_size: 10, history_duration: 3600)
       @name = name
@@ -222,5 +249,91 @@ module Semian
     # NOTE: metrics, calculate_error_rate, and calculate_ping_failure_rate are not overridden
     # to avoid deadlock. calculate_error_rate and calculate_ping_failure_rate are private methods
     # only called internally from update (synchronized) and metrics (not synchronized).
+  end
+
+  # Wrapper for shared memory PID controller (C extension)
+  #
+  # This class maintains the same interface as PIDController but delegates
+  # to the C extension implementation that uses shared memory for
+  # host-wide coordination.
+  #
+  # All worker processes within a pod share the same PID controller state.
+  class SharedPIDControllerWrapper
+    attr_reader :name
+
+    def initialize(name:, kp: 1.0, ki: 0.1, kd: 0.0,
+      window_size: 10, history_duration: 3600,
+      target_error_rate: nil)
+      @name = name
+      @window_size = window_size
+      @history_duration = history_duration
+      
+      # Create the C extension object
+      # target_error_rate < 0 signals to use p90 calculation
+      @controller = Semian::SharedPIDController.new(
+        name.to_s,
+        kp,
+        ki,
+        kd,
+        window_size,
+        target_error_rate || -1.0,
+        Semian.default_permissions
+      )
+    end
+
+    def record_request(outcome)
+      @controller.record_request(outcome)
+    end
+
+    def record_ping(outcome)
+      @controller.record_ping(outcome)
+    end
+
+    # Update the PID controller (ignores optional rate arguments)
+    # The C extension calculates rates internally from shared counters
+    def update(current_error_rate = nil, ping_failure_rate = nil)
+      @controller.update
+    end
+
+    def should_reject?
+      @controller.should_reject?
+    end
+
+    def rejection_rate
+      @controller.rejection_rate
+    end
+
+    def metrics
+      # Get metrics from C extension and add Ruby-side metadata
+      c_metrics = @controller.metrics
+      c_metrics.merge(
+        name: @name,
+        window_size: @window_size,
+        history_duration: @history_duration,
+      )
+    rescue => e
+      # If metrics call fails, return minimal info
+      Semian.logger&.warn("[SharedPIDControllerWrapper] metrics failed: #{e.message}")
+      {
+        rejection_rate: 0.0,
+        error: e.message,
+        name: @name,
+      }
+    end
+
+    # Reset not supported for shared state
+    # Shared memory persists across processes and should not be casually reset
+    def reset
+      raise NotImplementedError, "Reset not supported for shared PID controller"
+    end
+
+    def destroy
+      @controller.destroy
+    end
+
+    # Get shared memory ID (for debugging/testing)
+    def shm_id
+      @controller.shm_id
+    end
   end
 end
