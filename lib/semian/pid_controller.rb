@@ -12,7 +12,7 @@ module Semian
     attr_reader :name, :rejection_rate
 
     def initialize(name:, kp: 1.0, ki: 0.1, kd: 0.0, target_error_rate: nil,
-      window_size: 10, history_duration: 3600)
+      window_size: 10, history_duration: 3600, seed_error_rate: 0.01)
       @name = name
 
       # PID coefficients
@@ -30,8 +30,9 @@ module Semian
       @target_error_rate = target_error_rate
 
       # Metrics tracking
-      @error_rate_history = []
       @max_history_size = history_duration / window_size # Number of windows to keep
+      # Prefill history with baseline error rate for immediate p90 calculation
+      @error_rate_history = Array.new(@max_history_size, seed_error_rate)
 
       # Discrete window tracking
       @window_size = window_size # Time window in seconds
