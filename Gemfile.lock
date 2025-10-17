@@ -27,6 +27,7 @@ PATH
   remote: .
   specs:
     semian (0.26.5)
+      concurrent-ruby
 
 GEM
   remote: https://rubygems.org/
