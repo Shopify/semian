@@ -13,7 +13,7 @@ module Semian
     attr_reader :name, :rejection_rate
 
     def initialize(name:, kp: 1.0, ki: 0.1, kd: 0.0, target_error_rate: nil,
-      window_size: 10, history_duration: 3600)
+      window_size: 10, history_duration: 3600, seed_error_rate: 0.01)
       @name = name
 
       # PID coefficients

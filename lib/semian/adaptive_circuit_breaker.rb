@@ -9,7 +9,8 @@ module Semian
 
     def initialize(name:, kp: 1.0, ki: 0.1, kd: 0.01,
       window_size: 10, history_duration: 3600,
-      ping_interval: 1.0, thread_safe: true, enable_background_ping: true)
+      ping_interval: 1.0, thread_safe: true, enable_background_ping: true,
+      seed_error_rate: 0.01)
       @name = name
       @window_size = window_size
       @ping_interval = ping_interval
@@ -28,6 +29,7 @@ module Semian
           kd: kd,
           window_size: window_size,
           history_duration: history_duration,
+          seed_error_rate: seed_error_rate,
         )
       else
         PIDController.new(
@@ -37,6 +39,7 @@ module Semian
           kd: kd,
           window_size: window_size,
           history_duration: history_duration,
+          seed_error_rate: seed_error_rate,
         )
       end
 
