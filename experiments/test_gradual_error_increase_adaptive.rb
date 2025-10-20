@@ -24,6 +24,15 @@ semian: {
   },
 )
 
+# Initialize Semian resource before threading to avoid race conditions
+puts "Initializing Semian resource..."
+begin
+  resource.request(0)  # Make one request to trigger registration
+rescue => e
+  # Ignore any error, we just needed to trigger registration
+end
+puts "Resource initialized successfully.\n"
+
 outcomes = {}
 done = false
 circuit_opened_at_rate = nil
