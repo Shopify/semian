@@ -18,7 +18,7 @@ resource = Semian::Experiments::ExperimentalResource.new(
   },
   error_rate: 0.01, # 1% baseline error rate
   timeout: 5, # 5 seconds timeout
-  semian: {
+semian: {
     adaptive_circuit_breaker: true,  # Use adaptive circuit breaker instead of traditional
     bulkhead: false,
   },
@@ -27,26 +27,52 @@ resource = Semian::Experiments::ExperimentalResource.new(
 outcomes = {}
 done = false
 circuit_opened_at_rate = nil
+outcomes_mutex = Mutex.new
 
-puts "Starting request thread (50 requests/second)..."
-Thread.new do
-  until done
-    sleep(0.02) # 50 requests per second
-    current_sec = outcomes[Time.now.to_i] ||= {
-      success: 0,
-      circuit_open: 0,
-      error: 0,
-    }
-    begin
-      resource.request(rand(resource.endpoints_count))
-      print "✓"
-      current_sec[:success] += 1
-    rescue Semian::Experiments::ExperimentalResource::CircuitOpenError => e
-      print "⚡"
-      current_sec[:circuit_open] += 1
-    rescue Semian::Experiments::ExperimentalResource::RequestError, Semian::Experiments::ExperimentalResource::TimeoutError => e
-      print "✗"
-      current_sec[:error] += 1
+num_threads = 60
+puts "Starting #{num_threads} concurrent request threads (50 requests/second each = 3000 rps total)..."
+
+request_threads = []
+num_threads.times do |thread_id|
+  request_threads << Thread.new do
+    until done
+      sleep(0.02) # Each thread: 50 requests per second
+      
+      begin
+        resource.request(rand(resource.endpoints_count))
+        
+        outcomes_mutex.synchronize do
+          current_sec = outcomes[Time.now.to_i] ||= {
+            success: 0,
+            circuit_open: 0,
+            error: 0,
+          }
+          print "✓"
+          current_sec[:success] += 1
+        end
+        
+      rescue Semian::Experiments::ExperimentalResource::CircuitOpenError => e
+        outcomes_mutex.synchronize do
+          current_sec = outcomes[Time.now.to_i] ||= {
+            success: 0,
+            circuit_open: 0,
+            error: 0,
+          }
+          print "⚡"
+          current_sec[:circuit_open] += 1
+        end
+        
+      rescue Semian::Experiments::ExperimentalResource::RequestError, Semian::Experiments::ExperimentalResource::TimeoutError => e
+        outcomes_mutex.synchronize do
+          current_sec = outcomes[Time.now.to_i] ||= {
+            success: 0,
+            circuit_open: 0,
+            error: 0,
+          }
+          print "✗"
+          current_sec[:error] += 1
+        end
+      end
     end
   end
 end
@@ -101,7 +127,8 @@ error_rates.each_with_index do |rate, index|
 end
 
 done = true
-sleep 0.5 # Give the thread time to finish
+puts "\nWaiting for all request threads to finish..."
+request_threads.each(&:join)
 
 puts "\n\n=== Test Complete ==="
 puts "\nGenerating analysis..."
