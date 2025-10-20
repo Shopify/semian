@@ -28,7 +28,7 @@ module Semian
       # @param timeout [Float, nil] Maximum time to wait for a request (in seconds). If nil, no timeout is enforced.
       # @param error_rate [Float] Baseline error rate (0.0 to 1.0). Probability that any request will fail.
       # @param options [Hash] Additional Semian options
-      def initialize(name:, endpoints_count:, min_latency:, max_latency:, distribution:, timeout: nil, error_rate: 0.0, **options)
+      def initialize(name:, endpoints_count:, min_latency:, max_latency:, distribution:, timeout: nil, error_rate: 0.0, deterministic_errors: false, **options)
         @name = name
         @endpoints_count = endpoints_count
         @min_latency = min_latency
@@ -36,11 +36,16 @@ module Semian
         @distribution = validate_distribution(distribution)
         @timeout = timeout
         @base_error_rate = validate_error_rate(error_rate)
+        @deterministic_errors = deterministic_errors
         @raw_semian_options = options[:semian]
 
         # Initialize service degradation state
         @latency_degradation = { amount: 0.0, target: 0.0, ramp_start: nil, ramp_duration: 0 }
         @error_rate_degradation = { rate: @base_error_rate, target: @base_error_rate, ramp_start: nil, ramp_duration: 0 }
+
+        # Phase-synchronized tracking for precise error rates
+        @current_phase_requests = 0
+        @current_phase_failures = 0
 
         # Assign fixed latencies to each endpoint
         @endpoint_latencies = generate_endpoint_latencies
@@ -130,12 +135,22 @@ module Semian
 
         # If no ramp time, apply immediately
         @error_rate_degradation[:rate] = rate if ramp_time == 0
+
+        # Reset deterministic request counter when error rate changes
+        if @deterministic_errors
+          # Reset phase tracking for new error rate (perfect synchronization)
+          @current_phase_requests = 0
+          @current_phase_failures = 0
+        end
       end
 
       # Reset service to baseline (remove all degradation)
       def reset_degradation
         @latency_degradation = { amount: 0.0, target: 0.0, ramp_start: nil, ramp_duration: 0 }
         @error_rate_degradation = { rate: @base_error_rate, target: @base_error_rate, ramp_start: nil, ramp_duration: 0 }
+        # Reset phase tracking
+        @current_phase_requests = 0
+        @current_phase_failures = 0
       end
 
       # Get current latency degradation (accounting for ramp-up)
@@ -263,7 +278,32 @@ module Semian
       def should_fail?(error_rate)
         return false if error_rate <= 0
 
-        rand < error_rate
+        if @deterministic_errors
+          return true if error_rate >= 1.0 # Always fail if 100% error rate
+
+          # Phase-synchronized deterministic failure optimized for closest target
+          @current_phase_requests += 1
+
+          # Calculate what error rate would be if we fail vs don't fail
+          error_rate_if_fail = (@current_phase_failures + 1).to_f / @current_phase_requests
+          error_rate_if_pass = @current_phase_failures.to_f / @current_phase_requests
+
+          # Calculate distance from target for each option
+          distance_if_fail = (error_rate_if_fail - error_rate).abs
+          distance_if_pass = (error_rate_if_pass - error_rate).abs
+
+          # Choose the option that gets us closer to the target
+          should_fail_now = distance_if_fail < distance_if_pass
+
+          if should_fail_now
+            @current_phase_failures += 1
+          end
+
+          should_fail_now
+        else
+          # Use random error injection
+          rand < error_rate
+        end
       end
 
       def sample_from_distribution

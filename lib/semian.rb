@@ -324,6 +324,7 @@ module Semian
       ping_interval: 1.0,           # 1 second between health checks
       thread_safe: Semian.thread_safe?,
       enable_background_ping: true, # Always enabled for proper recovery detection
+      seed_error_rate: options[:seed_error_rate] || 0.01, # Allow customization via Semian options
     )
   end
 
