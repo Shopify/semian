@@ -104,17 +104,25 @@ module Semian
       # Calculate the current error (health metric)
       error = calculate_health_metric(current_error_rate, ping_failure_rate)
 
-      # PID calculations
+      # PID calculations - with conditional integration to prevent windup
       proportional = @kp * error
-      @integral += error * dt
       integral = @ki * @integral
       derivative = @kd * (error - @previous_error) / dt
 
       # Calculate the control signal (change in rejection rate)
       control_signal = proportional + integral + derivative
 
+      # Calculate unclamped rejection rate to detect saturation
+      unclamped_rejection_rate = @rejection_rate + control_signal
+
       # Update rejection rate (clamped between 0 and 1)
-      @rejection_rate = (@rejection_rate + control_signal).clamp(0.0, 1.0)
+      @rejection_rate = unclamped_rejection_rate.clamp(0.0, 1.0)
+
+      # Only update integral if output is not saturated (anti-windup)
+      # This prevents integral buildup when the output is at its limits
+      if unclamped_rejection_rate == @rejection_rate
+        @integral += error * dt
+      end
 
       # Update state for next iteration
       @previous_error = error
