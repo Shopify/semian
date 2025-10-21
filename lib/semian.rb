@@ -320,11 +320,11 @@ module Semian
       ki: 0.1,                      # Moderate integral gain
       kd: 0.01,                     # Small derivative gain (as per design doc)
       window_size: 10,              # 10-second window for rate calculation and update interval
-      history_duration: 3600,       # 1 hour of history for p90 calculation
+      initial_history_duration: 3600, # 1 hour of initial history for p90 calculation
+      initial_error_rate: options[:initial_error_rate] || 0.01, # 1% error rate for initial p90 calculation
       ping_interval: 1.0,           # 1 second between health checks
       thread_safe: Semian.thread_safe?,
       enable_background_ping: true, # Always enabled for proper recovery detection
-      seed_error_rate: options[:seed_error_rate] || 0.01, # Allow customization via Semian options
     )
   end
 

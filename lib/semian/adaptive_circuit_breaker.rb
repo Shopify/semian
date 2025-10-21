@@ -8,9 +8,8 @@ module Semian
     attr_reader :name, :pid_controller, :ping_thread, :update_thread, :last_error
 
     def initialize(name:, kp: 1.0, ki: 0.1, kd: 0.01,
-      window_size: 10, history_duration: 3600,
-      ping_interval: 1.0, thread_safe: true, enable_background_ping: true,
-      seed_error_rate: 0.01)
+      window_size: 10, initial_history_duration: 3600, initial_error_rate: 0.01,
+      ping_interval: 1.0, thread_safe: true, enable_background_ping: true)
       @name = name
       @window_size = window_size
       @ping_interval = ping_interval
@@ -28,8 +27,8 @@ module Semian
           ki: ki,
           kd: kd,
           window_size: window_size,
-          history_duration: history_duration,
-          seed_error_rate: seed_error_rate,
+          initial_history_duration: initial_history_duration,
+          initial_error_rate: initial_error_rate,
         )
       else
         PIDController.new(
@@ -38,8 +37,8 @@ module Semian
           ki: ki,
           kd: kd,
           window_size: window_size,
-          history_duration: history_duration,
-          seed_error_rate: seed_error_rate,
+          initial_history_duration: initial_history_duration,
+          initial_error_rate: initial_error_rate,
         )
       end
 
