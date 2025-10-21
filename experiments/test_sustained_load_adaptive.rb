@@ -5,8 +5,9 @@ $LOAD_PATH.unshift(File.expand_path("../lib", __dir__))
 require "semian"
 require_relative "experimental_resource"
 
-puts "Creating experimental resource with ADAPTIVE circuit breaker..."
-resource = Semian::Experiments::ExperimentalResource.new(
+puts "Creating experimental resource configuration..."
+# Resource configuration (shared across all thread-local instances)
+resource_config = {
   name: "protected_service_adaptive",
   endpoints_count: 50,
   min_latency: 0.01,
@@ -22,12 +23,13 @@ resource = Semian::Experiments::ExperimentalResource.new(
     adaptive_circuit_breaker: true,  # Use adaptive circuit breaker
     bulkhead: false,
   },
-)
+}
 
 # Initialize Semian resource before threading to avoid race conditions
 puts "Initializing Semian resource..."
 begin
-  resource.request(0)  # Make one request to trigger registration
+  init_resource = Semian::Experiments::ExperimentalResource.new(**resource_config)
+  init_resource.request(0)  # Make one request to trigger registration
 rescue => e
   # Ignore any error, we just needed to trigger registration
 end
@@ -42,15 +44,20 @@ pid_mutex = Mutex.new
 
 num_threads = 60
 puts "Starting #{num_threads} concurrent request threads (50 requests/second each = 3000 rps total)..."
+puts "Each thread will have its own resource instance (matching production behavior)...\n"
 
 request_threads = []
 num_threads.times do |thread_id|
   request_threads << Thread.new do
+    # Each thread creates its own resource instance (like production)
+    # They share the same Semian circuit breaker via the name
+    thread_resource = Semian::Experiments::ExperimentalResource.new(**resource_config)
+    
     until done
       sleep(0.02) # Each thread: 50 requests per second
       
       begin
-        resource.request(rand(resource.endpoints_count))
+        thread_resource.request(rand(thread_resource.endpoints_count))
         
         outcomes_mutex.synchronize do
           current_sec = outcomes[Time.now.to_i] ||= {
@@ -121,11 +128,11 @@ monitor_thread = Thread.new do
   end
 end
 
-test_duration = 180 # 3 minutes
+test_duration = 600 # 10 minutes
 
 puts "\n=== Sustained Load Test (ADAPTIVE) ==="
 puts "Error rate: 20%"
-puts "Duration: #{test_duration} seconds (3 minutes)"
+puts "Duration: #{test_duration} seconds (10 minutes)"
 puts "Starting test...\n"
 
 start_time = Time.now
@@ -199,14 +206,15 @@ end
 # Display PID controller state per window
 if !pid_snapshots.empty?
   puts "\n=== PID Controller State Per Window ==="
-  puts "%-8s %-15s %-15s %-12s %-15s %-12s %-12s" % ["Window", "Current Err %", "Ideal Err %", "Health", "Reject %", "Integral", "Derivative"]
-  puts "-" * 100
+  puts "%-8s %-15s %-15s %-15s %-12s %-15s %-12s %-12s" % ["Window", "Current Err %", "Ideal Err %", "Ping Fail %", "Health", "Reject %", "Integral", "Derivative"]
+  puts "-" * 110
   
   pid_snapshots.each do |snapshot|
-    puts "%-8d %-15s %-15s %-12s %-15s %-12s %-12s" % [
+    puts "%-8d %-15s %-15s %-15s %-12s %-15s %-12s %-12s" % [
       snapshot[:window],
       "#{(snapshot[:current_error_rate] * 100).round(2)}%",
       "#{(snapshot[:ideal_error_rate] * 100).round(2)}%",
+      "#{(snapshot[:ping_failure_rate] * 100).round(2)}%",
       snapshot[:health_metric].round(4),
       "#{(snapshot[:rejection_rate] * 100).round(2)}%",
       snapshot[:integral].round(4),

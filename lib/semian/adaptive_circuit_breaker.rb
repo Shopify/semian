@@ -155,13 +155,15 @@ module Semian
       # Use unprotected_ping if available, otherwise fall back to ping
       return unless @resource
 
-      ping_method = if @resource.respond_to?(:unprotected_ping)
-        :unprotected_ping
-      elsif @resource.respond_to?(:ping)
-        :ping
-      else
-        return
-      end
+      ping_method = :unprotected_ping
+      # ping_method = if @resource.respond_to?(:unprotected_ping)
+      #  :unprotected_ping
+      # elsif @resource.respond_to?(:ping)
+      #  :ping
+      # else
+      #  return
+      # end
+      # return
 
       # Send ungated ping (not affected by rejection)
       begin

@@ -316,9 +316,9 @@ module Semian
     # Fixed parameters based on design document recommendations
     AdaptiveCircuitBreaker.new(
       name: name,
-      kp: 1.0,                      # Standard proportional gain
-      ki: 0.1,                      # Moderate integral gain
-      kd: 0.01,                     # Small derivative gain (as per design doc)
+      kp: 0.3,                      # Standard proportional gain
+      ki: 0.03,                      # Moderate integral gain
+      kd: 0.1,                     # Small derivative gain (as per design doc)
       window_size: 10,              # 10-second window for rate calculation and update interval
       history_duration: 300,       # 1 hour of history for p90 calculation
       ping_interval: 1.0,           # 1 second between health checks

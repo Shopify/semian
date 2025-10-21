@@ -106,7 +106,7 @@ module Semian
       ping_failure_rate ||= @last_ping_failure_rate
 
       # dt is always window_size since we update once per window
-      dt = @window_size
+      dt = @window_size / @window_size
 
       # Calculate the current error (health metric)
       error = calculate_health_metric(current_error_rate, ping_failure_rate)
