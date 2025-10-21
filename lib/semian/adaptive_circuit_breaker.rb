@@ -8,7 +8,7 @@ module Semian
     attr_reader :name, :pid_controller, :ping_thread, :update_thread, :last_error
 
     def initialize(name:, kp: 1.0, ki: 0.1, kd: 0.01,
-      window_size: 10, initial_history_duration: 3600, initial_error_rate: 0.01,
+      window_size: 10, initial_history_duration: 900, initial_error_rate: 0.01,
       ping_interval: 1.0, thread_safe: true, enable_background_ping: true)
       @name = name
       @window_size = window_size
