@@ -7,12 +7,6 @@ module Semian
       @configuration = configuration
       @adapter = configuration[:adapter]
       @force_config_validation = force_config_validation?
-
-      unless @force_config_validation
-        Semian.logger.info(
-          "Semian Resource #{@name} is running in log-mode for configuration validation. This means that Semian will not raise an error if the configuration is invalid. This is not recommended for production environments.\n\n[IMPORTANT] PLEASE UPDATE YOUR CONFIGURATION TO USE `force_config_validation: true` TO ENABLE STRICT CONFIGURATION VALIDATION.\n---\n",
-        )
-      end
     end
 
     def validate!

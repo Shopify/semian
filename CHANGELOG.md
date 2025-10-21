@@ -1,3 +1,9 @@
+# v026.6
+* Remove force_config_validation spammy log
+
+# v0.26.5
+* Made `consumers` and `resources` fields private in Semian (#795)
+
 # v0.25.5
 
 * Fixed thread safety issues (#566)

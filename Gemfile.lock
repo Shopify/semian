@@ -26,7 +26,8 @@ GIT
 PATH
   remote: .
   specs:
-    semian (0.25.5)
+    semian (0.26.6)
+      concurrent-ruby
 
 GEM
   remote: https://rubygems.org/

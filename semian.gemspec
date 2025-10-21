@@ -27,6 +27,8 @@ Gem::Specification.new do |s|
     "source_code_uri" => "https://github.com/Shopify/semian",
   }
 
+  s.add_runtime_dependency("concurrent-ruby")
+
   s.required_ruby_version = ">= 3.2.0"
 
   s.files = Dir["{lib,ext}/**/**/*.{rb,h,c}"]
