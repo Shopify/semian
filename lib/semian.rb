@@ -12,6 +12,7 @@ require "semian/platform"
 require "semian/resource"
 require "semian/circuit_breaker"
 require "semian/adaptive_circuit_breaker"
+require "semian/dual_circuit_breaker"
 require "semian/protected_resource"
 require "semian/unprotected_resource"
 require "semian/simple_sliding_window"
@@ -202,6 +203,16 @@ module Semian
   # When enabled, this replaces the traditional circuit breaker with an adaptive version
   # that dynamically adjusts rejection rates based on service health. (adaptive circuit breaker)
   #
+  # +dual_circuit_breaker+: Enable dual circuit breaker mode where both legacy and adaptive
+  # circuit breakers are initialized. Default false. When enabled, both circuit breakers track
+  # requests, but only one is used for decision-making based on experiment_flag_proc.
+  # (dual circuit breaker)
+  #
+  # +experiment_flag_proc+: A callable (Proc/lambda) that returns true to use adaptive circuit breaker
+  # or false to use legacy. Only used when dual_circuit_breaker is enabled. Default: ->() { false }.
+  # Example: ->() { MyFeatureFlag.enabled?(:adaptive_circuit_breaker) }
+  # (dual circuit breaker)
+  #
   # Returns the registered resource.
   def register(name, **options)
     return UnprotectedResource.new(name) if ENV.key?("SEMIAN_DISABLED")
@@ -209,7 +220,9 @@ module Semian
     # Validate configuration before proceeding
     ConfigurationValidator.new(name, options).validate!
 
-    circuit_breaker = if options[:adaptive_circuit_breaker]
+    circuit_breaker = if options[:dual_circuit_breaker]
+      create_dual_circuit_breaker(name, **options)
+    elsif options[:adaptive_circuit_breaker]
       create_adaptive_circuit_breaker(name, **options)
     else
       create_circuit_breaker(name, **options)
@@ -309,6 +322,27 @@ module Semian
   end
 
   private
+
+  def create_dual_circuit_breaker(name, **options)
+    return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED")
+
+    # Create both circuit breakers
+    legacy_cb = create_circuit_breaker(name, **options)
+    adaptive_cb = create_adaptive_circuit_breaker(name, **options)
+
+    # Both must exist for dual mode to work
+    return nil if legacy_cb.nil? || adaptive_cb.nil?
+
+    # Get the experiment flag proc, default to always use legacy
+    experiment_flag_proc = options[:experiment_flag_proc] || ->() { false }
+
+    DualCircuitBreaker.new(
+      name: name,
+      legacy_circuit_breaker: legacy_cb,
+      adaptive_circuit_breaker: adaptive_cb,
+      experiment_flag_proc: experiment_flag_proc,
+    )
+  end
 
   def create_adaptive_circuit_breaker(name, **options)
     return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED") || ENV.key?("SEMIAN_ADAPTIVE_CIRCUIT_BREAKER_DISABLED")
