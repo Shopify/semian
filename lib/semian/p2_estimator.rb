@@ -92,10 +92,12 @@ module Semian
         @marker_heights[0] = value
         @marker_interval_index = 0
       elsif value < @marker_heights[1]
-        @marker_interval_index = 1
+        @marker_interval_index = 0
       elsif value < @marker_heights[2]
-        @marker_interval_index = 2
+        @marker_interval_index = 1
       elsif value < @marker_heights[3]
+        @marker_interval_index = 2
+      elsif value < @marker_heights[4]
         @marker_interval_index = 3
       else
         @marker_heights[4] = value
