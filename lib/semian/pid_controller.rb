@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "thread"
+require_relative "p2_estimator"
 
 module Semian
   # PID Controller for adaptive circuit breaking
@@ -12,7 +13,7 @@ module Semian
     attr_reader :name, :rejection_rate
 
     def initialize(name:, kp: 1.0, ki: 0.1, kd: 0.0, target_error_rate: nil,
-      window_size: 10, history_duration: 3600, seed_error_rate: 0.01)
+      window_size: 10, initial_history_duration: 900, initial_error_rate: 0.01)
       @name = name
 
       # PID coefficients
@@ -29,13 +30,18 @@ module Semian
       # Target error rate (if nil, will use historical p90)
       @target_error_rate = target_error_rate
 
-      # Metrics tracking
-      @max_history_size = history_duration / window_size # Number of windows to keep
-      # Prefill history with baseline error rate for immediate p90 calculation
-      @error_rate_history = Array.new(@max_history_size, seed_error_rate)
+      # Store initialization parameters
+      @initial_history_duration = initial_history_duration
+      @initial_error_rate = initial_error_rate
+      @window_size = window_size # Time window in seconds
+
+      # P90 error rate estimation using P2 quantile estimator
+      @p90_estimator = P2QuantileEstimator.new(0.9)
+
+      # Prefill estimator with historical knowledge
+      prefill_p90_estimator
 
       # Discrete window tracking
-      @window_size = window_size # Time window in seconds
       @window_start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
       # Current window counters
@@ -140,7 +146,10 @@ module Semian
       @current_window_pings = { success: 0, failure: 0 }
       @last_error_rate = 0.0
       @last_ping_failure_rate = 0.0
-      @error_rate_history.clear
+      @p90_estimator.reset
+
+      # Refill P90 estimator after reset
+      prefill_p90_estimator
     end
 
     # Get current metrics for monitoring/debugging
@@ -155,6 +164,7 @@ module Semian
         previous_error: @previous_error,
         current_window_requests: @current_window_requests.dup,
         current_window_pings: @current_window_pings.dup,
+        p90_estimator_state: @p90_estimator.state,
       }
     end
 
@@ -175,21 +185,25 @@ module Semian
     end
 
     def store_error_rate(error_rate)
-      @error_rate_history << error_rate
-      # Keep only the last hour of data
-      @error_rate_history.shift if @error_rate_history.size > @max_history_size
+      @p90_estimator.add_observation(error_rate)
     end
 
     def calculate_ideal_error_rate
-      return 0.01 if @error_rate_history.empty? # Default to 1% if no history
+      return 0.01 if @p90_estimator.state[:observations] == 0 # Default to 1% if no history
 
-      # Calculate p90 of error rates
-      sorted = @error_rate_history.sort
-      index = (sorted.size * 0.9).floor - 1
-      p90_value = sorted[index] || sorted.last
+      # Get P90 estimate from P2 estimator
+      p90_value = @p90_estimator.estimate
 
       # Cap at 10% to prevent bootstrapping issues
       [p90_value, 0.1].min
+    end
+
+    # Prefill the P2 estimator with observations using initial_error_rate
+    def prefill_p90_estimator
+      initial_history_size = Integer(@initial_history_duration / @window_size)
+      initial_history_size.times do
+        @p90_estimator.add_observation(@initial_error_rate)
+      end
     end
   end
 

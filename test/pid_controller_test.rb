@@ -14,7 +14,8 @@ class TestPIDController < Minitest::Test
       ki: 0.1,
       kd: 0.01,
       window_size: 5,
-      history_duration: 100,
+      initial_history_duration: 100,
+      initial_error_rate: 0.01,
     )
   end
 
@@ -227,7 +228,8 @@ class TestPIDController < Minitest::Test
     controller = Semian::PIDController.new(
       name: "test_p90",
       window_size: 1,
-      history_duration: 100,
+      initial_history_duration: 100,
+      initial_error_rate: 0.01,
     )
 
     5.times do
@@ -247,7 +249,8 @@ class TestPIDController < Minitest::Test
     controller = Semian::PIDController.new(
       name: "test_cap",
       window_size: 1,
-      history_duration: 100,
+      initial_history_duration: 100,
+      initial_error_rate: 0.01,
     )
 
     # Simulate high error rates
