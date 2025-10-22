@@ -1,20 +1,23 @@
 # frozen_string_literal: true
 
 require_relative "pid_controller"
+require_relative "circuit_breaker_behaviour"
 
 module Semian
   # Adaptive Circuit Breaker that uses PID controller for dynamic rejection
   class AdaptiveCircuitBreaker
-    attr_reader :name, :pid_controller, :update_thread, :last_error
+    include CircuitBreakerBehaviour
+
+    attr_reader :pid_controller, :update_thread
 
     def initialize(name:, kp: 1.0, ki: 0.1, kd: 0.01,
       window_size: 10, initial_history_duration: 900, initial_error_rate: 0.01,
       thread_safe: true)
-      @name = name
+      initialize_behaviour(name: name)
+
       @window_size = window_size
       @resource = nil
       @stopped = false
-      @last_error = nil
 
       # Create PID controller (thread-safe by default)
       @pid_controller = if thread_safe
@@ -65,9 +68,9 @@ module Semian
 
     # Reset the adaptive circuit breaker
     def reset
+      @last_error = nil
       @pid_controller.reset
       @resource = nil
-      @last_error = nil
     end
 
     # Stop the background threads (called by destroy)
@@ -75,12 +78,6 @@ module Semian
       @stopped = true
       @update_thread&.kill
       @update_thread = nil
-    end
-
-    # Destroy the adaptive circuit breaker (compatible with ProtectedResource interface)
-    def destroy
-      stop
-      @pid_controller.reset
     end
 
     # Destroy the adaptive circuit breaker (compatible with ProtectedResource interface)
@@ -131,22 +128,6 @@ module Semian
     end
 
     private
-
-    def start_update_thread
-      @update_thread = Thread.new do
-        loop do
-          break if @stopped
-
-          sleep(@window_size)
-
-          # Update PID controller at the end of each window
-          @pid_controller.update
-        end
-      rescue => e
-        # Log error if logger is available
-        Semian.logger&.warn("[#{@name}] Background update thread error: #{e.message}")
-      end
-    end
 
     def start_update_thread
       @update_thread = Thread.new do

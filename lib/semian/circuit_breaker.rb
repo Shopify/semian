@@ -1,17 +1,18 @@
 # frozen_string_literal: true
 
+require_relative "circuit_breaker_behaviour"
+
 module Semian
   class CircuitBreaker # :nodoc:
+    include CircuitBreakerBehaviour
     extend Forwardable
 
     def_delegators :@state, :closed?, :open?, :half_open?
 
     attr_reader(
-      :name,
       :half_open_resource_timeout,
       :error_timeout,
       :state,
-      :last_error,
       :error_threshold_timeout_enabled,
     )
 
@@ -19,13 +20,14 @@ module Semian
       error_timeout:, implementation:, half_open_resource_timeout: nil,
       error_threshold_timeout: nil, error_threshold_timeout_enabled: true,
       lumping_interval: 0)
-      @name = name.to_sym
+      initialize_behaviour(name: name)
+
+      @exceptions = exceptions
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
       @error_threshold_timeout = error_threshold_timeout || error_timeout
       @error_threshold_timeout_enabled = error_threshold_timeout_enabled.nil? ? true : error_threshold_timeout_enabled
       @error_timeout = error_timeout
-      @exceptions = exceptions
       @half_open_resource_timeout = half_open_resource_timeout
       @lumping_interval = lumping_interval
 
