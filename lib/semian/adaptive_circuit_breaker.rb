@@ -1,20 +1,32 @@
 # frozen_string_literal: true
 
 require_relative "pid_controller"
+require_relative "circuit_breaker"
 
 module Semian
   # Adaptive Circuit Breaker that uses PID controller for dynamic rejection
-  class AdaptiveCircuitBreaker
-    attr_reader :name, :pid_controller, :update_thread, :last_error
+  class AdaptiveCircuitBreaker < CircuitBreaker
+    attr_reader :pid_controller, :update_thread
 
     def initialize(name:, kp: 1.0, ki: 0.1, kd: 0.01,
       window_size: 10, initial_history_duration: 900, initial_error_rate: 0.01,
-      thread_safe: true)
-      @name = name
+      thread_safe: true, exceptions: [StandardError], implementation: Semian,
+      error_timeout: 10, error_threshold: 3, success_threshold: 1)
+      # Initialize parent CircuitBreaker with sensible defaults
+      # The adaptive breaker doesn't use traditional state transitions,
+      # but we call super to properly initialize the parent class
+      super(
+        name,
+        exceptions: exceptions,
+        success_threshold: success_threshold,
+        error_threshold: error_threshold,
+        error_timeout: error_timeout,
+        implementation: implementation,
+      )
+
       @window_size = window_size
       @resource = nil
       @stopped = false
-      @last_error = nil
 
       # Create PID controller (thread-safe by default)
       @pid_controller = if thread_safe
@@ -65,9 +77,9 @@ module Semian
 
     # Reset the adaptive circuit breaker
     def reset
+      super
       @pid_controller.reset
       @resource = nil
-      @last_error = nil
     end
 
     # Stop the background threads (called by destroy)
@@ -81,12 +93,7 @@ module Semian
     def destroy
       stop
       @pid_controller.reset
-    end
-
-    # Destroy the adaptive circuit breaker (compatible with ProtectedResource interface)
-    def destroy
-      stop
-      @pid_controller.reset
+      super
     end
 
     # Get current metrics for monitoring
@@ -111,12 +118,13 @@ module Semian
 
     # Mark a request as failed (for compatibility with ProtectedResource)
     def mark_failed(error)
-      @last_error = error
+      super(error)
       @pid_controller.record_request(:error)
     end
 
     # Mark a request as successful (for compatibility with ProtectedResource)
     def mark_success
+      super
       @pid_controller.record_request(:success)
     end
 
@@ -131,22 +139,6 @@ module Semian
     end
 
     private
-
-    def start_update_thread
-      @update_thread = Thread.new do
-        loop do
-          break if @stopped
-
-          sleep(@window_size)
-
-          # Update PID controller at the end of each window
-          @pid_controller.update
-        end
-      rescue => e
-        # Log error if logger is available
-        Semian.logger&.warn("[#{@name}] Background update thread error: #{e.message}")
-      end
-    end
 
     def start_update_thread
       @update_thread = Thread.new do
