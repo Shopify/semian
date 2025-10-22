@@ -12,8 +12,7 @@ module Semian
 
     def initialize(name:, kp: 1.0, ki: 0.1, kd: 0.01,
       window_size: 10, initial_history_duration: 900, initial_error_rate: 0.01,
-      thread_safe: true, exceptions: [StandardError], implementation: Semian,
-      error_timeout: 10, error_threshold: 3, success_threshold: 1)
+      thread_safe: true)
       initialize_behaviour(name: name)
 
       @window_size = window_size
