@@ -172,6 +172,14 @@ module Semian
         end
       end
 
+      def unprotected_ping
+        if should_fail?(current_error_rate)
+          raise RequestError, "Ping failed"
+        else
+          true
+        end
+      end
+
       # Get current error rate (accounting for ramp-up)
       def current_error_rate
         return @error_rate_degradation[:rate] unless @error_rate_degradation[:ramp_start] && @error_rate_degradation[:ramp_duration] > 0
