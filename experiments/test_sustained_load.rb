@@ -17,7 +17,7 @@ resource_config = {
     mean: 0.15,
     std_dev: 0.05,
   },
-  error_rate: 0.20, # 20% sustained error rate (matching adaptive test)
+  error_rate: 0.01, # Starting at 1% error rate
   timeout: 5, # 5 seconds timeout
   semian: {
     success_threshold: 2,
@@ -47,11 +47,13 @@ puts "Starting #{num_threads} concurrent request threads (50 requests/second eac
 puts "Each thread will have its own resource instance (matching production behavior)...\n"
 
 request_threads = []
+thread_resources = []
 num_threads.times do |_|
   request_threads << Thread.new do
     # Each thread creates its own resource instance (like production)
     # They share the same Semian circuit breaker via the name
     thread_resource = Semian::Experiments::ExperimentalResource.new(**resource_config)
+    thread_resources << thread_resource
 
     until done
       sleep(0.02) # Each thread: 50 requests per second
@@ -93,15 +95,29 @@ num_threads.times do |_|
   end
 end
 
-test_duration = 180 # 3 minutes
+test_duration = 540 # 9 minutes total
 
 puts "\n=== Sustained Load Test (CLASSIC) ==="
-puts "Error rate: 20%"
-puts "Duration: #{test_duration} seconds (3 minutes)"
+puts "Phase 1: Baseline 1% error rate (2 minutes)"
+puts "Phase 2: High 20% error rate (5 minutes)"
+puts "Phase 3: Return to baseline 1% error rate (2 minutes)"
+puts "Total Duration: #{test_duration} seconds"
 puts "Starting test...\n"
 
 start_time = Time.now
-sleep test_duration
+sleep 120
+
+thread_resources.each do |thread_resource|
+  thread_resource.set_error_rate(0.20)
+end
+
+sleep 300
+
+thread_resources.each do |thread_resource|
+  thread_resource.set_error_rate(0.01)
+end
+
+sleep 120
 
 done = true
 puts "\nWaiting for all request threads to finish..."
@@ -171,7 +187,7 @@ require "gruff"
 
 # Create line graph showing requests per 10-second bucket
 graph = Gruff::Line.new(1400)
-graph.title = "Classic Circuit Breaker: Sustained 20% Error Load (3 minutes)"
+graph.title = "Classic Circuit Breaker: Sustained 20% Error Load"
 graph.x_axis_label = "Time (10-second intervals)"
 graph.y_axis_label = "Requests per Interval"
 

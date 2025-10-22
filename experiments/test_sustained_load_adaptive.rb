@@ -196,24 +196,6 @@ puts "\n=== Time-Based Analysis (#{bucket_size}-second buckets) ==="
   puts "#{status} #{bucket_time_range}: #{bucket_total} requests | Success: #{bucket_success} | Errors: #{bucket_errors} (#{error_pct}%) | Rejected: #{bucket_circuit} (#{circuit_pct}%)"
 end
 
-# Get PID controller metrics if available
-begin
-  semian_resource = Semian["protected_service_adaptive".to_sym]
-  if semian_resource && semian_resource.circuit_breaker
-    pid_metrics = semian_resource.circuit_breaker.pid_controller.metrics
-
-    puts "\n=== PID Controller Final State ==="
-    puts "Current Error Rate: #{(pid_metrics[:error_rate] * 100).round(3)}%"
-    puts "Ideal Error Rate (p90): #{(pid_metrics[:ideal_error_rate] * 100).round(3)}%"
-    puts "Ping Failure Rate: #{(pid_metrics[:ping_failure_rate] * 100).round(3)}%"
-    puts "Health Metric: #{pid_metrics[:health_metric].round(4)}"
-    puts "Rejection Rate: #{(pid_metrics[:rejection_rate] * 100).round(2)}%"
-    puts "Integral: #{pid_metrics[:integral].round(4)}"
-  end
-rescue => e
-  puts "\n⚠️  Could not capture PID metrics: #{e.message}"
-end
-
 # Display PID controller state per window
 if !pid_snapshots.empty?
   puts "\n=== PID Controller State Per Window ==="
@@ -254,7 +236,7 @@ require "gruff"
 
 # Create line graph showing requests per 10-second bucket
 graph = Gruff::Line.new(1400)
-graph.title = "Adaptive Circuit Breaker: Sustained 20% Error Load (3 minutes)"
+graph.title = "Adaptive Circuit Breaker: Sustained 20% Error Load"
 graph.x_axis_label = "Time (10-second intervals)"
 graph.y_axis_label = "Requests per Interval"
 
