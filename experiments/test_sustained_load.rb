@@ -5,18 +5,19 @@ $LOAD_PATH.unshift(File.expand_path("../lib", __dir__))
 require "semian"
 require_relative "experimental_resource"
 
-puts "Creating experimental resource with circuit breaker..."
-resource = Semian::Experiments::ExperimentalResource.new(
+puts "Creating experimental resource configuration..."
+# Resource configuration (shared across all thread-local instances)
+resource_config = {
   name: "protected_service",
   endpoints_count: 50,
   min_latency: 0.01,
-  max_latency: 0.2,
+  max_latency: 0.3,
   distribution: {
     type: :log_normal,
-    mean: 1,
-    std_dev: 0.1,
+    mean: 0.15,
+    std_dev: 0.05,
   },
-  error_rate: 0.06, # 6% sustained error rate
+  error_rate: 0.20, # 20% sustained error rate (matching adaptive test)
   timeout: 5, # 5 seconds timeout
   semian: {
     success_threshold: 2,
@@ -25,39 +26,77 @@ resource = Semian::Experiments::ExperimentalResource.new(
     error_timeout: 15,
     bulkhead: false,
   },
-)
+}
+
+# Initialize Semian resource before threading to avoid race conditions
+puts "Initializing Semian resource..."
+begin
+  init_resource = Semian::Experiments::ExperimentalResource.new(**resource_config)
+  init_resource.request(0) # Make one request to trigger registration
+rescue
+  # Ignore any error, we just needed to trigger registration
+end
+puts "Resource initialized successfully.\n"
 
 outcomes = {}
 done = false
-circuit_state_changes = []
+outcomes_mutex = Mutex.new
 
-puts "Starting request thread (50 requests/second)..."
-Thread.new do
-  until done
-    sleep(0.02) # 50 requests per second
-    current_sec = outcomes[Time.now.to_i] ||= {
-      success: 0,
-      circuit_open: 0,
-      error: 0,
-    }
-    begin
-      resource.request(rand(resource.endpoints_count))
-      print "✓"
-      current_sec[:success] += 1
-    rescue Semian::Experiments::ExperimentalResource::CircuitOpenError => e
-      print "⚡"
-      current_sec[:circuit_open] += 1
-    rescue Semian::Experiments::ExperimentalResource::RequestError, Semian::Experiments::ExperimentalResource::TimeoutError => e
-      print "✗"
-      current_sec[:error] += 1
+num_threads = 60
+puts "Starting #{num_threads} concurrent request threads (50 requests/second each = 3000 rps total)..."
+puts "Each thread will have its own resource instance (matching production behavior)...\n"
+
+request_threads = []
+num_threads.times do |_|
+  request_threads << Thread.new do
+    # Each thread creates its own resource instance (like production)
+    # They share the same Semian circuit breaker via the name
+    thread_resource = Semian::Experiments::ExperimentalResource.new(**resource_config)
+
+    until done
+      sleep(0.02) # Each thread: 50 requests per second
+
+      begin
+        thread_resource.request(rand(thread_resource.endpoints_count))
+
+        outcomes_mutex.synchronize do
+          current_sec = outcomes[Time.now.to_i] ||= {
+            success: 0,
+            circuit_open: 0,
+            error: 0,
+          }
+          print("✓")
+          current_sec[:success] += 1
+        end
+      rescue Semian::Experiments::ExperimentalResource::CircuitOpenError => e
+        outcomes_mutex.synchronize do
+          current_sec = outcomes[Time.now.to_i] ||= {
+            success: 0,
+            circuit_open: 0,
+            error: 0,
+          }
+          print("⚡")
+          current_sec[:circuit_open] += 1
+        end
+      rescue Semian::Experiments::ExperimentalResource::RequestError, Semian::Experiments::ExperimentalResource::TimeoutError => e
+        outcomes_mutex.synchronize do
+          current_sec = outcomes[Time.now.to_i] ||= {
+            success: 0,
+            circuit_open: 0,
+            error: 0,
+          }
+          print("✗")
+          current_sec[:error] += 1
+        end
+      end
     end
   end
 end
 
 test_duration = 180 # 3 minutes
 
-puts "\n=== Sustained Load Test ==="
-puts "Error rate: 6%"
+puts "\n=== Sustained Load Test (CLASSIC) ==="
+puts "Error rate: 20%"
 puts "Duration: #{test_duration} seconds (3 minutes)"
 puts "Starting test...\n"
 
@@ -65,7 +104,8 @@ start_time = Time.now
 sleep test_duration
 
 done = true
-sleep 0.5 # Give the thread time to finish
+puts "\nWaiting for all request threads to finish..."
+request_threads.each(&:join)
 end_time = Time.now
 
 puts "\n\n=== Test Complete ==="
@@ -83,9 +123,9 @@ puts "Total Requests: #{total_requests}"
 puts "  Successes: #{total_success} (#{(total_success.to_f / total_requests * 100).round(2)}%)"
 puts "  Circuit Open: #{total_circuit_open} (#{(total_circuit_open.to_f / total_requests * 100).round(2)}%)"
 puts "  Errors: #{total_error} (#{(total_error.to_f / total_requests * 100).round(2)}%)"
-puts "\nExpected errors at 6% rate: #{(total_requests * 0.06).round(0)}"
+puts "\nExpected errors at 20% rate: #{(total_requests * 0.20).round(0)}"
 puts "Actual errors: #{total_error}"
-puts "Errors prevented by circuit breaker: #{(total_requests * 0.06).round(0) - total_error}"
+puts "Difference: #{total_error - (total_requests * 0.20).round(0)}"
 
 # Time-based analysis (30-second buckets)
 bucket_size = 30 # seconds
@@ -95,30 +135,35 @@ puts "\n=== Time-Based Analysis (#{bucket_size}-second buckets) ==="
 (0...num_buckets).each do |bucket_idx|
   bucket_start = outcomes.keys[0] + (bucket_idx * bucket_size)
   bucket_data = outcomes.select { |time, _| time >= bucket_start && time < bucket_start + bucket_size }
-  
+
   bucket_success = bucket_data.values.sum { |d| d[:success] }
   bucket_errors = bucket_data.values.sum { |d| d[:error] }
   bucket_circuit = bucket_data.values.sum { |d| d[:circuit_open] }
   bucket_total = bucket_success + bucket_errors + bucket_circuit
-  
+
   bucket_time_range = "#{bucket_idx * bucket_size}-#{(bucket_idx + 1) * bucket_size}s"
   circuit_pct = bucket_total > 0 ? ((bucket_circuit.to_f / bucket_total) * 100).round(2) : 0
+  error_pct = bucket_total > 0 ? ((bucket_errors.to_f / bucket_total) * 100).round(2) : 0
   status = bucket_circuit > 0 ? "⚡" : "✓"
-  
-  puts "#{status} #{bucket_time_range}: #{bucket_total} requests | Success: #{bucket_success} | Errors: #{bucket_errors} | Circuit: #{bucket_circuit} (#{circuit_pct}%)"
+
+  puts "#{status} #{bucket_time_range}: #{bucket_total} requests | Success: #{bucket_success} | Errors: #{bucket_errors} (#{error_pct}%) | Circuit Open: #{bucket_circuit} (#{circuit_pct}%)"
 end
 
 # Calculate circuit breaker efficiency
-expected_errors = (total_requests * 0.06).round(0)
+expected_errors = (total_requests * 0.20).round(0)
 actual_errors = total_error
-prevented_errors = expected_errors - actual_errors
-efficiency = expected_errors > 0 ? ((prevented_errors.to_f / expected_errors) * 100).round(2) : 0
+error_difference = actual_errors - expected_errors
 
-puts "\n=== Circuit Breaker Efficiency ==="
+puts "\n=== Classic Circuit Breaker Impact ==="
 puts "Expected errors without circuit breaker: #{expected_errors}"
 puts "Actual errors with circuit breaker: #{actual_errors}"
-puts "Errors prevented: #{prevented_errors}"
-puts "Protection efficiency: #{efficiency}%"
+if error_difference > 0
+  puts "Extra errors allowed through: #{error_difference}"
+  puts "Rejection efficiency: #{((1 - error_difference.to_f / expected_errors) * 100).round(2)}%"
+else
+  puts "Errors prevented: #{-error_difference}"
+  puts "Protection efficiency: #{((-error_difference.to_f / expected_errors) * 100).round(2)}%"
+end
 
 puts "\nGenerating visualization..."
 
@@ -126,7 +171,7 @@ require "gruff"
 
 # Create line graph showing requests per 10-second bucket
 graph = Gruff::Line.new(1400)
-graph.title = "Circuit Breaker: Sustained 6% Error Load (3 minutes)"
+graph.title = "Classic Circuit Breaker: Sustained 20% Error Load (3 minutes)"
 graph.x_axis_label = "Time (10-second intervals)"
 graph.y_axis_label = "Requests per Interval"
 
@@ -141,11 +186,11 @@ bucketed_data = []
 (0...num_small_buckets).each do |bucket_idx|
   bucket_start = outcomes.keys[0] + (bucket_idx * small_bucket_size)
   bucket_data = outcomes.select { |time, _| time >= bucket_start && time < bucket_start + small_bucket_size }
-  
+
   bucketed_data << {
     success: bucket_data.values.sum { |d| d[:success] },
     circuit_open: bucket_data.values.sum { |d| d[:circuit_open] },
-    error: bucket_data.values.sum { |d| d[:error] }
+    error: bucket_data.values.sum { |d| d[:error] },
   }
 end
 
@@ -164,4 +209,3 @@ graph.data("Error", bucketed_data.map { |d| d[:error] })
 graph.write("sustained_load.png")
 
 puts "Graph saved to sustained_load.png"
-

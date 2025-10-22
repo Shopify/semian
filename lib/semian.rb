@@ -316,14 +316,15 @@ module Semian
     # Fixed parameters based on design document recommendations
     AdaptiveCircuitBreaker.new(
       name: name,
-      kp: 0.3,                      # Standard proportional gain
-      ki: 0.03,                      # Moderate integral gain
-      kd: 0.1,                     # Small derivative gain (as per design doc)
-      window_size: 10,              # 10-second window for rate calculation and update interval
-      history_duration: 300,       # 1 hour of history for p90 calculation
-      ping_interval: 1.0,           # 1 second between health checks
+      kp: 0.3, # Standard proportional gain
+      ki: 0.03, # Moderate integral gain
+      kd: 0.1, # Small derivative gain (as per design doc)
+      window_size: 10, # 10-second window for rate calculation and update interval
+      initial_history_duration: 900, # 15 minutes of initial history for p90 calculation
+      initial_error_rate: options[:initial_error_rate] || 0.01, # 1% error rate for initial p90 calculation
+      ping_interval: 1.0, # 1 second between health checks
       thread_safe: Semian.thread_safe?,
-      enable_background_ping: true, # Always enabled for proper recovery detection
+      enable_background_ping: options.fetch(:enable_background_ping, true), # Default enabled for proper recovery detection
     )
   end
 
