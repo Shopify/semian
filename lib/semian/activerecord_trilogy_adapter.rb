@@ -99,15 +99,6 @@ module Semian
       false
     end
 
-    def unprotected_ping
-      # Call the underlying active? method without Semian protection
-      # The super here refers to the original active? from the Trilogy adapter
-      @raw_connection&.ping
-    rescue => e
-      Semian.logger&.debug("[trilogy_adapter] Unprotected ping failed: #{e.message}")
-      false
-    end
-
     def with_resource_timeout(temp_timeout)
       if @raw_connection.nil?
         prev_read_timeout = @config[:read_timeout] || 0

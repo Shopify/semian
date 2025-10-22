@@ -139,20 +139,6 @@ module Semian
       end
     end
 
-    def unprotected_ping
-      # Send a PING command directly without Semian protection
-      return false unless connected?
-
-      begin
-        # Directly call the Redis PING command bypassing Semian's io wrapper
-        raw_io { [:ping] }
-        true
-      rescue => e
-        Semian.logger&.debug("[redis] Unprotected ping failed: #{e.message}")
-        false
-      end
-    end
-
     private
 
     def resource_exceptions

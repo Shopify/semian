@@ -586,12 +586,12 @@ monitors error rates and adjusts its behavior accordingly.
 
 The adaptive circuit breaker uses the error function:
 ```
-P = (error_rate - ideal_error_rate) - (rejection_rate - ping_failure_rate)
+P = (error_rate - ideal_error_rate) - rejection_rate
 ```
 
 This formula ensures that:
-- Rejection rate increases when the service is unhealthy (high error rate or ping failures)
-- Rejection rate decreases when the service recovers (successful pings, low error rate)
+- Rejection rate increases when the service is unhealthy
+- Rejection rate decreases when the service recovers
 - The system finds an equilibrium that protects against cascading failures while allowing recovery
 
 ##### Adaptive Circuit Breaker Configuration

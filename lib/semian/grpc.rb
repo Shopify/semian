@@ -122,28 +122,6 @@ module Semian
         @semian.send(:acquire_semian_resource, adapter: :grpc, scope: scope) { execute.call }
       end
     end
-
-    def unprotected_ping
-      # For gRPC, we'll check if the channel is in a ready state
-      # This doesn't make an actual RPC call but checks connection state
-
-      return false if @ch.nil?
-
-      # Get the channel connectivity state
-      state = @ch.connectivity_state(false)
-
-      # GRPC channel states:
-      # IDLE (0) - channel is idle
-      # CONNECTING (1) - channel is connecting
-      # READY (2) - channel is ready for work
-      # TRANSIENT_FAILURE (3) - channel has seen a failure
-      # SHUTDOWN (4) - channel has been shut down
-
-      state == 2 # GRPC::Core::ConnectivityStates::READY
-    rescue => e
-      Semian.logger&.debug("[grpc] Unprotected ping failed: #{e.message}")
-      false
-    end
   end
 end
 

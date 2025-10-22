@@ -29,19 +29,17 @@ class TestPIDController < Minitest::Test
     assert_equal(0.0, @controller.rejection_rate)
 
     metrics = @controller.metrics
-    # P = (error_rate - ideal_error_rate) - (rejection_rate - ping_failure_rate)
-    # P = (0.0 - 0.01) - (0.0 - 0.0) = -0.01 - 0 = -0.01
+    # P = (error_rate - ideal_error_rate) - rejection_rate
+    # P = (0.0 - 0.01) - 0.0 = -0.01 - 0 = -0.01
     assert_equal(
       {
         rejection_rate: 0.0,
         error_rate: 0.0,
-        ping_failure_rate: 0.0,
         ideal_error_rate: 0.01, # Default when no history
         error_metric: -0.01,
         integral: 0.0,
         previous_error: 0.0,
         current_window_requests: { success: 0, error: 0, rejected: 0 },
-        current_window_pings: { success: 0, failure: 0 },
       },
       metrics,
     )
@@ -87,46 +85,20 @@ class TestPIDController < Minitest::Test
     end
   end
 
-  def test_ping_failure_rate_calculation
-    @controller.record_ping(:success)
-    @controller.record_ping(:failure)
-    @controller.record_ping(:success)
-    @controller.record_ping(:failure)
-
-    # Metrics still 0 until window completes
-    metrics = @controller.metrics
-
-    assert_equal(0.0, metrics[:ping_failure_rate])
-    assert_equal({ success: 2, failure: 2 }, metrics[:current_window_pings])
-
-    # Move time forward past window size and update
-    time_travel(6.0) do
-      @controller.update
-      metrics = @controller.metrics
-
-      assert_equal(0.5, metrics[:ping_failure_rate])
-    end
-  end
-
   def test_error_metric_calculation
     # Record some errors
     5.times { @controller.record_request(:error) }
     5.times { @controller.record_request(:success) }
-
-    # Record some ping failures
-    3.times { @controller.record_ping(:failure) }
-    2.times { @controller.record_ping(:success) }
 
     # Move time forward past window size and update
     time_travel(6.0) do
       @controller.update
       metrics = @controller.metrics
       error_rate = metrics[:error_rate] # 0.5
-      ping_failure_rate = metrics[:ping_failure_rate] # 0.6
 
-      # P = (error_rate - ideal_error_rate) - (rejection_rate - ping_failure_rate)
-      # P = (0.5 - 0.01) - (0.0 - 0.6) = 0.49 - (-0.6) = 0.49 + 0.6 = 1.09
-      error_metric = @controller.calculate_error_metric(error_rate, ping_failure_rate)
+      # P = (error_rate - ideal_error_rate) - rejection_rate
+      # P = (0.5 - 0.01) - 0.0 = 0.49 - 0 = 0.49
+      error_metric = @controller.calculate_error_metric(error_rate)
 
       assert_in_delta(1.09, error_metric, 0.01)
     end
@@ -147,31 +119,10 @@ class TestPIDController < Minitest::Test
     assert_operator(@controller.rejection_rate, :>, initial_rejection_rate)
   end
 
-  def test_rejection_rate_decreases_with_successful_pings
-    # Set up initial rejection rate
-    10.times { @controller.record_request(:error) }
-
-    time_travel(1.0) do
-      @controller.update
-
-      initial_rejection = @controller.rejection_rate
-
-      # Now simulate successful pings and lower error rate
-      10.times { @controller.record_request(:success) }
-      5.times { @controller.record_ping(:success) }
-
-      time_travel(1.0) do
-        @controller.update
-
-        assert_operator(@controller.rejection_rate, :<, initial_rejection)
-      end
-    end
-  end
 
   def test_rejection_rate_clamped_between_0_and_1
     # Try to drive rejection rate very high
     100.times { @controller.record_request(:error) }
-    100.times { @controller.record_ping(:failure) }
 
     time_travel(1.0) do
       @controller.update
@@ -208,7 +159,6 @@ class TestPIDController < Minitest::Test
   def test_reset_clears_all_state
     # Add some data
     @controller.record_request(:error)
-    @controller.record_ping(:failure)
 
     time_travel(1.0) do
       @controller.update
@@ -221,7 +171,6 @@ class TestPIDController < Minitest::Test
     metrics = @controller.metrics
 
     assert_equal(0.0, metrics[:error_rate])
-    assert_equal(0.0, metrics[:ping_failure_rate])
   end
 
   def test_ideal_error_rate_calculation_p90
@@ -268,7 +217,6 @@ class TestPIDController < Minitest::Test
     # Record data in first window
     @controller.record_request(:error)
     @controller.record_request(:error)
-    @controller.record_ping(:failure)
 
     # Metrics should be 0 before window completes
     assert_equal(0.0, @controller.metrics[:error_rate])
@@ -279,12 +227,10 @@ class TestPIDController < Minitest::Test
 
       # First window metrics are now available
       assert_equal(1.0, @controller.metrics[:error_rate])
-      assert_equal(1.0, @controller.metrics[:ping_failure_rate])
 
       # Record data in second window
       @controller.record_request(:success)
       @controller.record_request(:success)
-      @controller.record_ping(:success)
 
       # Second window not complete yet, still showing first window metrics
       assert_equal(1.0, @controller.metrics[:error_rate])
@@ -295,7 +241,6 @@ class TestPIDController < Minitest::Test
 
         # Now showing second window metrics
         assert_equal(0.0, @controller.metrics[:error_rate])
-        assert_equal(0.0, @controller.metrics[:ping_failure_rate])
       end
     end
   end
@@ -305,24 +250,19 @@ class TestPIDController < Minitest::Test
     @controller.record_request(:error)
     @controller.record_request(:success)
     @controller.record_request(:error)
-    @controller.record_ping(:failure)
-    @controller.record_ping(:success)
 
     # Current window counters should be visible in metrics
     metrics = @controller.metrics
 
     assert_equal({ success: 1, error: 2, rejected: 0 }, metrics[:current_window_requests])
-    assert_equal({ success: 1, failure: 1 }, metrics[:current_window_pings])
 
     # But calculated rates are still from last completed window (0 initially)
     assert_equal(0.0, metrics[:error_rate])
-    assert_equal(0.0, metrics[:ping_failure_rate])
   end
 
   def test_metrics_output
     @controller.record_request(:error)
     @controller.record_request(:success)
-    @controller.record_ping(:failure)
 
     time_travel(1.0) do
       @controller.update
@@ -332,7 +272,6 @@ class TestPIDController < Minitest::Test
 
     assert(metrics.key?(:rejection_rate))
     assert(metrics.key?(:error_rate))
-    assert(metrics.key?(:ping_failure_rate))
     assert(metrics.key?(:ideal_error_rate))
     assert(metrics.key?(:error_metric))
     assert(metrics.key?(:integral))
@@ -351,7 +290,6 @@ class TestPIDController < Minitest::Test
       # Errors start occurring
       time_travel(1.0) do
         10.times { @controller.record_request(:error) }
-        3.times { @controller.record_ping(:failure) }
 
         time_travel(1.0) do
           @controller.update
@@ -364,7 +302,6 @@ class TestPIDController < Minitest::Test
           # Now dependency recovers
           time_travel(1.0) do
             20.times { @controller.record_request(:success) }
-            10.times { @controller.record_ping(:success) }
 
             time_travel(1.0) do
               @controller.update

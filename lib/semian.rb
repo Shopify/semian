@@ -322,9 +322,7 @@ module Semian
       window_size: 10, # 10-second window for rate calculation and update interval
       initial_history_duration: 900, # 15 minutes of initial history for p90 calculation
       initial_error_rate: options[:initial_error_rate] || 0.01, # 1% error rate for initial p90 calculation
-      ping_interval: 1.0, # 1 second between health checks
       thread_safe: Semian.thread_safe?,
-      enable_background_ping: options.fetch(:enable_background_ping, true), # Default enabled for proper recovery detection
     )
   end
 

@@ -80,15 +80,6 @@ module Semian
       false
     end
 
-    def unprotected_ping
-      return false if closed?
-
-      raw_ping
-    rescue => e
-      Semian.logger&.debug("[mysql2] Unprotected ping failed: #{e.message}")
-      false
-    end
-
     def query(*args)
       if query_whitelisted?(*args)
         raw_query(*args)

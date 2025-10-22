@@ -102,7 +102,6 @@ class TestSemianAdaptiveConfig < Minitest::Test
 
     # Check that defaults were applied
     assert_equal(0.0, metrics[:rejection_rate])
-    assert(resource.circuit_breaker.ping_thread&.alive?) # Background ping is enabled by default
   end
 
   def test_resource_cleanup_with_adaptive
@@ -112,11 +111,10 @@ class TestSemianAdaptiveConfig < Minitest::Test
       bulkhead: false,
     )
 
-    assert(resource.circuit_breaker.ping_thread&.alive?)
-
     Semian.destroy(:test_cleanup)
 
-    # After destroy, the ping thread should be stopped
+    # After destroy, the update thread should be stopped
     # (the destroy method should call stop on the adaptive circuit breaker)
+    assert_nil(resource.circuit_breaker.update_thread)
   end
 end

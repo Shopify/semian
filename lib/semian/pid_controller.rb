@@ -6,8 +6,8 @@ require_relative "p2_estimator"
 module Semian
   # PID Controller for adaptive circuit breaking
   # Based on the error function:
-  # P = (error_rate - ideal_error_rate) - (rejection_rate - ping_failure_rate)
-  # Note: P increases when error_rate increases or ping_failure_rate increases
+  # P = (error_rate - ideal_error_rate) - rejection_rate
+  # Note: P increases when error_rate increases
   #       P decreases when rejection_rate increases (providing feedback)
   class PIDController
     attr_reader :name, :rejection_rate
@@ -46,21 +46,19 @@ module Semian
 
       # Current window counters
       @current_window_requests = { success: 0, error: 0, rejected: 0 }
-      @current_window_pings = { success: 0, failure: 0 }
 
       # Last completed window metrics (used between updates)
       @last_error_rate = 0.0
-      @last_ping_failure_rate = 0.0
     end
 
     # Calculate the current error metric P
-    def calculate_error_metric(current_error_rate, ping_failure_rate)
+    def calculate_error_metric(current_error_rate)
       ideal_error_rate = @target_error_rate || calculate_ideal_error_rate
 
-      # P = (error_rate - ideal_error_rate) - (rejection_rate - ping_failure_rate)
-      # P increases when: error_rate > ideal OR ping_failure_rate > rejection_rate
-      # P decreases when: rejection_rate > ping_failure_rate (feedback mechanism)
-      (current_error_rate - ideal_error_rate) - (@rejection_rate - ping_failure_rate)
+      # P = (error_rate - ideal_error_rate) - rejection_rate
+      # P increases when: error_rate > ideal
+      # P decreases when: rejection_rate > 0 (feedback mechanism)
+      (current_error_rate - ideal_error_rate) - @rejection_rate
     end
 
     # Record a request outcome
@@ -75,41 +73,28 @@ module Semian
       end
     end
 
-    # Record a ping outcome (ungated health check)
-    def record_ping(outcome)
-      case outcome
-      when :success
-        @current_window_pings[:success] += 1
-      when :failure
-        @current_window_pings[:failure] += 1
-      end
-    end
-
     # Update the controller at the end of each time window
-    def update(current_error_rate = nil, ping_failure_rate = nil)
+    def update(current_error_rate = nil)
       current_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
       # Calculate rates for the current window
       @last_error_rate = calculate_window_error_rate
-      @last_ping_failure_rate = calculate_window_ping_failure_rate
 
       # Store error rate for historical analysis
       store_error_rate(@last_error_rate)
 
       # Reset window counters for next window
       @current_window_requests = { success: 0, error: 0, rejected: 0 }
-      @current_window_pings = { success: 0, failure: 0 }
       @window_start_time = current_time
 
       # Use provided rates or calculated rates
       current_error_rate ||= @last_error_rate
-      ping_failure_rate ||= @last_ping_failure_rate
 
       # dt is always window_size since we update once per window
       dt = @window_size
 
       # Calculate the current error (error metric)
-      error = calculate_error_metric(current_error_rate, ping_failure_rate)
+      error = calculate_error_metric(current_error_rate)
 
       # PID calculations
       proportional = @kp * error
@@ -143,9 +128,7 @@ module Semian
       @last_update_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       @window_start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       @current_window_requests = { success: 0, error: 0, rejected: 0 }
-      @current_window_pings = { success: 0, failure: 0 }
       @last_error_rate = 0.0
-      @last_ping_failure_rate = 0.0
       @p90_estimator.reset
 
       # Refill P90 estimator after reset
@@ -157,13 +140,11 @@ module Semian
       {
         rejection_rate: @rejection_rate,
         error_rate: @last_error_rate,
-        ping_failure_rate: @last_ping_failure_rate,
         ideal_error_rate: @target_error_rate || calculate_ideal_error_rate,
-        error_metric: calculate_error_metric(@last_error_rate, @last_ping_failure_rate),
+        error_metric: calculate_error_metric(@last_error_rate),
         integral: @integral,
         previous_error: @previous_error,
         current_window_requests: @current_window_requests.dup,
-        current_window_pings: @current_window_pings.dup,
         p90_estimator_state: @p90_estimator.state,
       }
     end
@@ -175,13 +156,6 @@ module Semian
       return 0.0 if total_requests == 0
 
       @current_window_requests[:error].to_f / total_requests
-    end
-
-    def calculate_window_ping_failure_rate
-      total_pings = @current_window_pings[:success] + @current_window_pings[:failure]
-      return 0.0 if total_pings == 0
-
-      @current_window_pings[:failure].to_f / total_pings
     end
 
     def store_error_rate(error_rate)
@@ -218,11 +192,7 @@ module Semian
       @lock.synchronize { super }
     end
 
-    def record_ping(outcome)
-      @lock.synchronize { super }
-    end
-
-    def update(current_error_rate = nil, ping_failure_rate = nil)
+    def update(current_error_rate = nil)
       @lock.synchronize { super }
     end
 
@@ -234,8 +204,8 @@ module Semian
       @lock.synchronize { super }
     end
 
-    # NOTE: metrics, calculate_error_rate, and calculate_ping_failure_rate are not overridden
-    # to avoid deadlock. calculate_error_rate and calculate_ping_failure_rate are private methods
+    # NOTE: metrics, calculate_error_rate are not overridden
+    # to avoid deadlock. calculate_error_rate is private method
     # only called internally from update (synchronized) and metrics (not synchronized).
   end
 end

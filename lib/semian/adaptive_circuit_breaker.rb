@@ -5,16 +5,13 @@ require_relative "pid_controller"
 module Semian
   # Adaptive Circuit Breaker that uses PID controller for dynamic rejection
   class AdaptiveCircuitBreaker
-    attr_reader :name, :pid_controller, :ping_thread, :update_thread, :last_error
+    attr_reader :name, :pid_controller, :update_thread, :last_error
 
     def initialize(name:, kp: 1.0, ki: 0.1, kd: 0.01,
       window_size: 10, initial_history_duration: 900, initial_error_rate: 0.01,
-      ping_interval: 1.0, thread_safe: true, enable_background_ping: true)
+      thread_safe: true)
       @name = name
       @window_size = window_size
-      @ping_interval = ping_interval
-      @last_ping_time = 0
-      @enable_background_ping = enable_background_ping
       @resource = nil
       @stopped = false
       @last_error = nil
@@ -43,15 +40,11 @@ module Semian
       end
 
       # Start background threads
-      start_ping_thread if @enable_background_ping
       start_update_thread
     end
 
     # Main acquire method compatible with existing Semian interface
     def acquire(resource = nil, &block)
-      # Store resource for background ping thread if needed
-      @resource = resource if resource && @enable_background_ping
-
       # Check if we should reject based on current rejection rate
       if @pid_controller.should_reject?
         @pid_controller.record_request(:rejected)
@@ -80,8 +73,6 @@ module Semian
     # Stop the background threads (called by destroy)
     def stop
       @stopped = true
-      @ping_thread&.kill
-      @ping_thread = nil
       @update_thread&.kill
       @update_thread = nil
     end
@@ -140,50 +131,6 @@ module Semian
     end
 
     private
-
-    def start_ping_thread
-      @ping_thread = Thread.new do
-        loop do
-          break if @stopped
-
-          sleep(@ping_interval)
-
-          # Send ping if we have a resource
-          send_background_ping if @resource
-        end
-      rescue => e
-        # Log error if logger is available
-        Semian.logger&.warn("[#{@name}] Background ping thread error: #{e.message}")
-      end
-    end
-
-    def send_background_ping
-      # Use unprotected_ping if available, otherwise fall back to ping
-      return unless @resource
-
-      ping_method = :unprotected_ping
-      # ping_method = if @resource.respond_to?(:unprotected_ping)
-      #  :unprotected_ping
-      # elsif @resource.respond_to?(:ping)
-      #  :ping
-      # else
-      #  return
-      # end
-      # return
-
-      # Send ungated ping (not affected by rejection)
-      begin
-        result = @resource.send(ping_method)
-        if result
-          @pid_controller.record_ping(:success)
-        else
-          @pid_controller.record_ping(:failure)
-        end
-      rescue => e
-        @pid_controller.record_ping(:failure)
-        Semian.logger&.debug("[#{@name}] Background ping failed: #{e.message}")
-      end
-    end
 
     def start_update_thread
       @update_thread = Thread.new do
