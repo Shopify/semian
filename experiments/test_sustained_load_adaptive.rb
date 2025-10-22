@@ -111,7 +111,7 @@ monitor_thread = Thread.new do
             window: pid_snapshots.length + 1,
             current_error_rate: metrics[:error_rate],
             ideal_error_rate: metrics[:ideal_error_rate],
-            health_metric: metrics[:health_metric],
+            error_metric: metrics[:error_metric],
             rejection_rate: metrics[:rejection_rate],
             integral: metrics[:integral],
             derivative: metrics[:derivative],
@@ -199,11 +199,11 @@ end
 # Display PID controller state per window
 if !pid_snapshots.empty?
   puts "\n=== PID Controller State Per Window ==="
-  puts format("%-8s %-15s %-15s %-15s %-12s %-15s %-12s %-12s", "Window", "Current Err %", "Ideal Err %", "Ping Fail %", "Health", "Reject %", "Integral", "Derivative")
+  puts format("%-8s %-15s %-15s %-15s %-12s %-15s %-12s %-12s", "Window", "Current Err %", "Ideal Err %", "Ping Fail %", "P", "Reject %", "Integral", "Derivative")
   puts "-" * 110
 
   pid_snapshots.each do |snapshot|
-    puts format("%-8d %-15s %-15s %-15s %-12s %-15s %-12s %-12s", snapshot[:window], "#{(snapshot[:current_error_rate] * 100).round(2)}%", "#{(snapshot[:ideal_error_rate] * 100).round(2)}%", "#{(snapshot[:ping_failure_rate] * 100).round(2)}%", snapshot[:health_metric].round(4), "#{(snapshot[:rejection_rate] * 100).round(2)}%", snapshot[:integral].round(4), (snapshot[:derivative] || 0).round(4))
+    puts format("%-8d %-15s %-15s %-15s %-12s %-15s %-12s %-12s", snapshot[:window], "#{(snapshot[:current_error_rate] * 100).round(2)}%", "#{(snapshot[:ideal_error_rate] * 100).round(2)}%", "#{(snapshot[:ping_failure_rate] * 100).round(2)}%", snapshot[:error_metric].round(4), "#{(snapshot[:rejection_rate] * 100).round(2)}%", snapshot[:integral].round(4), (snapshot[:derivative] || 0).round(4))
   end
 
   puts "\n📊 Key Observations:"

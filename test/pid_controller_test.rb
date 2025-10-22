@@ -37,7 +37,7 @@ class TestPIDController < Minitest::Test
         error_rate: 0.0,
         ping_failure_rate: 0.0,
         ideal_error_rate: 0.01, # Default when no history
-        health_metric: -0.01,
+        error_metric: -0.01,
         integral: 0.0,
         previous_error: 0.0,
         current_window_requests: { success: 0, error: 0, rejected: 0 },
@@ -108,7 +108,7 @@ class TestPIDController < Minitest::Test
     end
   end
 
-  def test_health_metric_calculation
+  def test_error_metric_calculation
     # Record some errors
     5.times { @controller.record_request(:error) }
     5.times { @controller.record_request(:success) }
@@ -126,9 +126,9 @@ class TestPIDController < Minitest::Test
 
       # P = (error_rate - ideal_error_rate) - (rejection_rate - ping_failure_rate)
       # P = (0.5 - 0.01) - (0.0 - 0.6) = 0.49 - (-0.6) = 0.49 + 0.6 = 1.09
-      health_metric = @controller.calculate_health_metric(error_rate, ping_failure_rate)
+      error_metric = @controller.calculate_error_metric(error_rate, ping_failure_rate)
 
-      assert_in_delta(1.09, health_metric, 0.01)
+      assert_in_delta(1.09, error_metric, 0.01)
     end
   end
 
@@ -334,7 +334,7 @@ class TestPIDController < Minitest::Test
     assert(metrics.key?(:error_rate))
     assert(metrics.key?(:ping_failure_rate))
     assert(metrics.key?(:ideal_error_rate))
-    assert(metrics.key?(:health_metric))
+    assert(metrics.key?(:error_metric))
     assert(metrics.key?(:integral))
     assert(metrics.key?(:previous_error))
   end

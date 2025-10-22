@@ -5,7 +5,7 @@ require_relative "p2_estimator"
 
 module Semian
   # PID Controller for adaptive circuit breaking
-  # Based on the health function:
+  # Based on the error function:
   # P = (error_rate - ideal_error_rate) - (rejection_rate - ping_failure_rate)
   # Note: P increases when error_rate increases or ping_failure_rate increases
   #       P decreases when rejection_rate increases (providing feedback)
@@ -53,8 +53,8 @@ module Semian
       @last_ping_failure_rate = 0.0
     end
 
-    # Calculate the current health metric P
-    def calculate_health_metric(current_error_rate, ping_failure_rate)
+    # Calculate the current error metric P
+    def calculate_error_metric(current_error_rate, ping_failure_rate)
       ideal_error_rate = @target_error_rate || calculate_ideal_error_rate
 
       # P = (error_rate - ideal_error_rate) - (rejection_rate - ping_failure_rate)
@@ -108,8 +108,8 @@ module Semian
       # dt is always window_size since we update once per window
       dt = @window_size
 
-      # Calculate the current error (health metric)
-      error = calculate_health_metric(current_error_rate, ping_failure_rate)
+      # Calculate the current error (error metric)
+      error = calculate_error_metric(current_error_rate, ping_failure_rate)
 
       # PID calculations
       proportional = @kp * error
@@ -159,7 +159,7 @@ module Semian
         error_rate: @last_error_rate,
         ping_failure_rate: @last_ping_failure_rate,
         ideal_error_rate: @target_error_rate || calculate_ideal_error_rate,
-        health_metric: calculate_health_metric(@last_error_rate, @last_ping_failure_rate),
+        error_metric: calculate_error_metric(@last_error_rate, @last_ping_failure_rate),
         integral: @integral,
         previous_error: @previous_error,
         current_window_requests: @current_window_requests.dup,

@@ -577,14 +577,14 @@ For more information about configuring these parameters, please read
 
 #### Adaptive Circuit Breaker (Experimental)
 
-Semian also includes an experimental adaptive circuit breaker that uses a PID controller
-to dynamically adjust the rejection rate based on real-time health metrics. Unlike the
+Semian also includes an experimental adaptive circuit breaker that uses a [PID controller](https://en.wikipedia.org/wiki/Proportional%E2%80%93integral%E2%80%93derivative_controller)
+to dynamically adjust the rejection rate based on real-time error rates. Unlike the
 traditional circuit breaker with fixed thresholds, the adaptive circuit breaker continuously
 monitors error rates and adjusts its behavior accordingly.
 
 ##### How It Works
 
-The adaptive circuit breaker uses the health function:
+The adaptive circuit breaker uses the error function:
 ```
 P = (error_rate - ideal_error_rate) - (rejection_rate - ping_failure_rate)
 ```
