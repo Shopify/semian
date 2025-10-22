@@ -101,7 +101,7 @@ monitor_thread = Thread.new do
   until done
     begin
       semian_resource = Semian["protected_service_adaptive".to_sym]
-      if semian_resource && semian_resource.circuit_breaker
+      if semian_resource&.circuit_breaker
         metrics = semian_resource.circuit_breaker.pid_controller.metrics
 
         pid_mutex.synchronize do

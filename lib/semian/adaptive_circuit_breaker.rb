@@ -83,12 +83,6 @@ module Semian
       @pid_controller.reset
     end
 
-    # Destroy the adaptive circuit breaker (compatible with ProtectedResource interface)
-    def destroy
-      stop
-      @pid_controller.reset
-    end
-
     # Get current metrics for monitoring
     def metrics
       @pid_controller.metrics
@@ -131,22 +125,6 @@ module Semian
     end
 
     private
-
-    def start_update_thread
-      @update_thread = Thread.new do
-        loop do
-          break if @stopped
-
-          sleep(@window_size)
-
-          # Update PID controller at the end of each window
-          @pid_controller.update
-        end
-      rescue => e
-        # Log error if logger is available
-        Semian.logger&.warn("[#{@name}] Background update thread error: #{e.message}")
-      end
-    end
 
     def start_update_thread
       @update_thread = Thread.new do

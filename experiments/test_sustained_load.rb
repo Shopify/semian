@@ -70,7 +70,7 @@ num_threads.times do |_|
           print("✓")
           current_sec[:success] += 1
         end
-      rescue Semian::Experiments::ExperimentalResource::CircuitOpenError => e
+      rescue Semian::Experiments::ExperimentalResource::CircuitOpenError
         outcomes_mutex.synchronize do
           current_sec = outcomes[Time.now.to_i] ||= {
             success: 0,
@@ -80,7 +80,7 @@ num_threads.times do |_|
           print("⚡")
           current_sec[:circuit_open] += 1
         end
-      rescue Semian::Experiments::ExperimentalResource::RequestError, Semian::Experiments::ExperimentalResource::TimeoutError => e
+      rescue Semian::Experiments::ExperimentalResource::RequestError, Semian::Experiments::ExperimentalResource::TimeoutError
         outcomes_mutex.synchronize do
           current_sec = outcomes[Time.now.to_i] ||= {
             success: 0,
