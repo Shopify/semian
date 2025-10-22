@@ -119,7 +119,6 @@ class TestPIDController < Minitest::Test
     assert_operator(@controller.rejection_rate, :>, initial_rejection_rate)
   end
 
-
   def test_rejection_rate_clamped_between_0_and_1
     # Try to drive rejection rate very high
     100.times { @controller.record_request(:error) }
@@ -380,8 +379,5 @@ class TestThreadSafePIDController < Minitest::Test
 
     write_thread.join
     read_threads.each(&:join)
-
-    # Should complete without deadlock or errors
-    assert(true)
   end
 end

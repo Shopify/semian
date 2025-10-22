@@ -11,7 +11,6 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
     def initialize(should_fail: false)
       @should_fail = should_fail
     end
-
   end
 
   def setup
@@ -80,10 +79,8 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
   def test_reset_clears_state
     # Record some requests
     @breaker.acquire(@resource) { "success" }
-    begin
-      @breaker.acquire(@resource) { raise "Error" }
-    rescue
-    end
+
+    @breaker.acquire(@resource) { raise "Error" }
 
     # Reset
     @breaker.reset
@@ -98,7 +95,6 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
     # Simulate dependency failures
     10.times do
       @breaker.acquire(@resource) { raise "Error" }
-    rescue
     end
 
     # Rejection rate should increase
@@ -119,4 +115,3 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
     assert_operator(final_metrics[:rejection_rate], :<=, 1.0)
   end
 end
-
