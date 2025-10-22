@@ -13,8 +13,8 @@ Navigate to the [Release](https://github.com/Shopify/semian/actions/workflows/re
 The workflow generate changes to `lib/semian/version.rb`, `Gemfile.lock`, and `CHANGELOG.md`. Visit the workflow run to preview and confirm the changes.
 
 ![1. Review the new version and commit changes
-2. Approve the CONFIRM CHANGES workflow](RELEASE_INSTRUCTIONS_1.png)
-![REVIEW CHANGES](RELEASE_INSTRUCTIONS_2.png)
+2. Approve the CONFIRM CHANGES workflow](https://github.com/user-attachments/assets/de113ad1-1849-4c56-b46f-49ed414afc96)
+![REVIEW CHANGES](https://github.com/user-attachments/assets/8ec73d6a-0e73-42c3-8856-afbaafe283cc)
 
 ## Verify GitHub Release
 
