@@ -3,12 +3,12 @@
 $LOAD_PATH.unshift(File.expand_path("../lib", __dir__))
 
 require "semian"
+require_relative "mock_service"
 require_relative "experimental_resource"
 
-puts "Creating experimental resource configuration..."
-# Resource configuration (shared across all thread-local instances)
-resource_config = {
-  name: "protected_service",
+puts "Creating mock service..."
+# Create a single shared mock service instance
+service = Semian::Experiments::MockService.new(
   endpoints_count: 50,
   min_latency: 0.01,
   max_latency: 0.3,
@@ -19,19 +19,25 @@ resource_config = {
   },
   error_rate: 0.01, # Starting at 1% error rate
   timeout: 5, # 5 seconds timeout
-  semian: {
-    success_threshold: 2,
-    error_threshold: 3,
-    error_threshold_timeout: 20,
-    error_timeout: 15,
-    bulkhead: false,
-  },
+)
+
+# Semian configuration
+semian_config = {
+  success_threshold: 2,
+  error_threshold: 3,
+  error_threshold_timeout: 20,
+  error_timeout: 15,
+  bulkhead: false,
 }
 
 # Initialize Semian resource before threading to avoid race conditions
 puts "Initializing Semian resource..."
 begin
-  init_resource = Semian::Experiments::ExperimentalResource.new(**resource_config)
+  init_resource = Semian::Experiments::ExperimentalResource.new(
+    name: "protected_service",
+    service: service,
+    semian: semian_config
+  )
   init_resource.request(0) # Make one request to trigger registration
 rescue
   # Ignore any error, we just needed to trigger registration
@@ -44,22 +50,24 @@ outcomes_mutex = Mutex.new
 
 num_threads = 60
 puts "Starting #{num_threads} concurrent request threads (50 requests/second each = 3000 rps total)..."
-puts "Each thread will have its own resource instance (matching production behavior)...\n"
+puts "Each thread will have its own adapter instance connected to the shared service...\n"
 
 request_threads = []
-thread_resources = []
 num_threads.times do |_|
   request_threads << Thread.new do
-    # Each thread creates its own resource instance (like production)
+    # Each thread creates its own adapter instance that wraps the shared service
     # They share the same Semian circuit breaker via the name
-    thread_resource = Semian::Experiments::ExperimentalResource.new(**resource_config)
-    thread_resources << thread_resource
+    thread_resource = Semian::Experiments::ExperimentalResource.new(
+      name: "protected_service",
+      service: service,
+      semian: semian_config
+    )
 
     until done
       sleep(0.02) # Each thread: 50 requests per second
 
       begin
-        thread_resource.request(rand(thread_resource.endpoints_count))
+        thread_resource.request(rand(service.endpoints_count))
 
         outcomes_mutex.synchronize do
           current_sec = outcomes[Time.now.to_i] ||= {
@@ -107,15 +115,13 @@ puts "Starting test...\n"
 start_time = Time.now
 sleep 120
 
-thread_resources.each do |thread_resource|
-  thread_resource.set_error_rate(0.20)
-end
+# Update error rate on the shared service
+service.set_error_rate(0.20)
 
 sleep 300
 
-thread_resources.each do |thread_resource|
-  thread_resource.set_error_rate(0.01)
-end
+# Reset error rate on the shared service
+service.set_error_rate(0.01)
 
 sleep 120
 
