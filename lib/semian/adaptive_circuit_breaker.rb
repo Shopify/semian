@@ -1,28 +1,20 @@
 # frozen_string_literal: true
 
 require_relative "pid_controller"
-require_relative "circuit_breaker"
+require_relative "circuit_breaker_behaviour"
 
 module Semian
   # Adaptive Circuit Breaker that uses PID controller for dynamic rejection
-  class AdaptiveCircuitBreaker < CircuitBreaker
+  class AdaptiveCircuitBreaker
+    include CircuitBreakerBehaviour
+
     attr_reader :pid_controller, :update_thread
 
     def initialize(name:, kp: 1.0, ki: 0.1, kd: 0.01,
       window_size: 10, initial_history_duration: 900, initial_error_rate: 0.01,
       thread_safe: true, exceptions: [StandardError], implementation: Semian,
       error_timeout: 10, error_threshold: 3, success_threshold: 1)
-      # Initialize parent CircuitBreaker with sensible defaults
-      # The adaptive breaker doesn't use traditional state transitions,
-      # but we call super to properly initialize the parent class
-      super(
-        name,
-        exceptions: exceptions,
-        success_threshold: success_threshold,
-        error_threshold: error_threshold,
-        error_timeout: error_timeout,
-        implementation: implementation,
-      )
+      initialize_behaviour(name: name)
 
       @window_size = window_size
       @resource = nil
@@ -77,7 +69,7 @@ module Semian
 
     # Reset the adaptive circuit breaker
     def reset
-      super
+      @last_error = nil
       @pid_controller.reset
       @resource = nil
     end
@@ -93,7 +85,6 @@ module Semian
     def destroy
       stop
       @pid_controller.reset
-      super
     end
 
     # Get current metrics for monitoring
@@ -118,13 +109,12 @@ module Semian
 
     # Mark a request as failed (for compatibility with ProtectedResource)
     def mark_failed(error)
-      super(error)
+      @last_error = error
       @pid_controller.record_request(:error)
     end
 
     # Mark a request as successful (for compatibility with ProtectedResource)
     def mark_success
-      super
       @pid_controller.record_request(:success)
     end
 
