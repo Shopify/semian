@@ -25,6 +25,7 @@ module Semian
       @rejection_rate = 0.0
       @integral = 0.0
       @previous_error = 0.0
+      @derivative = 0.0
       @last_update_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
       # Target error rate (if nil, will use historical p90)
@@ -100,10 +101,10 @@ module Semian
       proportional = @kp * error
       @integral += error * dt
       integral = @ki * @integral
-      derivative = @kd * (error - @previous_error) / dt
+      @derivative = @kd * (error - @previous_error) / dt
 
       # Calculate the control signal (change in rejection rate)
-      control_signal = proportional + integral + derivative
+      control_signal = proportional + integral + @derivative
 
       # Update rejection rate (clamped between 0 and 1)
       @rejection_rate = (@rejection_rate + control_signal).clamp(0.0, 1.0)
@@ -125,6 +126,7 @@ module Semian
       @rejection_rate = 0.0
       @integral = 0.0
       @previous_error = 0.0
+      @derivative = 0.0
       @last_update_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       @window_start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       @current_window_requests = { success: 0, error: 0, rejected: 0 }
@@ -143,6 +145,7 @@ module Semian
         ideal_error_rate: @target_error_rate || calculate_ideal_error_rate,
         error_metric: calculate_error_metric(@last_error_rate),
         integral: @integral,
+        derivative: @derivative,
         previous_error: @previous_error,
         current_window_requests: @current_window_requests.dup,
         p90_estimator_state: @p90_estimator.state,

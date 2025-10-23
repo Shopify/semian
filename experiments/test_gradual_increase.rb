@@ -21,9 +21,12 @@ service = Semian::Experiments::MockService.new(
   timeout: 5, # 5 seconds timeout
 )
 
-# Semian configuration for adaptive circuit breaker
+# Semian configuration
 semian_config = {
-  adaptive_circuit_breaker: true, # Use adaptive circuit breaker
+  success_threshold: 2,
+  error_threshold: 3,
+  error_threshold_timeout: 20,
+  error_timeout: 15,
   bulkhead: false,
 }
 
@@ -31,12 +34,12 @@ semian_config = {
 puts "Initializing Semian resource..."
 begin
   init_resource = Semian::Experiments::ExperimentalResource.new(
-    name: "protected_service_adaptive",
+    name: "protected_service_gradual",
     service: service,
     semian: semian_config,
   )
   init_resource.request(0) # Make one request to trigger registration
-rescue => e
+rescue
   # Ignore any error, we just needed to trigger registration
 end
 puts "Resource initialized successfully.\n"
@@ -44,8 +47,6 @@ puts "Resource initialized successfully.\n"
 outcomes = {}
 done = false
 outcomes_mutex = Mutex.new
-pid_snapshots = []
-pid_mutex = Mutex.new
 
 num_threads = 60
 puts "Starting #{num_threads} concurrent request threads (50 requests/second each = 3000 rps total)..."
@@ -57,7 +58,7 @@ num_threads.times do |_|
     # Each thread creates its own adapter instance that wraps the shared service
     # They share the same Semian circuit breaker via the name
     thread_resource = Semian::Experiments::ExperimentalResource.new(
-      name: "protected_service_adaptive",
+      name: "protected_service_gradual",
       service: service,
       semian: semian_config,
     )
@@ -76,7 +77,7 @@ num_threads.times do |_|
           print("✓")
           current_sec[:success] += 1
         end
-      rescue Semian::Experiments::ExperimentalResource::CircuitOpenError => e
+      rescue Semian::Experiments::ExperimentalResource::CircuitOpenError
         outcomes_mutex.synchronize do
           current_sec = outcomes[Time.now.to_i] ||= {
             success: 0,
@@ -86,7 +87,7 @@ num_threads.times do |_|
           print("⚡")
           current_sec[:circuit_open] += 1
         end
-      rescue Semian::Experiments::ExperimentalResource::RequestError, Semian::Experiments::ExperimentalResource::TimeoutError => e
+      rescue Semian::Experiments::ExperimentalResource::RequestError, Semian::Experiments::ExperimentalResource::TimeoutError
         outcomes_mutex.synchronize do
           current_sec = outcomes[Time.now.to_i] ||= {
             success: 0,
@@ -101,62 +102,32 @@ num_threads.times do |_|
   end
 end
 
-# Start PID monitoring thread
-puts "Starting PID monitoring thread..."
-monitor_thread = Thread.new do
-  sleep(1) # Wait for resource to register and first window to start
+error_phases = [0.01, 0.015, 0.02, 0.025, 0.03, 0.035, 0.04, 0.045, 0.05, 0.01]
+phase_duration = 60
+test_duration = error_phases.length * phase_duration
 
-  until done
-    begin
-      semian_resource = Semian["protected_service_adaptive".to_sym]
-      if semian_resource&.circuit_breaker
-        metrics = semian_resource.circuit_breaker.pid_controller.metrics
-
-        pid_mutex.synchronize do
-          pid_snapshots << {
-            timestamp: Time.now.to_i,
-            window: pid_snapshots.length + 1,
-            current_error_rate: metrics[:error_rate],
-            ideal_error_rate: metrics[:ideal_error_rate],
-            error_metric: metrics[:error_metric],
-            rejection_rate: metrics[:rejection_rate],
-            integral: metrics[:integral],
-            derivative: metrics[:derivative],
-          }
-        end
-      end
-    rescue => e
-      # Ignore errors
-    end
-
-    sleep(10) # Capture every window
-  end
-end
-
-test_duration = 540 # 9 minutes
-
-puts "\n=== Sustained Load Test (ADAPTIVE) ==="
-puts "Error rate: 1% -> 20% -> 1%"
-puts "Duration: #{test_duration} seconds (9 minutes)"
+puts "\n=== Gradual Error Increase Test (CLASSIC) ==="
+puts "Error rate: #{error_phases.map { |r| "#{(r * 100).round(1)}%" }.join(" -> ")}"
+puts "Phase duration: #{phase_duration} seconds (#{(phase_duration / 60.0).round(1)} minutes) per phase"
+puts "Duration: #{test_duration} seconds (#{(test_duration / 60.0).round(1)} minutes)"
 puts "Starting test...\n"
 
 start_time = Time.now
-sleep 120
 
-# Update error rate on the shared service
-service.set_error_rate(0.20)
+# Execute each phase
+error_phases.each_with_index do |error_rate, idx|
+  if idx > 0 # Skip transition message for first phase (already at 1%)
+    puts "\n=== Transitioning to #{(error_rate * 100).round(1)}% error rate ==="
+    # Update error rate on the shared service
+    service.set_error_rate(error_rate)
+  end
 
-sleep 300
-
-# Reset error rate on the shared service
-service.set_error_rate(0.01)
-
-sleep 120
+  sleep phase_duration
+end
 
 done = true
 puts "\nWaiting for all request threads to finish..."
 request_threads.each(&:join)
-monitor_thread.join
 end_time = Time.now
 
 puts "\n\n=== Test Complete ==="
@@ -172,14 +143,11 @@ total_requests = total_success + total_circuit_open + total_error
 puts "\n=== Summary Statistics ==="
 puts "Total Requests: #{total_requests}"
 puts "  Successes: #{total_success} (#{(total_success.to_f / total_requests * 100).round(2)}%)"
-puts "  Rejected: #{total_circuit_open} (#{(total_circuit_open.to_f / total_requests * 100).round(2)}%)"
+puts "  Circuit Open: #{total_circuit_open} (#{(total_circuit_open.to_f / total_requests * 100).round(2)}%)"
 puts "  Errors: #{total_error} (#{(total_error.to_f / total_requests * 100).round(2)}%)"
-puts "\nExpected errors at 20% rate: #{(total_requests * 0.20).round(0)}"
-puts "Actual errors: #{total_error}"
-puts "Difference: #{total_error - (total_requests * 0.20).round(0)}"
 
-# Time-based analysis (30-second buckets)
-bucket_size = 30 # seconds
+# Time-based analysis (phase_duration buckets - one per phase)
+bucket_size = phase_duration
 num_buckets = (test_duration / bucket_size.to_f).ceil
 
 puts "\n=== Time-Based Analysis (#{bucket_size}-second buckets) ==="
@@ -197,41 +165,10 @@ puts "\n=== Time-Based Analysis (#{bucket_size}-second buckets) ==="
   error_pct = bucket_total > 0 ? ((bucket_errors.to_f / bucket_total) * 100).round(2) : 0
   status = bucket_circuit > 0 ? "⚡" : "✓"
 
-  puts "#{status} #{bucket_time_range}: #{bucket_total} requests | Success: #{bucket_success} | Errors: #{bucket_errors} (#{error_pct}%) | Rejected: #{bucket_circuit} (#{circuit_pct}%)"
-end
+  phase_error_rate = error_phases[bucket_idx] || error_phases.last
+  phase_label = "[Target: #{(phase_error_rate * 100).round(1)}%]"
 
-# Display PID controller state per window
-if !pid_snapshots.empty?
-  puts "\n=== PID Controller State Per Window ==="
-  puts format("%-8s %-15s %-15s %-12s %-15s %-12s %-12s", "Window", "Current Err %", "Ideal Err %", "P", "Reject %", "Integral", "Derivative")
-  puts "-" * 110
-
-  pid_snapshots.each do |snapshot|
-    puts format("%-8d %-15s %-15s %-12s %-15s %-12s %-12s", snapshot[:window], "#{(snapshot[:current_error_rate] * 100).round(2)}%", "#{(snapshot[:ideal_error_rate] * 100).round(2)}%", snapshot[:error_metric].round(4), "#{(snapshot[:rejection_rate] * 100).round(2)}%", snapshot[:integral].round(4), (snapshot[:derivative] || 0).round(4))
-  end
-
-  puts "\n📊 Key Observations:"
-  puts "  - Windows captured: #{pid_snapshots.length}"
-  puts "  - Max rejection rate: #{(pid_snapshots.map { |s| s[:rejection_rate] }.max * 100).round(2)}%"
-  puts "  - Integral range: #{pid_snapshots.map { |s| s[:integral] }.min.round(4)} to #{pid_snapshots.map { |s| s[:integral] }.max.round(4)}"
-else
-  puts "\n⚠️  No PID snapshots collected"
-end
-
-# Calculate circuit breaker efficiency
-expected_errors = (total_requests * 0.20).round(0)
-actual_errors = total_error
-error_difference = actual_errors - expected_errors
-
-puts "\n=== Adaptive Circuit Breaker Impact ==="
-puts "Expected errors without circuit breaker: #{expected_errors}"
-puts "Actual errors with adaptive circuit breaker: #{actual_errors}"
-if error_difference > 0
-  puts "Extra errors allowed through: #{error_difference}"
-  puts "Rejection efficiency: #{((1 - error_difference.to_f / expected_errors) * 100).round(2)}%"
-else
-  puts "Errors prevented: #{-error_difference}"
-  puts "Protection efficiency: #{((-error_difference.to_f / expected_errors) * 100).round(2)}%"
+  puts "#{status} #{bucket_time_range} #{phase_label}: #{bucket_total} requests | Success: #{bucket_success} | Errors: #{bucket_errors} (#{error_pct}%) | Circuit Open: #{bucket_circuit} (#{circuit_pct}%)"
 end
 
 puts "\nGenerating visualization..."
@@ -240,7 +177,7 @@ require "gruff"
 
 # Create line graph showing requests per 10-second bucket
 graph = Gruff::Line.new(1400)
-graph.title = "Adaptive Circuit Breaker: Sustained 20% Error Load"
+graph.title = "Classic Circuit Breaker: Gradual Error Increase (1% to 5%)"
 graph.x_axis_label = "Time (10-second intervals)"
 graph.y_axis_label = "Requests per Interval"
 
@@ -263,18 +200,18 @@ bucketed_data = []
   }
 end
 
-# Set x-axis labels (show every 30 seconds for clarity)
+# Set x-axis labels (show every 60 seconds for clarity - one per phase)
 labels = {}
 (0...num_small_buckets).each do |i|
   time_sec = i * small_bucket_size
-  labels[i] = "#{time_sec}s" if time_sec % 30 == 0
+  labels[i] = "#{time_sec}s" if time_sec % 60 == 0
 end
 graph.labels = labels
 
 graph.data("Success", bucketed_data.map { |d| d[:success] })
-graph.data("Rejected", bucketed_data.map { |d| d[:circuit_open] })
+graph.data("Circuit Open", bucketed_data.map { |d| d[:circuit_open] })
 graph.data("Error", bucketed_data.map { |d| d[:error] })
 
-graph.write("sustained_load_adaptive.png")
+graph.write("gradual_increase.png")
 
-puts "Graph saved to sustained_load_adaptive.png"
+puts "Graph saved to gradual_increase.png"
