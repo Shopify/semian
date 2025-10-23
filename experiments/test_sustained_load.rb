@@ -36,7 +36,7 @@ begin
   init_resource = Semian::Experiments::ExperimentalResource.new(
     name: "protected_service",
     service: service,
-    semian: semian_config
+    semian: semian_config,
   )
   init_resource.request(0) # Make one request to trigger registration
 rescue
@@ -60,7 +60,7 @@ num_threads.times do |_|
     thread_resource = Semian::Experiments::ExperimentalResource.new(
       name: "protected_service",
       service: service,
-      semian: semian_config
+      semian: semian_config,
     )
 
     until done
