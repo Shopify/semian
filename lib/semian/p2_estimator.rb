@@ -130,14 +130,14 @@ module Semian
     private
 
     def parabolic(i, d)
-      @marker_heights[i] + d / (@actual_marker_positions[i + 1] - @actual_marker_positions[i - 1]) * (
-        (@actual_marker_positions[i] - @actual_marker_positions[i - 1] + d) * (@marker_heights[i + 1] - @marker_heights[i]) / (@actual_marker_positions[i + 1] - @actual_marker_positions[i]) +
-        (@actual_marker_positions[i + 1] - @actual_marker_positions[i] - d) * (@marker_heights[i] - @marker_heights[i - 1]) / (@actual_marker_positions[i] - @actual_marker_positions[i - 1])
+      @marker_heights[i] + d.to_f / (@actual_marker_positions[i + 1] - @actual_marker_positions[i - 1]) * (
+        (@actual_marker_positions[i] - @actual_marker_positions[i - 1] + d) * (@marker_heights[i + 1] - @marker_heights[i]) / (@actual_marker_positions[i + 1] - @actual_marker_positions[i]).to_f +
+        (@actual_marker_positions[i + 1] - @actual_marker_positions[i] - d) * (@marker_heights[i] - @marker_heights[i - 1]) / (@actual_marker_positions[i] - @actual_marker_positions[i - 1]).to_f
       )
     end
 
     def linear(i, d)
-      @marker_heights[i] + d * (@marker_heights[i + d] - @marker_heights[i]) / (@actual_marker_positions[i + d] - @actual_marker_positions[i])
+      @marker_heights[i] + d.to_f * (@marker_heights[i + d] - @marker_heights[i]) / (@actual_marker_positions[i + d] - @actual_marker_positions[i]).to_f
     end
   end
 end
