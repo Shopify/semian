@@ -19,6 +19,10 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
       kp: 1.0,
       ki: 0.1,
       kd: 0.01,
+      window_size: 10,
+      initial_history_duration: 100,
+      initial_error_rate: 0.01,
+      thread_safe: false,
     )
     @resource = MockResource.new
   end

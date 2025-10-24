@@ -10,12 +10,7 @@ module Semian
   # Note: P increases when error_rate increases
   #       P decreases when rejection_rate increases (providing feedback)
   class PIDController
-    attr_reader :name, :rejection_rate
-
-    def initialize(name:, kp: 1.0, ki: 0.1, kd: 0.0, target_error_rate: nil,
-      window_size: 10, initial_history_duration: 900, initial_error_rate: 0.01)
-      @name = name
-
+    def initialize(kp:, ki:, kd:, window_size:, initial_history_duration:, initial_error_rate:)
       # PID coefficients
       @kp = kp  # Proportional gain
       @ki = ki  # Integral gain
@@ -24,11 +19,8 @@ module Semian
       # State variables
       @rejection_rate = 0.0
       @integral = 0.0
-      @previous_error = 0.0
-      @last_update_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-
-      # Target error rate (if nil, will use historical p90)
-      @target_error_rate = target_error_rate
+      @derivative = 0.0
+      @previous_p_value = 0.0
 
       # Store initialization parameters
       @initial_history_duration = initial_history_duration
@@ -41,24 +33,13 @@ module Semian
       # Prefill estimator with historical knowledge
       prefill_p90_estimator
 
-      # Discrete window tracking
-      @window_start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-
       # Current window counters
       @current_window_requests = { success: 0, error: 0, rejected: 0 }
 
       # Last completed window metrics (used between updates)
       @last_error_rate = 0.0
-    end
 
-    # Calculate the current error metric P
-    def calculate_error_metric(current_error_rate)
-      ideal_error_rate = @target_error_rate || calculate_ideal_error_rate
-
-      # P = (error_rate - ideal_error_rate) - rejection_rate
-      # P increases when: error_rate > ideal
-      # P decreases when: rejection_rate > 0 (feedback mechanism)
-      (current_error_rate - ideal_error_rate) - @rejection_rate
+      @last_p_value = 0.0
     end
 
     # Record a request outcome
@@ -74,9 +55,7 @@ module Semian
     end
 
     # Update the controller at the end of each time window
-    def update(current_error_rate = nil)
-      current_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-
+    def update
       # Calculate rates for the current window
       @last_error_rate = calculate_window_error_rate
 
@@ -85,32 +64,27 @@ module Semian
 
       # Reset window counters for next window
       @current_window_requests = { success: 0, error: 0, rejected: 0 }
-      @window_start_time = current_time
-
-      # Use provided rates or calculated rates
-      current_error_rate ||= @last_error_rate
 
       # dt is always window_size since we update once per window
       dt = @window_size
 
-      # Calculate the current error (error metric)
-      error = calculate_error_metric(current_error_rate)
+      # Calculate the current p value
+      @last_p_value = calculate_p_value(@last_error_rate)
 
       # PID calculations
-      proportional = @kp * error
-      @integral += error * dt
+      proportional = @kp * @last_p_value
+      @integral += @last_p_value * dt
       integral = @ki * @integral
-      derivative = @kd * (error - @previous_error) / dt
+      @derivative = @kd * (@last_p_value - @previous_p_value) / dt
 
       # Calculate the control signal (change in rejection rate)
-      control_signal = proportional + integral + derivative
+      control_signal = proportional + integral + @derivative
 
       # Update rejection rate (clamped between 0 and 1)
       @rejection_rate = (@rejection_rate + control_signal).clamp(0.0, 1.0)
 
       # Update state for next iteration
-      @previous_error = error
-      @last_update_time = current_time
+      @previous_p_value = @last_p_value
 
       @rejection_rate
     end
@@ -124,9 +98,9 @@ module Semian
     def reset
       @rejection_rate = 0.0
       @integral = 0.0
-      @previous_error = 0.0
-      @last_update_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      @window_start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      @previous_p_value = 0.0
+      @derivative = 0.0
+      @last_p_value = 0.0
       @current_window_requests = { success: 0, error: 0, rejected: 0 }
       @last_error_rate = 0.0
       @p90_estimator.reset
@@ -140,16 +114,27 @@ module Semian
       {
         rejection_rate: @rejection_rate,
         error_rate: @last_error_rate,
-        ideal_error_rate: @target_error_rate || calculate_ideal_error_rate,
-        error_metric: calculate_error_metric(@last_error_rate),
+        ideal_error_rate: calculate_ideal_error_rate,
+        p_value: @last_p_value,
         integral: @integral,
-        previous_error: @previous_error,
+        derivative: @derivative,
+        previous_p_value: @previous_p_value,
         current_window_requests: @current_window_requests.dup,
         p90_estimator_state: @p90_estimator.state,
       }
     end
 
     private
+
+    # Calculate the current P value
+    def calculate_p_value(current_error_rate)
+      ideal_error_rate = calculate_ideal_error_rate
+
+      # P = (error_rate - ideal_error_rate) - rejection_rate
+      # P increases when: error_rate > ideal
+      # P decreases when: rejection_rate > 0 (feedback mechanism)
+      (current_error_rate - ideal_error_rate) - @rejection_rate
+    end
 
     def calculate_window_error_rate
       total_requests = @current_window_requests[:success] + @current_window_requests[:error]
@@ -192,7 +177,7 @@ module Semian
       @lock.synchronize { super }
     end
 
-    def update(current_error_rate = nil)
+    def update
       @lock.synchronize { super }
     end
 
