@@ -7,10 +7,10 @@ require_relative "mock_service"
 require_relative "experimental_resource"
 require_relative "test_helpers"
 
-# Sudden error spike test: 0.1% -> 100% -> 0.1%
+# Sudden error spike test: 1% -> 100% -> 1%
 runner = Semian::Experiments::CircuitBreakerTestRunner.new(
   test_name: "Sudden Error Spike Test (Adaptive) - 100% for 20 seconds",
-  resource_name: "protected_service_sudden_error_spike_20_seconds_adaptive",
+  resource_name: "protected_service_sudden_error_spike_100_adaptive",
   error_phases: [0.01] * 3 + [1.00] + [0.01] * 3,
   phase_duration: 20,
   semian_config: {
