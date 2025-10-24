@@ -25,6 +25,7 @@ class TestPIDController < Minitest::Test
 
   def test_initial_values
     metrics = @controller.metrics
+
     assert_equal(
       {
         rejection_rate: 0.0,
@@ -40,7 +41,7 @@ class TestPIDController < Minitest::Test
           markers: [0.01] * 5,
           # The positions are of P0, P45, P90, P95, P100 of 1000 observations
           positions: [0, 449, 899, 949, 999],
-          quantile: 0.9
+          quantile: 0.9,
         },
       },
       metrics,
@@ -48,7 +49,7 @@ class TestPIDController < Minitest::Test
   end
 
   def test_record_requests
-    for i in 0..2
+    (0..2).each do |_|
       @controller.record_request(:success)
       @controller.record_request(:error)
       @controller.record_request(:rejected)
@@ -59,41 +60,44 @@ class TestPIDController < Minitest::Test
 
   def test_update_flow
     # Start with error rate equal to the ideal error rate (1%)
-    for i in 1..99
+    (1..99).each do |_|
       @controller.record_request(:success)
     end
     @controller.record_request(:error)
 
     # update should maintain a rejection rate of 0
     @controller.update
-    assert_equal(@controller.rejection_rate, 0)
+
+    assert_equal(0, @controller.rejection_rate)
     # update should add a new observation to the p90 estimator
-    assert_equal(@controller.metrics[:p90_estimator_state][:observations], 1001)
+    assert_equal(1001, @controller.metrics[:p90_estimator_state][:observations])
     # ------------------------------------------------------------
     # run another time, nothing should change
-    for i in 1..99
+    (1..99).each do |_|
       @controller.record_request(:success)
     end
     @controller.record_request(:error)
 
     @controller.update
-    assert_equal(@controller.rejection_rate, 0)
-    assert_equal(@controller.metrics[:p90_estimator_state][:observations], 1002)
+
+    assert_equal(0, @controller.rejection_rate)
+    assert_equal(1002, @controller.metrics[:p90_estimator_state][:observations])
     # ------------------------------------------------------------
     # Error rate now goes below the ideal error rate. Rejection rate should be unaffected.
-    for i in 1..100
+    (1..100).each do |_|
       @controller.record_request(:success)
     end
 
     @controller.update
-    assert_equal(@controller.rejection_rate, 0)
-    assert_equal(@controller.metrics[:p90_estimator_state][:observations], 1003)
+
+    assert_equal(0, @controller.rejection_rate)
+    assert_equal(1003, @controller.metrics[:p90_estimator_state][:observations])
     # ------------------------------------------------------------
     # Error rate now goes above the ideal error rate. Rejection rate should increase.
-    for i in 1..89
+    (1..89).each do |_|
       @controller.record_request(:success)
     end
-    for i in 1..11
+    (1..11).each do |_|
       @controller.record_request(:error)
     end
 
@@ -103,13 +107,13 @@ class TestPIDController < Minitest::Test
     # = 0.1 * (-0.01+ 0.1) * 10 + 1 * 0.1 + 0.01 * (0.1 - (-0.01)) / 10 = 0.19011
     # rejection rate = 0 + 0.19011 = 0.19011
     assert_in_delta(@controller.rejection_rate, 0.19, 0.01)
-    assert_equal(@controller.metrics[:p90_estimator_state][:observations], 1004)
+    assert_equal(1004, @controller.metrics[:p90_estimator_state][:observations])
     # ----------------------------------------------------------------
     # Maintain the same error rate
-    for i in 1..89
+    (1..89).each do |_|
       @controller.record_request(:success)
     end
-    for i in 1..11
+    (1..11).each do |_|
       @controller.record_request(:error)
     end
     @controller.update
@@ -118,17 +122,18 @@ class TestPIDController < Minitest::Test
     # = 0.1 * (-0.01+ 0.1 -0.09011) * 10 + 1 * -0.09011 + 0.01 * (-0.09011 - (0.19011)) / 10 = -0.09050022
     # rejection rate = 0.19011 - 0.09050022 = 0.09960978
     assert_in_delta(@controller.rejection_rate, 0.11, 0.02)
-    assert_equal(@controller.metrics[:p90_estimator_state][:observations], 1005)
+    assert_equal(1005, @controller.metrics[:p90_estimator_state][:observations])
     # ----------------------------------------------------------------
     # Run a few more cycles of the same error rate. The rejection rate should fluctuate around the true error rate.
-    for j in 1..10
-      for i in 1..89
+    (1..10).each do |j|
+      (1..89).each do |_|
         @controller.record_request(:success)
       end
-      for i in 1..11
+      (1..11).each do |_|
         @controller.record_request(:error)
       end
       @controller.update
+
       assert_in_delta(@controller.rejection_rate, 0.11, 0.02)
       assert_equal(@controller.metrics[:p90_estimator_state][:observations], 1005 + j)
     end
@@ -136,12 +141,13 @@ class TestPIDController < Minitest::Test
     # Bring error rate back down to the ideal error rate. The rejection rate should decrease quickly.
     # This is because when the rejection rate is similar to the error rate, the integral term is very small.
     # So the new P value dominates, bringing down the rejection rate quickly.
-    for i in 1..99
+    (1..99).each do |_|
       @controller.record_request(:success)
     end
     @controller.record_request(:error)
     @controller.update
-    assert_equal(@controller.rejection_rate, 0)
+
+    assert_equal(0, @controller.rejection_rate)
   end
 
   def test_should_reject_probability
@@ -171,6 +177,7 @@ class TestPIDController < Minitest::Test
     @controller.update
 
     @controller.reset
+
     assert_equal(
       {
         rejection_rate: 0.0,
@@ -186,20 +193,20 @@ class TestPIDController < Minitest::Test
           markers: [0.01] * 5,
           # The positions are of P0, P45, P90, P95, P100 of 1000 observations
           positions: [0, 449, 899, 949, 999],
-          quantile: 0.9
+          quantile: 0.9,
         },
       },
       @controller.metrics,
     )
   end
 
-
   def test_ideal_error_rate_never_returns_more_than_10
     estimator = @controller.instance_variable_get(:@p90_estimator)
     estimator.reset
-    for i in 1..1000
+    (1..1000).each do |_|
       estimator.add_observation(0.5)
     end
+
     assert_equal(0.1, @controller.metrics[:ideal_error_rate])
   end
 end
@@ -254,6 +261,6 @@ class TestThreadSafePIDController < Minitest::Test
     @controller.reset
 
     # If any of the above has a deadlock, the test will hang, and we'll never reach this line
-    assert_equal(true, true)
+    assert(true) # rubocop:disable Minitest/UselessAssertion
   end
 end
