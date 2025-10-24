@@ -69,7 +69,7 @@ class TestPIDController < Minitest::Test
     # update should maintain a rejection rate of 0
     @controller.update
 
-    assert_equal(0, @controller.rejection_rate)
+    assert_equal(0, @controller.metrics[:rejection_rate])
     # update should add a new observation to the p90 estimator
     assert_equal(1001, @controller.metrics[:p90_estimator_state][:observations])
     # ------------------------------------------------------------
@@ -81,7 +81,7 @@ class TestPIDController < Minitest::Test
 
     @controller.update
 
-    assert_equal(0, @controller.rejection_rate)
+    assert_equal(0, @controller.metrics[:rejection_rate])
     assert_equal(1002, @controller.metrics[:p90_estimator_state][:observations])
     # ------------------------------------------------------------
     # Error rate now goes below the ideal error rate. Rejection rate should be unaffected.
@@ -91,7 +91,7 @@ class TestPIDController < Minitest::Test
 
     @controller.update
 
-    assert_equal(0, @controller.rejection_rate)
+    assert_equal(0, @controller.metrics[:rejection_rate])
     assert_equal(1003, @controller.metrics[:p90_estimator_state][:observations])
     # ------------------------------------------------------------
     # Error rate now goes above the ideal error rate. Rejection rate should increase.
@@ -107,7 +107,7 @@ class TestPIDController < Minitest::Test
     # p_value = (error_rate - ideal_error_rate) - rejection_rate = (0.11 - 0.01) - 0 = 0.1
     # = 0.1 * (-0.01+ 0.1) * 10 + 1 * 0.1 + 0.01 * (0.1 - (-0.01)) / 10 = 0.19011
     # rejection rate = 0 + 0.19011 = 0.19011
-    assert_in_delta(@controller.rejection_rate, 0.19, 0.01)
+    assert_in_delta(@controller.metrics[:rejection_rate], 0.19, 0.01)
     assert_equal(1004, @controller.metrics[:p90_estimator_state][:observations])
     # ----------------------------------------------------------------
     # Maintain the same error rate
@@ -122,7 +122,7 @@ class TestPIDController < Minitest::Test
     # p_value = (error_rate - ideal_error_rate) - rejection_rate = (0.11 - 0.01) - 0.19011 = -0.09011
     # = 0.1 * (-0.01+ 0.1 -0.09011) * 10 + 1 * -0.09011 + 0.01 * (-0.09011 - (0.19011)) / 10 = -0.09050022
     # rejection rate = 0.19011 - 0.09050022 = 0.09960978
-    assert_in_delta(@controller.rejection_rate, 0.11, 0.02)
+    assert_in_delta(@controller.metrics[:rejection_rate], 0.11, 0.02)
     assert_equal(1005, @controller.metrics[:p90_estimator_state][:observations])
     # ----------------------------------------------------------------
     # Run a few more cycles of the same error rate. The rejection rate should fluctuate around the true error rate.
@@ -135,7 +135,7 @@ class TestPIDController < Minitest::Test
       end
       @controller.update
 
-      assert_in_delta(@controller.rejection_rate, 0.11, 0.02)
+      assert_in_delta(@controller.metrics[:rejection_rate], 0.11, 0.02)
       assert_equal(@controller.metrics[:p90_estimator_state][:observations], 1005 + j)
     end
     # ----------------------------------------------------------------
@@ -148,7 +148,7 @@ class TestPIDController < Minitest::Test
     @controller.record_request(:error)
     @controller.update
 
-    assert_equal(0, @controller.rejection_rate)
+    assert_equal(0, @controller.metrics[:rejection_rate])
   end
 
   def test_should_reject_probability
