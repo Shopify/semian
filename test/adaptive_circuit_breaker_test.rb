@@ -4,12 +4,27 @@ require "test_helper"
 require "semian/adaptive_circuit_breaker"
 
 class TestAdaptiveCircuitBreaker < Minitest::Test
-  # Mock resource class for testing
-  class MockResource
-    attr_reader :should_fail
+  class MockClock
+    attr_accessor :should_start
 
-    def initialize(should_fail: false)
-      @should_fail = should_fail
+    def initialize(window_size: 10, max_sleeps: 3, &block)
+      @sleep_count = 0
+      @window_size = window_size
+      @max_sleeps = max_sleeps
+      @on_max_sleeps = block
+      @should_start = false
+    end
+
+    def sleep(duration)
+      until @should_start
+        Kernel.sleep(0.01)
+      end
+
+      # Only count window_size sleeps, this helps us detect if the wrong value is being passed
+      if duration == @window_size
+        @sleep_count += 1
+        @on_max_sleeps.call if @sleep_count >= @max_sleeps && @on_max_sleeps
+      end
     end
   end
 
@@ -22,108 +37,93 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
       window_size: 10,
       initial_history_duration: 100,
       initial_error_rate: 0.01,
-      thread_safe: false,
+      thread_safe: true,
     )
-    @resource = MockResource.new
   end
 
   def teardown
     @breaker.stop
   end
 
-  def test_successful_request_flow
-    skip("Never tested correctly")
-    result = @breaker.acquire(@resource) { "success" }
+  def test_acquire_with_success_returns_value_and_records_request
+    # Mock the PID controller to allow the request
+    @breaker.pid_controller.expects(:should_reject?).returns(false)
+    @breaker.pid_controller.expects(:record_request).with(:success)
 
-    assert_equal("success", result)
+    # Execute the block and verify it returns the expected value
+    result = @breaker.acquire { "successful_result" }
 
-    metrics = @breaker.metrics
-
-    assert_equal(0.0, metrics[:error_rate])
+    assert_equal "successful_result", result
   end
 
-  def test_error_request_flow
-    skip("Never tested correctly")
-    assert_raises(RuntimeError) do
-      @breaker.acquire(@resource) { raise "Error" }
+  def test_acquire_with_error_raises_and_records_request
+    # Mock the PID controller to allow the request
+    @breaker.pid_controller.expects(:should_reject?).returns(false)
+    @breaker.pid_controller.expects(:record_request).with(:error)
+
+    # Execute the block and verify it raises the error
+    error = assert_raises(RuntimeError) do
+      @breaker.acquire { raise "Something went wrong" }
     end
 
-    metrics = @breaker.metrics
-
-    assert_equal(1.0, metrics[:error_rate])
+    assert_equal "Something went wrong", error.message
+    assert_equal "Something went wrong", @breaker.last_error.message
   end
 
-  def test_rejection_when_rejection_rate_high
-    skip("Never tested correctly")
-    # Manually set a high rejection rate for testing
-    @breaker.pid_controller.instance_variable_set(:@rejection_rate, 1.0)
+  def test_acquire_with_rejection_raises_and_records_request
+    # Mock the PID controller to reject the request
+    @breaker.pid_controller.expects(:should_reject?).returns(true)
+    @breaker.pid_controller.expects(:record_request).with(:rejected)
 
-    assert_raises(Semian::OpenCircuitError) do
-      @breaker.acquire(@resource) { "should not execute" }
+    # Verify that OpenCircuitError is raised and the block is never executed
+    block_executed = false
+
+    error = assert_raises(Semian::OpenCircuitError) do
+      @breaker.acquire do
+        block_executed = true
+        "should not be executed"
+      end
     end
+
+    assert_equal "Rejected by adaptive circuit breaker", error.message
+    assert_equal false, block_executed
   end
 
-  def test_circuit_states
-    skip("Never tested correctly")
+  def test_update_thread_calls_pid_controller_update_every_window_size
+    breaker = nil
 
-    assert(@breaker.closed?)
-    assert(!@breaker.open?)
-    assert(!@breaker.half_open?)
-
-    # Set medium rejection rate
-    @breaker.pid_controller.instance_variable_set(:@rejection_rate, 0.5)
-
-    assert(@breaker.half_open?)
-    assert(!@breaker.closed?)
-    assert(!@breaker.open?)
-
-    # Set high rejection rate
-    @breaker.pid_controller.instance_variable_set(:@rejection_rate, 0.95)
-
-    assert(@breaker.open?)
-    assert(!@breaker.closed?)
-    assert(!@breaker.half_open?)
-  end
-
-  def test_reset_clears_state
-    skip("Never tested correctly")
-    # Record some requests
-    @breaker.acquire(@resource) { "success" }
-    assert_raises(RuntimeError) do
-      @breaker.acquire(@resource) { raise "Error" }
+    done = false
+    mock_clock = MockClock.new(max_sleeps: 3) do |_|
+      done = true
+      # Note: breaker.stop kills the thread. Any line after it will not be executed.
+      breaker.stop
     end
 
-    # Reset
-    @breaker.reset
+    breaker = Semian::AdaptiveCircuitBreaker.new(
+      name: "test_breaker_with_clock",
+      kp: 1.0,
+      ki: 0.1,
+      kd: 0.01,
+      window_size: 10,
+      initial_history_duration: 100,
+      initial_error_rate: 0.01,
+      thread_safe: true,
+      clock: mock_clock,
+    )
 
-    metrics = @breaker.metrics
+    # Verify that the update thread is created and alive
+    assert_instance_of Thread, breaker.update_thread
+    assert breaker.update_thread.alive?
 
-    assert_equal(0.0, metrics[:error_rate])
-    assert_equal(0.0, metrics[:rejection_rate])
-  end
+    mock_clock.should_start = true
 
-  def test_adaptive_behavior_with_errors
-    skip("Never tested correctly")
-    # Simulate dependency failures
-    10.times do
-      @breaker.acquire(@resource) { raise "Error" }
+    # We call update after sleeping. And since we exit on the third sleep, we only expect 2 updates.
+    breaker.pid_controller.expects(:update).times(2)
+
+    until done
+      Kernel.sleep(0.01)
     end
 
-    # Rejection rate should increase
-    assert_operator(@breaker.pid_controller.rejection_rate, :>, 0)
-
-    # Now simulate recovery
-    20.times do
-      @breaker.acquire(@resource) { "success" }
-    rescue Semian::OpenCircuitError
-      # Some requests might be rejected
-    end
-
-    # After recovery, rejection rate should trend down
-    # (exact behavior depends on PID tuning)
-    final_metrics = @breaker.metrics
-
-    assert_operator(final_metrics[:rejection_rate], :>=, 0)
-    assert_operator(final_metrics[:rejection_rate], :<=, 1.0)
+    assert_equal false, breaker.update_thread.alive?
   end
 end
