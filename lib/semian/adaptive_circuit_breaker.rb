@@ -10,9 +10,7 @@ module Semian
 
     attr_reader :pid_controller, :update_thread
 
-    def initialize(name:, kp: 1.0, ki: 0.1, kd: 0.01,
-      window_size: 10, initial_history_duration: 900, initial_error_rate: 0.01,
-      thread_safe: true)
+    def initialize(name:, kp:, ki:, kd:, window_size:, initial_history_duration:, initial_error_rate:, thread_safe:)
       initialize_behaviour(name: name)
 
       @window_size = window_size
@@ -22,7 +20,6 @@ module Semian
       # Create PID controller (thread-safe by default)
       @pid_controller = if thread_safe
         ThreadSafePIDController.new(
-          name: name,
           kp: kp,
           ki: ki,
           kd: kd,
@@ -32,7 +29,6 @@ module Semian
         )
       else
         PIDController.new(
-          name: name,
           kp: kp,
           ki: ki,
           kd: kd,
