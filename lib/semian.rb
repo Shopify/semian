@@ -11,6 +11,7 @@ require "semian/instrumentable"
 require "semian/platform"
 require "semian/resource"
 require "semian/circuit_breaker"
+require "semian/adaptive_circuit_breaker"
 require "semian/protected_resource"
 require "semian/unprotected_resource"
 require "semian/simple_sliding_window"
@@ -197,6 +198,10 @@ module Semian
   # +exceptions+: An array of exception classes that should be accounted as resource errors. Default [].
   # (circuit breaker)
   #
+  # +adaptive_circuit_breaker+: Enable adaptive circuit breaker using PID controller. Default false.
+  # When enabled, this replaces the traditional circuit breaker with an adaptive version
+  # that dynamically adjusts rejection rates based on service health. (adaptive circuit breaker)
+  #
   # Returns the registered resource.
   def register(name, **options)
     return UnprotectedResource.new(name) if ENV.key?("SEMIAN_DISABLED")
@@ -204,7 +209,12 @@ module Semian
     # Validate configuration before proceeding
     ConfigurationValidator.new(name, options).validate!
 
-    circuit_breaker = create_circuit_breaker(name, **options)
+    circuit_breaker = if options[:adaptive_circuit_breaker]
+      create_adaptive_circuit_breaker(name, **options)
+    else
+      create_circuit_breaker(name, **options)
+    end
+
     bulkhead = create_bulkhead(name, **options)
 
     resources[name] = ProtectedResource.new(name, bulkhead, circuit_breaker)
@@ -299,6 +309,22 @@ module Semian
   end
 
   private
+
+  def create_adaptive_circuit_breaker(name, **options)
+    return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED") || ENV.key?("SEMIAN_ADAPTIVE_CIRCUIT_BREAKER_DISABLED")
+
+    # Fixed parameters based on design document recommendations
+    AdaptiveCircuitBreaker.new(
+      name: name,
+      kp: 0.3, # Standard proportional gain
+      ki: 0.003, # Moderate integral gain
+      kd: 1.0, # Small derivative gain (as per design doc)
+      window_size: 10, # 10-second window for rate calculation and update interval
+      initial_history_duration: 900, # 15 minutes of initial history for p90 calculation
+      initial_error_rate: options[:initial_error_rate] || 0.01, # 1% error rate for initial p90 calculation
+      thread_safe: Semian.thread_safe?,
+    )
+  end
 
   def create_circuit_breaker(name, **options)
     return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED")
