@@ -20,24 +20,49 @@ require_relative "../../lib/semian/p2_estimator"
 class P2AccuracyBenchmark
   TOTAL_OBSERVATIONS = 10_000
   SAMPLE_INTERVAL = 100 # Track estimate every N observations
-  QUANTILE = 0.5 # Median (P50)
+  QUANTILES = [0.5, 0.9] # P50 (Median) and P90
 
   def run
     puts "P² Estimator Convergence Visualization"
     puts "=" * 80
     puts "Generating #{TOTAL_OBSERVATIONS} observations from Normal(100, 15)"
-    puts "Tracking median estimate every #{SAMPLE_INTERVAL} observations"
+    puts "Tracking quantile estimates (P50, P90) every #{SAMPLE_INTERVAL} observations"
     puts "=" * 80
     puts
 
+    # Generate all observations once
     normal_distribution = Rubystats::NormalDistribution.new(100, 15)
     all_values = Array.new(TOTAL_OBSERVATIONS) { normal_distribution.rng }
 
+    output_dir = File.dirname(__FILE__)
+
+    # Run benchmark for each quantile
+    QUANTILES.each do |quantile|
+      run_quantile_benchmark(quantile, all_values, output_dir)
+    end
+
+    puts "=" * 80
+    puts "All visualizations saved to: #{output_dir}"
+    QUANTILES.each do |q|
+      quantile_label = "p#{(q * 100).to_i}"
+      puts "  - #{quantile_label}_convergence.png"
+      puts "  - #{quantile_label}_mse_over_time.png"
+    end
+    puts "=" * 80
+  end
+
+  private
+
+  def run_quantile_benchmark(quantile, all_values, output_dir)
+    quantile_label = "P#{(quantile * 100).to_i}"
+    puts "\nProcessing #{quantile_label}..."
+    puts "-" * 80
+
     observation_counts = []
     p2_estimates = []
-    exact_medians = []
+    exact_quantiles = []
 
-    estimator = Semian::P2QuantileEstimator.new(QUANTILE)
+    estimator = Semian::P2QuantileEstimator.new(quantile)
 
     all_values.each_with_index do |value, idx|
       estimator.add_observation(value)
@@ -50,8 +75,8 @@ class P2AccuracyBenchmark
       # Get P2 estimate
       p2_estimates << estimator.estimate
 
-      # Calculate exact median from observations so far
-      exact_medians << calculate_exact_median(all_values[0..idx])
+      # Calculate exact quantile from observations so far
+      exact_quantiles << calculate_exact_quantile(all_values[0..idx], quantile)
 
       if n % 1000 == 0
         print("\rProcessed: #{n}/#{TOTAL_OBSERVATIONS}")
@@ -61,43 +86,44 @@ class P2AccuracyBenchmark
     puts "\r" + " " * 50
 
     # Print final results
-    final_mse = (p2_estimates.last - exact_medians.last)**2
-    puts "\nFinal Results (#{TOTAL_OBSERVATIONS} observations):"
-    puts "  P² Estimate:  #{format("%.4f", p2_estimates.last)}"
-    puts "  Exact Median: #{format("%.4f", exact_medians.last)}"
-    puts "  MSE:          #{format("%.6f", final_mse)}"
-    puts "  Theoretical:  ~100.0 (μ for Normal(100, 15))"
+    final_mse = (p2_estimates.last - exact_quantiles.last)**2
+    puts "\nFinal Results for #{quantile_label} (#{TOTAL_OBSERVATIONS} observations):"
+    puts "  P² Estimate:     #{format("%.4f", p2_estimates.last)}"
+    puts "  Exact #{quantile_label}:       #{format("%.4f", exact_quantiles.last)}"
+    puts "  MSE:             #{format("%.6f", final_mse)}"
     puts
 
     # Create visualization
-    output_dir = File.dirname(__FILE__)
-    create_convergence_plot(observation_counts, p2_estimates, exact_medians, output_dir)
-    create_error_plot(observation_counts, p2_estimates, exact_medians, output_dir)
-
-    puts "=" * 80
-    puts "Visualizations saved to: #{output_dir}"
-    puts "  - p2_convergence.png (Estimates over time)"
-    puts "  - p2_mse_over_time.png (MSE over time)"
-    puts "=" * 80
+    create_convergence_plot(observation_counts, p2_estimates, exact_quantiles, quantile, output_dir)
+    create_error_plot(observation_counts, p2_estimates, exact_quantiles, quantile, output_dir)
   end
 
-  private
-
-  def calculate_exact_median(values)
+  def calculate_exact_quantile(values, quantile)
     sorted = values.sort
     n = sorted.length
-    if n.odd?
-      sorted[n / 2]
+
+    # Linear interpolation between closest ranks
+    index = quantile * (n - 1)
+    lower = index.floor
+    upper = index.ceil
+
+    if lower == upper
+      sorted[lower]
     else
-      (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0
+      # Interpolate between the two values
+      weight = index - lower
+      sorted[lower] * (1 - weight) + sorted[upper] * weight
     end
   end
 
-  def create_convergence_plot(observation_counts, p2_estimates, exact_medians, output_dir)
+  def create_convergence_plot(observation_counts, p2_estimates, exact_quantiles, quantile, output_dir)
+    quantile_label = "P#{(quantile * 100).to_i}"
+    quantile_filename = "p#{(quantile * 100).to_i}"
+
     g = Gruff::Line.new(1400)
-    g.title = "P² Estimator Convergence: Median Estimate vs Actual"
+    g.title = "P² Estimator Convergence: #{quantile_label} Estimate vs Actual"
     g.x_axis_label = "Number of Observations"
-    g.y_axis_label = "Median Estimate"
+    g.y_axis_label = "#{quantile_label} Estimate"
     g.hide_dots = true
     g.theme = {
       colors: ["#4ecdc4", "#ff6b6b", "#95e1d3"],
@@ -108,18 +134,20 @@ class P2AccuracyBenchmark
 
     # Add data series
     g.data("P² Estimate", p2_estimates)
-    g.data("Exact Median", exact_medians)
+    g.data("Exact #{quantile_label}", exact_quantiles)
 
-    # Add theoretical line (μ = 100)
-    theoretical_line = Array.new(observation_counts.length, 100.0)
-    g.data("Theoretical (μ=100)", theoretical_line)
+    # Add theoretical line for P50 only (μ = 100 for median)
+    if quantile == 0.5
+      theoretical_line = Array.new(observation_counts.length, 100.0)
+      g.data("Theoretical (μ=100)", theoretical_line)
+    end
 
-    all_values = p2_estimates + exact_medians
+    all_values = p2_estimates + exact_quantiles
     min_val = all_values.min
     max_val = all_values.max
     margin = (max_val - min_val) * 0.1 # Add 10% margin
-    g.minimum_value = [min_val - margin, 95].max # Don't go below 95
-    g.maximum_value = [max_val + margin, 105].min # Don't go above 105
+    g.minimum_value = min_val - margin
+    g.maximum_value = max_val + margin
 
     labels = {}
     observation_counts.each_with_index do |count, idx|
@@ -129,16 +157,19 @@ class P2AccuracyBenchmark
     end
     g.labels = labels
 
-    output_path = File.join(output_dir, "p2_convergence.png")
+    output_path = File.join(output_dir, "#{quantile_filename}_convergence.png")
     g.write(output_path)
-    puts "\nGenerated: p2_convergence.png"
+    puts "\nGenerated: #{quantile_filename}_convergence.png"
   end
 
-  def create_error_plot(observation_counts, p2_estimates, exact_medians, output_dir)
-    mse_values = p2_estimates.zip(exact_medians).map { |p2, exact| (p2 - exact)**2 }
+  def create_error_plot(observation_counts, p2_estimates, exact_quantiles, quantile, output_dir)
+    quantile_label = "P#{(quantile * 100).to_i}"
+    quantile_filename = "p#{(quantile * 100).to_i}"
+
+    mse_values = p2_estimates.zip(exact_quantiles).map { |p2, exact| (p2 - exact)**2 }
 
     g = Gruff::Line.new(1400)
-    g.title = "P² Estimator: Mean Squared Error Over Time"
+    g.title = "P² Estimator (#{quantile_label}): Mean Squared Error Over Time"
     g.x_axis_label = "Number of Observations"
     g.y_axis_label = "MSE (P² - Exact)²"
     g.hide_dots = true
@@ -159,9 +190,9 @@ class P2AccuracyBenchmark
     end
     g.labels = labels
 
-    output_path = File.join(output_dir, "p2_mse_over_time.png")
+    output_path = File.join(output_dir, "#{quantile_filename}_mse_over_time.png")
     g.write(output_path)
-    puts "Generated: p2_mse_over_time.png"
+    puts "Generated: #{quantile_filename}_mse_over_time.png"
   end
 end
 
