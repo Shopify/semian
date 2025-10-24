@@ -34,6 +34,7 @@ class TestPIDController < Minitest::Test
         p_value: 0.0,
         integral: 0.0,
         previous_p_value: 0.0,
+        derivative: 0.0,
         current_window_requests: { success: 0, error: 0, rejected: 0 },
         p90_estimator_state: {
           # Initialization prefills with initial_history_duration/window_size observations = 20, all 0.01
@@ -186,6 +187,7 @@ class TestPIDController < Minitest::Test
         p_value: 0.0,
         integral: 0.0,
         previous_p_value: 0.0,
+        derivative: 0.0,
         current_window_requests: { success: 0, error: 0, rejected: 0 },
         p90_estimator_state: {
           # Initialization prefills with initial_history_duration/window_size observations = 20, all 0.01
