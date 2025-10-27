@@ -16,9 +16,7 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
     end
 
     def sleep(duration)
-      until @should_start
-        Kernel.sleep(0.01)
-      end
+      Kernel.sleep(0.01) until @should_start
 
       # Only count window_size sleeps, this helps us detect if the wrong value is being passed
       if duration == @window_size
@@ -53,7 +51,7 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
     # Execute the block and verify it returns the expected value
     result = @breaker.acquire { "successful_result" }
 
-    assert_equal "successful_result", result
+    assert_equal("successful_result", result)
   end
 
   def test_acquire_with_error_raises_and_records_request
@@ -66,8 +64,8 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
       @breaker.acquire { raise "Something went wrong" }
     end
 
-    assert_equal "Something went wrong", error.message
-    assert_equal "Something went wrong", @breaker.last_error.message
+    assert_equal("Something went wrong", error.message)
+    assert_equal("Something went wrong", @breaker.last_error.message)
   end
 
   def test_acquire_with_rejection_raises_and_records_request
@@ -85,8 +83,8 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
       end
     end
 
-    assert_equal "Rejected by adaptive circuit breaker", error.message
-    assert_equal false, block_executed
+    assert_equal("Rejected by adaptive circuit breaker", error.message)
+    assert_equal(false, block_executed)
   end
 
   def test_update_thread_calls_pid_controller_update_every_window_size
@@ -95,7 +93,7 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
     done = false
     mock_clock = MockClock.new(max_sleeps: 3) do |_|
       done = true
-      # Note: breaker.stop kills the thread. Any line after it will not be executed.
+      # NOTE: breaker.stop kills the thread. Any line after it will not be executed.
       breaker.stop
     end
 
@@ -112,18 +110,16 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
     )
 
     # Verify that the update thread is created and alive
-    assert_instance_of Thread, breaker.update_thread
-    assert breaker.update_thread.alive?
+    assert_instance_of(Thread, breaker.update_thread)
+    assert(breaker.update_thread.alive?)
 
     mock_clock.should_start = true
 
     # We call update after sleeping. And since we exit on the third sleep, we only expect 2 updates.
     breaker.pid_controller.expects(:update).times(2)
 
-    until done
-      Kernel.sleep(0.01)
-    end
+    Kernel.sleep(0.01) until done
 
-    assert_equal false, breaker.update_thread.alive?
+    assert_equal(false, breaker.update_thread.alive?)
   end
 end
