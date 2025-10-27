@@ -82,6 +82,8 @@ module Semian
         @outcomes_mutex = Mutex.new
         @pid_snapshots = []
         @pid_mutex = Mutex.new
+        @thread_timings = {}
+        @timings_mutex = Mutex.new
 
         start_request_threads
         start_monitoring_thread if @is_adaptive
@@ -95,18 +97,32 @@ module Semian
         @request_threads = []
         @num_threads.times do
           @request_threads << Thread.new do
+            thread_id = Thread.current.object_id
             thread_resource = ExperimentalResource.new(
               name: @resource_name,
               service: @service,
               semian: @semian_config,
             )
 
+            # Initialize timing for this thread
+            @timings_mutex.synchronize do
+              @thread_timings[thread_id] = { total_time: 0.0, request_count: 0 }
+            end
+
             sleep_interval = 1.0 / @requests_per_second_per_thread
             until @done
               sleep(sleep_interval)
 
+              # Measure time spent making the request
+              request_start = Time.now
               begin
                 thread_resource.request(rand(@service.endpoints_count))
+                request_duration = Time.now - request_start
+
+                @timings_mutex.synchronize do
+                  @thread_timings[thread_id][:total_time] += request_duration
+                  @thread_timings[thread_id][:request_count] += 1
+                end
 
                 @outcomes_mutex.synchronize do
                   current_sec = @outcomes[Time.now.to_i] ||= {
@@ -118,6 +134,13 @@ module Semian
                   current_sec[:success] += 1
                 end
               rescue ExperimentalResource::CircuitOpenError
+                request_duration = Time.now - request_start
+
+                @timings_mutex.synchronize do
+                  @thread_timings[thread_id][:total_time] += request_duration
+                  @thread_timings[thread_id][:request_count] += 1
+                end
+
                 @outcomes_mutex.synchronize do
                   current_sec = @outcomes[Time.now.to_i] ||= {
                     success: 0,
@@ -128,6 +151,13 @@ module Semian
                   current_sec[:circuit_open] += 1
                 end
               rescue ExperimentalResource::RequestError, ExperimentalResource::TimeoutError
+                request_duration = Time.now - request_start
+
+                @timings_mutex.synchronize do
+                  @thread_timings[thread_id][:total_time] += request_duration
+                  @thread_timings[thread_id][:request_count] += 1
+                end
+
                 @outcomes_mutex.synchronize do
                   current_sec = @outcomes[Time.now.to_i] ||= {
                     success: 0,
@@ -211,6 +241,7 @@ module Semian
 
         display_summary_statistics
         display_time_based_analysis
+        display_thread_timing_statistics
         display_pid_controller_state
       end
 
@@ -251,6 +282,40 @@ module Semian
 
           puts "#{status} #{bucket_time_range} #{phase_label}: #{bucket_total} requests | Success: #{bucket_success} | Errors: #{bucket_errors} (#{error_pct}%) | Rejected: #{bucket_circuit} (#{circuit_pct}%)"
         end
+      end
+
+      def display_thread_timing_statistics
+        return if @thread_timings.empty?
+
+        puts "\n=== Thread Timing Statistics ==="
+
+        # Calculate statistics across all threads
+        total_times = @thread_timings.values.map { |t| t[:total_time] }
+        request_counts = @thread_timings.values.map { |t| t[:request_count] }
+
+        total_wall_time = @end_time - @start_time
+        sum_thread_time = total_times.sum
+        avg_thread_time = sum_thread_time / @thread_timings.size
+        min_thread_time = total_times.min
+        max_thread_time = total_times.max
+
+        avg_requests = request_counts.sum / @thread_timings.size.to_f
+
+        # Calculate utilization (time spent in requests vs wall clock time)
+        avg_utilization = (avg_thread_time / total_wall_time * 100)
+
+        puts "Total threads: #{@thread_timings.size}"
+        puts "Test wall clock duration: #{total_wall_time.round(2)}s"
+        puts "\nTime spent making requests per thread:"
+        puts "  Min:     #{min_thread_time.round(2)}s"
+        puts "  Max:     #{max_thread_time.round(2)}s"
+        puts "  Average: #{avg_thread_time.round(2)}s"
+        puts "  Total (all threads): #{sum_thread_time.round(2)}s"
+        puts "\nThread utilization:"
+        puts "  Average: #{avg_utilization.round(2)}% (time in requests / wall clock time)"
+        puts "\nRequests per thread:"
+        puts "  Average: #{avg_requests.round(0)} requests"
+        puts "  Average time per request: #{(avg_thread_time / avg_requests).round(4)}s" if avg_requests > 0
       end
 
       def display_pid_controller_state
