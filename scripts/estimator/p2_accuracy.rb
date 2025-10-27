@@ -20,7 +20,7 @@ require_relative "../../lib/semian/p2_estimator"
 class P2AccuracyBenchmark
   TOTAL_OBSERVATIONS = 10_000
   SAMPLE_INTERVAL = 100 # Track estimate every N observations
-  QUANTILES = [0.5, 0.9] # P50 (Median) and P90
+  QUANTILES = [0.5, 0.9].freeze # P50 (Median) and P90
 
   def run
     puts "P² Estimator Convergence Visualization"
