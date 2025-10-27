@@ -10,6 +10,8 @@ module Semian
   # Note: P increases when error_rate increases
   #       P decreases when rejection_rate increases (providing feedback)
   class PIDController
+    attr_reader :name, :rejection_rate
+
     def initialize(kp:, ki:, kd:, window_size:, initial_history_duration:, initial_error_rate:)
       # PID coefficients
       @kp = kp  # Proportional gain
