@@ -104,7 +104,7 @@ module Semian
             )
 
             # Initialize timing for this thread
-            @thread_timings[thread_id] = { total_time: 0.0, request_count: 0 }
+            @thread_timings[thread_id] = { total_time: 0.0, request_count: 0, samples: [] }
 
             sleep_interval = 1.0 / @requests_per_second_per_thread
             until @done
@@ -146,8 +146,10 @@ module Semian
                 end
               ensure
                 request_duration = Time.now - request_start
+                timestamp = Time.now.to_i
                 @thread_timings[thread_id][:total_time] += request_duration
                 @thread_timings[thread_id][:request_count] += 1
+                @thread_timings[thread_id][:samples] << { duration: request_duration, timestamp: timestamp }
               end
             end
           end
@@ -340,13 +342,6 @@ module Semian
         puts "\nGenerating visualization..."
         require "gruff"
 
-        graph = Gruff::Line.new(1400)
-        graph.title = @graph_title
-        graph.x_axis_label = "Time (10-second intervals)"
-        graph.y_axis_label = "Requests per Interval"
-        graph.hide_dots = false
-        graph.line_width = 3
-
         # Aggregate data into 10-second buckets for detailed visualization
         small_bucket_size = 10
         num_small_buckets = (@test_duration / small_bucket_size.to_f).ceil
@@ -354,12 +349,22 @@ module Semian
         bucketed_data = []
         (0...num_small_buckets).each do |bucket_idx|
           bucket_start = @outcomes.keys[0] + (bucket_idx * small_bucket_size)
-          bucket_data = @outcomes.select { |time, _| time >= bucket_start && time < bucket_start + small_bucket_size }
+          bucket_end = bucket_start + small_bucket_size
+          bucket_data = @outcomes.select { |time, _| time >= bucket_start && time < bucket_end }
+
+          # Calculate sum of request durations from all samples in this bucket
+          bucket_samples = []
+          @thread_timings.each_value do |thread_data|
+            bucket_samples.concat(thread_data[:samples].select { |s| s[:timestamp] >= bucket_start && s[:timestamp] < bucket_end })
+          end
+
+          sum_request_duration = bucket_samples.sum { |s| s[:duration] }
 
           bucketed_data << {
             success: bucket_data.values.sum { |d| d[:success] },
             circuit_open: bucket_data.values.sum { |d| d[:circuit_open] },
             error: bucket_data.values.sum { |d| d[:error] },
+            sum_request_duration: sum_request_duration,
           }
         end
 
@@ -369,6 +374,14 @@ module Semian
           time_sec = i * small_bucket_size
           labels[i] = "#{time_sec}s" if time_sec % @x_axis_label_interval == 0
         end
+
+        # Generate main graph (requests)
+        graph = Gruff::Line.new(1400)
+        graph.title = @graph_title
+        graph.x_axis_label = "Time (10-second intervals)"
+        graph.y_axis_label = "Requests per Interval"
+        graph.hide_dots = false
+        graph.line_width = 3
         graph.labels = labels
 
         graph.data("Success", bucketed_data.map { |d| d[:success] })
@@ -377,6 +390,21 @@ module Semian
 
         graph.write(@graph_filename)
         puts "Graph saved to #{@graph_filename}"
+
+        # Generate duration graph
+        duration_graph = Gruff::Line.new(1400)
+        duration_graph.title = "#{@graph_title} - Total Request Duration"
+        duration_graph.x_axis_label = "Time (10-second intervals)"
+        duration_graph.y_axis_label = "Total Request Duration (seconds)"
+        duration_graph.hide_dots = false
+        duration_graph.line_width = 3
+        duration_graph.labels = labels
+
+        duration_graph.data("Total Request Duration", bucketed_data.map { |d| d[:sum_request_duration] })
+
+        duration_filename = @graph_filename.sub(%r{([^/]+)$}, 'duration-\1')
+        duration_graph.write(duration_filename)
+        puts "Duration graph saved to #{duration_filename}"
       end
     end
   end
