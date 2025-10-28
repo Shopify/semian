@@ -103,14 +103,12 @@ module Semian
               semian: @semian_config,
             )
 
-            # Initialize timing for this thread
-            @thread_timings[thread_id] = { total_time: 0.0, request_count: 0, samples: [] }
+            @thread_timings[thread_id] = { samples: [] }
 
             sleep_interval = 1.0 / @requests_per_second_per_thread
             until @done
               sleep(sleep_interval)
 
-              # Measure time spent making the request
               request_start = Time.now
               begin
                 thread_resource.request(rand(@service.endpoints_count))
@@ -147,8 +145,6 @@ module Semian
               ensure
                 request_duration = Time.now - request_start
                 timestamp = Time.now.to_i
-                @thread_timings[thread_id][:total_time] += request_duration
-                @thread_timings[thread_id][:request_count] += 1
                 @thread_timings[thread_id][:samples] << { duration: request_duration, timestamp: timestamp }
               end
             end
@@ -168,7 +164,7 @@ module Semian
                 metrics = semian_resource.circuit_breaker.pid_controller.metrics
 
                 # Calculate total time spent making requests across all threads
-                total_request_time = @thread_timings.values.sum { |t| t[:total_time] }
+                total_request_time = @thread_timings.values.sum { |t| t[:samples].sum { |s| s[:duration] } }
 
                 @pid_mutex.synchronize do
                   @pid_snapshots << {
@@ -276,9 +272,8 @@ module Semian
 
         puts "\n=== Thread Timing Statistics ==="
 
-        # Calculate statistics across all threads
-        total_times = @thread_timings.values.map { |t| t[:total_time] }
-        request_counts = @thread_timings.values.map { |t| t[:request_count] }
+        total_times = @thread_timings.values.map { |t| t[:samples].sum { |s| s[:duration] } }
+        request_counts = @thread_timings.values.map { |t| t[:samples].size }
 
         total_wall_time = @end_time - @start_time
         sum_thread_time = total_times.sum
@@ -374,6 +369,9 @@ module Semian
           time_sec = i * small_bucket_size
           labels[i] = "#{time_sec}s" if time_sec % @x_axis_label_interval == 0
         end
+
+        # Create two graphs: one for requests per interval that shows success and failure rates, and a separate graph for total request duration.
+        # They're separate graphs because the difference in scale of the two values prevents the request duration signal from being clearly visible on the same graph.
 
         # Generate main graph (requests)
         graph = Gruff::Line.new(1400)
