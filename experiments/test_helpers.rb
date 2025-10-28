@@ -163,7 +163,6 @@ module Semian
               if semian_resource&.circuit_breaker
                 metrics = semian_resource.circuit_breaker.pid_controller.metrics
 
-                # Calculate total time spent making requests across all threads
                 total_request_time = @thread_timings.values.sum { |t| t[:samples].sum { |s| s[:duration] } }
 
                 @pid_mutex.synchronize do
@@ -347,7 +346,6 @@ module Semian
           bucket_end = bucket_start + small_bucket_size
           bucket_data = @outcomes.select { |time, _| time >= bucket_start && time < bucket_end }
 
-          # Calculate sum of request durations from all samples in this bucket
           bucket_samples = []
           @thread_timings.each_value do |thread_data|
             bucket_samples.concat(thread_data[:samples].select { |s| s[:timestamp] >= bucket_start && s[:timestamp] < bucket_end })
