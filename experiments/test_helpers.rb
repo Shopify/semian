@@ -83,7 +83,6 @@ module Semian
         @pid_snapshots = []
         @pid_mutex = Mutex.new
         @thread_timings = {}
-        @timings_mutex = Mutex.new
 
         start_request_threads
         start_monitoring_thread if @is_adaptive
@@ -105,9 +104,7 @@ module Semian
             )
 
             # Initialize timing for this thread
-            @timings_mutex.synchronize do
-              @thread_timings[thread_id] = { total_time: 0.0, request_count: 0 }
-            end
+            @thread_timings[thread_id] = { total_time: 0.0, request_count: 0 }
 
             sleep_interval = 1.0 / @requests_per_second_per_thread
             until @done
@@ -117,12 +114,6 @@ module Semian
               request_start = Time.now
               begin
                 thread_resource.request(rand(@service.endpoints_count))
-                request_duration = Time.now - request_start
-
-                @timings_mutex.synchronize do
-                  @thread_timings[thread_id][:total_time] += request_duration
-                  @thread_timings[thread_id][:request_count] += 1
-                end
 
                 @outcomes_mutex.synchronize do
                   current_sec = @outcomes[Time.now.to_i] ||= {
@@ -134,13 +125,6 @@ module Semian
                   current_sec[:success] += 1
                 end
               rescue ExperimentalResource::CircuitOpenError
-                request_duration = Time.now - request_start
-
-                @timings_mutex.synchronize do
-                  @thread_timings[thread_id][:total_time] += request_duration
-                  @thread_timings[thread_id][:request_count] += 1
-                end
-
                 @outcomes_mutex.synchronize do
                   current_sec = @outcomes[Time.now.to_i] ||= {
                     success: 0,
@@ -151,13 +135,6 @@ module Semian
                   current_sec[:circuit_open] += 1
                 end
               rescue ExperimentalResource::RequestError, ExperimentalResource::TimeoutError
-                request_duration = Time.now - request_start
-
-                @timings_mutex.synchronize do
-                  @thread_timings[thread_id][:total_time] += request_duration
-                  @thread_timings[thread_id][:request_count] += 1
-                end
-
                 @outcomes_mutex.synchronize do
                   current_sec = @outcomes[Time.now.to_i] ||= {
                     success: 0,
@@ -167,6 +144,10 @@ module Semian
                   print("✗")
                   current_sec[:error] += 1
                 end
+              ensure
+                request_duration = Time.now - request_start
+                @thread_timings[thread_id][:total_time] += request_duration
+                @thread_timings[thread_id][:request_count] += 1
               end
             end
           end
@@ -184,6 +165,9 @@ module Semian
               if semian_resource&.circuit_breaker
                 metrics = semian_resource.circuit_breaker.pid_controller.metrics
 
+                # Calculate total time spent making requests across all threads
+                total_request_time = @thread_timings.values.sum { |t| t[:total_time] }
+
                 @pid_mutex.synchronize do
                   @pid_snapshots << {
                     timestamp: Time.now.to_i,
@@ -195,6 +179,7 @@ module Semian
                     integral: metrics[:integral],
                     derivative: metrics[:derivative],
                     previous_error: metrics[:previous_error],
+                    total_request_time: total_request_time,
                   }
                 end
               end
@@ -327,12 +312,12 @@ module Semian
         end
 
         puts "\n=== PID Controller State Per Window ==="
-        puts format("%-8s %-15s %-15s %-12s %-15s %-12s %-12s %-12s", "Window", "Current Err %", "Ideal Err %", "Error P", "Reject %", "Integral", "PrevError", "Derivative")
-        puts "-" * 105
+        puts format("%-8s %-15s %-15s %-12s %-15s %-12s %-12s %-12s %-15s", "Window", "Current Err %", "Ideal Err %", "Error P", "Reject %", "Integral", "PrevError", "Derivative", "Total Req Time")
+        puts "-" * 120
 
         @pid_snapshots.each do |snapshot|
           puts format(
-            "%-8d %-15s %-15s %-12s %-15s %-12s %-12s %-12s",
+            "%-8d %-15s %-15s %-12s %-15s %-12s %-12s %-12s %-15s",
             snapshot[:window],
             "#{(snapshot[:current_error_rate] * 100).round(2)}%",
             "#{(snapshot[:ideal_error_rate] * 100).round(2)}%",
@@ -341,6 +326,7 @@ module Semian
             (snapshot[:integral] || 0).round(4),
             (snapshot[:previous_error] || 0).round(4),
             (snapshot[:derivative] || 0).round(4),
+            "#{(snapshot[:total_request_time] || 0).round(2)}s",
           )
         end
 
