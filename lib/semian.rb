@@ -311,6 +311,7 @@ module Semian
       error_threshold: options[:error_threshold],
       error_threshold_timeout: options[:error_threshold_timeout],
       error_timeout: options[:error_timeout],
+      dynamic_timeout: options[:dynamic_timeout] || false,
       error_threshold_timeout_enabled: if options[:error_threshold_timeout_enabled].nil?
                                          true
                                        else

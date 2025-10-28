@@ -67,7 +67,13 @@ module Semian
       return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED")
       return unless @configuration.fetch(:circuit_breaker, true)
 
-      require_keys!([:success_threshold, :error_threshold, :error_timeout], @configuration)
+      # If dynamic_timeout is enabled, error_timeout is not required
+      if @configuration[:dynamic_timeout]
+        require_keys!([:success_threshold, :error_threshold], @configuration)
+      else
+        require_keys!([:success_threshold, :error_threshold, :error_timeout], @configuration)
+      end
+
       validate_thresholds!
       validate_timeouts!
     end
@@ -99,12 +105,21 @@ module Semian
 
     def validate_timeouts!
       error_timeout = @configuration[:error_timeout]
+      dynamic_timeout = @configuration[:dynamic_timeout]
       error_threshold_timeout_enabled = @configuration[:error_threshold_timeout_enabled].nil? ? true : @configuration[:error_threshold_timeout_enabled]
       error_threshold = @configuration[:error_threshold]
       lumping_interval = @configuration[:lumping_interval]
       half_open_resource_timeout = @configuration[:half_open_resource_timeout]
 
-      unless error_timeout.is_a?(Numeric) && error_timeout > 0
+      # Validate that error_timeout and dynamic_timeout are mutually exclusive
+      if error_timeout && dynamic_timeout
+        err = "error_timeout and dynamic_timeout are mutually exclusive - only one can be specified"
+        err += hint_format("Use error_timeout for a fixed timeout or dynamic_timeout for a hybrid exponential/linear backoff strategy.")
+        raise_or_log_validation_required!(err)
+      end
+
+      # Validate error_timeout only if dynamic timeout is not enabled
+      if !dynamic_timeout && !(error_timeout.is_a?(Numeric) && error_timeout > 0)
         err = "error_timeout must be a positive number, got #{error_timeout}"
 
         if error_timeout == 0
@@ -123,15 +138,20 @@ module Semian
       end
 
       # Only set this after we have checked the error_threshold_timeout_enabled condition
-      error_threshold_timeout = @configuration[:error_threshold_timeout] || error_timeout
-      unless error_threshold_timeout.is_a?(Numeric) && error_threshold_timeout > 0
-        err = "error_threshold_timeout must be a positive number, got #{error_threshold_timeout}"
+      # When using dynamic timeout, error_threshold_timeout can't have a default from error_timeout
+      error_threshold_timeout = @configuration[:error_threshold_timeout] || (!dynamic_timeout && error_timeout)
 
-        if error_threshold_timeout == 0
-          err += hint_format("Are you sure that this is what you want? This will almost never open the circuit breaker since the time interval to catch errors is 0!")
+      # Skip error_threshold_timeout validation if dynamic timeout is enabled (unless explicitly set)
+      unless dynamic_timeout && !@configuration[:error_threshold_timeout]
+        unless error_threshold_timeout.is_a?(Numeric) && error_threshold_timeout > 0
+          err = "error_threshold_timeout must be a positive number, got #{error_threshold_timeout}"
+
+          if error_threshold_timeout == 0
+            err += hint_format("Are you sure that this is what you want? This will almost never open the circuit breaker since the time interval to catch errors is 0!")
+          end
+
+          raise_or_log_validation_required!(err)
         end
-
-        raise_or_log_validation_required!(err)
       end
 
       unless half_open_resource_timeout.nil? || (half_open_resource_timeout.is_a?(Numeric) && half_open_resource_timeout > 0)
