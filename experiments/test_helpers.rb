@@ -82,6 +82,7 @@ module Semian
         @outcomes_mutex = Mutex.new
         @pid_snapshots = []
         @pid_mutex = Mutex.new
+        @thread_timings = {}
 
         start_request_threads
         start_monitoring_thread if @is_adaptive
@@ -95,16 +96,20 @@ module Semian
         @request_threads = []
         @num_threads.times do
           @request_threads << Thread.new do
+            thread_id = Thread.current.object_id
             thread_resource = ExperimentalResource.new(
               name: @resource_name,
               service: @service,
               semian: @semian_config,
             )
 
+            @thread_timings[thread_id] = { samples: [] }
+
             sleep_interval = 1.0 / @requests_per_second_per_thread
             until @done
               sleep(sleep_interval)
 
+              request_start = Time.now
               begin
                 thread_resource.request(rand(@service.endpoints_count))
 
@@ -137,6 +142,10 @@ module Semian
                   print("✗")
                   current_sec[:error] += 1
                 end
+              ensure
+                request_duration = Time.now - request_start
+                timestamp = Time.now.to_i
+                @thread_timings[thread_id][:samples] << { duration: request_duration, timestamp: timestamp }
               end
             end
           end
@@ -154,6 +163,8 @@ module Semian
               if semian_resource&.circuit_breaker
                 metrics = semian_resource.circuit_breaker.pid_controller.metrics
 
+                total_request_time = @thread_timings.values.sum { |t| t[:samples].sum { |s| s[:duration] } }
+
                 @pid_mutex.synchronize do
                   @pid_snapshots << {
                     timestamp: Time.now.to_i,
@@ -165,6 +176,7 @@ module Semian
                     integral: metrics[:integral],
                     derivative: metrics[:derivative],
                     previous_error: metrics[:previous_error],
+                    total_request_time: total_request_time,
                   }
                 end
               end
@@ -211,6 +223,7 @@ module Semian
 
         display_summary_statistics
         display_time_based_analysis
+        display_thread_timing_statistics
         display_pid_controller_state
       end
 
@@ -253,6 +266,39 @@ module Semian
         end
       end
 
+      def display_thread_timing_statistics
+        return if @thread_timings.empty?
+
+        puts "\n=== Thread Timing Statistics ==="
+
+        total_times = @thread_timings.values.map { |t| t[:samples].sum { |s| s[:duration] } }
+        request_counts = @thread_timings.values.map { |t| t[:samples].size }
+
+        total_wall_time = @end_time - @start_time
+        sum_thread_time = total_times.sum
+        avg_thread_time = sum_thread_time / @thread_timings.size
+        min_thread_time = total_times.min
+        max_thread_time = total_times.max
+
+        avg_requests = request_counts.sum / @thread_timings.size.to_f
+
+        # Calculate utilization (time spent in requests vs wall clock time)
+        avg_utilization = (avg_thread_time / total_wall_time * 100)
+
+        puts "Total threads: #{@thread_timings.size}"
+        puts "Test wall clock duration: #{total_wall_time.round(2)}s"
+        puts "\nTime spent making requests per thread:"
+        puts "  Min:     #{min_thread_time.round(2)}s"
+        puts "  Max:     #{max_thread_time.round(2)}s"
+        puts "  Average: #{avg_thread_time.round(2)}s"
+        puts "  Total (all threads): #{sum_thread_time.round(2)}s"
+        puts "\nThread utilization:"
+        puts "  Average: #{avg_utilization.round(2)}% (time in requests / wall clock time)"
+        puts "\nRequests per thread:"
+        puts "  Average: #{avg_requests.round(0)} requests"
+        puts "  Average time per request: #{(avg_thread_time / avg_requests).round(4)}s" if avg_requests > 0
+      end
+
       def display_pid_controller_state
         return unless @is_adaptive
 
@@ -262,12 +308,12 @@ module Semian
         end
 
         puts "\n=== PID Controller State Per Window ==="
-        puts format("%-8s %-15s %-15s %-12s %-15s %-12s %-12s %-12s", "Window", "Current Err %", "Ideal Err %", "Error P", "Reject %", "Integral", "PrevError", "Derivative")
-        puts "-" * 105
+        puts format("%-8s %-15s %-15s %-12s %-15s %-12s %-12s %-12s %-15s", "Window", "Current Err %", "Ideal Err %", "Error P", "Reject %", "Integral", "PrevError", "Derivative", "Total Req Time")
+        puts "-" * 120
 
         @pid_snapshots.each do |snapshot|
           puts format(
-            "%-8d %-15s %-15s %-12s %-15s %-12s %-12s %-12s",
+            "%-8d %-15s %-15s %-12s %-15s %-12s %-12s %-12s %-15s",
             snapshot[:window],
             "#{(snapshot[:current_error_rate] * 100).round(2)}%",
             "#{(snapshot[:ideal_error_rate] * 100).round(2)}%",
@@ -276,6 +322,7 @@ module Semian
             (snapshot[:integral] || 0).round(4),
             (snapshot[:previous_error] || 0).round(4),
             (snapshot[:derivative] || 0).round(4),
+            "#{(snapshot[:total_request_time] || 0).round(2)}s",
           )
         end
 
@@ -289,13 +336,6 @@ module Semian
         puts "\nGenerating visualization..."
         require "gruff"
 
-        graph = Gruff::Line.new(1400)
-        graph.title = @graph_title
-        graph.x_axis_label = "Time (10-second intervals)"
-        graph.y_axis_label = "Requests per Interval"
-        graph.hide_dots = false
-        graph.line_width = 3
-
         # Aggregate data into 10-second buckets for detailed visualization
         small_bucket_size = 10
         num_small_buckets = (@test_duration / small_bucket_size.to_f).ceil
@@ -303,12 +343,21 @@ module Semian
         bucketed_data = []
         (0...num_small_buckets).each do |bucket_idx|
           bucket_start = @outcomes.keys[0] + (bucket_idx * small_bucket_size)
-          bucket_data = @outcomes.select { |time, _| time >= bucket_start && time < bucket_start + small_bucket_size }
+          bucket_end = bucket_start + small_bucket_size
+          bucket_data = @outcomes.select { |time, _| time >= bucket_start && time < bucket_end }
+
+          bucket_samples = []
+          @thread_timings.each_value do |thread_data|
+            bucket_samples.concat(thread_data[:samples].select { |s| s[:timestamp] >= bucket_start && s[:timestamp] < bucket_end })
+          end
+
+          sum_request_duration = bucket_samples.sum { |s| s[:duration] }
 
           bucketed_data << {
             success: bucket_data.values.sum { |d| d[:success] },
             circuit_open: bucket_data.values.sum { |d| d[:circuit_open] },
             error: bucket_data.values.sum { |d| d[:error] },
+            sum_request_duration: sum_request_duration,
           }
         end
 
@@ -318,6 +367,17 @@ module Semian
           time_sec = i * small_bucket_size
           labels[i] = "#{time_sec}s" if time_sec % @x_axis_label_interval == 0
         end
+
+        # Create two graphs: one for requests per interval that shows success and failure rates, and a separate graph for total request duration.
+        # They're separate graphs because the difference in scale of the two values prevents the request duration signal from being clearly visible on the same graph.
+
+        # Generate main graph (requests)
+        graph = Gruff::Line.new(1400)
+        graph.title = @graph_title
+        graph.x_axis_label = "Time (10-second intervals)"
+        graph.y_axis_label = "Requests per Interval"
+        graph.hide_dots = false
+        graph.line_width = 3
         graph.labels = labels
 
         graph.data("Success", bucketed_data.map { |d| d[:success] })
@@ -326,6 +386,21 @@ module Semian
 
         graph.write(@graph_filename)
         puts "Graph saved to #{@graph_filename}"
+
+        # Generate duration graph
+        duration_graph = Gruff::Line.new(1400)
+        duration_graph.title = "#{@graph_title} - Total Request Duration"
+        duration_graph.x_axis_label = "Time (10-second intervals)"
+        duration_graph.y_axis_label = "Total Request Duration (seconds)"
+        duration_graph.hide_dots = false
+        duration_graph.line_width = 3
+        duration_graph.labels = labels
+
+        duration_graph.data("Total Request Duration", bucketed_data.map { |d| d[:sum_request_duration] })
+
+        duration_filename = @graph_filename.sub(%r{([^/]+)$}, 'duration-\1')
+        duration_graph.write(duration_filename)
+        puts "Duration graph saved to #{duration_filename}"
       end
     end
   end
