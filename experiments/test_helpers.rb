@@ -171,11 +171,11 @@ module Semian
                     window: @pid_snapshots.length + 1,
                     current_error_rate: metrics[:error_rate],
                     ideal_error_rate: metrics[:ideal_error_rate],
-                    error_metric: metrics[:error_metric],
+                    p_value: metrics[:p_value],
                     rejection_rate: metrics[:rejection_rate],
                     integral: metrics[:integral],
                     derivative: metrics[:derivative],
-                    previous_error: metrics[:previous_error],
+                    previous_p_value: metrics[:previous_p_value],
                     total_request_time: total_request_time,
                   }
                 end
@@ -317,10 +317,10 @@ module Semian
             snapshot[:window],
             "#{(snapshot[:current_error_rate] * 100).round(2)}%",
             "#{(snapshot[:ideal_error_rate] * 100).round(2)}%",
-            (snapshot[:error_metric] || 0).round(4),
+            (snapshot[:p_value] || 0).round(4),
             "#{(snapshot[:rejection_rate] * 100).round(2)}%",
             (snapshot[:integral] || 0).round(4),
-            (snapshot[:previous_error] || 0).round(4),
+            (snapshot[:previous_p_value] || 0).round(4),
             (snapshot[:derivative] || 0).round(4),
             "#{(snapshot[:total_request_time] || 0).round(2)}s",
           )
