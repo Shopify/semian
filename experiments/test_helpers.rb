@@ -86,7 +86,7 @@ module Semian
         begin
           @services.each do |service|
             init_resource = ExperimentalResource.new(
-              name: @resource_name,
+              name: "#{@resource_name}_#{service.object_id}",
               service: service,
               semian: @semian_config,
             )
@@ -119,18 +119,17 @@ module Semian
         @num_threads.times do
           @request_threads << Thread.new do
             thread_id = Thread.current.object_id
-            service = @services.sample
-            thread_resource = ExperimentalResource.new(
-              name: @resource_name,
-              service: service,
-              semian: @semian_config,
-            )
-
             @thread_timings[thread_id] = { samples: [] }
 
             sleep_interval = 1.0 / @requests_per_second_per_thread
             until @done
               sleep(sleep_interval)
+              service = @services.sample
+              thread_resource = ExperimentalResource.new(
+                name: "#{@resource_name}_#{service.object_id}",
+                service: service,
+                semian: @semian_config,
+              )
 
               request_start = Time.now
               begin
@@ -182,7 +181,8 @@ module Semian
 
           until @done
             begin
-              semian_resource = Semian[@resource_name.to_sym]
+              # We monitor the PID controller of the target service
+              semian_resource = Semian["#{@resource_name}_#{@target_service.object_id}".to_sym]
               if semian_resource&.circuit_breaker
                 metrics = semian_resource.circuit_breaker.pid_controller.metrics
 
@@ -295,7 +295,7 @@ module Semian
           status = bucket_circuit > 0 ? "⚡" : "✓"
 
           degradation_phase = @degradation_phases[bucket_idx] || @degradation_phases.last
-          phase_error_rate = degradation_phase.healthy ? @target_service.base_error_rate : degradation_phase.error_rate
+          phase_error_rate = degradation_phase.error_rate || @target_service.base_error_rate
           phase_label = "[Target: #{(phase_error_rate * 100).round(1)}%]"
 
           puts "#{status} #{bucket_time_range} #{phase_label}: #{bucket_total} requests | Success: #{bucket_success} | Errors: #{bucket_errors} (#{error_pct}%) | Rejected: #{bucket_circuit} (#{circuit_pct}%)"
@@ -388,12 +388,14 @@ module Semian
           end
 
           sum_request_duration = bucket_samples.sum { |s| s[:duration] }
+          throughput = bucket_samples.size
 
           bucketed_data << {
             success: bucket_data.values.sum { |d| d[:success] },
             circuit_open: bucket_data.values.sum { |d| d[:circuit_open] },
             error: bucket_data.values.sum { |d| d[:error] },
             sum_request_duration: sum_request_duration,
+            throughput: throughput,
           }
         end
 
@@ -437,6 +439,21 @@ module Semian
         duration_filename = @graph_filename.sub(%r{([^/]+)$}, 'duration-\1')
         duration_graph.write(duration_filename)
         puts "Duration graph saved to #{duration_filename}"
+
+        # Generate throughput graph
+        throughput_graph = Gruff::Line.new(1400)
+        throughput_graph.title = "#{@graph_title} - Total Request Throughput"
+        throughput_graph.x_axis_label = "Time (10-second intervals)"
+        throughput_graph.y_axis_label = "Total Request Throughput"
+        throughput_graph.hide_dots = false
+        throughput_graph.line_width = 3
+        throughput_graph.labels = labels
+
+        throughput_graph.data("Total Request Throughput", bucketed_data.map { |d| d[:throughput] })
+
+        throughput_filename = @graph_filename.sub(%r{([^/]+)$}, 'throughput-\1')
+        throughput_graph.write(throughput_filename)
+        puts "Throughput graph saved to #{throughput_filename}"
       end
     end
   end
