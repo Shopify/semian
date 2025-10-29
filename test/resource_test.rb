@@ -204,19 +204,34 @@ class TestResource < Minitest::Test
   end
 
   def test_acquire_timeout_override
-    skip("Never tested correctly")
+    resource = create_resource(:testing, tickets: 1, timeout: 0.1)
+    start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
-    fork_workers(count: 1, tickets: 1, timeout: 0.5, wait_for_timeout: true) do
-      sleep(0.6)
+    resource.acquire_semaphore
+
+    assert_raises(Semian::TimeoutError) do
+      resource.acquire_semaphore
+    end
+    end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+    assert_in_delta(0.1, end_time - start_time, EPSILON)
+
+    start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    assert_raises(Semian::TimeoutError) do
+      resource.acquire_semaphore(timeout: 0.5)
+    end
+    end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+    assert_in_delta(0.5, end_time - start_time, EPSILON)
+
+    resource.release_semaphore
+
+    acquired = false
+    resource.acquire(timeout: 0.3) do
+      acquired = true
     end
 
-    fork_workers(count: 1, tickets: 1, timeout: 1, wait_for_timeout: true)
-
-    signal_workers("TERM")
-
-    timeouts = count_worker_timeouts
-
-    assert_equal(0, timeouts)
+    assert(acquired)
   end
 
   def test_acquire_with_fork
