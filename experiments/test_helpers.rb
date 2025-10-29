@@ -4,24 +4,34 @@ module Semian
   module Experiments
     # Test runner for circuit breaker experiments (both adaptive and classic)
     # Handles all the common logic: service creation, threading, monitoring, analysis, and visualization
+    class DegradationPhase
+      attr_reader :error_rate, :latency
+
+      def initialize(error_rate: nil, latency: nil)
+        @error_rate = error_rate
+        @latency = latency
+      end
+    end
+
     class CircuitBreakerTestRunner
-      attr_reader :test_name, :resource_name, :error_phases, :phase_duration, :graph_title, :graph_filename
+      attr_reader :test_name, :resource_name, :degradation_phases, :phase_duration, :graph_title, :graph_filename, :service_count, :target_service
 
       def initialize(
         test_name:,
         resource_name:,
-        error_phases:,
+        degradation_phases:,
         phase_duration:,
         graph_title:,
         semian_config:,
         graph_filename: nil,
         num_threads: 60,
         requests_per_second_per_thread: 50,
-        x_axis_label_interval: nil
+        x_axis_label_interval: nil,
+        service_count: 1
       )
         @test_name = test_name
         @resource_name = resource_name
-        @error_phases = error_phases
+        @degradation_phases = degradation_phases
         @phase_duration = phase_duration
         @graph_title = graph_title
         @semian_config = semian_config
@@ -30,11 +40,13 @@ module Semian
         @num_threads = num_threads
         @requests_per_second_per_thread = requests_per_second_per_thread
         @x_axis_label_interval = x_axis_label_interval || phase_duration
-        @test_duration = error_phases.length * phase_duration
+        @test_duration = degradation_phases.length * phase_duration
+        @service_count = service_count
+        @target_service = nil
       end
 
       def run
-        setup_service
+        setup_services
         setup_resources
         start_threads
         execute_phases
@@ -45,31 +57,40 @@ module Semian
 
       private
 
-      def setup_service
+      def setup_services
         puts "Creating mock service..."
-        @service = MockService.new(
-          endpoints_count: 50,
-          min_latency: 0.01,
-          max_latency: 0.3,
-          distribution: {
-            type: :log_normal,
-            mean: 0.15,
-            std_dev: 0.05,
-          },
-          error_rate: @error_phases.first,
-          timeout: 5,
-        )
+        @services = []
+        @service_count.times do
+          @services << MockService.new(
+            endpoints_count: 50,
+            min_latency: 0.01,
+            max_latency: 0.3,
+            distribution: {
+              type: :log_normal,
+              mean: 0.15,
+              std_dev: 0.05,
+            },
+            error_rate: @degradation_phases.first.error_rate,
+            timeout: 5,
+          )
+        end
+        # We always assume that you want to degrade one service, and we pick @services[0]
+        # If you have more complex experiments with multi-service degradation,
+        # feel free to change this code.
+        @target_service = @services[0]
       end
 
       def setup_resources
         puts "Initializing Semian resource..."
         begin
-          init_resource = ExperimentalResource.new(
-            name: @resource_name,
-            service: @service,
-            semian: @semian_config,
-          )
-          init_resource.request(0)
+          @services.each do |service|
+            init_resource = ExperimentalResource.new(
+              name: @resource_name,
+              service: service,
+              semian: @semian_config,
+            )
+            init_resource.request(0)
+          end
         rescue
           # Ignore any error, we just needed to trigger registration
         end
@@ -97,9 +118,10 @@ module Semian
         @num_threads.times do
           @request_threads << Thread.new do
             thread_id = Thread.current.object_id
+            service = @services.sample
             thread_resource = ExperimentalResource.new(
               name: @resource_name,
-              service: @service,
+              service: service,
               semian: @semian_config,
             )
 
@@ -111,7 +133,7 @@ module Semian
 
               request_start = Time.now
               begin
-                thread_resource.request(rand(@service.endpoints_count))
+                thread_resource.request(rand(service.endpoints_count))
 
                 @outcomes_mutex.synchronize do
                   current_sec = @outcomes[Time.now.to_i] ||= {
@@ -191,17 +213,24 @@ module Semian
 
       def execute_phases
         puts "\n=== #{@test_name} (ADAPTIVE) ==="
-        puts "Error rate: #{@error_phases.map { |r| "#{(r * 100).round(1)}%" }.join(" -> ")}"
+        puts "Error rate: #{@degradation_phases.map { |r| r.error_rate ? "#{(r.error_rate * 100).round(1)}%" : "N/A" }.join(" -> ")}"
+        puts "Latency: #{@degradation_phases.map { |r| r.latency ? "#{(r.latency * 1000).round(1)}ms" : "N/A" }.join(" -> ")}"
         puts "Phase duration: #{@phase_duration} seconds (#{(@phase_duration / 60.0).round(1)} minutes) per phase"
         puts "Duration: #{@test_duration} seconds (#{(@test_duration / 60.0).round(1)} minutes)"
         puts "Starting test...\n"
 
         @start_time = Time.now
 
-        @error_phases.each_with_index do |error_rate, idx|
+        @degradation_phases.each_with_index do |degradation_phase, idx|
           if idx > 0
-            puts "\n=== Transitioning to #{(error_rate * 100).round(1)}% error rate ==="
-            @service.set_error_rate(error_rate)
+            if degradation_phase.error_rate
+              puts "\n=== Transitioning to #{(degradation_phase.error_rate * 100).round(1)}% error rate ==="
+              @target_service.set_error_rate(degradation_phase.error_rate)
+            end
+            if degradation_phase.latency
+              puts "\n=== Transitioning to #{(degradation_phase.latency * 1000).round(1)}ms latency ==="
+              @target_service.add_latency(degradation_phase.latency)
+            end
           end
 
           sleep(@phase_duration)
@@ -259,7 +288,7 @@ module Semian
           error_pct = bucket_total > 0 ? ((bucket_errors.to_f / bucket_total) * 100).round(2) : 0
           status = bucket_circuit > 0 ? "⚡" : "✓"
 
-          phase_error_rate = @error_phases[bucket_idx] || @error_phases.last
+          phase_error_rate = @degradation_phases[bucket_idx].error_rate || @degradation_phases.last.error_rate
           phase_label = "[Target: #{(phase_error_rate * 100).round(1)}%]"
 
           puts "#{status} #{bucket_time_range} #{phase_label}: #{bucket_total} requests | Success: #{bucket_success} | Errors: #{bucket_errors} (#{error_pct}%) | Rejected: #{bucket_circuit} (#{circuit_pct}%)"

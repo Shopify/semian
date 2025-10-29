@@ -18,7 +18,13 @@ require_relative "test_helpers"
 runner = Semian::Experiments::CircuitBreakerTestRunner.new(
   test_name: "Sudden Error Spikes Test (Classic)",
   resource_name: "protected_service_sudden_error_spikes",
-  error_phases: [0.01] * 3 + [0.20] + [0.01] * 3 + [0.60] + [0.01] * 3 + [1.00] + [0.01] * 3,
+  degradation_phases: [Semian::Experiments::DegradationPhase.new(error_rate: 0.01)] * 3 +
+                      [Semian::Experiments::DegradationPhase.new(error_rate: 0.20)] +
+                      [Semian::Experiments::DegradationPhase.new(error_rate: 0.01)] * 3 +
+                      [Semian::Experiments::DegradationPhase.new(error_rate: 0.60)] +
+                      [Semian::Experiments::DegradationPhase.new(error_rate: 0.01)] * 3 +
+                      [Semian::Experiments::DegradationPhase.new(error_rate: 1.00)] +
+                      [Semian::Experiments::DegradationPhase.new(error_rate: 0.01)] * 3,
   phase_duration: 20,
   semian_config: {
     success_threshold: 2,

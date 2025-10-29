@@ -11,7 +11,9 @@ require_relative "test_helpers"
 runner = Semian::Experiments::CircuitBreakerTestRunner.new(
   test_name: "Oscillating Errors Test",
   resource_name: "protected_service_oscillating_adaptive",
-  error_phases: [0.01, 0.01] + [0.02, 0.06] * 9 + [0.01, 0.01],
+  degradation_phases: [Semian::Experiments::DegradationPhase.new(error_rate: 0.01)] * 2 +
+                      [Semian::Experiments::DegradationPhase.new(error_rate: 0.02), Semian::Experiments::DegradationPhase.new(error_rate: 0.06)] * 9 +
+                      [Semian::Experiments::DegradationPhase.new(error_rate: 0.01)] * 2,
   phase_duration: 10,
   semian_config: {
     adaptive_circuit_breaker: true,
