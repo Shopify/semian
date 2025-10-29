@@ -12,7 +12,7 @@ runner = Semian::Experiments::CircuitBreakerTestRunner.new(
   test_name: "Gradual Error Increase Test",
   resource_name: "protected_service_gradual",
   degradation_phases: [
-    Semian::Experiments::DegradationPhase.new(error_rate: 0.01),
+    Semian::Experiments::DegradationPhase.new(healthy: true),
     Semian::Experiments::DegradationPhase.new(error_rate: 0.015),
     Semian::Experiments::DegradationPhase.new(error_rate: 0.02),
     Semian::Experiments::DegradationPhase.new(error_rate: 0.025),
@@ -21,7 +21,7 @@ runner = Semian::Experiments::CircuitBreakerTestRunner.new(
     Semian::Experiments::DegradationPhase.new(error_rate: 0.04),
     Semian::Experiments::DegradationPhase.new(error_rate: 0.045),
     Semian::Experiments::DegradationPhase.new(error_rate: 0.05),
-    Semian::Experiments::DegradationPhase.new(error_rate: 0.01),
+    Semian::Experiments::DegradationPhase.new(healthy: true),
   ],
   phase_duration: 60,
   semian_config: {

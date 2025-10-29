@@ -5,9 +5,10 @@ module Semian
     # Test runner for circuit breaker experiments (both adaptive and classic)
     # Handles all the common logic: service creation, threading, monitoring, analysis, and visualization
     class DegradationPhase
-      attr_reader :error_rate, :latency
+      attr_reader :healthy, :error_rate, :latency
 
-      def initialize(error_rate: nil, latency: nil)
+      def initialize(healthy: nil, error_rate: nil, latency: nil)
+        @healthy = healthy
         @error_rate = error_rate
         @latency = latency
       end
@@ -70,7 +71,7 @@ module Semian
               mean: 0.15,
               std_dev: 0.05,
             },
-            error_rate: @degradation_phases.first.error_rate,
+            error_rate: 0.01,
             timeout: 5,
           )
         end
@@ -223,13 +224,18 @@ module Semian
 
         @degradation_phases.each_with_index do |degradation_phase, idx|
           if idx > 0
-            if degradation_phase.error_rate
-              puts "\n=== Transitioning to #{(degradation_phase.error_rate * 100).round(1)}% error rate ==="
-              @target_service.set_error_rate(degradation_phase.error_rate)
-            end
-            if degradation_phase.latency
-              puts "\n=== Transitioning to #{(degradation_phase.latency * 1000).round(1)}ms latency ==="
-              @target_service.add_latency(degradation_phase.latency)
+            if degradation_phase.healthy
+              puts "\n=== Transitioning to healthy state ==="
+              @target_service.reset_degradation
+            else
+              if degradation_phase.error_rate
+                puts "\n=== Transitioning to #{(degradation_phase.error_rate * 100).round(1)}% error rate ==="
+                @target_service.set_error_rate(degradation_phase.error_rate)
+              end
+              if degradation_phase.latency
+                puts "\n=== Transitioning to #{(degradation_phase.latency * 1000).round(1)}ms latency ==="
+                @target_service.add_latency(degradation_phase.latency)
+              end
             end
           end
 
@@ -288,7 +294,8 @@ module Semian
           error_pct = bucket_total > 0 ? ((bucket_errors.to_f / bucket_total) * 100).round(2) : 0
           status = bucket_circuit > 0 ? "⚡" : "✓"
 
-          phase_error_rate = @degradation_phases[bucket_idx].error_rate || @degradation_phases.last.error_rate
+          degradation_phase = @degradation_phases[bucket_idx] || @degradation_phases.last
+          phase_error_rate = degradation_phase.healthy ? @target_service.base_error_rate : degradation_phase.error_rate
           phase_label = "[Target: #{(phase_error_rate * 100).round(1)}%]"
 
           puts "#{status} #{bucket_time_range} #{phase_label}: #{bucket_total} requests | Success: #{bucket_success} | Errors: #{bucket_errors} (#{error_pct}%) | Rejected: #{bucket_circuit} (#{circuit_pct}%)"

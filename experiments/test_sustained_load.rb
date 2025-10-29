@@ -11,9 +11,9 @@ require_relative "test_helpers"
 runner = Semian::Experiments::CircuitBreakerTestRunner.new(
   test_name: "Sustained Load Test",
   resource_name: "protected_service",
-  degradation_phases: [Semian::Experiments::DegradationPhase.new(error_rate: 0.01)] * 4 +
+  degradation_phases: [Semian::Experiments::DegradationPhase.new(healthy: true)] * 4 +
                       [Semian::Experiments::DegradationPhase.new(error_rate: 0.20)] * 10 +
-                      [Semian::Experiments::DegradationPhase.new(error_rate: 0.01)] * 4,
+                      [Semian::Experiments::DegradationPhase.new(healthy: true)] * 4,
   phase_duration: 30,
   semian_config: {
     success_threshold: 2,
