@@ -172,6 +172,7 @@ module Semian
                     current_error_rate: metrics[:error_rate],
                     ideal_error_rate: metrics[:ideal_error_rate],
                     p_value: metrics[:p_value],
+                    previous_p_value: metrics[:previous_p_value],
                     rejection_rate: metrics[:rejection_rate],
                     integral: metrics[:integral],
                     derivative: metrics[:derivative],
@@ -307,7 +308,7 @@ module Semian
         end
 
         puts "\n=== PID Controller State Per Window ==="
-        puts format("%-8s %-15s %-15s %-12s %-15s %-12s %-12s %-15s", "Window", "Current Err %", "Ideal Err %", "Error P", "Reject %", "Integral", "Derivative", "Total Req Time")
+        puts format("%-8s %-15s %-15s %-12s %-12s %-15s %-12s %-12s %-15s", "Window", "Current Err %", "Ideal Err %", "Error P", "Prev Error P", "Reject %", "Integral", "Derivative", "Total Req Time")
         puts "-" * 120
 
         @pid_snapshots.each do |snapshot|
@@ -317,6 +318,7 @@ module Semian
             "#{(snapshot[:current_error_rate] * 100).round(2)}%",
             "#{(snapshot[:ideal_error_rate] * 100).round(2)}%",
             (snapshot[:p_value] || 0).round(4),
+            (snapshot[:previous_p_value] || 0).round(4),
             "#{(snapshot[:rejection_rate] * 100).round(2)}%",
             (snapshot[:integral] || 0).round(4),
             (snapshot[:derivative] || 0).round(4),
