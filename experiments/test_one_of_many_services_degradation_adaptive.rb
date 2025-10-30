@@ -11,8 +11,8 @@ runner = Semian::Experiments::CircuitBreakerTestRunner.new(
   test_name: "One of Many Services Degradation Test",
   resource_name: "protected_service_adaptive",
   degradation_phases: [Semian::Experiments::DegradationPhase.new(healthy: true)] * 1 +
-                      [Semian::Experiments::DegradationPhase.new(latency: 6)] * 3 + # All requests to the target service will timeout
-                      [Semian::Experiments::DegradationPhase.new(healthy: true)] * 1,
+                      [Semian::Experiments::DegradationPhase.new(latency: 4.95)] * 10 + # All requests to the target service will timeout
+                      [Semian::Experiments::DegradationPhase.new(healthy: true)] * 3,
   phase_duration: 30,
   service_count: 10,
   semian_config: {
