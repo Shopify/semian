@@ -4,17 +4,25 @@ require_relative "pid_controller"
 require_relative "circuit_breaker_behaviour"
 
 module Semian
+  # Default clock implementation using real time
+  class RealClock
+    def sleep(duration)
+      Kernel.sleep(duration)
+    end
+  end
+
   # Adaptive Circuit Breaker that uses PID controller for dynamic rejection
   class AdaptiveCircuitBreaker
     include CircuitBreakerBehaviour
 
     attr_reader :pid_controller, :update_thread
 
-    def initialize(name:, kp:, ki:, kd:, window_size:, initial_history_duration:, initial_error_rate:, thread_safe:)
+    def initialize(name:, kp:, ki:, kd:, window_size:, initial_history_duration:, initial_error_rate:, thread_safe:, clock: nil)
       initialize_behaviour(name: name)
 
       @window_size = window_size
       @stopped = false
+      @clock = clock || RealClock.new
 
       @pid_controller = if thread_safe
         ThreadSafePIDController.new(

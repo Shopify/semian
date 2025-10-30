@@ -1,67 +1,26 @@
 # Release
 
-## Before You Begin
+Semian releases are automated by GitHub Actions (for the repo) and Shipit (for RubyGems).
 
-Ensure your local workstation is configured to be able to
-[Sign commits](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits).
+## Creating a Release
 
-## Local Release Preparation
+### Trigger Release
 
-### Checkout latest code
+Navigate to the [Release](https://github.com/Shopify/semian/actions/workflows/release.yml) GitHub Action and trigger a new workflow. You will be asked if your release is a major, minor, or patch release. For more info, see [Manually running a workflow](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow).
 
-```shell
-$ git checkout main
-$ git pull origin main
-```
+### Confirming Changes
 
-### Bump version
+The workflow generate changes to `lib/semian/version.rb`, `Gemfile.lock`, and `CHANGELOG.md`. Visit the workflow run to preview and confirm the changes.
 
-Update version in [`lib/semian/version.rb`](./lib/semian/version.rb).
-Check if there is required changes in [`README.md`](./README.md).
-Add line after `## [Unreleased]` in [`CHANGELOG.md`](./CHANGELOG.md) with new version.
+![1. Review the new version and commit changes
+2. Approve the CONFIRM CHANGES workflow](https://github.com/user-attachments/assets/de113ad1-1849-4c56-b46f-49ed414afc96)
+![REVIEW CHANGES](https://github.com/user-attachments/assets/8ec73d6a-0e73-42c3-8856-afbaafe283cc)
 
-### Run Tests
+## Verify GitHub Release
 
-Make sure all tests passed and gem could be build.
-Check [`README.md`](./README.md).
+After the workflow executes, your release should be at the top of Semian's [Release list](https://github.com/Shopify/semian/releases).
 
-### Create Release Commit and Tag
+## Verify RubyGems release
 
-Commit changes and create a tag. Make sure commit and tag are signed.
-Extract related content from [`CHANGELOG.md`](./CHANGELOG.md) for a tag message.
-
-```shell
-$ bundle install
-$ export RELEASE_VERSION=0.x.y
-$ git commit -a -S -m "Release $RELEASE_VERSION"
-$ git tag -s "v$RELEASE_VERSION"
-```
-
-## Release Tag
-
-On your local machine again, push your commit and tag
-
-```shell
-$ git push origin main --follow-tags
-```
-
-## Verify rubygems release
-
-- Shipit should kick off a build and release after new version detected.
-- Check [rubygems](https://rubygems.org/gems/semian)
-
-## Github release
-
-- Create a new gem
-    ```shell
-    $ bundle exec rake build build:checksum
-    ```
-- Create github release. Choose either `hub` or `gh`.
-  * Github CLi [gh_release_create](https://cli.github.com/manual/gh_release_create) :
-    ```
-    $ gh release create v$RELEASE_VERSION pkg/semian-$RELEASE_VERSION.gem checksums/semian-$RELEASE_VERSION.gem.sha512
-    ```
-  * Hub:
-    ```
-    $ hub release create -a pkg/semian-$RELEASE_VERSION.gem -a checksums/semian-$RELEASE_VERSION.gem.sha512 v$RELEASE_VERSION
-    ```
+- After detecing a new tag from the GitHub workflow, Shipit should kick off a build and release it
+- Check [RubyGems](https://rubygems.org/gems/semian)
