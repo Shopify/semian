@@ -58,9 +58,6 @@ module Semian
 
     # Update the controller at the end of each time window
     def update
-      # Update state for next iteration
-      @previous_p_value = @last_p_value
-
       # Calculate rates for the current window
       @last_error_rate = calculate_window_error_rate
 
@@ -87,6 +84,9 @@ module Semian
 
       # Update rejection rate (clamped between 0 and 1)
       @rejection_rate = (@rejection_rate + control_signal).clamp(0.0, 1.0)
+
+      # Update state for next iteration
+      @previous_p_value = @last_p_value
 
       @rejection_rate
     end
@@ -120,7 +120,6 @@ module Semian
         p_value: @last_p_value,
         integral: @integral,
         derivative: @derivative,
-        previous_p_value: @previous_p_value,
         current_window_requests: @current_window_requests.dup,
         p90_estimator_state: @p90_estimator.state,
       }
