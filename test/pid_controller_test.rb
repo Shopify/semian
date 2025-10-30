@@ -211,6 +211,64 @@ class TestPIDController < Minitest::Test
 
     assert_equal(0.1, @controller.metrics[:ideal_error_rate])
   end
+
+  def test_integral_anti_windup
+    # Test that integral doesn't accumulate when rejection_rate is saturated at 0 (low)
+    # Simulate prolonged low error rate (below ideal)
+    initial_integral = @controller.metrics[:integral]
+
+    # Run 50 windows with 0% error rate (below ideal 1%)
+    50.times do
+      100.times { @controller.record_request(:success) }
+      @controller.update
+    end
+
+    # Integral should not have accumulated large negative values
+    # because rejection_rate should stay at 0 (saturated low)
+    final_integral = @controller.metrics[:integral]
+
+    assert_equal(0.0, @controller.metrics[:rejection_rate], "Rejection rate should be 0")
+    assert_equal(initial_integral, final_integral, "Integral should not accumulate when rejection_rate = 0")
+
+    # Test that integral doesn't accumulate when rejection_rate is saturated at 1 (high)
+    # Manually set rejection rate to 1 to simulate saturation
+    @controller.instance_variable_set(:@rejection_rate, 1.0)
+    @controller.instance_variable_set(:@integral, 5.0)
+    initial_integral_high = @controller.metrics[:integral]
+
+    # Run a window with high error rate
+    50.times { @controller.record_request(:error) }
+    50.times { @controller.record_request(:success) }
+    @controller.update
+
+    # Integral should not have accumulated more
+    final_integral_high = @controller.metrics[:integral]
+
+    assert_equal(1.0, @controller.metrics[:rejection_rate], "Rejection rate should be 1")
+    assert_equal(initial_integral_high, final_integral_high, "Integral should not accumulate when rejection_rate = 1")
+
+    # Test that controller responds quickly to error spikes even after no integral accumulation
+    @controller.reset
+
+    # Simulate low error rate without integral accumulation (rejection_rate stays at 0)
+    20.times do
+      100.times { @controller.record_request(:success) }
+      @controller.update
+    end
+
+    assert_equal(0.0, @controller.metrics[:rejection_rate])
+    assert_equal(0.0, @controller.metrics[:integral], "Integral should remain 0")
+
+    # Now introduce an error spike
+    80.times { @controller.record_request(:success) }
+    20.times { @controller.record_request(:error) }
+    @controller.update
+
+    # Controller should respond to the spike with proportional and derivative terms
+    # even though integral hasn't accumulated
+    assert_operator(@controller.metrics[:rejection_rate], :>, 0.0, "Should respond to error spike")
+    assert_in_delta(@controller.metrics[:rejection_rate], 0.19, 0.05, "Should respond proportionally to 20% error")
+  end
 end
 
 class TestThreadSafePIDController < Minitest::Test
