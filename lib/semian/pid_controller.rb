@@ -75,7 +75,12 @@ module Semian
 
       # PID calculations
       proportional = @kp * @last_p_value
-      @integral += @last_p_value * dt
+
+      # Anti-windup: only accumulate integral when rejection rate is not saturated
+      if @rejection_rate > 0.0 && @rejection_rate < 1.0
+        @integral += @last_p_value * dt
+      end
+
       integral = @ki * @integral
       @derivative = @kd * (@last_p_value - @previous_p_value) / dt
 
