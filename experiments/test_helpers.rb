@@ -94,11 +94,11 @@ module Semian
         puts "Each thread will have its own adapter instance connected to the shared service...\n"
 
         @request_threads = []
-        @num_threads.times do
+        @num_threads.times do |thread_num|
           @request_threads << Thread.new do
             thread_id = Thread.current.object_id
             thread_resource = ExperimentalResource.new(
-              name: @resource_name,
+              name: "#{@resource_name}_thread_#{thread_num}",
               service: @service,
               semian: @semian_config,
             )
@@ -159,29 +159,43 @@ module Semian
 
           until @done
             begin
-              semian_resource = Semian[@resource_name.to_sym]
-              if semian_resource&.circuit_breaker
-                metrics = semian_resource.circuit_breaker.pid_controller.metrics
+              # Collect metrics from all thread resources
+              all_metrics = []
+              @num_threads.times do |thread_num|
+                resource_name = "#{@resource_name}_thread_#{thread_num}".to_sym
+                semian_resource = Semian[resource_name]
+                if semian_resource&.circuit_breaker
+                  all_metrics << semian_resource.circuit_breaker.pid_controller.metrics
+                end
+              end
 
+              if all_metrics.any?
                 total_request_time = @thread_timings.values.sum { |t| t[:samples].sum { |s| s[:duration] } }
+
+                # Calculate min/max/avg for key metrics
+                metric_keys = [:error_rate, :error_metric, :rejection_rate, :integral, :derivative, :previous_error]
+                aggregated = {}
+
+                metric_keys.each do |key|
+                  values = all_metrics.map { |m| m[key] || 0 }
+                  aggregated["#{key}_avg".to_sym] = values.sum / values.size.to_f
+                  aggregated["#{key}_min".to_sym] = values.min
+                  aggregated["#{key}_max".to_sym] = values.max
+                end
 
                 @pid_mutex.synchronize do
                   @pid_snapshots << {
                     timestamp: Time.now.to_i,
                     window: @pid_snapshots.length + 1,
-                    current_error_rate: metrics[:error_rate],
-                    ideal_error_rate: metrics[:ideal_error_rate],
-                    error_metric: metrics[:error_metric],
-                    rejection_rate: metrics[:rejection_rate],
-                    integral: metrics[:integral],
-                    derivative: metrics[:derivative],
-                    previous_error: metrics[:previous_error],
+                    ideal_error_rate: all_metrics.first[:ideal_error_rate], # Same for all threads
                     total_request_time: total_request_time,
+                    **aggregated,
                   }
                 end
               end
-            rescue
-              # Ignore errors
+            rescue => e
+              # Log error for debugging
+              puts "\nMonitoring error: #{e.message}" if ENV["DEBUG"]
             end
 
             sleep(10) # Capture every window
@@ -214,6 +228,12 @@ module Semian
         @request_threads.each(&:join)
         @monitor_thread.join if @is_adaptive
         @end_time = Time.now
+
+        # Clean up per-thread resources
+        @num_threads.times do |thread_num|
+          resource_name = "#{@resource_name}_thread_#{thread_num}".to_sym
+          Semian.destroy(resource_name)
+        end
       end
 
       def generate_analysis
@@ -307,29 +327,45 @@ module Semian
           return
         end
 
-        puts "\n=== PID Controller State Per Window ==="
-        puts format("%-8s %-15s %-15s %-12s %-15s %-12s %-12s %-12s %-15s", "Window", "Current Err %", "Ideal Err %", "Error P", "Reject %", "Integral", "PrevError", "Derivative", "Total Req Time")
-        puts "-" * 120
+        puts "\n=== PID Controller State Per Window (Aggregated across #{@num_threads} threads) ==="
+        puts format("%-8s %-20s %-15s %-20s %-20s %-20s %-15s", "Window", "Err % (min-max)", "Ideal Err %", "Reject % (min-max)", "Integral (min-max)", "Derivative (min-max)", "Total Req Time")
+        puts "-" * 140
 
         @pid_snapshots.each do |snapshot|
+          error_rate_str = format_metric_range(snapshot[:error_rate_avg], snapshot[:error_rate_min], snapshot[:error_rate_max], is_percent: true)
+          reject_rate_str = format_metric_range(snapshot[:rejection_rate_avg], snapshot[:rejection_rate_min], snapshot[:rejection_rate_max], is_percent: true)
+          integral_str = format_metric_range(snapshot[:integral_avg], snapshot[:integral_min], snapshot[:integral_max])
+          derivative_str = format_metric_range(snapshot[:derivative_avg], snapshot[:derivative_min], snapshot[:derivative_max])
+
           puts format(
-            "%-8d %-15s %-15s %-12s %-15s %-12s %-12s %-12s %-15s",
+            "%-8d %-20s %-15s %-20s %-20s %-20s %-15s",
             snapshot[:window],
-            "#{(snapshot[:current_error_rate] * 100).round(2)}%",
+            error_rate_str,
             "#{(snapshot[:ideal_error_rate] * 100).round(2)}%",
-            (snapshot[:error_metric] || 0).round(4),
-            "#{(snapshot[:rejection_rate] * 100).round(2)}%",
-            (snapshot[:integral] || 0).round(4),
-            (snapshot[:previous_error] || 0).round(4),
-            (snapshot[:derivative] || 0).round(4),
+            reject_rate_str,
+            integral_str,
+            derivative_str,
             "#{(snapshot[:total_request_time] || 0).round(2)}s",
           )
         end
 
         puts "\n📊 Key Observations:"
         puts "  - Windows captured: #{@pid_snapshots.length}"
-        puts "  - Max rejection rate: #{(@pid_snapshots.map { |s| s[:rejection_rate] }.max * 100).round(2)}%"
-        puts "  - Integral range: #{@pid_snapshots.map { |s| s[:integral] }.min.round(4)} to #{@pid_snapshots.map { |s| s[:integral] }.max.round(4)}"
+        puts "  - Max avg rejection rate: #{(@pid_snapshots.map { |s| s[:rejection_rate_avg] }.max * 100).round(2)}%"
+        puts "  - Avg integral range: #{@pid_snapshots.map { |s| s[:integral_avg] }.min.round(4)} to #{@pid_snapshots.map { |s| s[:integral_avg] }.max.round(4)}"
+      end
+
+      def format_metric_range(avg, min, max, is_percent: false)
+        if is_percent
+          avg_str = "#{(avg * 100).round(2)}%"
+          min_str = "#{(min * 100).round(2)}%"
+          max_str = "#{(max * 100).round(2)}%"
+        else
+          avg_str = avg.round(4).to_s
+          min_str = min.round(4).to_s
+          max_str = max.round(4).to_s
+        end
+        "#{avg_str} (#{min_str}-#{max_str})"
       end
 
       def generate_visualization
