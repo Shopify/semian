@@ -313,7 +313,7 @@ module Semian
 
         @pid_snapshots.each do |snapshot|
           puts format(
-            "%-8d %-15s %-15s %-12s %-15s %-12s %-12s %-15s",
+            "%-8d %-15s %-15s %-12s %-12s %-15s %-12s %-12s %-15s",
             snapshot[:window],
             "#{(snapshot[:current_error_rate] * 100).round(2)}%",
             "#{(snapshot[:ideal_error_rate] * 100).round(2)}%",

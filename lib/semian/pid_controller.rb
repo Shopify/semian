@@ -58,7 +58,7 @@ module Semian
 
     # Update the controller at the end of each time window
     def update
-      # Update state for next iteration
+      # Store the last window's P value so that we can serve it up in the metrics snapshots
       @previous_p_value = @last_p_value
 
       # Calculate rates for the current window
