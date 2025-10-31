@@ -489,7 +489,7 @@ module Semian
 
         error_signal_graph.data("Error offset from ideal error rate", bucketed_data.map { |d| d[:error_offset] })
 
-        error_signal_graph_filename = @graph_filename.sub(%r{([^/]+)$}, 'error-signal-\1')
+        error_signal_graph_filename = @graph_filename.sub(%r{([^/]+)$}, 'error-offset-\1')
         error_signal_graph.write(error_signal_graph_filename)
         puts "Error offset graph saved to #{error_signal_graph_filename}"
       end
