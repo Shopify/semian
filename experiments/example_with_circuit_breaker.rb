@@ -3,10 +3,11 @@
 $LOAD_PATH.unshift(File.expand_path("../lib", __dir__))
 
 require "semian"
+require_relative "mock_service"
 require_relative "experimental_resource"
 
-resource = Semian::Experiments::ExperimentalResource.new(
-  name: "protected_service",
+# Create the mock service
+service = Semian::Experiments::MockService.new(
   endpoints_count: 200,
   min_latency: 0.01,
   max_latency: 10,
@@ -17,6 +18,12 @@ resource = Semian::Experiments::ExperimentalResource.new(
   },
   error_rate: 0.01, # 1% baseline error rate
   timeout: 5, # 5 seconds timeout
+)
+
+# Create the Semian adapter for the service
+resource = Semian::Experiments::ExperimentalResource.new(
+  name: "protected_service",
+  service: service,
   semian: {
     success_threshold: 2,
     error_threshold: 3,
@@ -39,7 +46,7 @@ Thread.new do
       error: 0,
     }
     begin
-      resource.request(rand(resource.endpoints_count))
+      resource.request(rand(service.endpoints_count))
       puts "✓ Success"
       current_sec[:success] += 1
     rescue Semian::Experiments::ExperimentalResource::CircuitOpenError => e
@@ -55,12 +62,12 @@ end
 sleep 10
 
 puts "Setting error rate to 0.5"
-resource.set_error_rate(0.5)
+service.set_error_rate(0.5)
 
 sleep 10
 
 puts "Resetting error rate to 0.01"
-resource.set_error_rate(0.01)
+service.set_error_rate(0.01)
 
 sleep 10
 
