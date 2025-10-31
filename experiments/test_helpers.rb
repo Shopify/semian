@@ -125,6 +125,9 @@ module Semian
             until @done
               sleep(sleep_interval)
               service = @services.sample
+              # technically, we are creating a new resource instance on every request.
+              # But the resource class is pretty much only a wrapper around things that are longer-living.
+              # So this works just fine.
               thread_resource = ExperimentalResource.new(
                 name: "#{@resource_name}_#{service.object_id}",
                 service: service,
