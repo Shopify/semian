@@ -173,7 +173,7 @@ module Semian
                 total_request_time = @thread_timings.values.sum { |t| t[:samples].sum { |s| s[:duration] } }
 
                 # Calculate min/max/avg for key metrics
-                metric_keys = [:error_rate, :error_metric, :rejection_rate, :integral, :derivative, :previous_error]
+                metric_keys = [:error_rate, :error_metric, :rejection_rate, :integral, :derivative, :previous_error, :ideal_error_rate]
                 aggregated = {}
 
                 metric_keys.each do |key|
@@ -187,7 +187,6 @@ module Semian
                   @pid_snapshots << {
                     timestamp: Time.now.to_i,
                     window: @pid_snapshots.length + 1,
-                    ideal_error_rate: all_metrics.first[:ideal_error_rate], # Same for all threads
                     total_request_time: total_request_time,
                     **aggregated,
                   }
