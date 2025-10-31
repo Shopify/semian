@@ -399,8 +399,10 @@ module Semian
             # Determine which phase this bucket falls into
             elapsed_time = bucket_idx * small_bucket_size
             phase_index = (elapsed_time / @phase_duration).floor
-            phase_index = [@error_phases.length - 1, phase_index].min # Cap at last phase
-            target_error_rate = @error_phases[phase_index]
+            phase_index = [@degradation_phases.length - 1, phase_index].min # Cap at last phase
+            degradation_phase = @degradation_phases[phase_index]
+            # Use the configured error rate, or fall back to base error rate if healthy
+            target_error_rate = degradation_phase.error_rate || @target_service.base_error_rate
 
             bucket_pid_snapshots = @pid_snapshots.select { |s| s[:timestamp] >= bucket_start && s[:timestamp] < bucket_end }
             unless bucket_pid_snapshots.empty?
