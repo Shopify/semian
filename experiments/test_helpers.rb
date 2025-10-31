@@ -393,12 +393,30 @@ module Semian
           sum_request_duration = bucket_samples.sum { |s| s[:duration] }
           throughput = bucket_samples.size
 
+          # Calculate error offset from PID snapshots in this bucket
+          error_offset = 0.0
+          if @is_adaptive && @pid_snapshots && !@pid_snapshots.empty?
+            # Determine which phase this bucket falls into
+            elapsed_time = bucket_idx * small_bucket_size
+            phase_index = (elapsed_time / @phase_duration).floor
+            phase_index = [@error_phases.length - 1, phase_index].min # Cap at last phase
+            target_error_rate = @error_phases[phase_index]
+
+            bucket_pid_snapshots = @pid_snapshots.select { |s| s[:timestamp] >= bucket_start && s[:timestamp] < bucket_end }
+            unless bucket_pid_snapshots.empty?
+              # Average ideal error rate for snapshots in this bucket, then compare to target
+              avg_ideal_error_rate = bucket_pid_snapshots.sum { |s| s[:ideal_error_rate] } / bucket_pid_snapshots.size.to_f
+              error_offset = avg_ideal_error_rate - target_error_rate
+            end
+          end
+
           bucketed_data << {
             success: bucket_data.values.sum { |d| d[:success] },
             circuit_open: bucket_data.values.sum { |d| d[:circuit_open] },
             error: bucket_data.values.sum { |d| d[:error] },
             sum_request_duration: sum_request_duration,
             throughput: throughput,
+            error_offset: error_offset,
           }
         end
 
@@ -457,6 +475,21 @@ module Semian
         throughput_filename = @graph_filename.sub(%r{([^/]+)$}, 'throughput-\1')
         throughput_graph.write(throughput_filename)
         puts "Throughput graph saved to #{throughput_filename}"
+
+        # Generate error signal graph
+        error_signal_graph = Gruff::Line.new(1400)
+        error_signal_graph.title = "#{@graph_title} - Error Signal"
+        error_signal_graph.x_axis_label = "Time (10-second intervals)"
+        error_signal_graph.y_axis_label = "Error offset from ideal error rate"
+        error_signal_graph.hide_dots = false
+        error_signal_graph.line_width = 3
+        error_signal_graph.labels = labels
+
+        error_signal_graph.data("Error offset from ideal error rate", bucketed_data.map { |d| d[:error_offset] })
+
+        error_signal_graph_filename = @graph_filename.sub(%r{([^/]+)$}, 'error-signal-\1')
+        error_signal_graph.write(error_signal_graph_filename)
+        puts "Error offset graph saved to #{error_signal_graph_filename}"
       end
     end
   end
