@@ -2,6 +2,9 @@
 
 source "https://rubygems.org"
 
+# Load the local semian gem
+gemspec path: ".."
+
 # Graphing library for visualization
 gem "gruff", "~> 0.23"
 
