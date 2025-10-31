@@ -4,31 +4,9 @@ require "test_helper"
 require "semian/adaptive_circuit_breaker"
 
 class TestAdaptiveCircuitBreaker < Minitest::Test
-  class MockClock
-    attr_accessor :should_start
-
-    def initialize(window_size: 10, max_sleeps: 3, &block)
-      @sleep_count = 0
-      @window_size = window_size
-      @max_sleeps = max_sleeps
-      @on_max_sleeps = block
-      @should_start = false
-    end
-
-    def sleep(duration)
-      Kernel.sleep(0.01) until @should_start
-
-      # Only count window_size sleeps, this helps us detect if the wrong value is being passed
-      if duration == @window_size
-        @sleep_count += 1
-        @on_max_sleeps.call if @sleep_count >= @max_sleeps && @on_max_sleeps
-      end
-    end
-  end
-
-  def create_test_breaker(name:, clock: nil)
-    Semian::AdaptiveCircuitBreaker.new(
-      name: name,
+  def setup
+    @breaker = Semian::AdaptiveCircuitBreaker.new(
+      name: "test_breaker",
       kp: 1.0,
       ki: 0.1,
       kd: 0.01,
@@ -93,29 +71,35 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
   end
 
   def test_update_thread_calls_pid_controller_update_every_window_size
-    breaker = nil
+    # Verify that the update thread is created and alive
+    assert_instance_of(Thread, @breaker.update_thread)
+    assert(@breaker.update_thread.alive?)
 
-    done = false
-    mock_clock = MockClock.new(max_sleeps: 3) do |_|
-      done = true
-      # NOTE: breaker.stop kills the thread. Any line after it will not be executed.
-      breaker.stop
+    # Track how many times wait_for_window is called
+    wait_count = 0
+    ready_to_progress = false
+
+    @breaker.stub(:wait_for_window, -> {
+      # Wait until we're ready to start
+      Kernel.sleep(0.01) until ready_to_progress
+
+      wait_count += 1
+      # Stop the breaker after 3 waits
+      @breaker.stop if wait_count >= 3
+    }) do
+      # Set up expectations before allowing the thread to progress
+      # We call update after sleeping. And since we exit on the third sleep, we only expect 2 updates.
+      @breaker.pid_controller.expects(:update).times(2)
+
+      # Now allow the thread to start progressing
+      ready_to_progress = true
+
+      # Wait for the thread to complete
+      Kernel.sleep(0.01) while @breaker.update_thread.alive?
     end
 
-    breaker = create_test_breaker(name: "test_breaker_with_clock", clock: mock_clock)
-
-    # Verify that the update thread is created and alive
-    assert_instance_of(Thread, breaker.update_thread)
-    assert(breaker.update_thread.alive?)
-
-    mock_clock.should_start = true
-
-    # We call update after sleeping. And since we exit on the third sleep, we only expect 2 updates.
-    breaker.pid_controller.expects(:update).times(2)
-
-    Kernel.sleep(0.01) until done
-
-    assert_equal(false, breaker.update_thread.alive?)
+    assert_equal(false, @breaker.update_thread.alive?)
+    assert_equal(3, wait_count)
   end
 
   def test_notify_state_transition
