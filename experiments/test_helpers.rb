@@ -197,11 +197,11 @@ module Semian
                     window: @pid_snapshots.length + 1,
                     current_error_rate: metrics[:error_rate],
                     ideal_error_rate: metrics[:ideal_error_rate],
-                    error_metric: metrics[:error_metric],
+                    p_value: metrics[:p_value],
+                    previous_p_value: metrics[:previous_p_value],
                     rejection_rate: metrics[:rejection_rate],
                     integral: metrics[:integral],
                     derivative: metrics[:derivative],
-                    previous_error: metrics[:previous_error],
                     total_request_time: total_request_time,
                   }
                 end
@@ -347,19 +347,19 @@ module Semian
         end
 
         puts "\n=== PID Controller State Per Window ==="
-        puts format("%-8s %-15s %-15s %-12s %-15s %-12s %-12s %-12s %-15s", "Window", "Current Err %", "Ideal Err %", "Error P", "Reject %", "Integral", "PrevError", "Derivative", "Total Req Time")
+        puts format("%-8s %-15s %-15s %-12s %-12s %-15s %-12s %-12s %-15s", "Window", "Current Err %", "Ideal Err %", "Error P", "Prev Error P", "Reject %", "Integral", "Derivative", "Total Req Time")
         puts "-" * 120
 
         @pid_snapshots.each do |snapshot|
           puts format(
-            "%-8d %-15s %-15s %-12s %-15s %-12s %-12s %-12s %-15s",
+            "%-8d %-15s %-15s %-12s %-12s %-15s %-12s %-12s %-15s",
             snapshot[:window],
             "#{(snapshot[:current_error_rate] * 100).round(2)}%",
             "#{(snapshot[:ideal_error_rate] * 100).round(2)}%",
-            (snapshot[:error_metric] || 0).round(4),
+            (snapshot[:p_value] || 0).round(4),
+            (snapshot[:previous_p_value] || 0).round(4),
             "#{(snapshot[:rejection_rate] * 100).round(2)}%",
             (snapshot[:integral] || 0).round(4),
-            (snapshot[:previous_error] || 0).round(4),
             (snapshot[:derivative] || 0).round(4),
             "#{(snapshot[:total_request_time] || 0).round(2)}s",
           )
