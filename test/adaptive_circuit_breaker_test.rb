@@ -66,35 +66,34 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
   end
 
   def test_update_thread_calls_pid_controller_update_every_window_size
-    sleep_count = 0
-    breaker = Semian::AdaptiveCircuitBreaker.new(
-      name: "test_breaker_with_thread",
-      kp: 1.0,
-      ki: 0.1,
-      kd: 0.01,
-      window_size: 10,
-      initial_history_duration: 100,
-      initial_error_rate: 0.01,
-      thread_safe: true,
-    )
-
     # Verify that the update thread is created and alive
-    assert_instance_of(Thread, breaker.update_thread)
-    assert(breaker.update_thread.alive?)
+    assert_instance_of(Thread, @breaker.update_thread)
+    assert(@breaker.update_thread.alive?)
 
-    # Stub wait_for_window to avoid actual sleeping and control when to stop
-    breaker.stub(:wait_for_window, lambda {
-      sleep_count += 1
-      breaker.stop if sleep_count >= 3
-      Kernel.sleep(0.01) # Small sleep to prevent tight loop
+    # Track how many times wait_for_window is called
+    wait_count = 0
+    ready_to_progress = false
+
+    @breaker.stub(:wait_for_window, -> {
+      # Wait until we're ready to start (prevents race condition)
+      Kernel.sleep(0.01) until ready_to_progress
+
+      wait_count += 1
+      # Stop the breaker after 3 waits
+      @breaker.stop if wait_count >= 3
     }) do
-      # We call update after waiting. Since we stop on the third wait, we only expect 2 updates.
-      breaker.pid_controller.expects(:update).times(2)
+      # Set up expectations BEFORE allowing the thread to progress
+      # We call update after sleeping. And since we exit on the third sleep, we only expect 2 updates.
+      @breaker.pid_controller.expects(:update).times(2)
+
+      # Now allow the thread to start progressing
+      ready_to_progress = true
 
       # Wait for the thread to complete
-      breaker.update_thread.join(1)
+      Kernel.sleep(0.01) while @breaker.update_thread.alive?
     end
 
-    assert_equal(false, breaker.update_thread.alive?)
+    assert_equal(false, @breaker.update_thread.alive?)
+    assert_equal(3, wait_count)
   end
 end
