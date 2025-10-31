@@ -26,9 +26,9 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
     end
   end
 
-  def setup
-    @breaker = Semian::AdaptiveCircuitBreaker.new(
-      name: "test_breaker",
+  def create_test_breaker(name:, clock: nil)
+    Semian::AdaptiveCircuitBreaker.new(
+      name: name,
       kp: 1.0,
       ki: 0.1,
       kd: 0.01,
@@ -36,7 +36,12 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
       initial_history_duration: 100,
       initial_error_rate: 0.01,
       thread_safe: true,
+      clock: clock,
     )
+  end
+
+  def setup
+    @breaker = create_test_breaker(name: "test_breaker")
   end
 
   def teardown
@@ -97,17 +102,7 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
       breaker.stop
     end
 
-    breaker = Semian::AdaptiveCircuitBreaker.new(
-      name: "test_breaker_with_clock",
-      kp: 1.0,
-      ki: 0.1,
-      kd: 0.01,
-      window_size: 10,
-      initial_history_duration: 100,
-      initial_error_rate: 0.01,
-      thread_safe: true,
-      clock: mock_clock,
-    )
+    breaker = create_test_breaker(name: "test_breaker_with_clock", clock: mock_clock)
 
     # Verify that the update thread is created and alive
     assert_instance_of(Thread, breaker.update_thread)
@@ -121,5 +116,137 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
     Kernel.sleep(0.01) until done
 
     assert_equal(false, breaker.update_thread.alive?)
+  end
+
+  def test_notify_state_transition
+    events = []
+    Semian.subscribe(:test_notify) do |event, resource, _scope, _adapter, payload|
+      if event == :state_change
+        events << { name: resource.name, state: payload[:state] }
+      end
+    end
+
+    breaker = nil
+    done = false
+    mock_clock = MockClock.new(max_sleeps: 6) do |_|
+      done = true
+      breaker.stop
+    end
+
+    breaker = create_test_breaker(name: "test_notify", clock: mock_clock)
+
+    breaker.pid_controller.expects(:rejection_rate).returns(0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5, 0.0, 0.0, 0.0).times(10)
+    breaker.pid_controller.expects(:update).times(5)
+    breaker.pid_controller.expects(:metrics).returns({
+      rejection_rate: 0.5,
+      error_rate: 0.35,
+      ideal_error_rate: 0.10,
+      integral: 5.0,
+      p_value: 0.1,
+      derivative: 0.01,
+      current_window_requests: { success: 10, error: 50, rejected: 5 },
+    }).at_least_once
+
+    mock_clock.should_start = true
+    Kernel.sleep(0.01) until done
+
+    # Should receive exactly 2 notifications (only when state actually changes)
+    assert_equal(2, events.length)
+    assert_equal(:test_notify, events[0][:name])
+    assert_equal(:open, events[0][:state])
+    assert_equal(:test_notify, events[1][:name])
+    assert_equal(:closed, events[1][:state])
+  ensure
+    Semian.unsubscribe(:test_notify)
+  end
+
+  def test_notify_adaptive_update
+    events = []
+    Semian.subscribe(:test_adaptive_update) do |event, resource, _scope, _adapter, payload|
+      if event == :adaptive_update
+        events << {
+          name: resource.name,
+          rejection_rate: payload[:rejection_rate],
+          error_rate: payload[:error_rate],
+        }
+      end
+    end
+
+    breaker = nil
+    done = false
+    mock_clock = MockClock.new(max_sleeps: 3) do |_|
+      done = true
+      breaker.stop
+    end
+
+    breaker = create_test_breaker(name: "test_adaptive_update", clock: mock_clock)
+
+    breaker.pid_controller.expects(:update).times(2)
+    breaker.pid_controller.expects(:rejection_rate).returns(0.25).at_least_once
+    breaker.pid_controller.expects(:metrics).returns({
+      rejection_rate: 0.25,
+      error_rate: 0.15,
+      ideal_error_rate: 0.10,
+      integral: 2.5,
+      p_value: 0.05,
+      derivative: 0.01,
+      current_window_requests: { success: 15, error: 3, rejected: 5 },
+    }).at_least(2)
+
+    mock_clock.should_start = true
+    Kernel.sleep(0.01) until done
+
+    # Should receive 2 adaptive_update notifications (one per update)
+    assert_equal(2, events.length)
+    events.each do |event|
+      assert_equal(:test_adaptive_update, event[:name])
+      assert_equal(0.25, event[:rejection_rate])
+      assert_equal(0.15, event[:error_rate])
+    end
+  ensure
+    Semian.unsubscribe(:test_adaptive_update)
+  end
+
+  def test_state_transition_logging
+    strio = StringIO.new
+    Semian.logger = Logger.new(strio)
+
+    breaker = nil
+    done = false
+    mock_clock = MockClock.new(max_sleeps: 2) do |_|
+      done = true
+      breaker.stop
+    end
+
+    breaker = create_test_breaker(name: "test_logging", clock: mock_clock)
+
+    # rejection_rate called twice: before update (0.0), after update (0.5)
+    breaker.pid_controller.expects(:rejection_rate).returns(0.0, 0.5).times(2)
+    breaker.pid_controller.expects(:update).once
+    breaker.pid_controller.expects(:metrics).returns({
+      rejection_rate: 0.5,
+      error_rate: 0.35,
+      ideal_error_rate: 0.10,
+      integral: 5.0,
+      p_value: 0.1,
+      derivative: 0.01,
+      current_window_requests: { success: 10, error: 50, rejected: 5 },
+    }).at_least_once
+
+    mock_clock.should_start = true
+    Kernel.sleep(0.01) until done
+
+    log_output = strio.string
+
+    # Verify log contains expected fields
+    assert_match(/State transition from closed to open/, log_output)
+    assert_match(/rejection_rate=50.0%/, log_output)
+    assert_match(/error_rate=35.0%/, log_output)
+    assert_match(/ideal_error_rate=10.0%/, log_output)
+    assert_match(/integral=5.0/, log_output)
+    assert_match(/success_count=10/, log_output)
+    assert_match(/error_count=50/, log_output)
+    assert_match(/rejected_count=5/, log_output)
+    assert_match(/name="test_logging"/, log_output)
   end
 end

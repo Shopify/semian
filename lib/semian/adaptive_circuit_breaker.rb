@@ -127,11 +127,67 @@ module Semian
 
           @clock.sleep(@window_size)
 
+          old_rejection_rate = @pid_controller.rejection_rate
+          pre_update_metrics = @pid_controller.metrics
+
           @pid_controller.update
+          new_rejection_rate = @pid_controller.rejection_rate
+
+          check_and_notify_state_transition(old_rejection_rate, new_rejection_rate, pre_update_metrics)
+          notify_metrics_update
         end
       rescue => e
         Semian.logger&.warn("[#{@name}] PID controller update thread error: #{e.message}")
       end
+    end
+
+    def check_and_notify_state_transition(old_rate, new_rate, pre_update_metrics)
+      old_state = old_rate == 0.0 ? :closed : :open
+      new_state = new_rate == 0.0 ? :closed : :open
+
+      if old_state != new_state
+        notify_state_transition(new_state)
+        log_state_transition(old_state, new_state, new_rate, pre_update_metrics)
+      end
+    end
+
+    def notify_state_transition(new_state)
+      Semian.notify(:state_change, self, nil, nil, state: new_state)
+    end
+
+    def log_state_transition(old_state, new_state, rejection_rate, pre_update_metrics)
+      # Use pre-update metrics to get the window that caused the transition
+      requests = pre_update_metrics[:current_window_requests]
+
+      str = "[#{self.class.name}] State transition from #{old_state} to #{new_state}."
+      str += " success_count=#{requests[:success]}"
+      str += " error_count=#{requests[:error]}"
+      str += " rejected_count=#{requests[:rejected]}"
+      str += " rejection_rate=#{(rejection_rate * 100).round(2)}%"
+      str += " error_rate=#{(pre_update_metrics[:error_rate] * 100).round(2)}%"
+      str += " ideal_error_rate=#{(pre_update_metrics[:ideal_error_rate] * 100).round(2)}%"
+      str += " integral=#{pre_update_metrics[:integral].round(4)}"
+      str += " name=\"#{@name}\""
+
+      Semian.logger.info(str)
+    end
+
+    def notify_metrics_update
+      metrics = @pid_controller.metrics
+
+      Semian.notify(
+        :adaptive_update,
+        self,
+        nil,
+        nil,
+        rejection_rate: metrics[:rejection_rate],
+        error_rate: metrics[:error_rate],
+        ideal_error_rate: metrics[:ideal_error_rate],
+        p_value: metrics[:p_value],
+        integral: metrics[:integral],
+        derivative: metrics[:derivative],
+        previous_p_value: metrics[:previous_p_value],
+      )
     end
   end
 end
