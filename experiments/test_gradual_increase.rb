@@ -11,7 +11,18 @@ require_relative "test_helpers"
 runner = Semian::Experiments::CircuitBreakerTestRunner.new(
   test_name: "Gradual Error Increase Test",
   resource_name: "protected_service_gradual",
-  error_phases: [0.01, 0.015, 0.02, 0.025, 0.03, 0.035, 0.04, 0.045, 0.05, 0.01],
+  degradation_phases: [
+    Semian::Experiments::DegradationPhase.new(healthy: true),
+    Semian::Experiments::DegradationPhase.new(error_rate: 0.015),
+    Semian::Experiments::DegradationPhase.new(error_rate: 0.02),
+    Semian::Experiments::DegradationPhase.new(error_rate: 0.025),
+    Semian::Experiments::DegradationPhase.new(error_rate: 0.03),
+    Semian::Experiments::DegradationPhase.new(error_rate: 0.035),
+    Semian::Experiments::DegradationPhase.new(error_rate: 0.04),
+    Semian::Experiments::DegradationPhase.new(error_rate: 0.045),
+    Semian::Experiments::DegradationPhase.new(error_rate: 0.05),
+    Semian::Experiments::DegradationPhase.new(healthy: true),
+  ],
   phase_duration: 60,
   semian_config: {
     success_threshold: 2,

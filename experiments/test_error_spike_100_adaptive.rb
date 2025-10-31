@@ -11,7 +11,9 @@ require_relative "test_helpers"
 runner = Semian::Experiments::CircuitBreakerTestRunner.new(
   test_name: "Sudden Error Spike Test (Adaptive) - 100% for 20 seconds",
   resource_name: "protected_service_sudden_error_spike_100_adaptive",
-  error_phases: [0.01] * 3 + [1.00] + [0.01] * 3,
+  degradation_phases: [Semian::Experiments::DegradationPhase.new(healthy: true)] * 3 +
+                      [Semian::Experiments::DegradationPhase.new(error_rate: 1.00)] +
+                      [Semian::Experiments::DegradationPhase.new(healthy: true)] * 3,
   phase_duration: 20,
   semian_config: {
     adaptive_circuit_breaker: true,
