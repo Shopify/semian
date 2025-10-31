@@ -23,7 +23,6 @@ module Semian
       @window_size = window_size
       @stopped = false
       @clock = clock || RealClock.new
-      @last_rejection_rate = 0.0
 
       @pid_controller = if thread_safe
         ThreadSafePIDController.new(
@@ -128,19 +127,14 @@ module Semian
 
           @clock.sleep(@window_size)
 
-          old_rejection_rate = @last_rejection_rate
-
-          # Capture metrics BEFORE update resets the window
+          old_rejection_rate = @pid_controller.rejection_rate
           pre_update_metrics = @pid_controller.metrics
 
           @pid_controller.update
           new_rejection_rate = @pid_controller.rejection_rate
 
           check_and_notify_state_transition(old_rejection_rate, new_rejection_rate, pre_update_metrics)
-
           notify_metrics_update
-
-          @last_rejection_rate = new_rejection_rate
         end
       rescue => e
         Semian.logger&.warn("[#{@name}] PID controller update thread error: #{e.message}")
@@ -192,6 +186,7 @@ module Semian
         p_value: metrics[:p_value],
         integral: metrics[:integral],
         derivative: metrics[:derivative],
+        previous_p_value: metrics[:previous_p_value],
       )
     end
   end

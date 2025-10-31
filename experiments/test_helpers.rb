@@ -107,7 +107,7 @@ module Semian
         @thread_timings = {}
 
         start_request_threads
-        start_monitoring_thread if @is_adaptive
+        subscribe_to_metrics if @is_adaptive
       end
 
       def start_request_threads
@@ -177,40 +177,28 @@ module Semian
         end
       end
 
-      def start_monitoring_thread
-        puts "Starting PID monitoring thread..."
-        @monitor_thread = Thread.new do
-          sleep(1) # Wait for resource to register and first window to start
+      def subscribe_to_metrics
+        target_resource_name = "#{@resource_name}_#{@target_service.object_id}".to_sym
+        
+        @subscription = Semian.subscribe do |event, resource, _scope, _adapter, payload|
+          # Only capture adaptive_update events for our target service resource
+          next unless event == :adaptive_update && resource.name == target_resource_name
 
-          until @done
-            begin
-              # We monitor the PID controller of the target service
-              semian_resource = Semian["#{@resource_name}_#{@target_service.object_id}".to_sym]
-              if semian_resource&.circuit_breaker
-                metrics = semian_resource.circuit_breaker.pid_controller.metrics
+          total_request_time = @thread_timings.values.sum { |t| t[:samples].sum { |s| s[:duration] } }
 
-                total_request_time = @thread_timings.values.sum { |t| t[:samples].sum { |s| s[:duration] } }
-
-                @pid_mutex.synchronize do
-                  @pid_snapshots << {
-                    timestamp: Time.now.to_i,
-                    window: @pid_snapshots.length + 1,
-                    current_error_rate: metrics[:error_rate],
-                    ideal_error_rate: metrics[:ideal_error_rate],
-                    p_value: metrics[:p_value],
-                    previous_p_value: metrics[:previous_p_value],
-                    rejection_rate: metrics[:rejection_rate],
-                    integral: metrics[:integral],
-                    derivative: metrics[:derivative],
-                    total_request_time: total_request_time,
-                  }
-                end
-              end
-            rescue
-              # Ignore errors
-            end
-
-            sleep(10) # Capture every window
+          @pid_mutex.synchronize do
+            @pid_snapshots << {
+              timestamp: Time.now.to_i,
+              window: @pid_snapshots.length + 1,
+              current_error_rate: payload[:error_rate],
+              ideal_error_rate: payload[:ideal_error_rate],
+              p_value: payload[:p_value],
+              previous_p_value: payload[:previous_p_value],
+              rejection_rate: payload[:rejection_rate],
+              integral: payload[:integral],
+              derivative: payload[:derivative],
+              total_request_time: total_request_time,
+            }
           end
         end
       end
@@ -250,7 +238,9 @@ module Semian
         @done = true
         puts "\nWaiting for all request threads to finish..."
         @request_threads.each(&:join)
-        @monitor_thread.join if @is_adaptive
+
+        Semian.unsubscribe(@subscription) if @is_adaptive
+
         @end_time = Time.now
       end
 

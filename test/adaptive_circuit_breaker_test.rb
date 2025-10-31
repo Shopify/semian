@@ -135,7 +135,7 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
 
     breaker = create_test_breaker(name: "test_notify", clock: mock_clock)
 
-    breaker.pid_controller.expects(:rejection_rate).returns(0.0, 0.0, 0.5, 0.5, 0.0).times(5)
+    breaker.pid_controller.expects(:rejection_rate).returns(0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5, 0.0, 0.0, 0.0).times(10)
     breaker.pid_controller.expects(:update).times(5)
     breaker.pid_controller.expects(:metrics).returns({
       rejection_rate: 0.5,
@@ -220,7 +220,8 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
 
     breaker = create_test_breaker(name: "test_logging", clock: mock_clock)
 
-    breaker.pid_controller.expects(:rejection_rate).returns(0.5).once
+    # rejection_rate called twice: before update (0.0), after update (0.5)
+    breaker.pid_controller.expects(:rejection_rate).returns(0.0, 0.5).times(2)
     breaker.pid_controller.expects(:update).once
     breaker.pid_controller.expects(:metrics).returns({
       rejection_rate: 0.5,
