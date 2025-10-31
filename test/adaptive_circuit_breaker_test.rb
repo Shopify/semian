@@ -75,14 +75,14 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
     ready_to_progress = false
 
     @breaker.stub(:wait_for_window, -> {
-      # Wait until we're ready to start (prevents race condition)
+      # Wait until we're ready to start
       Kernel.sleep(0.01) until ready_to_progress
 
       wait_count += 1
       # Stop the breaker after 3 waits
       @breaker.stop if wait_count >= 3
     }) do
-      # Set up expectations BEFORE allowing the thread to progress
+      # Set up expectations before allowing the thread to progress
       # We call update after sleeping. And since we exit on the third sleep, we only expect 2 updates.
       @breaker.pid_controller.expects(:update).times(2)
 
