@@ -47,7 +47,11 @@ module Semian
         @service_count = service_count
         @target_service = nil
         @graph_bucket_size = graph_bucket_size || (@is_adaptive ? 10 : 1)
-        @base_error_rate = base_error_rate.nil? ? (@is_adaptive ? 0.01 : 0.0) : base_error_rate
+        @base_error_rate = if base_error_rate.nil?
+          @is_adaptive ? 0.01 : 0.0
+        else
+          base_error_rate
+        end
       end
 
       def run
@@ -186,7 +190,7 @@ module Semian
 
       def subscribe_to_metrics
         target_resource_name = "#{@resource_name}_#{@target_service.object_id}".to_sym
-        
+
         @subscription = Semian.subscribe do |event, resource, _scope, _adapter, payload|
           # Only capture adaptive_update events for our target service resource
           next unless event == :adaptive_update && resource.name == target_resource_name
@@ -212,7 +216,7 @@ module Semian
 
       def subscribe_to_state_changes
         target_resource_name = "#{@resource_name}_#{@target_service.object_id}".to_sym
-        
+
         @subscription = Semian.subscribe do |event, resource, _scope, _adapter, payload|
           # Only capture state_change events for our target service resource
           next unless event == :state_change && resource.name == target_resource_name
@@ -481,25 +485,25 @@ module Semian
         return if @state_transitions.empty?
 
         test_start = @outcomes.keys[0]
-        
+
         @state_transitions.each_with_index do |transition, idx|
           # Calculate which bucket this transition falls into
           elapsed = transition[:timestamp] - test_start
           bucket_idx = (elapsed / bucket_size).to_i
-          
+
           next if bucket_idx < 0 || bucket_idx >= num_buckets
-          
+
           # Add vertical reference line at this bucket index
           color = case transition[:state]
-                  when :open then 'red'
-                  when :half_open then 'gray'
-                  when :closed then 'green'
-                  end
+          when :open then "red"
+          when :half_open then "gray"
+          when :closed then "green"
+          end
 
           graph.reference_lines[:"transition_#{idx}"] = {
             index: bucket_idx,
             color: color,
-            width: 2
+            width: 2,
           }
         end
       end
