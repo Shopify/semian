@@ -8,6 +8,7 @@ on:
   pull_request:
     branches: [ '**' ]
   workflow_call:
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.ref }}-test

@@ -9,6 +9,7 @@ on:
     branches: [ main ]
   schedule:
     - cron: 13 7 * * 6
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.ref }}-analysis

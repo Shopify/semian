@@ -1,0 +1,63 @@
+---
+name: "Automated Experiment Runner"
+
+# yamllint disable-line rule:truthy
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+concurrency:
+  group: ${{ github.ref }}-automated-experiment-runner
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  automated-experiment-runner:
+    runs-on: ubuntu-latest
+    # Skip if the last commit is an automated commit to prevent loops
+    if: "!contains(github.event.pull_request.head.commit.message, '[AUTOMATED COMMIT] Update experiment graphs')"
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y build-essential libssl-dev libmysqlclient-dev imagemagick libmagickwand-dev
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: ruby/setup-ruby@0481980f17b760ef6bca5e8c55809102a0af1e5a # v1.263.0
+        with:
+          bundler-cache: true
+
+      - name: Setup Environment
+        run: |
+          git add .
+          git reset --hard
+          bundle install
+          bundle exec rake compile
+          cd experiments
+          bundle install
+
+      - name: Run PID Controller Experiments
+        run: |
+          cd experiments
+          bundle exec ruby run_all_experiments.rb
+
+      - name: Commit Graphs
+        run: |
+          git checkout ${{ github.head_ref }}
+          git config user.name github-actions[bot]
+          git config user.email github-actions[bot]@users.noreply.github.com
+          git add experiments/results/main_graphs
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "[AUTOMATED COMMIT] Update experiment graphs"
+            git push
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.MY_PAT }}
+
+
+
