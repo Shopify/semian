@@ -135,7 +135,8 @@ module Semian
 
     def wait_for_window
       Kernel.sleep(@window_size)
-      
+    end
+
     def check_and_notify_state_transition(old_rate, new_rate, pre_update_metrics)
       old_state = old_rate == 0.0 ? :closed : :open
       new_state = new_rate == 0.0 ? :closed : :open
