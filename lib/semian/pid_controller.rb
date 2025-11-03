@@ -85,8 +85,17 @@ module Semian
       # Calculate the control signal (change in rejection rate)
       control_signal = proportional + integral + @derivative
 
+      # Calculate what the new rejection rate would be
+      new_rejection_rate = @rejection_rate + control_signal
+
       # Update rejection rate (clamped between 0 and 1)
-      @rejection_rate = (@rejection_rate + control_signal).clamp(0.0, 1.0)
+      @rejection_rate = new_rejection_rate.clamp(0.0, 1.0)
+
+      # Anti-windup: back out the integral accumulation if output was saturated
+      if new_rejection_rate != @rejection_rate
+        # Output was clamped, reverse the integral accumulation
+        @integral -= @last_p_value * dt
+      end
 
       @rejection_rate
     end
