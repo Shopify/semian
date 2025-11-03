@@ -105,8 +105,9 @@ class TestPIDController < Minitest::Test
     @controller.update
     # control signal = Ki * integral + Kp * p_value + Kd * (p_value - previous_p_value) / dt
     # p_value = (error_rate - ideal_error_rate) - rejection_rate = (0.11 - 0.01) - 0 = 0.1
-    # With anti-windup, integral behavior changes when output is saturated
-    # The exact value depends on whether previous windows caused saturation
+    # With back-calculation anti-windup: when rejection_rate saturates (hits 0 or 1),
+    # the integral accumulation is reversed: integral -= p_value * dt
+    # This prevents integral windup but means the exact response depends on saturation history
     assert_in_delta(@controller.metrics[:rejection_rate], 0.20, 0.02)
     assert_equal(1004, @controller.metrics[:p90_estimator_state][:observations])
     # ----------------------------------------------------------------
