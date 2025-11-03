@@ -58,6 +58,9 @@ module Semian
 
     # Update the controller at the end of each time window
     def update
+      # Store the last window's P value so that we can serve it up in the metrics snapshots
+      @previous_p_value = @last_p_value
+
       # Calculate rates for the current window
       @last_error_rate = calculate_window_error_rate
 
@@ -94,9 +97,6 @@ module Semian
         @integral -= @last_p_value * dt
       end
 
-      # Update state for next iteration
-      @previous_p_value = @last_p_value
-
       @rejection_rate
     end
 
@@ -127,9 +127,9 @@ module Semian
         error_rate: @last_error_rate,
         ideal_error_rate: calculate_ideal_error_rate,
         p_value: @last_p_value,
+        previous_p_value: @previous_p_value,
         integral: @integral,
         derivative: @derivative,
-        previous_p_value: @previous_p_value,
         current_window_requests: @current_window_requests.dup,
         p90_estimator_state: @p90_estimator.state,
       }

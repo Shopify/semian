@@ -32,8 +32,8 @@ class TestPIDController < Minitest::Test
         error_rate: 0.0,
         ideal_error_rate: 0.01, # Default when no history
         p_value: 0.0,
-        integral: 0.0,
         previous_p_value: 0.0,
+        integral: 0.0,
         derivative: 0.0,
         current_window_requests: { success: 0, error: 0, rejected: 0 },
         p90_estimator_state: {
@@ -185,8 +185,8 @@ class TestPIDController < Minitest::Test
         error_rate: 0.0,
         ideal_error_rate: 0.01, # Default when no history
         p_value: 0.0,
-        integral: 0.0,
         previous_p_value: 0.0,
+        integral: 0.0,
         derivative: 0.0,
         current_window_requests: { success: 0, error: 0, rejected: 0 },
         p90_estimator_state: {
