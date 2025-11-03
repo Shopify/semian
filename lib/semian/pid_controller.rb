@@ -85,8 +85,8 @@ module Semian
       # Calculate the control signal (change in rejection rate)
       control_signal = proportional + integral + @derivative
 
-      # Update rejection rate (clamped between 0 and 1)
-      @rejection_rate = (@rejection_rate + control_signal).clamp(0.0, 1.0)
+      # Update rejection rate (clamped between 0 and 99%)
+      @rejection_rate = (@rejection_rate + control_signal).clamp(0.0, 0.99)
 
       @rejection_rate
     end
