@@ -28,7 +28,9 @@ module Semian
         num_threads: 60,
         requests_per_second_per_thread: 50,
         x_axis_label_interval: nil,
-        service_count: 1
+        service_count: 1,
+        graph_bucket_size: nil,
+        base_error_rate: nil
       )
         @test_name = test_name
         @resource_name = resource_name
@@ -44,6 +46,12 @@ module Semian
         @test_duration = degradation_phases.length * phase_duration
         @service_count = service_count
         @target_service = nil
+        @graph_bucket_size = graph_bucket_size || (@is_adaptive ? 10 : 1)
+        @base_error_rate = if base_error_rate.nil?
+          @is_adaptive ? 0.01 : 0.0
+        else
+          base_error_rate
+        end
       end
 
       def run
@@ -71,7 +79,7 @@ module Semian
               mean: 0.15,
               std_dev: 0.05,
             },
-            error_rate: 0.01,
+            error_rate: @base_error_rate,
             timeout: 5,
           )
         end
@@ -105,9 +113,12 @@ module Semian
         @pid_snapshots = []
         @pid_mutex = Mutex.new
         @thread_timings = {}
+        @state_transitions = []
+        @state_transitions_mutex = Mutex.new
 
         start_request_threads
-        start_monitoring_thread if @is_adaptive
+        subscribe_to_metrics if @is_adaptive
+        subscribe_to_state_changes unless @is_adaptive
       end
 
       def start_request_threads
@@ -183,52 +194,44 @@ module Semian
         end
       end
 
-      def start_monitoring_thread
-        puts "Starting PID monitoring thread..."
-        @monitor_thread = Thread.new do
-          sleep(1) # Wait for resource to register and first window to start
+      def subscribe_to_metrics
+        target_resource_name = "#{@resource_name}_#{@target_service.object_id}".to_sym
 
-          until @done
-            begin
-              # Collect metrics from all thread resources
-              all_metrics = []
-              @num_threads.times do |thread_num|
-                resource_name = "#{@resource_name}_thread_#{thread_num}".to_sym
-                semian_resource = Semian[resource_name]
-                if semian_resource&.circuit_breaker
-                  all_metrics << semian_resource.circuit_breaker.pid_controller.metrics
-                end
-              end
+        @subscription = Semian.subscribe do |event, resource, _scope, _adapter, payload|
+          # Only capture adaptive_update events for our target service resource
+          next unless event == :adaptive_update && resource.name == target_resource_name
 
-              if all_metrics.any?
-                total_request_time = @thread_timings.values.sum { |t| t[:samples].sum { |s| s[:duration] } }
+          total_request_time = @thread_timings.values.sum { |t| t[:samples].sum { |s| s[:duration] } }
 
-                # Calculate min/max/avg for key metrics
-                metric_keys = [:error_rate, :error_metric, :rejection_rate, :integral, :derivative, :previous_error, :ideal_error_rate]
-                aggregated = {}
+          @pid_mutex.synchronize do
+            @pid_snapshots << {
+              timestamp: Time.now.to_i,
+              window: @pid_snapshots.length + 1,
+              current_error_rate: payload[:error_rate],
+              ideal_error_rate: payload[:ideal_error_rate],
+              p_value: payload[:p_value],
+              previous_p_value: payload[:previous_p_value],
+              rejection_rate: payload[:rejection_rate],
+              integral: payload[:integral],
+              derivative: payload[:derivative],
+              total_request_time: total_request_time,
+            }
+          end
+        end
+      end
 
-                metric_keys.each do |key|
-                  values = all_metrics.map { |m| m[key] || 0 }
-                  aggregated["#{key}_avg".to_sym] = values.sum / values.size.to_f
-                  aggregated["#{key}_min".to_sym] = values.min
-                  aggregated["#{key}_max".to_sym] = values.max
-                end
+      def subscribe_to_state_changes
+        target_resource_name = "#{@resource_name}_#{@target_service.object_id}".to_sym
 
-                @pid_mutex.synchronize do
-                  @pid_snapshots << {
-                    timestamp: Time.now.to_i,
-                    window: @pid_snapshots.length + 1,
-                    total_request_time: total_request_time,
-                    **aggregated,
-                  }
-                end
-              end
-            rescue => e
-              # Log error for debugging
-              puts "\nMonitoring error: #{e.message}" if ENV["DEBUG"]
-            end
+        @subscription = Semian.subscribe do |event, resource, _scope, _adapter, payload|
+          # Only capture state_change events for our target service resource
+          next unless event == :state_change && resource.name == target_resource_name
 
-            sleep(10) # Capture every window
+          @state_transitions_mutex.synchronize do
+            @state_transitions << {
+              timestamp: Time.now.to_i,
+              state: payload[:state],
+            }
           end
         end
       end
@@ -268,7 +271,9 @@ module Semian
         @done = true
         puts "\nWaiting for all request threads to finish..."
         @request_threads.each(&:join)
-        @monitor_thread.join if @is_adaptive
+
+        Semian.unsubscribe(@subscription) if @is_adaptive
+
         @end_time = Time.now
 
         # Clean up per-thread resources
@@ -322,7 +327,7 @@ module Semian
           status = bucket_circuit > 0 ? "⚡" : "✓"
 
           degradation_phase = @degradation_phases[bucket_idx] || @degradation_phases.last
-          phase_error_rate = degradation_phase.error_rate || @target_service.base_error_rate
+          phase_error_rate = degradation_phase.error_rate || @base_error_rate
           phase_label = "[Target: #{(phase_error_rate * 100).round(1)}%]"
 
           puts "#{status} #{bucket_time_range} #{phase_label}: #{bucket_total} requests | Success: #{bucket_success} | Errors: #{bucket_errors} (#{error_pct}%) | Rejected: #{bucket_circuit} (#{circuit_pct}%)"
@@ -415,14 +420,14 @@ module Semian
         puts "\nGenerating visualization..."
         require "gruff"
 
-        # Aggregate data into 10-second buckets for detailed visualization
-        small_bucket_size = 10
-        num_small_buckets = (@test_duration / small_bucket_size.to_f).ceil
+        # Aggregate data into buckets for detailed visualization
+        bucket_size = @graph_bucket_size
+        num_buckets = (@test_duration / bucket_size.to_f).ceil
 
         bucketed_data = []
-        (0...num_small_buckets).each do |bucket_idx|
-          bucket_start = @outcomes.keys[0] + (bucket_idx * small_bucket_size)
-          bucket_end = bucket_start + small_bucket_size
+        (0...num_buckets).each do |bucket_idx|
+          bucket_start = @outcomes.keys[0] + (bucket_idx * bucket_size)
+          bucket_end = bucket_start + bucket_size
           bucket_data = @outcomes.select { |time, _| time >= bucket_start && time < bucket_end }
 
           bucket_samples = []
@@ -444,8 +449,8 @@ module Semian
 
         # Set x-axis labels
         labels = {}
-        (0...num_small_buckets).each do |i|
-          time_sec = i * small_bucket_size
+        (0...num_buckets).each do |i|
+          time_sec = i * bucket_size
           labels[i] = "#{time_sec}s" if time_sec % @x_axis_label_interval == 0
         end
 
@@ -455,7 +460,7 @@ module Semian
         # Generate main graph (requests)
         graph = Gruff::Line.new(1400)
         graph.title = @graph_title
-        graph.x_axis_label = "Time (10-second intervals)"
+        graph.x_axis_label = "Time (#{bucket_size}-second intervals)"
         graph.y_axis_label = "Requests per Interval"
         graph.hide_dots = false
         graph.line_width = 3
@@ -465,13 +470,18 @@ module Semian
         graph.data("Rejected", bucketed_data.map { |d| d[:circuit_open] })
         graph.data("Error", bucketed_data.map { |d| d[:error] })
 
+        # Add circuit state transition markers (for classic CB)
+        unless @is_adaptive
+          add_state_transition_markers(graph, bucketed_data, bucket_size, num_buckets)
+        end
+
         graph.write(@graph_filename)
         puts "Graph saved to #{@graph_filename}"
 
         # Generate duration graph
         duration_graph = Gruff::Line.new(1400)
         duration_graph.title = "#{@graph_title} - Total Request Duration"
-        duration_graph.x_axis_label = "Time (10-second intervals)"
+        duration_graph.x_axis_label = "Time (#{bucket_size}-second intervals)"
         duration_graph.y_axis_label = "Total Request Duration (seconds)"
         duration_graph.hide_dots = false
         duration_graph.line_width = 3
@@ -486,7 +496,7 @@ module Semian
         # Generate throughput graph
         throughput_graph = Gruff::Line.new(1400)
         throughput_graph.title = "#{@graph_title} - Total Request Throughput"
-        throughput_graph.x_axis_label = "Time (10-second intervals)"
+        throughput_graph.x_axis_label = "Time (#{bucket_size}-second intervals)"
         throughput_graph.y_axis_label = "Total Request Throughput"
         throughput_graph.hide_dots = false
         throughput_graph.line_width = 3
@@ -497,6 +507,33 @@ module Semian
         throughput_filename = @graph_filename.sub(%r{([^/]+)$}, 'throughput-\1')
         throughput_graph.write(throughput_filename)
         puts "Throughput graph saved to #{throughput_filename}"
+      end
+
+      def add_state_transition_markers(graph, bucketed_data, bucket_size, num_buckets)
+        return if @state_transitions.empty?
+
+        test_start = @outcomes.keys[0]
+
+        @state_transitions.each_with_index do |transition, idx|
+          # Calculate which bucket this transition falls into
+          elapsed = transition[:timestamp] - test_start
+          bucket_idx = (elapsed / bucket_size).to_i
+
+          next if bucket_idx < 0 || bucket_idx >= num_buckets
+
+          # Add vertical reference line at this bucket index
+          color = case transition[:state]
+          when :open then "red"
+          when :half_open then "gray"
+          when :closed then "green"
+          end
+
+          graph.reference_lines[:"transition_#{idx}"] = {
+            index: bucket_idx,
+            color: color,
+            width: 2,
+          }
+        end
       end
     end
   end
