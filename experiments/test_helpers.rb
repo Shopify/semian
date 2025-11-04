@@ -130,12 +130,6 @@ module Semian
         @num_threads.times do |thread_num|
           @request_threads << Thread.new do
             thread_id = Thread.current.object_id
-            thread_resource = ExperimentalResource.new(
-              name: "#{@resource_name}_thread_#{thread_num}",
-              service: @service,
-              semian: @semian_config,
-            )
-
             @thread_timings[thread_id] = { samples: [] }
 
             sleep_interval = 1.0 / @requests_per_second_per_thread
@@ -146,7 +140,7 @@ module Semian
               # But the resource class is pretty much only a wrapper around things that are longer-living.
               # So this works just fine.
               thread_resource = ExperimentalResource.new(
-                name: "#{@resource_name}_#{service.object_id}",
+                name: "#{@resource_name}_#{service.object_id}_thread_#{thread_num}",
                 service: service,
                 semian: @semian_config,
               )
@@ -277,9 +271,11 @@ module Semian
         @end_time = Time.now
 
         # Clean up per-thread resources
-        @num_threads.times do |thread_num|
-          resource_name = "#{@resource_name}_thread_#{thread_num}".to_sym
-          Semian.destroy(resource_name)
+        @services.each do |service|
+          @num_threads.times do |thread_num|
+            resource_name = "#{@resource_name}_#{service.object_id}_thread_#{thread_num}".to_sym
+            Semian.destroy(resource_name)
+          end
         end
       end
 
