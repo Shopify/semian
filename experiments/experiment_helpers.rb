@@ -6,12 +6,13 @@ module Semian
     # Handles all the common logic: service creation, threading, monitoring, analysis, and visualization
     require "fileutils"
     class DegradationPhase
-      attr_reader :healthy, :error_rate, :latency
+      attr_reader :healthy, :error_rate, :latency, :specific_endpoint_latency
 
-      def initialize(healthy: nil, error_rate: nil, latency: nil)
+      def initialize(healthy: nil, error_rate: nil, latency: nil, specific_endpoint_latency: nil)
         @healthy = healthy
         @error_rate = error_rate
         @latency = latency
+        @specific_endpoint_latency = specific_endpoint_latency
       end
     end
 
@@ -27,11 +28,12 @@ module Semian
         semian_config:,
         graph_filename: nil,
         num_threads: 60,
-        requests_per_second_per_thread: 50,
+        requests_per_second: 3000,
         x_axis_label_interval: nil,
         service_count: 1,
         graph_bucket_size: nil,
-        base_error_rate: nil
+        base_error_rate: nil,
+        with_max_threads: false
       )
         @experiment_name = experiment_name
         @resource_name = resource_name
@@ -48,7 +50,7 @@ module Semian
         FileUtils.mkdir_p(@duration_results_path) unless File.directory?(@duration_results_path)
         FileUtils.mkdir_p(@throughput_results_path) unless File.directory?(@throughput_results_path)
         @num_threads = num_threads
-        @requests_per_second_per_thread = requests_per_second_per_thread
+        @requests_per_second = requests_per_second
         @x_axis_label_interval = x_axis_label_interval || phase_duration
         @experiment_duration = degradation_phases.length * phase_duration
         @service_count = service_count
@@ -76,18 +78,23 @@ module Semian
       def setup_services
         puts "Creating mock service..."
         @services = []
+        mean_latency = 0.15
+        # Provide barely enough threads for us to handle the expected load (using Little's law)
+        max_threads_per_service = ((@requests_per_second / @service_count) * (0.75 * mean_latency)).to_i
         @service_count.times do
           @services << MockService.new(
-            endpoints_count: 50,
-            min_latency: 0.01,
-            max_latency: 0.3,
+            endpoints_count: 10,
+            min_latency: 0.1,
+            max_latency: 10,
             distribution: {
               type: :log_normal,
-              mean: 0.15,
-              std_dev: 0.05,
+              mean: mean_latency,
+              std_dev: 3,
             },
             error_rate: @base_error_rate,
-            timeout: 5,
+            timeout: 10,
+            max_threads: @with_max_threads ? max_threads_per_service : 0,
+            queue_timeout: 0.0,
           )
         end
         # We always assume that you want to degrade one service, and we pick @services[0]
@@ -122,15 +129,24 @@ module Semian
         @state_transitions = []
         @state_transitions_mutex = Mutex.new
 
-        start_request_threads
+        start_request_arrival
+        start_processing_threads
         subscribe_to_metrics if @is_adaptive
         subscribe_to_state_changes unless @is_adaptive
       end
 
-      def start_request_threads
-        total_rps = @num_threads * @requests_per_second_per_thread
-        puts "Starting #{@num_threads} concurrent request threads (#{@requests_per_second_per_thread} requests/second each = #{total_rps} rps total)..."
-        puts "Each thread will have its own adapter instance connected to the shared service...\n"
+      def start_request_arrival
+        @request_queue = Concurrent::Array.new
+        Thread.new do
+          until @done
+            sleep(1.0 / @requests_per_second)
+            @request_queue << true
+          end
+        end
+      end
+
+      def start_processing_threads
+        puts "Starting #{@num_threads} concurrent request threads (#{@requests_per_second} requests/second)..."
 
         @request_threads = []
         @num_threads.times do |thread_num|
@@ -138,9 +154,8 @@ module Semian
             thread_id = Thread.current.object_id
             @thread_timings[thread_id] = { samples: [] }
 
-            sleep_interval = 1.0 / @requests_per_second_per_thread
             until @done
-              sleep(sleep_interval)
+              @request_queue.shift
               service = @services.sample
               # technically, we are creating a new resource instance on every request.
               # But the resource class is pretty much only a wrapper around things that are longer-living.
@@ -174,7 +189,7 @@ module Semian
                   print("⚡")
                   current_sec[:circuit_open] += 1
                 end
-              rescue ExperimentalResource::RequestError, ExperimentalResource::TimeoutError
+              rescue ExperimentalResource::RequestError, ExperimentalResource::TimeoutError, ExperimentalResource::QueueTimeoutError
                 @outcomes_mutex.synchronize do
                   current_sec = @outcomes[Time.now.to_i] ||= {
                     success: 0,
@@ -242,6 +257,7 @@ module Semian
         puts "\n=== #{@experiment_name} (ADAPTIVE) ==="
         puts "Error rate: #{@degradation_phases.map { |r| r.error_rate ? "#{(r.error_rate * 100).round(1)}%" : "N/A" }.join(" -> ")}"
         puts "Latency: #{@degradation_phases.map { |r| r.latency ? "#{(r.latency * 1000).round(1)}ms" : "N/A" }.join(" -> ")}"
+        puts "Specific endpoint latency: #{@degradation_phases.map { |r| r.specific_endpoint_latency ? "#{(r.specific_endpoint_latency * 1000).round(1)}ms" : "N/A" }.join(" -> ")}"
         puts "Phase duration: #{@phase_duration} seconds (#{(@phase_duration / 60.0).round(1)} minutes) per phase"
         puts "Duration: #{@experiment_duration} seconds (#{(@experiment_duration / 60.0).round(1)} minutes)"
         puts "Starting experiment...\n"
@@ -261,6 +277,10 @@ module Semian
               if degradation_phase.latency
                 puts "\n=== Transitioning to #{(degradation_phase.latency * 1000).round(1)}ms latency ==="
                 @target_service.add_latency(degradation_phase.latency)
+              end
+              if degradation_phase.specific_endpoint_latency
+                puts "\n=== Transitioning to #{(degradation_phase.specific_endpoint_latency * 1000).round(1)}ms specific endpoint latency ==="
+                @target_service.degrade_specific_endpoint(rand(@target_service.endpoints_count), degradation_phase.specific_endpoint_latency)
               end
             end
           end

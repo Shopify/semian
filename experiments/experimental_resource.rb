@@ -39,6 +39,7 @@ module Semian
       # @raises [ResourceBusyError] if bulkhead limit is reached
       # @raises [MockService::TimeoutError] if the request times out
       # @raises [MockService::RequestError] if the request fails
+      # @raises [MockService::QueueTimeoutError] if the request times out while waiting in queue
       def request(endpoint_index, &block)
         acquire_semian_resource(scope: :request, adapter: :experimental) do
           @service.request(endpoint_index, &block)
@@ -50,7 +51,7 @@ module Semian
       attr_reader :raw_semian_options
 
       def resource_exceptions
-        [MockService::RequestError, MockService::TimeoutError] # Exceptions that should trigger circuit breaker
+        [MockService::RequestError, MockService::TimeoutError, MockService::QueueTimeoutError] # Exceptions that should trigger circuit breaker
       end
 
       # Error classes specific to this adapter
@@ -71,6 +72,7 @@ module Semian
       # Re-export the service errors for backward compatibility
       RequestError = MockService::RequestError
       TimeoutError = MockService::TimeoutError
+      QueueTimeoutError = MockService::QueueTimeoutError
     end
   end
 end
