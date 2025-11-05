@@ -110,7 +110,6 @@ module Semian
         @outcomes = {}
         @done = false
         @outcomes_mutex = Mutex.new
-        @pid_snapshots = []
         @pid_mutex = Mutex.new
         @thread_timings = {}
         @state_transitions = []
@@ -127,7 +126,7 @@ module Semian
         puts "Each thread will have its own adapter instance connected to the shared service...\n"
 
         @request_threads = []
-        @num_threads.times do
+        @num_threads.times do |thread_num|
           @request_threads << Thread.new do
             thread_id = Thread.current.object_id
             @thread_timings[thread_id] = { samples: [] }
@@ -140,7 +139,7 @@ module Semian
               # But the resource class is pretty much only a wrapper around things that are longer-living.
               # So this works just fine.
               thread_resource = ExperimentalResource.new(
-                name: "#{@resource_name}_#{service.object_id}",
+                name: "#{@resource_name}_#{service.object_id}_thread_#{thread_num}",
                 service: service,
                 semian: @semian_config,
               )
@@ -189,42 +188,44 @@ module Semian
       end
 
       def subscribe_to_metrics
-        target_resource_name = "#{@resource_name}_#{@target_service.object_id}".to_sym
+        target_resource_prefix = "#{@resource_name}_#{@target_service.object_id}_thread_"
+        # Collect raw metrics from all threads
+        @raw_metrics = []
 
         @subscription = Semian.subscribe do |event, resource, _scope, _adapter, payload|
-          # Only capture adaptive_update events for our target service resource
-          next unless event == :adaptive_update && resource.name == target_resource_name
-
-          total_request_time = @thread_timings.values.sum { |t| t[:samples].sum { |s| s[:duration] } }
+          # Only capture adaptive_update events for our target service thread resources
+          next unless event == :adaptive_update && resource.name.to_s.start_with?(target_resource_prefix)
 
           @pid_mutex.synchronize do
-            @pid_snapshots << {
-              timestamp: Time.now.to_i,
-              window: @pid_snapshots.length + 1,
-              current_error_rate: payload[:error_rate],
+            timestamp = Time.now.to_i
+
+            @raw_metrics << {
+              timestamp: timestamp,
+              resource_name: resource.name,
+              error_rate: payload[:error_rate],
               ideal_error_rate: payload[:ideal_error_rate],
               p_value: payload[:p_value],
               previous_p_value: payload[:previous_p_value],
               rejection_rate: payload[:rejection_rate],
               integral: payload[:integral],
               derivative: payload[:derivative],
-              total_request_time: total_request_time,
             }
           end
         end
       end
 
       def subscribe_to_state_changes
-        target_resource_name = "#{@resource_name}_#{@target_service.object_id}".to_sym
+        target_resource_prefix = "#{@resource_name}_#{@target_service.object_id}_thread_"
 
         @subscription = Semian.subscribe do |event, resource, _scope, _adapter, payload|
-          # Only capture state_change events for our target service resource
-          next unless event == :state_change && resource.name == target_resource_name
+          # Only capture state_change events for our target service thread resources
+          next unless event == :state_change && resource.name.to_s.start_with?(target_resource_prefix)
 
           @state_transitions_mutex.synchronize do
             @state_transitions << {
               timestamp: Time.now.to_i,
               state: payload[:state],
+              resource_name: resource.name,
             }
           end
         end
@@ -266,9 +267,17 @@ module Semian
         puts "\nWaiting for all request threads to finish..."
         @request_threads.each(&:join)
 
-        Semian.unsubscribe(@subscription) if @is_adaptive
+        Semian.unsubscribe(@subscription) if @subscription
 
         @end_time = Time.now
+
+        # Clean up per-thread resources
+        @services.each do |service|
+          @num_threads.times do |thread_num|
+            resource_name = "#{@resource_name}_#{service.object_id}_thread_#{thread_num}".to_sym
+            Semian.destroy(resource_name)
+          end
+        end
       end
 
       def generate_analysis
@@ -358,34 +367,81 @@ module Semian
       def display_pid_controller_state
         return unless @is_adaptive
 
-        if @pid_snapshots.empty?
-          puts "\n⚠️  No PID snapshots collected"
+        if @raw_metrics.empty?
+          puts "\n⚠️  No metrics collected"
           return
         end
 
-        puts "\n=== PID Controller State Per Window ==="
-        puts format("%-8s %-15s %-15s %-12s %-12s %-15s %-12s %-12s %-15s", "Window", "Current Err %", "Ideal Err %", "Error P", "Prev Error P", "Reject %", "Integral", "Derivative", "Total Req Time")
-        puts "-" * 120
+        # Aggregate raw metrics by timestamp
+        metrics_by_timestamp = @raw_metrics.group_by { |m| m[:timestamp] }
 
-        @pid_snapshots.each do |snapshot|
+        # Create aggregated snapshots, sorted by timestamp
+        aggregated_snapshots = metrics_by_timestamp.sort.map do |timestamp, metrics|
+          total_request_time = @thread_timings.values.sum do |t|
+            t[:samples].select { |s| s[:timestamp] <= timestamp }.sum { |s| s[:duration] }
+          end
+
+          {
+            timestamp: timestamp,
+            error_rate_avg: metrics.sum { |m| m[:error_rate] } / metrics.length.to_f,
+            error_rate_min: metrics.map { |m| m[:error_rate] }.min,
+            error_rate_max: metrics.map { |m| m[:error_rate] }.max,
+            ideal_error_rate: metrics.first[:ideal_error_rate],
+            rejection_rate_avg: metrics.sum { |m| m[:rejection_rate] } / metrics.length.to_f,
+            rejection_rate_min: metrics.map { |m| m[:rejection_rate] }.min,
+            rejection_rate_max: metrics.map { |m| m[:rejection_rate] }.max,
+            integral_avg: metrics.sum { |m| m[:integral] } / metrics.length.to_f,
+            integral_min: metrics.map { |m| m[:integral] }.min,
+            integral_max: metrics.map { |m| m[:integral] }.max,
+            derivative_avg: metrics.sum { |m| m[:derivative] } / metrics.length.to_f,
+            derivative_min: metrics.map { |m| m[:derivative] }.min,
+            derivative_max: metrics.map { |m| m[:derivative] }.max,
+            total_request_time: total_request_time,
+            thread_count: metrics.length,
+          }
+        end
+
+        puts "\n=== PID Controller State Per Second (Aggregated across threads) ==="
+        puts format("%-8s %-10s %-20s %-15s %-20s %-20s %-20s %-15s", "Window", "# Threads", "Err % (min-max)", "Ideal Err %", "Reject % (min-max)", "Integral (min-max)", "Derivative (min-max)", "Total Req Time")
+        puts "-" * 150
+
+        aggregated_snapshots.each_with_index do |snapshot, idx|
+          error_rate_str = format_metric_range(snapshot[:error_rate_avg], snapshot[:error_rate_min], snapshot[:error_rate_max], is_percent: true)
+          reject_rate_str = format_metric_range(snapshot[:rejection_rate_avg], snapshot[:rejection_rate_min], snapshot[:rejection_rate_max], is_percent: true)
+          integral_str = format_metric_range(snapshot[:integral_avg], snapshot[:integral_min], snapshot[:integral_max])
+          derivative_str = format_metric_range(snapshot[:derivative_avg], snapshot[:derivative_min], snapshot[:derivative_max])
+
           puts format(
-            "%-8d %-15s %-15s %-12s %-12s %-15s %-12s %-12s %-15s",
-            snapshot[:window],
-            "#{(snapshot[:current_error_rate] * 100).round(2)}%",
+            "%-8d %-10d %-20s %-15s %-20s %-20s %-20s %-15s",
+            idx + 1,
+            snapshot[:thread_count],
+            error_rate_str,
             "#{(snapshot[:ideal_error_rate] * 100).round(2)}%",
-            (snapshot[:p_value] || 0).round(4),
-            (snapshot[:previous_p_value] || 0).round(4),
-            "#{(snapshot[:rejection_rate] * 100).round(2)}%",
-            (snapshot[:integral] || 0).round(4),
-            (snapshot[:derivative] || 0).round(4),
+            reject_rate_str,
+            integral_str,
+            derivative_str,
             "#{(snapshot[:total_request_time] || 0).round(2)}s",
           )
         end
 
         puts "\n📊 Key Observations:"
-        puts "  - Windows captured: #{@pid_snapshots.length}"
-        puts "  - Max rejection rate: #{(@pid_snapshots.map { |s| s[:rejection_rate] }.max * 100).round(2)}%"
-        puts "  - Integral range: #{@pid_snapshots.map { |s| s[:integral] }.min.round(4)} to #{@pid_snapshots.map { |s| s[:integral] }.max.round(4)}"
+        puts "  - Timestamps captured: #{aggregated_snapshots.length}"
+        puts "  - Max avg rejection rate: #{(aggregated_snapshots.map { |s| s[:rejection_rate_avg] }.max * 100).round(2)}%"
+        puts "  - Avg integral range: #{aggregated_snapshots.map { |s| s[:integral_avg] }.min.round(4)} to #{aggregated_snapshots.map { |s| s[:integral_avg] }.max.round(4)}"
+        puts "  - Thread counts per timestamp: min #{aggregated_snapshots.map { |s| s[:thread_count] }.min}, max #{aggregated_snapshots.map { |s| s[:thread_count] }.max}"
+      end
+
+      def format_metric_range(avg, min, max, is_percent: false)
+        if is_percent
+          avg_str = "#{(avg * 100).round(2)}%"
+          min_str = "#{(min * 100).round(2)}%"
+          max_str = "#{(max * 100).round(2)}%"
+        else
+          avg_str = avg.round(4).to_s
+          min_str = min.round(4).to_s
+          max_str = max.round(4).to_s
+        end
+        "#{avg_str} (#{min_str}-#{max_str})"
       end
 
       def generate_visualization
