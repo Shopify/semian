@@ -3,6 +3,7 @@ PATH
   specs:
     semian (0.26.6)
       concurrent-ruby
+      logger
 
 GEM
   remote: https://rubygems.org/
@@ -14,6 +15,7 @@ GEM
       histogram
       rmagick (>= 5.5)
     histogram (0.2.4.1)
+    logger (1.7.0)
     observer (0.1.2)
     pkg-config (1.6.4)
     rmagick (6.1.4)
