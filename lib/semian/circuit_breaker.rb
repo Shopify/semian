@@ -13,12 +13,16 @@ module Semian
       :state,
       :last_error,
       :error_threshold_timeout_enabled,
+      :exponential_backoff_error_timeout,
+      :exponential_backoff_initial_timeout,
+      :exponential_backoff_multiplier,
     )
 
     def initialize(name, exceptions:, success_threshold:, error_threshold:,
       error_timeout:, implementation:, half_open_resource_timeout: nil,
       error_threshold_timeout: nil, error_threshold_timeout_enabled: true,
-      lumping_interval: 0)
+      lumping_interval: 0, exponential_backoff_error_timeout: false,
+      exponential_backoff_initial_timeout: 1, exponential_backoff_multiplier: 2)
       @name = name.to_sym
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
@@ -28,6 +32,10 @@ module Semian
       @exceptions = exceptions
       @half_open_resource_timeout = half_open_resource_timeout
       @lumping_interval = lumping_interval
+      @exponential_backoff_error_timeout = exponential_backoff_error_timeout
+      @exponential_backoff_initial_timeout = exponential_backoff_initial_timeout
+      @exponential_backoff_multiplier = exponential_backoff_multiplier
+      @current_error_timeout = exponential_backoff_error_timeout ? exponential_backoff_initial_timeout : error_timeout
 
       @errors = implementation::SlidingWindow.new(max_size: @error_count_threshold)
       @successes = implementation::Integer.new
@@ -102,6 +110,8 @@ module Semian
       log_state_transition(:closed)
       @state.close!
       @errors.clear
+      # Reset exponential backoff when circuit closes
+      @current_error_timeout = @exponential_backoff_error_timeout ? @exponential_backoff_initial_timeout : @error_timeout
     end
 
     def transition_to_open
@@ -115,6 +125,10 @@ module Semian
       log_state_transition(:half_open)
       @state.half_open!
       @successes.reset
+      # Multiply the backoff timeout when circuit opens (up to the max error_timeout)
+      if @exponential_backoff_error_timeout && @current_error_timeout < @error_timeout
+        @current_error_timeout = [@current_error_timeout * @exponential_backoff_multiplier, @error_timeout].min
+      end
     end
 
     def success_threshold_reached?
@@ -129,7 +143,7 @@ module Semian
       last_error_time = @errors.last
       return false unless last_error_time
 
-      last_error_time + @error_timeout < Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      last_error_time + @current_error_timeout < Process.clock_gettime(Process::CLOCK_MONOTONIC)
     end
 
     def push_error(error)
@@ -153,6 +167,9 @@ module Semian
       str += " success_count_threshold=#{@success_count_threshold}"
       str += " error_count_threshold=#{@error_count_threshold}"
       str += " error_timeout=#{@error_timeout} error_last_at=\"#{@errors.last}\""
+      if @exponential_backoff_error_timeout
+        str += " current_error_timeout=#{@current_error_timeout}"
+      end
       str += " name=\"#{@name}\""
       if new_state == :open && @last_error
         str += " last_error_message=#{@last_error.message.inspect}"
