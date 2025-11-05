@@ -201,7 +201,7 @@ module Semian
 
           @pid_mutex.synchronize do
             timestamp = Time.now.to_i
-            window_key = payload[:window_number] || timestamp
+            window_key = timestamp
 
             # Initialize window metrics if this is the first thread reporting for this window
             @window_metrics[window_key] ||= {
