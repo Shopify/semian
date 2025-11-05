@@ -189,42 +189,84 @@ module Semian
       end
 
       def subscribe_to_metrics
-        target_resource_name = "#{@resource_name}_#{@target_service.object_id}".to_sym
+        target_resource_prefix = "#{@resource_name}_#{@target_service.object_id}_thread_"
+        # Track metrics per window to aggregate across threads
+        @window_metrics = {}
 
         @subscription = Semian.subscribe do |event, resource, _scope, _adapter, payload|
-          # Only capture adaptive_update events for our target service resource
-          next unless event == :adaptive_update && resource.name == target_resource_name
+          # Only capture adaptive_update events for our target service thread resources
+          next unless event == :adaptive_update && resource.name.to_s.start_with?(target_resource_prefix)
 
           total_request_time = @thread_timings.values.sum { |t| t[:samples].sum { |s| s[:duration] } }
 
           @pid_mutex.synchronize do
-            @pid_snapshots << {
-              timestamp: Time.now.to_i,
-              window: @pid_snapshots.length + 1,
-              current_error_rate: payload[:error_rate],
+            timestamp = Time.now.to_i
+            window_key = payload[:window_number] || timestamp
+
+            # Initialize window metrics if this is the first thread reporting for this window
+            @window_metrics[window_key] ||= {
+              timestamp: timestamp,
+              window: nil,
+              error_rates: [],
               ideal_error_rate: payload[:ideal_error_rate],
-              p_value: payload[:p_value],
-              previous_p_value: payload[:previous_p_value],
-              rejection_rate: payload[:rejection_rate],
-              integral: payload[:integral],
-              derivative: payload[:derivative],
+              p_values: [],
+              previous_p_values: [],
+              rejection_rates: [],
+              integrals: [],
+              derivatives: [],
               total_request_time: total_request_time,
             }
+
+            # Accumulate metrics from each thread
+            @window_metrics[window_key][:error_rates] << payload[:error_rate]
+            @window_metrics[window_key][:p_values] << payload[:p_value]
+            @window_metrics[window_key][:previous_p_values] << payload[:previous_p_value]
+            @window_metrics[window_key][:rejection_rates] << payload[:rejection_rate]
+            @window_metrics[window_key][:integrals] << payload[:integral]
+            @window_metrics[window_key][:derivatives] << payload[:derivative]
+
+            # When we've collected metrics from all threads, create the aggregated snapshot
+            if @window_metrics[window_key][:error_rates].length == @num_threads
+              metrics = @window_metrics[window_key]
+
+              @pid_snapshots << {
+                timestamp: metrics[:timestamp],
+                window: @pid_snapshots.length + 1,
+                error_rate_avg: metrics[:error_rates].sum / metrics[:error_rates].length.to_f,
+                error_rate_min: metrics[:error_rates].min,
+                error_rate_max: metrics[:error_rates].max,
+                ideal_error_rate: metrics[:ideal_error_rate],
+                rejection_rate_avg: metrics[:rejection_rates].sum / metrics[:rejection_rates].length.to_f,
+                rejection_rate_min: metrics[:rejection_rates].min,
+                rejection_rate_max: metrics[:rejection_rates].max,
+                integral_avg: metrics[:integrals].sum / metrics[:integrals].length.to_f,
+                integral_min: metrics[:integrals].min,
+                integral_max: metrics[:integrals].max,
+                derivative_avg: metrics[:derivatives].sum / metrics[:derivatives].length.to_f,
+                derivative_min: metrics[:derivatives].min,
+                derivative_max: metrics[:derivatives].max,
+                total_request_time: metrics[:total_request_time],
+              }
+
+              # Clean up processed window
+              @window_metrics.delete(window_key)
+            end
           end
         end
       end
 
       def subscribe_to_state_changes
-        target_resource_name = "#{@resource_name}_#{@target_service.object_id}".to_sym
+        target_resource_prefix = "#{@resource_name}_#{@target_service.object_id}_thread_"
 
         @subscription = Semian.subscribe do |event, resource, _scope, _adapter, payload|
-          # Only capture state_change events for our target service resource
-          next unless event == :state_change && resource.name == target_resource_name
+          # Only capture state_change events for our target service thread resources
+          next unless event == :state_change && resource.name.to_s.start_with?(target_resource_prefix)
 
           @state_transitions_mutex.synchronize do
             @state_transitions << {
               timestamp: Time.now.to_i,
               state: payload[:state],
+              resource_name: resource.name,
             }
           end
         end
