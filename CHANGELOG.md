@@ -1,3 +1,9 @@
+# v0.26.7
+
+* Modify release workflow to preview changes through a PR (#825)
+* Use GitHub assets for RELEASE.md images (#816)
+* Create GitHub Action to publish new release (#779)
+
 # v026.6
 * Remove force_config_validation spammy log
 
