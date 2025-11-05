@@ -28,7 +28,6 @@ Gem::Specification.new do |s|
   }
 
   s.add_runtime_dependency("concurrent-ruby")
-  s.add_runtime_dependency("logger")
 
   s.required_ruby_version = ">= 3.2.0"
 

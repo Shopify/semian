@@ -28,7 +28,6 @@ PATH
   specs:
     semian (0.26.6)
       concurrent-ruby
-      logger
 
 GEM
   remote: https://rubygems.org/
