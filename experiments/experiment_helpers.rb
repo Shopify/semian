@@ -61,6 +61,7 @@ module Semian
         else
           base_error_rate
         end
+        @with_max_threads = with_max_threads
       end
 
       def run
@@ -80,7 +81,7 @@ module Semian
         @services = []
         mean_latency = 0.15
         # Provide barely enough threads for us to handle the expected load (using Little's law)
-        max_threads_per_service = ((@requests_per_second / @service_count) * (0.75 * mean_latency)).to_i
+        max_threads_per_service = ((@requests_per_second / @service_count) * (0.5 * mean_latency)).to_i
         @service_count.times do
           @services << MockService.new(
             endpoints_count: 10,
