@@ -1,0 +1,66 @@
+---
+name: "Automated Experiment Result Checker"
+
+# yamllint disable-line rule:truthy
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+concurrency:
+  group: ${{ github.ref }}-automated-experiment-result-checker
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  automated-experiment-result-checker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Check for updated experiment result graphs
+        run: |
+          set -e
+          cd "$(git rev-parse --show-toplevel)"
+
+          # TODO: Include lower bound windup experiment once we have a way to make it run in a reasonable time.
+          # Find all PNGs, excluding those with "windup" in their filename
+          mapfile -t all_pngs < <(find experiments/results/main_graphs experiments/results/throughput_graphs experiments/results/duration_graphs -type f -name '*.png' ! -name '*windup*.png' | sort)
+
+          # Find all changed PNGs in the latest commit
+          mapfile -t changed_pngs < <(git diff --name-only --diff-filter=AM HEAD~1..HEAD | grep -E '^experiments/results/(main_graphs|throughput_graphs|duration_graphs)/.*\.png$' | grep -v windup | sort)
+
+          # Report any PNGs that are not updated in the latest commit
+          declare -a not_updated=()
+          for file in "${all_pngs[@]}"; do
+            if ! printf "%s\n" "${changed_pngs[@]}" | grep -qx "$file"; then
+              not_updated+=("$file")
+            fi
+          done
+
+          if [ ${#not_updated[@]} -gt 0 ]; then
+            echo "❌ The following result graph PNG files have NOT been updated in the latest commit:"
+            for f in "${not_updated[@]}"; do
+              echo "  - $f"
+            done
+            echo ""
+            echo "Every commit must update all non-windup experiment result graphs. You may be missing updates."
+            echo "Run:"
+            echo ""
+            echo "    cd experiments"
+            echo "    bundle install"
+            echo "    bundle exec ruby run_all_experiments.rb"
+            echo ""
+            echo "Commit the updated graphs to resolve this check."
+            exit 1
+          fi
+
+          echo "✅ All non-windup experiment result graphs are up to date for this commit!"
+
+
+
