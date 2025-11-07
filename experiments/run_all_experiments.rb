@@ -4,8 +4,8 @@
 require "thread"
 
 # Get all experiment files (excluding the windup experiment)
-# experiment_files = Dir.glob("experiments/*.rb").reject { |file| file.include?("experiment_lower_bound_windup_adaptive.rb") }.sort
-experiment_files = ["experiments/experiment_error_spike_20_adaptive.rb"]
+# TODO: Include lower bound windup experiment once we have a way to make it run in a reasonable time.
+experiment_files = Dir.glob("experiments/*.rb").reject { |file| file.include?("experiment_lower_bound_windup_adaptive.rb") }.sort
 
 puts "Found #{experiment_files.length} experiment files to run:"
 experiment_files.each { |file| puts "  - #{file}" }
