@@ -560,6 +560,10 @@ There are four configuration parameters for circuit breakers in Semian:
   Defaults to `error_timeout` seconds if not set.
 - **error_timeout**. The amount of time in seconds until trying to query the resource
   again.
+- **exponential_backoff_error_timeout**. If set to `true`, we will progress towards error_timeout exponentially, instead of committing to it directly.
+This is useful to avoid rejecting too many requests if the dependency is not really degraded.
+- **exponential_backoff_initial_timeout**. Where to start the exponential backoff towards `error_timeout` from. Defaults to 1 second.
+- **exponential_backoff_multiplier**. The exponential multiplier to use during the exponential backoff towards the `error_timeout`. Defaults to 2.
 - **error_threshold_timeout_enabled**. If set to false it will disable
   the time window for evicting old exceptions. `error_timeout` is still used and
   will reset the circuit. Defaults to `true` if not set.
