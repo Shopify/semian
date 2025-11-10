@@ -17,7 +17,9 @@ module Semian
       # @param timeout [Float, nil] Maximum time to wait for a request (in seconds). If nil, no timeout is enforced.
       # @param error_rate [Float] Baseline error rate (0.0 to 1.0). Probability that any request will fail.
       # @param deterministic_errors [Boolean] If true, use deterministic error injection for predictable testing
-      def initialize(endpoints_count:, min_latency:, max_latency:, distribution:, timeout: nil, error_rate: 0.0, deterministic_errors: false)
+      # @param max_threads [Integer] Maximum number of requests that can be processed concurrently. 0 for unlimited.
+      # @param queue_timeout [Float] Maximum time to wait for a request to be processed if all threads are busy. Only used if max_threads is not 0. 0 means we drop requests immediately.
+      def initialize(endpoints_count:, min_latency:, max_latency:, distribution:, timeout: nil, error_rate: 0.0, deterministic_errors: false, max_threads: 0, queue_timeout: 0)
         @endpoints_count = endpoints_count
         @min_latency = min_latency
         @max_latency = max_latency
@@ -25,6 +27,9 @@ module Semian
         @timeout = timeout
         @base_error_rate = validate_error_rate(error_rate)
         @deterministic_errors = deterministic_errors
+
+        @thread_semaphore = max_threads > 0 ? Concurrent::Semaphore.new(max_threads) : nil
+        @queue_timeout = queue_timeout
 
         # Initialize service degradation state
         @latency_degradation = { amount: 0.0, target: 0.0, ramp_start: nil, ramp_duration: 0 }
@@ -37,6 +42,8 @@ module Semian
         # Assign fixed latencies to each endpoint
         @endpoint_latencies = generate_endpoint_latencies
 
+        @specific_endpoint_degradations = {}
+
         # Mutex for thread-safe operations on shared state
         @mutex = Mutex.new
       end
@@ -46,39 +53,47 @@ module Semian
       # @raises [TimeoutError] if the request would exceed the configured timeout
       # @raises [RequestError] if the request fails based on error rate
       def request(endpoint_index, &block)
-        validate_endpoint_index(endpoint_index)
+        if @thread_semaphore.nil? || @thread_semaphore.try_acquire(1, @queue_timeout)
+          begin
+            validate_endpoint_index(endpoint_index)
 
-        # Calculate latency with degradation
-        base_latency = @endpoint_latencies[endpoint_index]
-        latency = base_latency + current_latency_degradation
+            # Calculate latency with degradation
+            base_latency = @endpoint_latencies[endpoint_index]
+            latency = base_latency + current_latency_degradation(endpoint_index)
 
-        # Check if request should fail based on current error rate
-        current_rate = current_error_rate
-        if should_fail?(current_rate)
-          # Sleep for partial latency to simulate some processing before error
-          error_latency = latency * 0.3 # Fail after 30% of expected latency
-          sleep(error_latency) if error_latency > 0
+            # Check if request should fail based on current error rate
+            current_rate = current_error_rate
+            if should_fail?(current_rate)
+              # Sleep for partial latency to simulate some processing before error
+              error_latency = latency * 0.3 # Fail after 30% of expected latency
+              sleep(error_latency) if error_latency > 0
 
-          raise RequestError, "Request to endpoint #{endpoint_index} failed " \
-            "(error rate: #{(current_rate * 100).round(1)}%)"
-        end
+              raise RequestError, "Request to endpoint #{endpoint_index} failed " \
+                "(error rate: #{(current_rate * 100).round(1)}%)"
+            end
 
-        # Check if request would timeout
-        if @timeout && latency > @timeout
-          # Sleep for the timeout period, then raise exception
-          sleep(@timeout) if @timeout > 0
-          raise TimeoutError,
-            "Request to endpoint #{endpoint_index} timed out after #{@timeout}s " \
-              "(would have taken #{latency.round(3)}s)"
-        end
+            # Check if request would timeout
+            if @timeout && latency > @timeout
+              # Sleep for the timeout period, then raise exception
+              sleep(@timeout) if @timeout > 0
+              raise TimeoutError,
+                "Request to endpoint #{endpoint_index} timed out after #{@timeout}s " \
+                  "(would have taken #{latency.round(3)}s)"
+            end
 
-        # Simulate the request with calculated latency
-        sleep(latency) if latency > 0
+            # Simulate the request with calculated latency
+            sleep(latency) if latency > 0
 
-        if block_given?
-          yield(endpoint_index, latency)
+            if block_given?
+              yield(endpoint_index, latency)
+            else
+              { endpoint: endpoint_index, latency: latency }
+            end
+          ensure
+            @thread_semaphore&.release(1)
+          end
         else
-          { endpoint: endpoint_index, latency: latency }
+          raise QueueTimeoutError, "Request timed out while waiting in queue"
         end
       end
 
@@ -123,11 +138,23 @@ module Semian
         end
       end
 
+      def degrade_specific_endpoint(endpoint_index, amount, ramp_time: 0)
+        @mutex.synchronize do
+          @specific_endpoint_degradations[endpoint_index] = {
+            amount: ramp_time == 0 ? amount : 0.0, # If no ramp time, apply immediately
+            target: amount,
+            ramp_start: Time.now,
+            ramp_duration: ramp_time,
+          }
+        end
+      end
+
       # Reset service to baseline (remove all degradation)
       def reset_degradation
         @mutex.synchronize do
           @latency_degradation = { amount: 0.0, target: 0.0, ramp_start: nil, ramp_duration: 0 }
           @error_rate_degradation = { rate: @base_error_rate, target: @base_error_rate, ramp_start: nil, ramp_duration: 0 }
+          @specific_endpoint_degradations = {}
           # Reset phase tracking
           @current_phase_requests = 0
           @current_phase_failures = 0
@@ -135,21 +162,23 @@ module Semian
       end
 
       # Get current latency degradation (accounting for ramp-up)
-      def current_latency_degradation
+      def current_latency_degradation(endpoint_index)
         @mutex.synchronize do
-          return @latency_degradation[:amount] unless @latency_degradation[:ramp_start] && @latency_degradation[:ramp_duration] > 0
+          degradation = @specific_endpoint_degradations[endpoint_index] || @latency_degradation
 
-          elapsed = Time.now - @latency_degradation[:ramp_start]
-          if elapsed >= @latency_degradation[:ramp_duration]
+          return degradation[:amount] unless degradation[:ramp_start] && degradation[:ramp_duration] > 0
+
+          elapsed = Time.now - degradation[:ramp_start]
+          if elapsed >= degradation[:ramp_duration]
             # Ramp complete
-            @latency_degradation[:amount] = @latency_degradation[:target]
-            @latency_degradation[:ramp_start] = nil
-            @latency_degradation[:target]
+            degradation[:amount] = degradation[:target]
+            degradation[:ramp_start] = nil
+            degradation[:target]
           else
             # Still ramping
-            progress = elapsed / @latency_degradation[:ramp_duration]
-            current = @latency_degradation[:amount]
-            target = @latency_degradation[:target]
+            progress = elapsed / degradation[:ramp_duration]
+            current = degradation[:amount]
+            target = degradation[:target]
             current + (target - current) * progress
           end
         end
@@ -182,30 +211,7 @@ module Semian
         @endpoint_latencies[endpoint_index]
       end
 
-      # Check if a specific endpoint would timeout with current settings
-      def would_timeout?(endpoint_index)
-        return false unless @timeout
-
-        validate_endpoint_index(endpoint_index)
-        get_effective_latency(endpoint_index) > @timeout
-      end
-
-      # Get all endpoints that would timeout with current settings
-      def timeout_endpoints
-        return [] unless @timeout
-
-        endpoints = []
-        @endpoint_latencies.each_with_index do |_, idx|
-          endpoints << idx if would_timeout?(idx)
-        end
-        endpoints
-      end
-
       private
-
-      def get_effective_latency(endpoint_index)
-        @endpoint_latencies[endpoint_index] + current_latency_degradation
-      end
 
       def validate_distribution(dist)
         unless dist.is_a?(Hash) && dist[:type]
@@ -328,6 +334,12 @@ module Semian
       end
 
       class RequestError < StandardError
+        def marks_semian_circuits?
+          true  # This error should trigger circuit breaker
+        end
+      end
+
+      class QueueTimeoutError < StandardError
         def marks_semian_circuits?
           true  # This error should trigger circuit breaker
         end
