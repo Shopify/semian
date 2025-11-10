@@ -19,7 +19,7 @@ group :test do
 
   gem "bigdecimal"
   gem "mutex_m"
-  gem "grpc", "1.74.1"
+  gem "grpc", "1.76.0"
   gem "mysql2", "~> 0.5"
   gem "trilogy", "~> 2.9"
   gem "activerecord", github: "rails/rails", branch: "main"
