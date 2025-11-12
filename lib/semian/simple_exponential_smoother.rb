@@ -63,9 +63,9 @@ module Semian
       @observation_count += 1
 
       # On startup, we have a higher alpha to place more weight on first influx of observations
-      if @observation_count >= 90 # 90 observations at 1 observation per minute is 15 minutes
+      if @observation_count >= 90 # 90 observations = 15 minutes
         @alpha *= 0.5
-      elsif @observation_count >= 180 # 180 observations at 1 observation per minute is 30 minutes
+      elsif @observation_count >= 180 # 180 observations = 30 minutes
         @alpha *= 0.5
       end
 
