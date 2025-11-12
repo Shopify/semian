@@ -103,6 +103,7 @@ module Semian
       error_threshold = @configuration[:error_threshold]
       lumping_interval = @configuration[:lumping_interval]
       half_open_resource_timeout = @configuration[:half_open_resource_timeout]
+      exponential_backoff_error_timeout = @configuration[:exponential_backoff_error_timeout]
 
       unless error_timeout.is_a?(Numeric) && error_timeout > 0
         err = "error_timeout must be a positive number, got #{error_timeout}"
@@ -171,6 +172,56 @@ module Semian
       unless lumping_interval.nil? || error_threshold_timeout.nil? || lumping_interval * (error_threshold - 1) <= error_threshold_timeout
         err = "constraint violated, this circuit breaker can never open! lumping_interval * (error_threshold - 1) should be <= error_threshold_timeout, got lumping_interval: #{lumping_interval}, error_threshold: #{error_threshold}, error_threshold_timeout: #{error_threshold_timeout}"
         err += hint_format("lumping_interval starts from the first error and not in a fixed window. So you can fit n errors in n-1 seconds, since error 0 starts at 0 seconds. Ensure that you can fit `error_threshold` errors lumped in `lumping_interval` seconds within `error_threshold_timeout` seconds.")
+
+        raise_or_log_validation_required!(err)
+      end
+
+      unless exponential_backoff_error_timeout.nil? || [true, false].include?(exponential_backoff_error_timeout)
+        err = "exponential_backoff_error_timeout must be a boolean, got #{exponential_backoff_error_timeout}"
+        err += hint_format("Use true to enable exponential backoff for error timeout. Use false to disable.")
+
+        raise_or_log_validation_required!(err)
+      end
+
+      # Validate exponential backoff initial timeout
+      exponential_backoff_initial_timeout = @configuration[:exponential_backoff_initial_timeout]
+      unless exponential_backoff_initial_timeout.nil? || (exponential_backoff_initial_timeout.is_a?(Numeric) && exponential_backoff_initial_timeout > 0)
+        err = "exponential_backoff_initial_timeout must be a positive number, got #{exponential_backoff_initial_timeout}"
+        err += hint_format("This is the initial timeout when exponential backoff is enabled. Must be less than error_timeout.")
+
+        raise_or_log_validation_required!(err)
+      end
+
+      # Validate exponential backoff multiplier
+      exponential_backoff_multiplier = @configuration[:exponential_backoff_multiplier]
+      unless exponential_backoff_multiplier.nil? || (exponential_backoff_multiplier.is_a?(Numeric) && exponential_backoff_multiplier > 1)
+        err = "exponential_backoff_multiplier must be a number greater than 1, got #{exponential_backoff_multiplier}"
+        err += hint_format("This is the factor by which the timeout increases on each subsequent opening. Common values are 2 (double) or 1.5.")
+
+        raise_or_log_validation_required!(err)
+      end
+
+      # Ensure exponential backoff parameters are only provided when exponential_backoff_error_timeout is true
+      unless exponential_backoff_error_timeout
+        if exponential_backoff_initial_timeout
+          err = "exponential_backoff_initial_timeout can only be specified when exponential_backoff_error_timeout is true"
+          err += hint_format("Set exponential_backoff_error_timeout: true to use exponential backoff features.")
+
+          raise_or_log_validation_required!(err)
+        end
+
+        if exponential_backoff_multiplier
+          err = "exponential_backoff_multiplier can only be specified when exponential_backoff_error_timeout is true"
+          err += hint_format("Set exponential_backoff_error_timeout: true to use exponential backoff features.")
+
+          raise_or_log_validation_required!(err)
+        end
+      end
+
+      # Ensure initial timeout is less than error_timeout when using exponential backoff
+      if exponential_backoff_error_timeout && exponential_backoff_initial_timeout && exponential_backoff_initial_timeout >= error_timeout
+        err = "exponential_backoff_initial_timeout (#{exponential_backoff_initial_timeout}) must be less than error_timeout (#{error_timeout})"
+        err += hint_format("The initial timeout should be smaller than the maximum timeout for exponential backoff to be effective.")
 
         raise_or_log_validation_required!(err)
       end
