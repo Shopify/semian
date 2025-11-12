@@ -80,16 +80,23 @@ module Semian
       super
     end
 
-    def raw_execute(sql, *)
-      if Semian::ActiveRecordTrilogyAdapter.query_allowlisted?(sql)
-        super
-      else
+    if ActiveRecord.version >= Gem::Version.new("8.2.a")
+      def execute_intent(intent)
+        return super if Semian::ActiveRecordTrilogyAdapter.query_allowlisted?(intent.processed_sql)
+
+        acquire_semian_resource(adapter: :trilogy_adapter, scope: :query) do
+          super
+        end
+      end
+    else
+      def raw_execute(sql, ...)
+        return super if Semian::ActiveRecordTrilogyAdapter.query_allowlisted?(sql)
+
         acquire_semian_resource(adapter: :trilogy_adapter, scope: :query) do
           super
         end
       end
     end
-    ruby2_keywords :raw_execute
 
     def active?
       acquire_semian_resource(adapter: :trilogy_adapter, scope: :ping) do
