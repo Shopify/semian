@@ -302,7 +302,7 @@ module Semian
       def wait_for_completion
         @done = true
         puts "\nWaiting for all request threads to finish..."
-        @arrival_thread.join if @arrival_thread # Wait for arrival thread to push shutdown tokens
+        @arrival_thread.join # Wait for arrival thread to push shutdown tokens
         @request_threads.each(&:join)
 
         Semian.unsubscribe(@subscription) if @subscription

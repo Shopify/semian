@@ -3,47 +3,47 @@ EXPERIMENT: One of Many Services Degradation Experiment
 ================================================================================
 Graph Title: Classic Circuit Breaker: One of Many Services Latency Degradation
 Adaptive Mode: false
-Actual Duration: 429.78 seconds
+Actual Duration: 422.43 seconds
 Threads: 60
 Requests per Second: 3000
 Service Count: 10
 
 === Summary Statistics ===
-Total Requests: 62791
-  Successes: 62505 (99.54%)
+Total Requests: 55908
+  Successes: 55908 (100.0%)
   Rejected: 0 (0.0%)
-  Errors: 286 (0.46%)
+  Errors: 0 (0.0%)
 
 === Time-Based Analysis (30-second buckets) ===
-✓ 0-30s [Target: 0.0%]: 9408 requests | Success: 9408 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
-✓ 30-60s [Target: 0.0%]: 2634 requests | Success: 2611 | Errors: 23 (0.87%) | Rejected: 0 (0.0%)
-✓ 60-90s [Target: 0.0%]: 2820 requests | Success: 2789 | Errors: 31 (1.1%) | Rejected: 0 (0.0%)
-✓ 90-120s [Target: 0.0%]: 2684 requests | Success: 2655 | Errors: 29 (1.08%) | Rejected: 0 (0.0%)
-✓ 120-150s [Target: 0.0%]: 2917 requests | Success: 2893 | Errors: 24 (0.82%) | Rejected: 0 (0.0%)
-✓ 150-180s [Target: 0.0%]: 2821 requests | Success: 2796 | Errors: 25 (0.89%) | Rejected: 0 (0.0%)
-✓ 180-210s [Target: 0.0%]: 2660 requests | Success: 2630 | Errors: 30 (1.13%) | Rejected: 0 (0.0%)
-✓ 210-240s [Target: 0.0%]: 2730 requests | Success: 2705 | Errors: 25 (0.92%) | Rejected: 0 (0.0%)
-✓ 240-270s [Target: 0.0%]: 2709 requests | Success: 2675 | Errors: 34 (1.26%) | Rejected: 0 (0.0%)
-✓ 270-300s [Target: 0.0%]: 2537 requests | Success: 2503 | Errors: 34 (1.34%) | Rejected: 0 (0.0%)
-✓ 300-330s [Target: 0.0%]: 2941 requests | Success: 2920 | Errors: 21 (0.71%) | Rejected: 0 (0.0%)
-✓ 330-360s [Target: 0.0%]: 8684 requests | Success: 8674 | Errors: 10 (0.12%) | Rejected: 0 (0.0%)
-✓ 360-390s [Target: 0.0%]: 8509 requests | Success: 8509 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
-✓ 390-420s [Target: 0.0%]: 8649 requests | Success: 8649 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 0-30s [Target: 0.0%]: 7629 requests | Success: 7629 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 30-60s [Target: 0.0%]: 2685 requests | Success: 2685 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 60-90s [Target: 0.0%]: 2486 requests | Success: 2486 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 90-120s [Target: 0.0%]: 2680 requests | Success: 2680 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 120-150s [Target: 0.0%]: 2440 requests | Success: 2440 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 150-180s [Target: 0.0%]: 2458 requests | Success: 2458 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 180-210s [Target: 0.0%]: 2529 requests | Success: 2529 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 210-240s [Target: 0.0%]: 2504 requests | Success: 2504 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 240-270s [Target: 0.0%]: 2621 requests | Success: 2621 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 270-300s [Target: 0.0%]: 2561 requests | Success: 2561 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 300-330s [Target: 0.0%]: 2537 requests | Success: 2537 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 330-360s [Target: 0.0%]: 7340 requests | Success: 7340 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 360-390s [Target: 0.0%]: 7508 requests | Success: 7508 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 390-420s [Target: 0.0%]: 7829 requests | Success: 7829 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
 
 === Thread Timing Statistics ===
 Total threads: 60
-Experiment wall clock duration: 429.78s
+Experiment wall clock duration: 422.43s
 
 Time spent making requests per thread:
-  Min:     419.99s
-  Max:     429.75s
-  Average: 422.25s
-  Total (all threads): 25334.95s
+  Min:     420.03s
+  Max:     422.4s
+  Average: 420.59s
+  Total (all threads): 25235.11s
 
 Thread utilization:
-  Average: 98.25% (time in requests / wall clock time)
+  Average: 99.56% (time in requests / wall clock time)
 
 Requests per thread:
-  Average: 1047 requests
-  Average time per request: 0.4035s
+  Average: 932 requests
+  Average time per request: 0.4514s
 

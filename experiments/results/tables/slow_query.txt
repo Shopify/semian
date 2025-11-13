@@ -3,47 +3,47 @@ EXPERIMENT: Slow Query Experiment
 ================================================================================
 Graph Title: Classic Circuit Breaker: Slow Query Experiment
 Adaptive Mode: false
-Actual Duration: 420.41 seconds
+Actual Duration: 422.66 seconds
 Threads: 60
 Requests per Second: 3000
 Service Count: 10
 
 === Summary Statistics ===
-Total Requests: 159449
-  Successes: 150904 (94.64%)
-  Rejected: 7663 (4.81%)
-  Errors: 882 (0.55%)
+Total Requests: 117801
+  Successes: 111423 (94.59%)
+  Rejected: 5542 (4.7%)
+  Errors: 836 (0.71%)
 
 === Time-Based Analysis (30-second buckets) ===
-✓ 0-30s [Target: 0.0%]: 13636 requests | Success: 13636 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
-⚡ 30-60s [Target: 0.0%]: 11216 requests | Success: 10744 | Errors: 95 (0.85%) | Rejected: 377 (3.36%)
-⚡ 60-90s [Target: 0.0%]: 10488 requests | Success: 9755 | Errors: 75 (0.72%) | Rejected: 658 (6.27%)
-⚡ 90-120s [Target: 0.0%]: 10381 requests | Success: 9520 | Errors: 93 (0.9%) | Rejected: 768 (7.4%)
-⚡ 120-150s [Target: 0.0%]: 10456 requests | Success: 9597 | Errors: 80 (0.77%) | Rejected: 779 (7.45%)
-⚡ 150-180s [Target: 0.0%]: 10279 requests | Success: 9444 | Errors: 87 (0.85%) | Rejected: 748 (7.28%)
-⚡ 180-210s [Target: 0.0%]: 10255 requests | Success: 9417 | Errors: 98 (0.96%) | Rejected: 740 (7.22%)
-⚡ 210-240s [Target: 0.0%]: 10300 requests | Success: 9412 | Errors: 90 (0.87%) | Rejected: 798 (7.75%)
-⚡ 240-270s [Target: 0.0%]: 10448 requests | Success: 9520 | Errors: 72 (0.69%) | Rejected: 856 (8.19%)
-⚡ 270-300s [Target: 0.0%]: 10162 requests | Success: 9266 | Errors: 88 (0.87%) | Rejected: 808 (7.95%)
-⚡ 300-330s [Target: 0.0%]: 10135 requests | Success: 9184 | Errors: 91 (0.9%) | Rejected: 860 (8.49%)
-⚡ 330-360s [Target: 0.0%]: 13203 requests | Success: 12919 | Errors: 13 (0.1%) | Rejected: 271 (2.05%)
-✓ 360-390s [Target: 0.0%]: 14033 requests | Success: 14033 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
-✓ 390-420s [Target: 0.0%]: 14034 requests | Success: 14034 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 0-30s [Target: 0.0%]: 8969 requests | Success: 8967 | Errors: 2 (0.02%) | Rejected: 0 (0.0%)
+⚡ 30-60s [Target: 0.0%]: 8448 requests | Success: 8096 | Errors: 95 (1.12%) | Rejected: 257 (3.04%)
+⚡ 60-90s [Target: 0.0%]: 8707 requests | Success: 8229 | Errors: 65 (0.75%) | Rejected: 413 (4.74%)
+⚡ 90-120s [Target: 0.0%]: 8199 requests | Success: 7648 | Errors: 88 (1.07%) | Rejected: 463 (5.65%)
+⚡ 120-150s [Target: 0.0%]: 8563 requests | Success: 7885 | Errors: 69 (0.81%) | Rejected: 609 (7.11%)
+⚡ 150-180s [Target: 0.0%]: 8379 requests | Success: 7713 | Errors: 104 (1.24%) | Rejected: 562 (6.71%)
+⚡ 180-210s [Target: 0.0%]: 8111 requests | Success: 7408 | Errors: 75 (0.92%) | Rejected: 628 (7.74%)
+⚡ 210-240s [Target: 0.0%]: 7445 requests | Success: 6808 | Errors: 80 (1.07%) | Rejected: 557 (7.48%)
+⚡ 240-270s [Target: 0.0%]: 7876 requests | Success: 7145 | Errors: 78 (0.99%) | Rejected: 653 (8.29%)
+⚡ 270-300s [Target: 0.0%]: 7636 requests | Success: 6958 | Errors: 82 (1.07%) | Rejected: 596 (7.81%)
+⚡ 300-330s [Target: 0.0%]: 7722 requests | Success: 7062 | Errors: 83 (1.07%) | Rejected: 577 (7.47%)
+⚡ 330-360s [Target: 0.0%]: 9133 requests | Success: 8895 | Errors: 11 (0.12%) | Rejected: 227 (2.49%)
+✓ 360-390s [Target: 0.0%]: 9311 requests | Success: 9310 | Errors: 1 (0.01%) | Rejected: 0 (0.0%)
+✓ 390-420s [Target: 0.0%]: 9154 requests | Success: 9152 | Errors: 2 (0.02%) | Rejected: 0 (0.0%)
 
 === Thread Timing Statistics ===
 Total threads: 60
-Experiment wall clock duration: 420.41s
+Experiment wall clock duration: 422.66s
 
 Time spent making requests per thread:
   Min:     419.98s
-  Max:     420.39s
-  Average: 420.08s
-  Total (all threads): 25204.66s
+  Max:     422.64s
+  Average: 420.4s
+  Total (all threads): 25223.91s
 
 Thread utilization:
-  Average: 99.92% (time in requests / wall clock time)
+  Average: 99.46% (time in requests / wall clock time)
 
 Requests per thread:
-  Average: 2657 requests
-  Average time per request: 0.1581s
+  Average: 1963 requests
+  Average time per request: 0.2141s
 

@@ -3,51 +3,51 @@ EXPERIMENT: Sustained Load Experiment (Classic)
 ================================================================================
 Graph Title: Classic Circuit Breaker: Sustained 20% Error Load
 Adaptive Mode: false
-Actual Duration: 540.28 seconds
+Actual Duration: 542.27 seconds
 Threads: 60
 Requests per Second: 3000
 Service Count: 1
 
 === Summary Statistics ===
-Total Requests: 1047770
-  Successes: 134992 (12.88%)
-  Rejected: 910191 (86.87%)
-  Errors: 2587 (0.25%)
+Total Requests: 1000469
+  Successes: 46129 (4.61%)
+  Rejected: 952109 (95.17%)
+  Errors: 2231 (0.22%)
 
 === Time-Based Analysis (30-second buckets) ===
-✓ 0-30s [Target: 0.0%]: 15755 requests | Success: 15755 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
-✓ 30-60s [Target: 0.0%]: 16208 requests | Success: 16208 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
-✓ 60-90s [Target: 0.0%]: 16199 requests | Success: 16199 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
-✓ 90-120s [Target: 0.0%]: 16206 requests | Success: 16206 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
-⚡ 120-150s [Target: 20.0%]: 275212 requests | Success: 1688 | Errors: 306 (0.11%) | Rejected: 273218 (99.28%)
-⚡ 150-180s [Target: 20.0%]: 69014 requests | Success: 1082 | Errors: 274 (0.4%) | Rejected: 67658 (98.04%)
-⚡ 180-210s [Target: 20.0%]: 69099 requests | Success: 1143 | Errors: 261 (0.38%) | Rejected: 67695 (97.97%)
-⚡ 210-240s [Target: 20.0%]: 69594 requests | Success: 1056 | Errors: 259 (0.37%) | Rejected: 68279 (98.11%)
-⚡ 240-270s [Target: 20.0%]: 69049 requests | Success: 1019 | Errors: 236 (0.34%) | Rejected: 67794 (98.18%)
-⚡ 270-300s [Target: 20.0%]: 67995 requests | Success: 892 | Errors: 233 (0.34%) | Rejected: 66870 (98.35%)
-⚡ 300-330s [Target: 20.0%]: 68627 requests | Success: 1008 | Errors: 253 (0.37%) | Rejected: 67366 (98.16%)
-⚡ 330-360s [Target: 20.0%]: 67903 requests | Success: 1033 | Errors: 272 (0.4%) | Rejected: 66598 (98.08%)
-⚡ 360-390s [Target: 20.0%]: 67887 requests | Success: 895 | Errors: 242 (0.36%) | Rejected: 66750 (98.33%)
-⚡ 390-420s [Target: 20.0%]: 67767 requests | Success: 917 | Errors: 245 (0.36%) | Rejected: 66605 (98.29%)
-⚡ 420-450s [Target: 0.0%]: 42276 requests | Success: 10912 | Errors: 6 (0.01%) | Rejected: 31358 (74.17%)
-✓ 450-480s [Target: 0.0%]: 16116 requests | Success: 16116 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
-✓ 480-510s [Target: 0.0%]: 16093 requests | Success: 16093 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
-✓ 510-540s [Target: 0.0%]: 16190 requests | Success: 16190 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 0-30s [Target: 0.0%]: 4791 requests | Success: 4791 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 30-60s [Target: 0.0%]: 4782 requests | Success: 4782 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 60-90s [Target: 0.0%]: 4842 requests | Success: 4842 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 90-120s [Target: 0.0%]: 4730 requests | Success: 4730 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+⚡ 120-150s [Target: 20.0%]: 312564 requests | Success: 1344 | Errors: 287 (0.09%) | Rejected: 310933 (99.48%)
+⚡ 150-180s [Target: 20.0%]: 69036 requests | Success: 783 | Errors: 190 (0.28%) | Rejected: 68063 (98.59%)
+⚡ 180-210s [Target: 20.0%]: 69081 requests | Success: 822 | Errors: 231 (0.33%) | Rejected: 68028 (98.48%)
+⚡ 210-240s [Target: 20.0%]: 69021 requests | Success: 860 | Errors: 209 (0.3%) | Rejected: 67952 (98.45%)
+⚡ 240-270s [Target: 20.0%]: 68897 requests | Success: 973 | Errors: 213 (0.31%) | Rejected: 67711 (98.28%)
+⚡ 270-300s [Target: 20.0%]: 68542 requests | Success: 822 | Errors: 216 (0.32%) | Rejected: 67504 (98.49%)
+⚡ 300-330s [Target: 20.0%]: 68861 requests | Success: 910 | Errors: 236 (0.34%) | Rejected: 67715 (98.34%)
+⚡ 330-360s [Target: 20.0%]: 68269 requests | Success: 784 | Errors: 215 (0.31%) | Rejected: 67270 (98.54%)
+⚡ 360-390s [Target: 20.0%]: 68749 requests | Success: 998 | Errors: 207 (0.3%) | Rejected: 67544 (98.25%)
+⚡ 390-420s [Target: 20.0%]: 68162 requests | Success: 850 | Errors: 221 (0.32%) | Rejected: 67091 (98.43%)
+⚡ 420-450s [Target: 0.0%]: 35769 requests | Success: 3465 | Errors: 6 (0.02%) | Rejected: 32298 (90.3%)
+✓ 450-480s [Target: 0.0%]: 4760 requests | Success: 4760 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 480-510s [Target: 0.0%]: 4654 requests | Success: 4654 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 510-540s [Target: 0.0%]: 4802 requests | Success: 4802 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
 
 === Thread Timing Statistics ===
 Total threads: 60
-Experiment wall clock duration: 540.28s
+Experiment wall clock duration: 542.27s
 
 Time spent making requests per thread:
-  Min:     251.17s
-  Max:     266.41s
-  Average: 254.64s
-  Total (all threads): 15278.48s
+  Min:     281.67s
+  Max:     342.13s
+  Average: 299.9s
+  Total (all threads): 17993.72s
 
 Thread utilization:
-  Average: 47.13% (time in requests / wall clock time)
+  Average: 55.3% (time in requests / wall clock time)
 
 Requests per thread:
-  Average: 17463 requests
-  Average time per request: 0.0146s
+  Average: 16674 requests
+  Average time per request: 0.018s
 
