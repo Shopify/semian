@@ -9,7 +9,7 @@ require_relative "../experiment_helpers"
 
 runner = Semian::Experiments::CircuitBreakerExperimentRunner.new(
   experiment_name: "Slow Query Experiment (Adaptive)",
-  resource_name: "protected_service",
+  resource_name: "protected_service_slow_query_adaptive",
   degradation_phases: [Semian::Experiments::DegradationPhase.new(healthy: true)] * 1 +
                       [Semian::Experiments::DegradationPhase.new(specific_endpoint_latency: 9.5)] * 10 + # This should lead the service to get overwhelmed and start rejecting requests
                       [Semian::Experiments::DegradationPhase.new(healthy: true)] * 3,

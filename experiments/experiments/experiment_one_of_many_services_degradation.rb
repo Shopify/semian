@@ -9,7 +9,7 @@ require_relative "../experiment_helpers"
 
 runner = Semian::Experiments::CircuitBreakerExperimentRunner.new(
   experiment_name: "One of Many Services Degradation Experiment",
-  resource_name: "protected_service",
+  resource_name: "protected_service_one_of_many_services_degradation",
   degradation_phases: [Semian::Experiments::DegradationPhase.new(healthy: true)] * 1 +
                       [Semian::Experiments::DegradationPhase.new(latency: 4.95)] * 10 + # Most requests to the target service will timeout
                       [Semian::Experiments::DegradationPhase.new(healthy: true)] * 3,
