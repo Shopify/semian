@@ -8,8 +8,6 @@ class TestSimpleExponentialSmoother < Minitest::Test
     @smoother = Semian::SimpleExponentialSmoother.new
   end
 
-  # Initialization tests
-
   def test_initialization_with_defaults
     smoother = Semian::SimpleExponentialSmoother.new
 
@@ -35,25 +33,21 @@ class TestSimpleExponentialSmoother < Minitest::Test
   def test_initialization_validates_alpha
     assert_raises(ArgumentError) { Semian::SimpleExponentialSmoother.new(initial_alpha: 0.0) }
     assert_raises(ArgumentError) { Semian::SimpleExponentialSmoother.new(initial_alpha: -0.1) }
+    assert_raises(ArgumentError) { Semian::SimpleExponentialSmoother.new(initial_alpha: 0.5) }
     assert_raises(ArgumentError) { Semian::SimpleExponentialSmoother.new(initial_alpha: 1.5) }
 
-    # Alpha of 1.0 should be valid
-    smoother = Semian::SimpleExponentialSmoother.new(initial_alpha: 1.0)
+    smoother = Semian::SimpleExponentialSmoother.new(initial_alpha: 0.49)
 
-    assert_equal(1.0, smoother.alpha)
+    assert_equal(0.49, smoother.alpha)
   end
-
-  # Core functionality tests
 
   def test_smoothing_formula
     smoother = Semian::SimpleExponentialSmoother.new(initial_value: 0.01, initial_alpha: 0.1)
 
-    # First observation: smoothed = 0.1 * 0.01 + 0.9 * 0.01 = 0.01
     smoother.add_observation(0.01)
 
     assert_in_delta(0.01, smoother.forecast, 0.0001)
 
-    # Second observation: smoothed = 0.1 * 0.05 + 0.9 * 0.01 = 0.014
     smoother.add_observation(0.05)
 
     assert_in_delta(0.014, smoother.forecast, 0.0001)
@@ -71,97 +65,89 @@ class TestSimpleExponentialSmoother < Minitest::Test
     @smoother.add_observation(0.02)
     forecast = @smoother.forecast
 
-    # Forecast should be stable across multiple calls
     assert_equal(forecast, @smoother.forecast)
-    # value is an alias
     assert_equal(@smoother.forecast, @smoother.value)
   end
 
-  # Cap value tests
-
-  def test_cap_value_clips_high_observations
+  def test_cap_value_drops_high_observations
     smoother = Semian::SimpleExponentialSmoother.new(initial_alpha: 0.2, initial_value: 0.01)
+    initial_forecast = smoother.forecast
 
-    # Add many high values (all should be capped at 0.1)
     20.times { smoother.add_observation(1.0) }
 
-    # Should asymptotically approach cap, not the raw input value
-    assert_operator(smoother.forecast, :<, 0.1)
-    assert_operator(smoother.forecast, :>, 0.075)
-  end
+    assert_equal(initial_forecast, smoother.forecast)
 
-  # Critical test: 30-minute incident resilience
+    20.times { smoother.add_observation(0.05) }
+
+    assert_operator(smoother.forecast, :>, initial_forecast)
+  end
 
   def test_effect_of_30_min_incident_on_ideal_error_rate
     smoother = Semian::SimpleExponentialSmoother.new
     baseline = smoother.forecast
 
-    # Simulate 30-minute incident (180 observations at 1 obs/min = 30 min)
-    # High error rate during incident
     180.times { smoother.add_observation(0.2) }
 
-    # We should be resilient to the incident and return close to baseline
-
-    new_baseline = smoother.forecast
-
-    # Should return close to baseline (within 0.01 delta as specified)
-    assert_operator(new_baseline, :>, baseline)
-    assert_in_delta(
-      0.01,
-      new_baseline,
-      0.01,
-      "After 30-min incident, smoother should return close to baseline",
-    )
+    assert_equal(baseline, smoother.forecast)
   end
-
-  # Alpha sensitivity tests
 
   def test_higher_alpha_increases_recency_bias
     smoother_low = Semian::SimpleExponentialSmoother.new(initial_alpha: 0.01, initial_value: 0.01)
     smoother_high = Semian::SimpleExponentialSmoother.new(initial_alpha: 0.3, initial_value: 0.01)
 
-    # Add same spike to both
-    smoother_low.add_observation(0.15)
-    smoother_high.add_observation(0.15)
+    smoother_low.add_observation(0.08)
+    smoother_high.add_observation(0.08)
 
-    # High alpha should react more strongly
     assert_operator(smoother_high.forecast, :>, smoother_low.forecast)
   end
-
-  # Reset tests
 
   def test_reset_returns_to_initial_state
     smoother = Semian::SimpleExponentialSmoother.new
     initial_forecast = smoother.forecast
 
-    # Change state
     50.times { smoother.add_observation(0.1) }
 
     assert_operator(smoother.forecast, :>, initial_forecast)
 
-    # Reset should return to initial state
     result = smoother.reset
 
-    assert_equal(smoother, result) # Should allow method chaining
+    assert_equal(smoother, result)
     assert_equal(initial_forecast, smoother.forecast)
   end
 
-  # Edge cases
+  def test_alpha_decreases_after_observation_thresholds
+    smoother = Semian::SimpleExponentialSmoother.new(initial_alpha: 0.4)
+
+    89.times { smoother.add_observation(0.01) }
+
+    assert_equal(0.4, smoother.alpha)
+
+    smoother.add_observation(0.01)
+
+    assert_equal(0.2, smoother.alpha)
+
+    89.times { smoother.add_observation(0.01) }
+
+    assert_equal(0.2, smoother.alpha)
+
+    smoother.add_observation(0.01)
+
+    assert_equal(0.1, smoother.alpha)
+
+    10.times { smoother.add_observation(0.01) }
+
+    assert_equal(0.1, smoother.alpha)
+  end
 
   def test_handles_edge_case_values
     smoother = Semian::SimpleExponentialSmoother.new
 
-    # Zero observation
     smoother.add_observation(0.0)
 
     assert_operator(smoother.forecast, :<, 0.01)
 
-    # Negative observation (shouldn't crash)
-    smoother.add_observation(-0.1)
+    assert_raises(ArgumentError) { smoother.add_observation(-0.1) }
 
-    assert_operator(smoother.forecast, :<, 0.01)
-
-    # Many stable observations
     smoother.reset
     1000.times { smoother.add_observation(0.01) }
 
