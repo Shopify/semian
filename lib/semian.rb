@@ -317,7 +317,7 @@ module Semian
     AdaptiveCircuitBreaker.new(
       name: name,
       kp: 0.75, # Standard proportional gain
-      ki: 0.01, # Moderate integral gain
+      ki: 0.1, # Moderate integral gain
       kd: 0.5, # Small derivative gain (as per design doc)
       window_size: 10, # 10-second window for rate calculation and update interval
       initial_history_duration: 900, # 15 minutes of initial history for p90 calculation
