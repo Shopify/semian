@@ -42,6 +42,8 @@ module Semian
         @alpha *= 0.5
       end
 
+      # Ignore any observation higher than the cap_value
+      # Anomalous error rates should not affect the ideal error rate calculation
       return @smoothed_value if value > cap_value
 
       @smoothed_value = (alpha * value) + ((1.0 - alpha) * @smoothed_value)
@@ -77,6 +79,8 @@ module Semian
     private
 
     def validate_alpha!(alpha)
+      # alpha should always be less than 0.5
+      # The goal is to provide less weight for the more recent observations
       if alpha <= 0 || alpha >= 0.5
         raise ArgumentError, "alpha must be in range (0, 0.5), got: #{alpha}"
       end
