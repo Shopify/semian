@@ -1,0 +1,45 @@
+================================================================================
+EXPERIMENT: Gradual Error Increase Experiment
+================================================================================
+Graph Title: Classic Circuit Breaker: Gradual Error Increase (1% to 5%)
+Adaptive Mode: false
+Actual Duration: 600.12 seconds
+Threads: 60
+Requests per Second: 3000
+Service Count: 1
+
+=== Summary Statistics ===
+Total Requests: 1096745
+  Successes: 173780 (15.85%)
+  Rejected: 919801 (83.87%)
+  Errors: 3164 (0.29%)
+
+=== Time-Based Analysis (60-second buckets) ===
+✓ 0-60s [Target: 0.0%]: 34723 requests | Success: 34723 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+⚡ 60-120s [Target: 1.5%]: 239271 requests | Success: 21741 | Errors: 324 (0.14%) | Rejected: 217206 (90.78%)
+⚡ 120-180s [Target: 2.0%]: 138205 requests | Success: 16997 | Errors: 344 (0.25%) | Rejected: 120864 (87.45%)
+⚡ 180-240s [Target: 2.5%]: 138821 requests | Success: 15305 | Errors: 376 (0.27%) | Rejected: 123140 (88.7%)
+⚡ 240-300s [Target: 3.0%]: 137202 requests | Success: 12767 | Errors: 417 (0.3%) | Rejected: 124018 (90.39%)
+⚡ 300-360s [Target: 3.5%]: 136529 requests | Success: 11667 | Errors: 418 (0.31%) | Rejected: 124444 (91.15%)
+⚡ 360-420s [Target: 4.0%]: 56641 requests | Success: 10527 | Errors: 428 (0.76%) | Rejected: 45686 (80.66%)
+⚡ 420-480s [Target: 4.5%]: 63728 requests | Success: 8721 | Errors: 404 (0.63%) | Rejected: 54603 (85.68%)
+⚡ 480-540s [Target: 5.0%]: 88987 requests | Success: 9008 | Errors: 439 (0.49%) | Rejected: 79540 (89.38%)
+⚡ 540-600s [Target: 0.0%]: 62115 requests | Success: 31801 | Errors: 14 (0.02%) | Rejected: 30300 (48.78%)
+
+=== Thread Timing Statistics ===
+Total threads: 60
+Experiment wall clock duration: 600.12s
+
+Time spent making requests per thread:
+  Min:     267.27s
+  Max:     346.38s
+  Average: 299.32s
+  Total (all threads): 17959.09s
+
+Thread utilization:
+  Average: 49.88% (time in requests / wall clock time)
+
+Requests per thread:
+  Average: 18279 requests
+  Average time per request: 0.0164s
+

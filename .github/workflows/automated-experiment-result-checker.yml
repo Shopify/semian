@@ -23,44 +23,48 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Check for updated experiment result graphs
+      - name: Check for updated experiment result graphs and tables
         run: |
           set -e
           cd "$(git rev-parse --show-toplevel)"
 
           # TODO: Include lower bound windup experiment once we have a way to make it run in a reasonable time.
-          # Find all PNGs, excluding those with "windup" in their filename
+          # Find all PNGs and TXT files, excluding those with "windup" in their filename
           mapfile -t all_pngs < <(find experiments/results/main_graphs experiments/results/throughput_graphs experiments/results/duration_graphs -type f -name '*.png' ! -name '*windup*.png' | sort)
+          mapfile -t all_txts < <(find experiments/results/tables -type f -name '*.txt' ! -name '*windup*.txt' 2>/dev/null | sort)
 
-          # Find all changed PNGs in the latest commit
-          mapfile -t changed_pngs < <(git diff --name-only --diff-filter=AM HEAD~1..HEAD | grep -E '^experiments/results/(main_graphs|throughput_graphs|duration_graphs)/.*\.png$' | grep -v windup | sort)
+          # Combine all result files
+          all_files=("${all_pngs[@]}" "${all_txts[@]}")
 
-          # Report any PNGs that are not updated in the latest commit
+          # Find all changed PNGs and TXTs in the latest commit
+          mapfile -t changed_files < <(git diff --name-only --diff-filter=AM HEAD~1..HEAD | grep -E '^experiments/results/(main_graphs|throughput_graphs|duration_graphs)/.*\.png$|^experiments/results/tables/.*\.txt$' | grep -v windup | sort)
+
+          # Report any files that are not updated in the latest commit
           declare -a not_updated=()
-          for file in "${all_pngs[@]}"; do
-            if ! printf "%s\n" "${changed_pngs[@]}" | grep -qx "$file"; then
+          for file in "${all_files[@]}"; do
+            if ! printf "%s\n" "${changed_files[@]}" | grep -qx "$file"; then
               not_updated+=("$file")
             fi
           done
 
           if [ ${#not_updated[@]} -gt 0 ]; then
-            echo "❌ The following result graph PNG files have NOT been updated in the latest commit:"
+            echo "❌ The following result files have NOT been updated in the latest commit:"
             for f in "${not_updated[@]}"; do
               echo "  - $f"
             done
             echo ""
-            echo "Every commit must update all non-windup experiment result graphs. You may be missing updates."
+            echo "Every commit must update all non-windup experiment result graphs and tables. You may be missing updates."
             echo "Run:"
             echo ""
             echo "    cd experiments"
             echo "    bundle install"
             echo "    bundle exec ruby run_all_experiments.rb"
             echo ""
-            echo "Commit the updated graphs to resolve this check."
+            echo "Commit the updated graphs and tables to resolve this check."
             exit 1
           fi
 
-          echo "✅ All non-windup experiment result graphs are up to date for this commit!"
+          echo "✅ All non-windup experiment result graphs and tables are up to date for this commit!"
 
 
 

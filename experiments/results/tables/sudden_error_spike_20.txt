@@ -1,0 +1,42 @@
+================================================================================
+EXPERIMENT: Sudden Error Spike Experiment (Classic) - 20% for 20 seconds
+================================================================================
+Graph Title: Sudden Error Spike Experiment (Classic) - 20% for 20 seconds
+Adaptive Mode: false
+Actual Duration: 140.11 seconds
+Threads: 60
+Requests per Second: 3000
+Service Count: 1
+
+=== Summary Statistics ===
+Total Requests: 244423
+  Successes: 65070 (26.62%)
+  Rejected: 179042 (73.25%)
+  Errors: 311 (0.13%)
+
+=== Time-Based Analysis (20-second buckets) ===
+✓ 0-20s [Target: 0.0%]: 11228 requests | Success: 11228 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 20-40s [Target: 0.0%]: 11746 requests | Success: 11746 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 40-60s [Target: 0.0%]: 11744 requests | Success: 11744 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+⚡ 60-80s [Target: 20.0%]: 146847 requests | Success: 1717 | Errors: 282 (0.19%) | Rejected: 144848 (98.64%)
+⚡ 80-100s [Target: 0.0%]: 38784 requests | Success: 4561 | Errors: 29 (0.07%) | Rejected: 34194 (88.17%)
+✓ 100-120s [Target: 0.0%]: 11754 requests | Success: 11754 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 120-140s [Target: 0.0%]: 11762 requests | Success: 11762 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+
+=== Thread Timing Statistics ===
+Total threads: 60
+Experiment wall clock duration: 140.11s
+
+Time spent making requests per thread:
+  Min:     109.55s
+  Max:     122.67s
+  Average: 111.98s
+  Total (all threads): 6718.79s
+
+Thread utilization:
+  Average: 79.92% (time in requests / wall clock time)
+
+Requests per thread:
+  Average: 4074 requests
+  Average time per request: 0.0275s
+

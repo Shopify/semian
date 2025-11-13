@@ -1,0 +1,50 @@
+================================================================================
+EXPERIMENT: Sudden Error Spikes Experiment (Classic)
+================================================================================
+Graph Title: Classic: Sudden Error Spikes, 20 second spikes (20%, 60%, 100%)
+Adaptive Mode: false
+Actual Duration: 303.17 seconds
+Threads: 60
+Requests per Second: 3000
+Service Count: 1
+
+=== Summary Statistics ===
+Total Requests: 587043
+  Successes: 27219 (4.64%)
+  Rejected: 559143 (95.25%)
+  Errors: 681 (0.12%)
+
+=== Time-Based Analysis (20-second buckets) ===
+✓ 0-20s [Target: 0.0%]: 2636 requests | Success: 2636 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 20-40s [Target: 0.0%]: 2372 requests | Success: 2372 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 40-60s [Target: 0.0%]: 2456 requests | Success: 2456 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+⚡ 60-80s [Target: 20.0%]: 173341 requests | Success: 892 | Errors: 188 (0.11%) | Rejected: 172261 (99.38%)
+⚡ 80-100s [Target: 0.0%]: 36869 requests | Success: 1846 | Errors: 8 (0.02%) | Rejected: 35015 (94.97%)
+✓ 100-120s [Target: 0.0%]: 2346 requests | Success: 2346 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 120-140s [Target: 0.0%]: 2316 requests | Success: 2316 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+⚡ 140-160s [Target: 60.0%]: 140561 requests | Success: 370 | Errors: 236 (0.17%) | Rejected: 139955 (99.57%)
+⚡ 160-180s [Target: 0.0%]: 38418 requests | Success: 1045 | Errors: 9 (0.02%) | Rejected: 37364 (97.26%)
+✓ 180-200s [Target: 0.0%]: 2464 requests | Success: 2464 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 200-220s [Target: 0.0%]: 2368 requests | Success: 2368 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+⚡ 220-240s [Target: 100.0%]: 139302 requests | Success: 168 | Errors: 238 (0.17%) | Rejected: 138896 (99.71%)
+⚡ 240-260s [Target: 0.0%]: 36537 requests | Success: 883 | Errors: 2 (0.01%) | Rejected: 35652 (97.58%)
+✓ 260-280s [Target: 0.0%]: 2460 requests | Success: 2460 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 280-300s [Target: 0.0%]: 2453 requests | Success: 2453 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+
+=== Thread Timing Statistics ===
+Total threads: 60
+Experiment wall clock duration: 303.17s
+
+Time spent making requests per thread:
+  Min:     211.49s
+  Max:     244.09s
+  Average: 227.45s
+  Total (all threads): 13646.92s
+
+Thread utilization:
+  Average: 75.02% (time in requests / wall clock time)
+
+Requests per thread:
+  Average: 9784 requests
+  Average time per request: 0.0232s
+

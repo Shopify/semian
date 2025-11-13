@@ -1,0 +1,49 @@
+================================================================================
+EXPERIMENT: One of Many Services Degradation Experiment
+================================================================================
+Graph Title: Classic Circuit Breaker: One of Many Services Latency Degradation
+Adaptive Mode: false
+Actual Duration: 429.78 seconds
+Threads: 60
+Requests per Second: 3000
+Service Count: 10
+
+=== Summary Statistics ===
+Total Requests: 62791
+  Successes: 62505 (99.54%)
+  Rejected: 0 (0.0%)
+  Errors: 286 (0.46%)
+
+=== Time-Based Analysis (30-second buckets) ===
+✓ 0-30s [Target: 0.0%]: 9408 requests | Success: 9408 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 30-60s [Target: 0.0%]: 2634 requests | Success: 2611 | Errors: 23 (0.87%) | Rejected: 0 (0.0%)
+✓ 60-90s [Target: 0.0%]: 2820 requests | Success: 2789 | Errors: 31 (1.1%) | Rejected: 0 (0.0%)
+✓ 90-120s [Target: 0.0%]: 2684 requests | Success: 2655 | Errors: 29 (1.08%) | Rejected: 0 (0.0%)
+✓ 120-150s [Target: 0.0%]: 2917 requests | Success: 2893 | Errors: 24 (0.82%) | Rejected: 0 (0.0%)
+✓ 150-180s [Target: 0.0%]: 2821 requests | Success: 2796 | Errors: 25 (0.89%) | Rejected: 0 (0.0%)
+✓ 180-210s [Target: 0.0%]: 2660 requests | Success: 2630 | Errors: 30 (1.13%) | Rejected: 0 (0.0%)
+✓ 210-240s [Target: 0.0%]: 2730 requests | Success: 2705 | Errors: 25 (0.92%) | Rejected: 0 (0.0%)
+✓ 240-270s [Target: 0.0%]: 2709 requests | Success: 2675 | Errors: 34 (1.26%) | Rejected: 0 (0.0%)
+✓ 270-300s [Target: 0.0%]: 2537 requests | Success: 2503 | Errors: 34 (1.34%) | Rejected: 0 (0.0%)
+✓ 300-330s [Target: 0.0%]: 2941 requests | Success: 2920 | Errors: 21 (0.71%) | Rejected: 0 (0.0%)
+✓ 330-360s [Target: 0.0%]: 8684 requests | Success: 8674 | Errors: 10 (0.12%) | Rejected: 0 (0.0%)
+✓ 360-390s [Target: 0.0%]: 8509 requests | Success: 8509 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+✓ 390-420s [Target: 0.0%]: 8649 requests | Success: 8649 | Errors: 0 (0.0%) | Rejected: 0 (0.0%)
+
+=== Thread Timing Statistics ===
+Total threads: 60
+Experiment wall clock duration: 429.78s
+
+Time spent making requests per thread:
+  Min:     419.99s
+  Max:     429.75s
+  Average: 422.25s
+  Total (all threads): 25334.95s
+
+Thread utilization:
+  Average: 98.25% (time in requests / wall clock time)
+
+Requests per thread:
+  Average: 1047 requests
+  Average time per request: 0.4035s
+

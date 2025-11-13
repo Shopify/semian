@@ -1,0 +1,66 @@
+================================================================================
+EXPERIMENT: Sudden Error Spike Experiment (Adaptive) - 100% for 20 seconds
+================================================================================
+Graph Title: Sudden Error Spike Experiment (Adaptive) - 100% for 20 seconds
+Adaptive Mode: true
+Actual Duration: 140.33 seconds
+Threads: 60
+Requests per Second: 3000
+Service Count: 1
+
+=== Summary Statistics ===
+Total Requests: 250253
+  Successes: 48937 (19.56%)
+  Rejected: 171008 (68.33%)
+  Errors: 30308 (12.11%)
+
+=== Time-Based Analysis (20-second buckets) ===
+⚡ 0-20s [Target: 1.0%]: 8980 requests | Success: 8870 | Errors: 92 (1.02%) | Rejected: 18 (0.2%)
+⚡ 20-40s [Target: 1.0%]: 9489 requests | Success: 9343 | Errors: 100 (1.05%) | Rejected: 46 (0.48%)
+⚡ 40-60s [Target: 1.0%]: 9408 requests | Success: 9261 | Errors: 98 (1.04%) | Rejected: 49 (0.52%)
+⚡ 60-80s [Target: 100.0%]: 136955 requests | Success: 425 | Errors: 28550 (20.85%) | Rejected: 107980 (78.84%)
+⚡ 80-100s [Target: 1.0%]: 63871 requests | Success: 2176 | Errors: 1267 (1.98%) | Rejected: 60428 (94.61%)
+⚡ 100-120s [Target: 1.0%]: 11703 requests | Success: 9127 | Errors: 93 (0.79%) | Rejected: 2483 (21.22%)
+⚡ 120-140s [Target: 1.0%]: 9399 requests | Success: 9293 | Errors: 102 (1.09%) | Rejected: 4 (0.04%)
+
+=== Thread Timing Statistics ===
+Total threads: 60
+Experiment wall clock duration: 140.33s
+
+Time spent making requests per thread:
+  Min:     120.0s
+  Max:     129.52s
+  Average: 125.26s
+  Total (all threads): 7515.34s
+
+Thread utilization:
+  Average: 89.26% (time in requests / wall clock time)
+
+Requests per thread:
+  Average: 4171 requests
+  Average time per request: 0.03s
+
+=== PID Controller State Per Second (Aggregated across threads) ===
+Window   # Threads  Err % (min-max)        Ideal Err %     Reject % (min-max)     Integral (min-max)        Derivative (min-max)      Total Req Time 
+------------------------------------------------------------------------------------------------------------------------------------------------------
+1        60         0.96% (0.0%-4.17%)     1.0%            0.41% (0.0%-2.85%)     0.0459 (0.0-0.3167)       -0.0 (-0.0005-0.0016)     607.22s        
+2        60         1.07% (0.0%-4.0%)      1.0%            0.46% (0.0%-2.75%)     0.0658 (0.0-0.3)          -0.0002 (-0.0032-0.002)   1206.76s       
+3        60         0.86% (0.0%-5.19%)     1.0%            0.4% (0.0%-3.97%)      0.0747 (0.0-0.4272)       -0.0001 (-0.0031-0.0024)  1806.61s       
+4        60         1.24% (0.0%-4.88%)     1.01%           0.61% (0.0%-3.57%)     0.1086 (-0.0042-0.4128)   0.0002 (-0.004-0.0024)    2406.98s       
+5        60         1.17% (0.0%-4.0%)      1.04%           0.56% (0.0%-2.94%)     0.1233 (-0.0286-0.3931)   -0.0001 (-0.0033-0.0024)  3006.66s       
+6        60         0.87% (0.0%-2.78%)     1.15%           0.39% (0.0%-1.8%)      0.1275 (-0.0305-0.4073)   -0.0001 (-0.0031-0.0019)  3609.39s       
+7        60         99.64% (99.57%-100.0%) 1.07%           88.89% (88.51%-89.3%)  9.9425 (9.7825-10.2443)   0.0494 (0.0477-0.0512)    4209.85s       
+8        60         99.99% (99.6%-100.0%)  2.77%           100.0% (100.0%-100.0%) 9.9425 (9.7825-10.2443)   -0.0448 (-0.0454--0.0442) 4806.58s       
+9        60         43.33% (0.0%-100.0%)   2.62%           53.06% (16.8%-100.0%)  4.1263 (-0.501-10.2008)   -0.0345 (-0.0557--0.0067) 4809.1s        
+10       60         0.49% (0.0%-2.94%)     5.57%           9.33% (3.9%-15.56%)    -1.5276 (-2.3821--0.3447) 0.002 (-0.05-0.043)       5118.27s       
+11       60         1.07% (0.0%-5.33%)     5.57%           0.92% (0.0%-4.88%)     -2.3857 (-2.814--1.965)   0.0221 (0.0045-0.0443)    5718.43s       
+12       60         0.94% (0.0%-3.8%)      2.62%           0.0% (0.0%-0.0%)       -2.3857 (-2.814--1.965)   0.0041 (0.0007-0.0082)    6317.94s       
+13       60         1.07% (0.0%-4.65%)     2.59%           0.0% (0.0%-0.0%)       -2.3857 (-2.814--1.965)   0.0005 (-0.0019-0.0031)   6918.56s       
+14       60         1.14% (0.0%-3.9%)      5.43%           0.0% (0.0%-0.0%)       -2.3857 (-2.814--1.965)   0.0 (-0.0019-0.0019)      7513.39s       
+
+📊 Key Observations:
+  - Timestamps captured: 14
+  - Max avg rejection rate: 100.0%
+  - Avg integral range: -2.3857 to 9.9425
+  - Thread counts per timestamp: min 60, max 60
+
