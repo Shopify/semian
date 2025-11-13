@@ -159,11 +159,7 @@ module Semian
     end
 
     def calculate_ideal_error_rate
-      # Get smoothed forecast from exponential smoother
-      smoothed_value = @smoother.forecast
-
-      # Cap at 10% to prevent bootstrapping issues
-      [smoothed_value, 0.1].min
+      @smoother.forecast
     end
   end
 
