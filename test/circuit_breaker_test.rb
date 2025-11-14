@@ -853,4 +853,452 @@ class TestCircuitBreaker < Minitest::Test
     end
     assert_match("error_threshold_timeout_enabled and error_threshold_timeout must not contradict each other", error.message)
   end
+
+  # Dynamic Timeout Tests
+
+  def test_dynamic_timeout_starts_at_minimum
+    resource = Semian.register(
+      :dynamic_timeout_min,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      dynamic_timeout: true,
+      success_threshold: 1,
+    )
+
+    # Open the circuit
+    open_circuit!(resource)
+
+    assert_circuit_opened(resource)
+
+    # Wait for minimum backoff time (500ms)
+    time_travel(0.5 + 0.1) do
+      assert_circuit_closed(resource) # Should be half-open and allow request
+    end
+  ensure
+    Semian.destroy(:dynamic_timeout_min)
+  end
+
+  def test_dynamic_timeout_doubles_on_consecutive_failures
+    resource = Semian.register(
+      :dynamic_timeout_double,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      dynamic_timeout: true,
+      success_threshold: 1,
+    )
+
+    # Open the circuit
+    open_circuit!(resource)
+
+    assert_circuit_opened(resource)
+
+    # Wait for initial backoff (500ms) and trigger error in half-open state
+    time_travel(0.6) do
+      trigger_error!(resource) # Should transition to open again with doubled backoff
+
+      assert_circuit_opened(resource)
+    end
+
+    # Should still be open after 0.5s (initial backoff)
+    time_travel(1.1) do # 0.6 + 0.5 = 1.1 total
+      assert_circuit_opened(resource)
+    end
+
+    # Should be half-open after 1s (doubled backoff)
+    time_travel(1.7) do # 0.6 + 1.0 + 0.1 = 1.7 total
+      assert_circuit_closed(resource) # half-open allows requests
+    end
+  ensure
+    Semian.destroy(:dynamic_timeout_double)
+  end
+
+  def test_dynamic_timeout_exponential_then_linear
+    resource = Semian.register(
+      :dynamic_timeout_exp_then_linear,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      dynamic_timeout: true,
+      success_threshold: 1,
+    )
+
+    # Open the circuit
+    open_circuit!(resource)
+
+    # Expected progression:
+    # Exponential: 0.5 → 1 → 2 → 4 → 8 → 16 → 20 (capped at 20 instead of 32)
+    # Linear: 20 → 21 → 22 → 23 → 24 → 25 ... → 60
+    expected_progression = [0.5, 1, 2, 4, 8, 16, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 60]
+
+    current_time = 0.0
+    cb = resource.circuit_breaker
+
+    expected_progression.each_with_index do |expected_timeout, index|
+      # Skip first value (it's the initial state)
+      next if index == 0
+
+      # Wait for current backoff
+      current_backoff = expected_progression[index - 1]
+      current_time += current_backoff + 0.1
+
+      time_travel(current_time) do
+        # Should be half-open now
+        assert_predicate(resource, :half_open?)
+
+        # Trigger error to increase backoff
+        trigger_error!(resource)
+
+        assert_circuit_opened(resource)
+
+        # Check that error_timeout matches expected progression
+        assert_equal(
+          expected_timeout,
+          cb.error_timeout,
+          "Expected timeout of #{expected_timeout} at index #{index}, got #{cb.error_timeout}",
+        )
+      end
+    end
+  ensure
+    Semian.destroy(:dynamic_timeout_exp_then_linear)
+  end
+
+  def test_dynamic_timeout_to_linear_transition
+    resource = Semian.register(
+      :dynamic_timeout_linear_transition,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      dynamic_timeout: true,
+      success_threshold: 1,
+    )
+
+    cb = resource.circuit_breaker
+
+    # Open the circuit
+    open_circuit!(resource)
+
+    assert_equal(0.5, cb.error_timeout)
+
+    # Get to 16s (still exponential)
+    timeouts = [0.5, 1, 2, 4, 8, 16]
+    current_time = 0.0
+
+    timeouts[1..-1].each do |expected_next|
+      current_time += cb.error_timeout + 0.1
+      time_travel(current_time) do
+        trigger_error!(resource)
+
+        assert_equal(expected_next, cb.error_timeout)
+      end
+    end
+
+    # Next transition should cap at 20s (not 32s)
+    current_time += cb.error_timeout + 0.1
+    time_travel(current_time) do
+      trigger_error!(resource)
+
+      assert_equal(20, cb.error_timeout, "Should cap at 20s instead of doubling to 32s")
+    end
+
+    # After 20s, should switch to linear increments of 1s
+    [21, 22, 23].each do |expected_next|
+      current_time += cb.error_timeout + 0.1
+      time_travel(current_time) do
+        trigger_error!(resource)
+
+        assert_equal(expected_next, cb.error_timeout, "Should increment by 1s in linear phase")
+      end
+    end
+  ensure
+    Semian.destroy(:dynamic_timeout_linear_transition)
+  end
+
+  def test_dynamic_timeout_caps_at_60_seconds
+    resource = Semian.register(
+      :dynamic_timeout_caps_at_60,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      dynamic_timeout: true,
+      success_threshold: 1,
+    )
+
+    cb = resource.circuit_breaker
+
+    # Open the circuit and get to 56s
+    open_circuit!(resource)
+
+    # Fast forward through the progression to get near the cap
+    # We need to go through: 0.5 → 1 → 2 → 4 → 8 → 16 → 20, then increment by 1 until we reach near 60
+    progression = [0.5, 1, 2, 4, 8, 16, 20]
+    # Add linear progression from 20 to 59
+    current = 20
+    while current < 59
+      current += 1
+      progression << current
+    end
+    current_time = 0.0
+
+    progression[1..-1].each do |expected|
+      current_time += cb.error_timeout + 0.1
+      time_travel(current_time) do
+        trigger_error!(resource)
+
+        assert_equal(expected, cb.error_timeout)
+      end
+    end
+
+    # Next should cap at 60
+    current_time += cb.error_timeout + 0.1
+    time_travel(current_time) do
+      trigger_error!(resource)
+
+      assert_equal(60, cb.error_timeout, "Should cap at 60s")
+    end
+
+    # Should stay at 60 on subsequent failures
+    current_time += cb.error_timeout + 0.1
+    time_travel(current_time) do
+      trigger_error!(resource)
+
+      assert_equal(60, cb.error_timeout, "Should remain capped at 60s")
+    end
+  ensure
+    Semian.destroy(:dynamic_timeout_caps_at_60)
+  end
+
+  def test_dynamic_timeout_resets_on_success
+    resource = Semian.register(
+      :dynamic_timeout_reset,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      dynamic_timeout: true,
+      success_threshold: 2,
+    )
+
+    # Open the circuit
+    open_circuit!(resource)
+
+    # Wait for initial backoff and fail again
+    time_travel(0.6) do
+      trigger_error!(resource) # Should double backoff to 1s
+    end
+
+    # Wait for doubled backoff and succeed
+    time_travel(1.7) do
+      # Half-open state
+      assert_circuit_closed(resource)  # First success
+      assert_circuit_closed(resource)  # Second success - should close circuit
+    end
+
+    # Open circuit again
+    open_circuit!(resource)
+
+    # Backoff should have reset to minimum (500ms)
+    time_travel(2.3) do # 1.7 + 0.5 + 0.1
+      assert_circuit_closed(resource) # Should be half-open
+    end
+  ensure
+    Semian.destroy(:dynamic_timeout_reset)
+  end
+
+  def test_dynamic_timeout_and_error_timeout_are_mutually_exclusive
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :dynamic_and_fixed_timeout,
+        force_config_validation: true,
+        bulkhead: false,
+        exceptions: [SomeError],
+        error_threshold: 2,
+        error_timeout: 5,
+        dynamic_timeout: true,
+        success_threshold: 1,
+      )
+    end
+
+    assert_match("error_timeout and dynamic_timeout are mutually exclusive", error.message)
+  ensure
+    begin
+      Semian.destroy(:dynamic_and_fixed_timeout)
+    rescue
+      nil
+    end
+  end
+
+  def test_dynamic_timeout_does_not_require_error_timeout
+    resource = Semian.register(
+      :dynamic_no_timeout,
+      force_config_validation: true,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      dynamic_timeout: true,
+      success_threshold: 1,
+    )
+
+    assert_predicate(resource, :closed?)
+    open_circuit!(resource)
+
+    assert_predicate(resource, :open?)
+  ensure
+    Semian.destroy(:dynamic_no_timeout)
+  end
+
+  def test_dynamic_timeout_with_error_threshold_timeout
+    resource = Semian.register(
+      :dynamic_with_threshold_timeout,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 3,
+      dynamic_timeout: true,
+      error_threshold_timeout: 10,
+      success_threshold: 1,
+    )
+
+    # Errors outside threshold window shouldn't open circuit
+    time_travel(-11) do
+      trigger_error!(resource)
+    end
+
+    time_travel(-5) do
+      trigger_error!(resource)
+    end
+
+    trigger_error!(resource)
+
+    # Only 2 errors within window, circuit should remain closed
+    assert_circuit_closed(resource)
+
+    # Add one more error to open circuit
+    trigger_error!(resource)
+
+    assert_circuit_opened(resource)
+
+    # Wait for exponential backoff (500ms)
+    time_travel(0.6) do
+      assert_circuit_closed(resource) # Should be half-open
+    end
+  ensure
+    Semian.destroy(:dynamic_with_threshold_timeout)
+  end
+
+  def test_dynamic_timeout_logging
+    resource = Semian.register(
+      :dynamic_timeout_logging,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      dynamic_timeout: true,
+      success_threshold: 1,
+    )
+
+    open_circuit!(resource)
+
+    # Check that logs contain dynamic timeout information
+    assert_match(/dynamic_timeout=true/, @strio.string)
+    assert_match(/error_timeout=0.5/, @strio.string)
+
+    # Fail in half-open state
+    time_travel(0.6) do
+      trigger_error!(resource)
+    end
+
+    # Check updated backoff in logs
+    assert_match(/error_timeout=1/, @strio.string)
+  ensure
+    Semian.destroy(:dynamic_timeout_logging)
+  end
+
+  def test_dynamic_timeout_multiple_consecutive_opens
+    resource = Semian.register(
+      :dynamic_timeout_multiple_opens,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      dynamic_timeout: true,
+      success_threshold: 1,
+    )
+
+    # Test both exponential and linear phases
+    # Exponential phase: 0.5 → 1 → 2 → 4 → 8 → 16 → 20
+    # Linear phase: 20 → 21 → 22 → 23
+    expected_backoffs = [0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 20.0, 21.0, 22.0, 23.0]
+    current_time = 0.0
+
+    # Open initially
+    open_circuit!(resource)
+
+    cb = resource.circuit_breaker
+
+    assert_equal(0.5, cb.error_timeout)
+
+    expected_backoffs[1..-1].each_with_index do |next_expected, index|
+      # Wait for current backoff period
+      current_backoff = expected_backoffs[index]
+      current_time += current_backoff + 0.1
+
+      time_travel(current_time) do
+        # Should be half-open
+        assert_predicate(resource, :half_open?)
+
+        # Fail again to increase backoff
+        trigger_error!(resource)
+
+        # Should be open with increased backoff
+        assert_circuit_opened(resource)
+
+        # Check that error_timeout matches expected value
+        assert_equal(
+          next_expected,
+          cb.error_timeout,
+          "Expected #{next_expected} at iteration #{index + 1}, got #{cb.error_timeout}",
+        )
+      end
+    end
+  ensure
+    Semian.destroy(:dynamic_timeout_multiple_opens)
+  end
+
+  def test_dynamic_timeout_state_tracking
+    resource = Semian.register(
+      :dynamic_timeout_state_tracking,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      dynamic_timeout: true,
+      success_threshold: 3,
+    )
+
+    cb = resource.circuit_breaker
+
+    # Initial state
+    assert_equal(0.5, cb.error_timeout)
+
+    # Open circuit
+    open_circuit!(resource)
+
+    # error_timeout should still be at initial value since it's the first open
+    assert_equal(0.5, cb.error_timeout)
+
+    # Fail in half-open
+    time_travel(0.6) do
+      trigger_error!(resource)
+
+      # error_timeout should have doubled
+      assert_equal(1.0, cb.error_timeout)
+    end
+
+    # Succeed to close circuit
+    time_travel(1.7) do
+      3.times { assert_circuit_closed(resource) }
+
+      # error_timeout should reset to initial value
+      assert_equal(0.5, cb.error_timeout)
+    end
+  ensure
+    Semian.destroy(:dynamic_timeout_state_tracking)
+  end
 end
