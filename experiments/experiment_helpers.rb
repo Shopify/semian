@@ -46,11 +46,11 @@ module Semian
         @main_results_path = File.join(File.dirname(__FILE__), "results/main_graphs")
         @duration_results_path = File.join(File.dirname(__FILE__), "results/duration_graphs")
         @throughput_results_path = File.join(File.dirname(__FILE__), "results/throughput_graphs")
-        @table_results_path = File.join(File.dirname(__FILE__), "results/tables")
+        @csv_results_path = File.join(File.dirname(__FILE__), "results/csv")
         FileUtils.mkdir_p(@main_results_path) unless File.directory?(@main_results_path)
         FileUtils.mkdir_p(@duration_results_path) unless File.directory?(@duration_results_path)
         FileUtils.mkdir_p(@throughput_results_path) unless File.directory?(@throughput_results_path)
-        FileUtils.mkdir_p(@table_results_path) unless File.directory?(@table_results_path)
+        FileUtils.mkdir_p(@csv_results_path) unless File.directory?(@csv_results_path)
         @num_threads = num_threads
         @requests_per_second = requests_per_second
         @x_axis_label_interval = x_axis_label_interval || phase_duration
@@ -64,8 +64,11 @@ module Semian
           base_error_rate
         end
         @with_max_threads = with_max_threads
-        @table_filename = graph_filename ? graph_filename.sub(/\.png$/, ".txt") : "#{resource_name}.txt"
-        @table_outputs = []
+        base_filename = graph_filename ? graph_filename.sub(/\.png$/, "") : resource_name
+        @time_analysis_csv_filename = "#{base_filename}_time_analysis.csv"
+        @pid_controller_csv_filename = "#{base_filename}_pid_controller.csv"
+        @time_analysis_data = []
+        @pid_controller_data = []
       end
 
       def run
@@ -327,25 +330,13 @@ module Semian
         # Print to console
         output_lines.each { |line| puts line }
 
-        # Capture experiment metadata for table output
-        @table_outputs << "=" * 80
-        @table_outputs << "EXPERIMENT: #{@experiment_name}"
-        @table_outputs << "=" * 80
-        @table_outputs << "Graph Title: #{@graph_title}"
-        @table_outputs << "Adaptive Mode: #{@is_adaptive}"
-        @table_outputs << "Actual Duration: #{(@end_time - @start_time).round(2)} seconds"
-        @table_outputs << "Threads: #{@num_threads}"
-        @table_outputs << "Requests per Second: #{@requests_per_second}"
-        @table_outputs << "Service Count: #{@service_count}"
-        @table_outputs << ""
-
         display_summary_statistics
         display_time_based_analysis
         display_thread_timing_statistics
         display_pid_controller_state
 
-        # Save table outputs to file
-        save_table_outputs
+        # Save CSV outputs
+        save_csv_outputs
       end
 
       def display_summary_statistics
@@ -354,19 +345,11 @@ module Semian
         total_error = @outcomes.values.sum { |data| data[:error] }
         total_requests = total_success + total_circuit_open + total_error
 
-        output_lines = []
-        output_lines << "\n=== Summary Statistics ==="
-        output_lines << "Total Requests: #{total_requests}"
-        output_lines << "  Successes: #{total_success} (#{(total_success.to_f / total_requests * 100).round(2)}%)"
-        output_lines << "  Rejected: #{total_circuit_open} (#{(total_circuit_open.to_f / total_requests * 100).round(2)}%)"
-        output_lines << "  Errors: #{total_error} (#{(total_error.to_f / total_requests * 100).round(2)}%)"
-
-        # Print to console and save to table output
-        output_lines.each do |line|
-          puts line
-          @table_outputs << line.sub(/^\n/, "") # Remove leading newline for table output
-        end
-        @table_outputs << ""
+        puts "\n=== Summary Statistics ==="
+        puts "Total Requests: #{total_requests}"
+        puts "  Successes: #{total_success} (#{(total_success.to_f / total_requests * 100).round(2)}%)"
+        puts "  Rejected: #{total_circuit_open} (#{(total_circuit_open.to_f / total_requests * 100).round(2)}%)"
+        puts "  Errors: #{total_error} (#{(total_error.to_f / total_requests * 100).round(2)}%)"
       end
 
       def display_time_based_analysis
@@ -374,7 +357,9 @@ module Semian
         num_buckets = (@experiment_duration / bucket_size.to_f).ceil
 
         puts "\n=== Time-Based Analysis (#{bucket_size}-second buckets) ==="
-        @table_outputs << "=== Time-Based Analysis (#{bucket_size}-second buckets) ==="
+
+        # Add CSV header
+        @time_analysis_data << ["Time Range", "Total Requests", "Success", "Errors", "Error %", "Rejected", "Rejected %", "Target Error Rate %"]
 
         (0...num_buckets).each do |bucket_idx|
           bucket_start = @outcomes.keys[0] + (bucket_idx * bucket_size)
@@ -394,18 +379,28 @@ module Semian
           phase_error_rate = degradation_phase.error_rate || @base_error_rate
           phase_label = "[Target: #{(phase_error_rate * 100).round(1)}%]"
 
+          # Console output
           output_line = "#{status} #{bucket_time_range} #{phase_label}: #{bucket_total} requests | Success: #{bucket_success} | Errors: #{bucket_errors} (#{error_pct}%) | Rejected: #{bucket_circuit} (#{circuit_pct}%)"
           puts output_line
-          @table_outputs << output_line
+
+          # CSV data
+          @time_analysis_data << [
+            bucket_time_range,
+            bucket_total,
+            bucket_success,
+            bucket_errors,
+            error_pct,
+            bucket_circuit,
+            circuit_pct,
+            (phase_error_rate * 100).round(1),
+          ]
         end
-        @table_outputs << ""
       end
 
       def display_thread_timing_statistics
         return if @thread_timings.empty?
 
         puts "\n=== Thread Timing Statistics ==="
-        @table_outputs << "=== Thread Timing Statistics ==="
 
         total_times = @thread_timings.values.map { |t| t[:samples].sum { |s| s[:duration] } }
         request_counts = @thread_timings.values.map { |t| t[:samples].size }
@@ -421,25 +416,18 @@ module Semian
         # Calculate utilization (time spent in requests vs wall clock time)
         avg_utilization = (avg_thread_time / total_wall_time * 100)
 
-        output_lines = []
-        output_lines << "Total threads: #{@thread_timings.size}"
-        output_lines << "Experiment wall clock duration: #{total_wall_time.round(2)}s"
-        output_lines << "\nTime spent making requests per thread:"
-        output_lines << "  Min:     #{min_thread_time.round(2)}s"
-        output_lines << "  Max:     #{max_thread_time.round(2)}s"
-        output_lines << "  Average: #{avg_thread_time.round(2)}s"
-        output_lines << "  Total (all threads): #{sum_thread_time.round(2)}s"
-        output_lines << "\nThread utilization:"
-        output_lines << "  Average: #{avg_utilization.round(2)}% (time in requests / wall clock time)"
-        output_lines << "\nRequests per thread:"
-        output_lines << "  Average: #{avg_requests.round(0)} requests"
-        output_lines << "  Average time per request: #{(avg_thread_time / avg_requests).round(4)}s" if avg_requests > 0
-
-        output_lines.each do |line|
-          puts line
-          @table_outputs << line
-        end
-        @table_outputs << ""
+        puts "Total threads: #{@thread_timings.size}"
+        puts "Experiment wall clock duration: #{total_wall_time.round(2)}s"
+        puts "\nTime spent making requests per thread:"
+        puts "  Min:     #{min_thread_time.round(2)}s"
+        puts "  Max:     #{max_thread_time.round(2)}s"
+        puts "  Average: #{avg_thread_time.round(2)}s"
+        puts "  Total (all threads): #{sum_thread_time.round(2)}s"
+        puts "\nThread utilization:"
+        puts "  Average: #{avg_utilization.round(2)}% (time in requests / wall clock time)"
+        puts "\nRequests per thread:"
+        puts "  Average: #{avg_requests.round(0)} requests"
+        puts "  Average time per request: #{(avg_thread_time / avg_requests).round(4)}s" if avg_requests > 0
       end
 
       def display_pid_controller_state
@@ -480,15 +468,32 @@ module Semian
         end
 
         puts "\n=== PID Controller State Per Second (Aggregated across threads) ==="
-        @table_outputs << "=== PID Controller State Per Second (Aggregated across threads) ==="
 
         header = format("%-8s %-10s %-22s %-15s %-22s %-25s %-25s %-15s", "Window", "# Threads", "Err % (min-max)", "Ideal Err %", "Reject % (min-max)", "Integral (min-max)", "Derivative (min-max)", "Total Req Time")
         separator = "-" * 150
 
         puts header
         puts separator
-        @table_outputs << header
-        @table_outputs << separator
+
+        # Add CSV header
+        @pid_controller_data << [
+          "Window",
+          "Thread Count",
+          "Error Rate Avg",
+          "Error Rate Min",
+          "Error Rate Max",
+          "Ideal Error Rate",
+          "Rejection Rate Avg",
+          "Rejection Rate Min",
+          "Rejection Rate Max",
+          "Integral Avg",
+          "Integral Min",
+          "Integral Max",
+          "Derivative Avg",
+          "Derivative Min",
+          "Derivative Max",
+          "Total Request Time",
+        ]
 
         aggregated_snapshots.each_with_index do |snapshot, idx|
           error_rate_str = format_metric_range(snapshot[:error_rate_avg], snapshot[:error_rate_min], snapshot[:error_rate_max], is_percent: true)
@@ -496,6 +501,7 @@ module Semian
           integral_str = format_metric_range(snapshot[:integral_avg], snapshot[:integral_min], snapshot[:integral_max])
           derivative_str = format_metric_range(snapshot[:derivative_avg], snapshot[:derivative_min], snapshot[:derivative_max])
 
+          # Console output
           row = format(
             "%-8d %-10d %-22s %-15s %-22s %-25s %-25s %-15s",
             idx + 1,
@@ -508,21 +514,33 @@ module Semian
             "#{(snapshot[:total_request_time] || 0).round(2)}s",
           )
           puts row
-          @table_outputs << row
+
+          # CSV data
+          @pid_controller_data << [
+            idx + 1,
+            snapshot[:thread_count],
+            (snapshot[:error_rate_avg] * 100).round(2),
+            (snapshot[:error_rate_min] * 100).round(2),
+            (snapshot[:error_rate_max] * 100).round(2),
+            (snapshot[:ideal_error_rate] * 100).round(2),
+            (snapshot[:rejection_rate_avg] * 100).round(2),
+            (snapshot[:rejection_rate_min] * 100).round(2),
+            (snapshot[:rejection_rate_max] * 100).round(2),
+            snapshot[:integral_avg].round(4),
+            snapshot[:integral_min].round(4),
+            snapshot[:integral_max].round(4),
+            snapshot[:derivative_avg].round(4),
+            snapshot[:derivative_min].round(4),
+            snapshot[:derivative_max].round(4),
+            (snapshot[:total_request_time] || 0).round(2),
+          ]
         end
 
-        observations = []
-        observations << "\n📊 Key Observations:"
-        observations << "  - Timestamps captured: #{aggregated_snapshots.length}"
-        observations << "  - Max avg rejection rate: #{(aggregated_snapshots.map { |s| s[:rejection_rate_avg] }.max * 100).round(2)}%"
-        observations << "  - Avg integral range: #{aggregated_snapshots.map { |s| s[:integral_avg] }.min.round(4)} to #{aggregated_snapshots.map { |s| s[:integral_avg] }.max.round(4)}"
-        observations << "  - Thread counts per timestamp: min #{aggregated_snapshots.map { |s| s[:thread_count] }.min}, max #{aggregated_snapshots.map { |s| s[:thread_count] }.max}"
-
-        observations.each do |line|
-          puts line
-          @table_outputs << line
-        end
-        @table_outputs << ""
+        puts "\n📊 Key Observations:"
+        puts "  - Timestamps captured: #{aggregated_snapshots.length}"
+        puts "  - Max avg rejection rate: #{(aggregated_snapshots.map { |s| s[:rejection_rate_avg] }.max * 100).round(2)}%"
+        puts "  - Avg integral range: #{aggregated_snapshots.map { |s| s[:integral_avg] }.min.round(4)} to #{aggregated_snapshots.map { |s| s[:integral_avg] }.max.round(4)}"
+        puts "  - Thread counts per timestamp: min #{aggregated_snapshots.map { |s| s[:thread_count] }.min}, max #{aggregated_snapshots.map { |s| s[:thread_count] }.max}"
       end
 
       def format_metric_range(avg, min, max, is_percent: false)
@@ -661,12 +679,26 @@ module Semian
         end
       end
 
-      def save_table_outputs
-        table_path = File.join(@table_results_path, @table_filename)
-        File.open(table_path, "w") do |file|
-          @table_outputs.each { |line| file.puts(line) }
+      def save_csv_outputs
+        require "csv"
+
+        # Save time-based analysis CSV
+        if @time_analysis_data.any?
+          csv_path = File.join(@csv_results_path, @time_analysis_csv_filename)
+          CSV.open(csv_path, "w") do |csv|
+            @time_analysis_data.each { |row| csv << row }
+          end
+          puts "\nTime analysis CSV saved to #{csv_path}"
         end
-        puts "\nTable outputs saved to #{table_path}"
+
+        # Save PID controller CSV (only for adaptive experiments)
+        if @is_adaptive && @pid_controller_data.any?
+          csv_path = File.join(@csv_results_path, @pid_controller_csv_filename)
+          CSV.open(csv_path, "w") do |csv|
+            @pid_controller_data.each { |row| csv << row }
+          end
+          puts "PID controller CSV saved to #{csv_path}"
+        end
       end
     end
   end

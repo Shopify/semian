@@ -29,15 +29,15 @@ jobs:
           cd "$(git rev-parse --show-toplevel)"
 
           # TODO: Include lower bound windup experiment once we have a way to make it run in a reasonable time.
-          # Find all PNGs and TXT files, excluding those with "windup" in their filename
+          # Find all PNGs and CSV files, excluding those with "windup" in their filename
           mapfile -t all_pngs < <(find experiments/results/main_graphs experiments/results/throughput_graphs experiments/results/duration_graphs -type f -name '*.png' ! -name '*windup*.png' | sort)
-          mapfile -t all_txts < <(find experiments/results/tables -type f -name '*.txt' ! -name '*windup*.txt' 2>/dev/null | sort)
+          mapfile -t all_csvs < <(find experiments/results/csv -type f -name '*.csv' ! -name '*windup*.csv' 2>/dev/null | sort)
 
           # Combine all result files
-          all_files=("${all_pngs[@]}" "${all_txts[@]}")
+          all_files=("${all_pngs[@]}" "${all_csvs[@]}")
 
-          # Find all changed PNGs and TXTs in the latest commit
-          mapfile -t changed_files < <(git diff --name-only --diff-filter=AM HEAD~1..HEAD | grep -E '^experiments/results/(main_graphs|throughput_graphs|duration_graphs)/.*\.png$|^experiments/results/tables/.*\.txt$' | grep -v windup | sort)
+          # Find all changed PNGs and CSVs in the latest commit
+          mapfile -t changed_files < <(git diff --name-only --diff-filter=AM HEAD~1..HEAD | grep -E '^experiments/results/(main_graphs|throughput_graphs|duration_graphs)/.*\.png$|^experiments/results/csv/.*\.csv$' | grep -v windup | sort)
 
           # Report any files that are not updated in the latest commit
           declare -a not_updated=()
@@ -53,18 +53,18 @@ jobs:
               echo "  - $f"
             done
             echo ""
-            echo "Every commit must update all non-windup experiment result graphs and tables. You may be missing updates."
+            echo "Every commit must update all non-windup experiment result graphs and CSV files. You may be missing updates."
             echo "Run:"
             echo ""
             echo "    cd experiments"
             echo "    bundle install"
             echo "    bundle exec ruby run_all_experiments.rb"
             echo ""
-            echo "Commit the updated graphs and tables to resolve this check."
+            echo "Commit the updated graphs and CSV files to resolve this check."
             exit 1
           fi
 
-          echo "✅ All non-windup experiment result graphs and tables are up to date for this commit!"
+          echo "✅ All non-windup experiment result graphs and CSV files are up to date for this commit!"
 
 
 
