@@ -316,10 +316,10 @@ module Semian
     # Fixed parameters based on design document recommendations
     AdaptiveCircuitBreaker.new(
       name: name,
-      kp: 0.75, # Standard proportional gain
-      ki: 0.01, # Moderate integral gain
+      kp: 1.5, # Standard proportional gain
+      ki: 0.1, # Moderate integral gain
       kd: 0.5, # Small derivative gain (as per design doc)
-      window_size: 10, # 10-second window for rate calculation and update interval
+      window_size: 30, # 5-second window for rate calculation and update interval
       initial_history_duration: 900, # 15 minutes of initial history for p90 calculation
       initial_error_rate: options[:initial_error_rate] || 0.01, # 1% error rate for initial p90 calculation
       thread_safe: Semian.thread_safe?,
