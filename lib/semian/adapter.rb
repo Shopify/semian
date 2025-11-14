@@ -45,7 +45,7 @@ module Semian
       end
     rescue ::Semian::OpenCircuitError => error
       last_error = semian_resource.circuit_breaker.last_error
-      message = "#{error.message} caused by #{last_error.message}"
+      message = "#{error.message} caused by #{last_error&.message}"
       last_error = nil unless last_error.is_a?(Exception) # Net::HTTPServerError is not an exception
       raise self.class::CircuitOpenError.new(semian_identifier, message), cause: last_error
     rescue ::Semian::BaseError => error

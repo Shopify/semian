@@ -13,6 +13,7 @@ module Semian
       validate_circuit_breaker_or_bulkhead!
       validate_bulkhead_configuration!
       validate_circuit_breaker_configuration!
+      validate_adaptive_circuit_breaker_configuration!
       validate_resource_name!
     end
 
@@ -66,10 +67,19 @@ module Semian
     def validate_circuit_breaker_configuration!
       return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED")
       return unless @configuration.fetch(:circuit_breaker, true)
+      return if @configuration[:adaptive_circuit_breaker] # Skip traditional validation if using adaptive
 
       require_keys!([:success_threshold, :error_threshold, :error_timeout], @configuration)
       validate_thresholds!
       validate_timeouts!
+    end
+
+    def validate_adaptive_circuit_breaker_configuration!
+      return unless @configuration[:adaptive_circuit_breaker]
+
+      nil if ENV.key?("SEMIAN_ADAPTIVE_CIRCUIT_BREAKER_DISABLED")
+
+      # No additional validation needed - adaptive circuit breaker uses fixed internal parameters
     end
 
     def validate_thresholds!
