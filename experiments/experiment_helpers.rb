@@ -46,9 +46,11 @@ module Semian
         @main_results_path = File.join(File.dirname(__FILE__), "results/main_graphs")
         @duration_results_path = File.join(File.dirname(__FILE__), "results/duration_graphs")
         @throughput_results_path = File.join(File.dirname(__FILE__), "results/throughput_graphs")
+        @csv_results_path = File.join(File.dirname(__FILE__), "results/csv")
         FileUtils.mkdir_p(@main_results_path) unless File.directory?(@main_results_path)
         FileUtils.mkdir_p(@duration_results_path) unless File.directory?(@duration_results_path)
         FileUtils.mkdir_p(@throughput_results_path) unless File.directory?(@throughput_results_path)
+        FileUtils.mkdir_p(@csv_results_path) unless File.directory?(@csv_results_path)
         @num_threads = num_threads
         @requests_per_second = requests_per_second
         @x_axis_label_interval = x_axis_label_interval || phase_duration
@@ -62,6 +64,11 @@ module Semian
           base_error_rate
         end
         @with_max_threads = with_max_threads
+        base_filename = graph_filename ? graph_filename.sub(/\.png$/, "") : resource_name
+        @time_analysis_csv_filename = "#{base_filename}_time_analysis.csv"
+        @pid_controller_csv_filename = "#{base_filename}_pid_controller.csv"
+        @time_analysis_data = []
+        @pid_controller_data = []
       end
 
       def run
@@ -137,12 +144,14 @@ module Semian
       end
 
       def start_request_arrival
-        @request_queue = Concurrent::Array.new
-        Thread.new do
+        @request_queue = Queue.new
+        @arrival_thread = Thread.new do
           until @done
             sleep(1.0 / @requests_per_second)
             @request_queue << true
           end
+          # Push sentinel values to wake up all worker threads on shutdown
+          @num_threads.times { @request_queue << :shutdown }
         end
       end
 
@@ -155,8 +164,11 @@ module Semian
             thread_id = Thread.current.object_id
             @thread_timings[thread_id] = { samples: [] }
 
-            until @done
-              @request_queue.shift
+            loop do
+              # Block waiting for a request token
+              token = @request_queue.pop
+              break if token == :shutdown || @done
+
               service = @services.sample
               # technically, we are creating a new resource instance on every request.
               # But the resource class is pretty much only a wrapper around things that are longer-living.
@@ -293,6 +305,7 @@ module Semian
       def wait_for_completion
         @done = true
         puts "\nWaiting for all request threads to finish..."
+        @arrival_thread.join # Wait for arrival thread to push shutdown tokens
         @request_threads.each(&:join)
 
         Semian.unsubscribe(@subscription) if @subscription
@@ -309,14 +322,21 @@ module Semian
       end
 
       def generate_analysis
-        puts "\n\n=== Experiment Complete ==="
-        puts "Actual duration: #{(@end_time - @start_time).round(2)} seconds"
-        puts "\nGenerating analysis..."
+        output_lines = []
+        output_lines << "\n\n=== Experiment Complete ==="
+        output_lines << "Actual duration: #{(@end_time - @start_time).round(2)} seconds"
+        output_lines << "\nGenerating analysis..."
+
+        # Print to console
+        output_lines.each { |line| puts line }
 
         display_summary_statistics
         display_time_based_analysis
         display_thread_timing_statistics
         display_pid_controller_state
+
+        # Save CSV outputs
+        save_csv_outputs
       end
 
       def display_summary_statistics
@@ -337,6 +357,10 @@ module Semian
         num_buckets = (@experiment_duration / bucket_size.to_f).ceil
 
         puts "\n=== Time-Based Analysis (#{bucket_size}-second buckets) ==="
+
+        # Add CSV header
+        @time_analysis_data << ["Time Range", "Total Requests", "Success", "Errors", "Error %", "Rejected", "Rejected %", "Target Error Rate %"]
+
         (0...num_buckets).each do |bucket_idx|
           bucket_start = @outcomes.keys[0] + (bucket_idx * bucket_size)
           bucket_data = @outcomes.select { |time, _| time >= bucket_start && time < bucket_start + bucket_size }
@@ -355,7 +379,21 @@ module Semian
           phase_error_rate = degradation_phase.error_rate || @base_error_rate
           phase_label = "[Target: #{(phase_error_rate * 100).round(1)}%]"
 
-          puts "#{status} #{bucket_time_range} #{phase_label}: #{bucket_total} requests | Success: #{bucket_success} | Errors: #{bucket_errors} (#{error_pct}%) | Rejected: #{bucket_circuit} (#{circuit_pct}%)"
+          # Console output
+          output_line = "#{status} #{bucket_time_range} #{phase_label}: #{bucket_total} requests | Success: #{bucket_success} | Errors: #{bucket_errors} (#{error_pct}%) | Rejected: #{bucket_circuit} (#{circuit_pct}%)"
+          puts output_line
+
+          # CSV data
+          @time_analysis_data << [
+            bucket_time_range,
+            bucket_total,
+            bucket_success,
+            bucket_errors,
+            error_pct,
+            bucket_circuit,
+            circuit_pct,
+            (phase_error_rate * 100).round(1),
+          ]
         end
       end
 
@@ -430,8 +468,32 @@ module Semian
         end
 
         puts "\n=== PID Controller State Per Second (Aggregated across threads) ==="
-        puts format("%-8s %-10s %-20s %-15s %-20s %-20s %-20s %-15s", "Window", "# Threads", "Err % (min-max)", "Ideal Err %", "Reject % (min-max)", "Integral (min-max)", "Derivative (min-max)", "Total Req Time")
-        puts "-" * 150
+
+        header = format("%-8s %-10s %-22s %-15s %-22s %-25s %-25s %-15s", "Window", "# Threads", "Err % (min-max)", "Ideal Err %", "Reject % (min-max)", "Integral (min-max)", "Derivative (min-max)", "Total Req Time")
+        separator = "-" * 150
+
+        puts header
+        puts separator
+
+        # Add CSV header
+        @pid_controller_data << [
+          "Window",
+          "Thread Count",
+          "Error Rate Avg",
+          "Error Rate Min",
+          "Error Rate Max",
+          "Ideal Error Rate",
+          "Rejection Rate Avg",
+          "Rejection Rate Min",
+          "Rejection Rate Max",
+          "Integral Avg",
+          "Integral Min",
+          "Integral Max",
+          "Derivative Avg",
+          "Derivative Min",
+          "Derivative Max",
+          "Total Request Time",
+        ]
 
         aggregated_snapshots.each_with_index do |snapshot, idx|
           error_rate_str = format_metric_range(snapshot[:error_rate_avg], snapshot[:error_rate_min], snapshot[:error_rate_max], is_percent: true)
@@ -439,8 +501,9 @@ module Semian
           integral_str = format_metric_range(snapshot[:integral_avg], snapshot[:integral_min], snapshot[:integral_max])
           derivative_str = format_metric_range(snapshot[:derivative_avg], snapshot[:derivative_min], snapshot[:derivative_max])
 
-          puts format(
-            "%-8d %-10d %-20s %-15s %-20s %-20s %-20s %-15s",
+          # Console output
+          row = format(
+            "%-8d %-10d %-22s %-15s %-22s %-25s %-25s %-15s",
             idx + 1,
             snapshot[:thread_count],
             error_rate_str,
@@ -450,6 +513,27 @@ module Semian
             derivative_str,
             "#{(snapshot[:total_request_time] || 0).round(2)}s",
           )
+          puts row
+
+          # CSV data
+          @pid_controller_data << [
+            idx + 1,
+            snapshot[:thread_count],
+            (snapshot[:error_rate_avg] * 100).round(2),
+            (snapshot[:error_rate_min] * 100).round(2),
+            (snapshot[:error_rate_max] * 100).round(2),
+            (snapshot[:ideal_error_rate] * 100).round(2),
+            (snapshot[:rejection_rate_avg] * 100).round(2),
+            (snapshot[:rejection_rate_min] * 100).round(2),
+            (snapshot[:rejection_rate_max] * 100).round(2),
+            snapshot[:integral_avg].round(4),
+            snapshot[:integral_min].round(4),
+            snapshot[:integral_max].round(4),
+            snapshot[:derivative_avg].round(4),
+            snapshot[:derivative_min].round(4),
+            snapshot[:derivative_max].round(4),
+            (snapshot[:total_request_time] || 0).round(2),
+          ]
         end
 
         puts "\n📊 Key Observations:"
@@ -592,6 +676,28 @@ module Semian
             color: color,
             width: 2,
           }
+        end
+      end
+
+      def save_csv_outputs
+        require "csv"
+
+        # Save time-based analysis CSV
+        if @time_analysis_data.any?
+          csv_path = File.join(@csv_results_path, @time_analysis_csv_filename)
+          CSV.open(csv_path, "w") do |csv|
+            @time_analysis_data.each { |row| csv << row }
+          end
+          puts "\nTime analysis CSV saved to #{csv_path}"
+        end
+
+        # Save PID controller CSV (only for adaptive experiments)
+        if @is_adaptive && @pid_controller_data.any?
+          csv_path = File.join(@csv_results_path, @pid_controller_csv_filename)
+          CSV.open(csv_path, "w") do |csv|
+            @pid_controller_data.each { |row| csv << row }
+          end
+          puts "PID controller CSV saved to #{csv_path}"
         end
       end
     end
