@@ -2,6 +2,7 @@
 
 require "thread"
 require_relative "simple_exponential_smoother"
+require_relative "timestamped_sliding_window"
 
 module Semian
   # PID Controller for adaptive circuit breaking
@@ -29,7 +30,8 @@ module Semian
       # Store initialization parameters
       @initial_history_duration = initial_history_duration
       @initial_error_rate = initial_error_rate
-      @window_size = window_size # Time window in seconds
+      @window_size = window_size # Time window in seconds (lookback window)
+      @sliding_amount = 1 # Update every 1 second
 
       # Ideal error rate estimation using Simple Exponential Smoother
       @smoother = SimpleExponentialSmoother.new(
@@ -38,8 +40,8 @@ module Semian
         initial_value: initial_error_rate,
       )
 
-      # Current window counters
-      @current_window_requests = { success: 0, error: 0, rejected: 0 }
+      # Use sliding window for request tracking
+      @sliding_window = TimestampedSlidingWindow.new(window_size: @window_size)
 
       # Last completed window metrics (used between updates)
       @last_error_rate = 0.0
@@ -47,34 +49,24 @@ module Semian
       @last_p_value = 0.0
     end
 
-    # Record a request outcome
-    def record_request(outcome)
-      case outcome
-      when :success
-        @current_window_requests[:success] += 1
-      when :error
-        @current_window_requests[:error] += 1
-      when :rejected
-        @current_window_requests[:rejected] += 1
-      end
+    # Record a request outcome with timestamp
+    def record_request(outcome, timestamp = nil)
+      @sliding_window.add_observation(outcome, timestamp)
     end
 
-    # Update the controller at the end of each time window
+    # Update the controller - now called every sliding_amount seconds (1 second)
     def update
       # Store the last window's P value so that we can serve it up in the metrics snapshots
       @previous_p_value = @last_p_value
 
-      # Calculate rates for the current window
+      # Calculate rates for the current sliding window
       @last_error_rate = calculate_window_error_rate
 
       # Store error rate for historical analysis
       store_error_rate(@last_error_rate)
 
-      # Reset window counters for next window
-      @current_window_requests = { success: 0, error: 0, rejected: 0 }
-
-      # dt is always window_size since we update once per window
-      dt = @window_size
+      # dt is now the sliding amount (1 second) for PID calculations
+      dt = @sliding_amount
 
       # Calculate the current p value
       @last_p_value = calculate_p_value(@last_error_rate)
@@ -115,7 +107,7 @@ module Semian
       @previous_p_value = 0.0
       @derivative = 0.0
       @last_p_value = 0.0
-      @current_window_requests = { success: 0, error: 0, rejected: 0 }
+      @sliding_window.clear
       @last_error_rate = 0.0
       @smoother.reset
     end
@@ -130,7 +122,7 @@ module Semian
         previous_p_value: @previous_p_value,
         integral: @integral,
         derivative: @derivative,
-        current_window_requests: @current_window_requests.dup,
+        current_window_requests: @sliding_window.get_counts,
         smoother_state: @smoother.state,
       }
     end
@@ -148,10 +140,7 @@ module Semian
     end
 
     def calculate_window_error_rate
-      total_requests = @current_window_requests[:success] + @current_window_requests[:error]
-      return 0.0 if total_requests == 0
-
-      @current_window_requests[:error].to_f / total_requests
+      @sliding_window.calculate_error_rate
     end
 
     def store_error_rate(error_rate)
@@ -170,7 +159,7 @@ module Semian
       @lock = Mutex.new
     end
 
-    def record_request(outcome)
+    def record_request(outcome, timestamp = nil)
       @lock.synchronize { super }
     end
 
