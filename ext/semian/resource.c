@@ -296,7 +296,7 @@ check_quota_arg(VALUE quota)
     if (TYPE(quota) != T_FIXNUM && TYPE(quota) != T_FLOAT) {
       rb_raise(rb_eTypeError, "expected decimal type for quota");
     }
-    if (NUM2DBL(quota) <= 0 || NUM2DBL(quota) > 1) {
+    if (NUM2DBL(quota) <= 0) {
       rb_raise(rb_eArgError, "quota must be a decimal between 0 and 1");
     }
     c_quota = NUM2DBL(quota);
