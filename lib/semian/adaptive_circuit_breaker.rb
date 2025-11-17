@@ -10,32 +10,23 @@ module Semian
 
     attr_reader :pid_controller, :update_thread
 
-    def initialize(name:, kp:, ki:, kd:, window_size:, initial_history_duration:, initial_error_rate:, thread_safe:)
+    def initialize(name:, kp:, ki:, kd:, window_size:, sliding_interval:, initial_history_duration:, initial_error_rate:, implementation:)
       initialize_behaviour(name: name)
 
-      @window_size = window_size # Lookback window (10 seconds)
-      @sliding_amount = 1 # Update every 1 second
+      @window_size = window_size
+      @sliding_interval = sliding_interval
       @stopped = false
 
-      @pid_controller = if thread_safe
-        ThreadSafePIDController.new(
-          kp: kp,
-          ki: ki,
-          kd: kd,
-          window_size: window_size,
-          initial_history_duration: initial_history_duration,
-          initial_error_rate: initial_error_rate,
-        )
-      else
-        PIDController.new(
-          kp: kp,
-          ki: ki,
-          kd: kd,
-          window_size: window_size,
-          initial_history_duration: initial_history_duration,
-          initial_error_rate: initial_error_rate,
-        )
-      end
+      @pid_controller = implementation::PIDController.new(
+        kp: kp,
+        ki: ki,
+        kd: kd,
+        window_size: window_size,
+        sliding_interval: sliding_interval,
+        implementation: implementation,
+        initial_history_duration: initial_history_duration,
+        initial_error_rate: initial_error_rate,
+      )
 
       start_pid_controller_update_thread
     end
@@ -135,8 +126,7 @@ module Semian
     end
 
     def wait_for_window
-      # Now we slide every 1 second instead of waiting for the full window
-      Kernel.sleep(@sliding_amount)
+      Kernel.sleep(@sliding_interval)
     end
 
     def check_and_notify_state_transition(old_rate, new_rate, pre_update_metrics)

@@ -13,7 +13,8 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
       window_size: 0.05,
       initial_history_duration: 100,
       initial_error_rate: 0.01,
-      thread_safe: true,
+      implementation: Semian::ThreadSafe,
+      sliding_interval: 1,
     )
   end
 
@@ -65,7 +66,7 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
     assert_equal(false, block_executed)
   end
 
-  def test_update_thread_calls_pid_controller_update_every_window_size
+  def test_update_thread_calls_pid_controller_update_after_every_wait_interval
     # Verify that the update thread is created and alive
     assert_instance_of(Thread, @breaker.update_thread)
     assert(@breaker.update_thread.alive?)
