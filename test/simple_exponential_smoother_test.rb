@@ -244,7 +244,7 @@ class TestSimpleExponentialSmoother < Minitest::Test
 
   def test_high_confidence_stays_stable_when_perfect
     smoother = Semian::SimpleExponentialSmoother.new
-    target = 0.01
+    target = 0.012 # Ever so slightly above the ideal
 
     simulate_observations(smoother, target, 180)
 
