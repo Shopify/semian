@@ -8,6 +8,26 @@ class TestSimpleExponentialSmoother < Minitest::Test
     @smoother = Semian::SimpleExponentialSmoother.new
   end
 
+  private
+
+  def simulate_observations(smoother, error_rate, count)
+    count.times { smoother.add_observation(error_rate) }
+  end
+
+  def measure_convergence_percentage(initial, current, target)
+    return 100.0 if initial == target
+
+    initial_gap = (initial - target).abs
+    remaining_gap = (current - target).abs
+    ((initial_gap - remaining_gap) / initial_gap * 100.0)
+  end
+
+  def set_smoothed_value(smoother, value)
+    smoother.instance_variable_set(:@smoothed_value, value)
+  end
+
+  public
+
   def test_initialization_with_defaults
     smoother = Semian::SimpleExponentialSmoother.new
 
@@ -152,5 +172,127 @@ class TestSimpleExponentialSmoother < Minitest::Test
     1000.times { smoother.add_observation(0.01) }
 
     assert_in_delta(0.01, smoother.forecast, 0.0001)
+  end
+
+  # Low Confidence Incident Tests (0min to 15min)
+  def test_low_confidence_incident_above_cap_rejects_all_observations
+    smoother = Semian::SimpleExponentialSmoother.new
+    initial_value = smoother.forecast
+
+    simulate_observations(smoother, 0.15, 90) # Cap is 0.1, so all observations should be rejected
+
+    assert_in_delta(initial_value, smoother.forecast, 0.005)
+  end
+
+  def test_low_confidence_incident_below_cap_stays_stable
+    smoother = Semian::SimpleExponentialSmoother.new
+    initial_value = smoother.forecast
+
+    simulate_observations(smoother, 0.08, 90) # Cap is 0.1, so all observations should be accepted
+
+    assert_in_delta(initial_value, smoother.forecast, 0.005)
+  end
+
+  def test_low_confidence_converges_down_when_too_sensitive
+    smoother = Semian::SimpleExponentialSmoother.new
+    target = 0.01
+    set_smoothed_value(smoother, 0.03)
+    initial_value = smoother.forecast
+
+    simulate_observations(smoother, target, 18)
+
+    convergence = measure_convergence_percentage(initial_value, smoother.forecast, target)
+
+    assert_operator(convergence, :>, 0)
+
+    tolerance = target * 0.10
+
+    assert_in_delta(target, smoother.forecast, tolerance)
+  end
+
+  def test_low_confidence_converges_up_when_not_sensitive_enough
+    smoother = Semian::SimpleExponentialSmoother.new
+    initial_value = smoother.forecast
+    actual_rate = 0.05
+
+    simulate_observations(smoother, actual_rate, 18)
+
+    convergence = measure_convergence_percentage(initial_value, smoother.forecast, actual_rate)
+
+    assert_operator(convergence, :>=, 70.0)
+    assert_operator(smoother.forecast, :>, initial_value)
+  end
+
+  def test_low_confidence_stays_stable_when_perfect
+    smoother = Semian::SimpleExponentialSmoother.new
+    initial_value = smoother.forecast
+
+    simulate_observations(smoother, initial_value, 90)
+
+    assert_in_delta(initial_value, smoother.forecast, 0.005)
+  end
+
+  # High Confidence Incident Tests (15min and onwards)
+  def test_high_confidence_incident_above_cap_stays_stable
+    smoother = Semian::SimpleExponentialSmoother.new
+
+    simulate_observations(smoother, 0.01, 90)
+    pre_incident_value = smoother.forecast
+
+    simulate_observations(smoother, 0.15, 90)
+
+    assert_in_delta(pre_incident_value, smoother.forecast, 0.001)
+  end
+
+  def test_high_confidence_incident_below_cap_stays_stable
+    smoother = Semian::SimpleExponentialSmoother.new
+
+    simulate_observations(smoother, 0.01, 90)
+    pre_incident_value = smoother.forecast
+
+    simulate_observations(smoother, 0.08, 90)
+
+    assert_in_delta(pre_incident_value, smoother.forecast, 0.001)
+  end
+
+  def test_high_confidence_converges_down_when_too_sensitive
+    smoother = Semian::SimpleExponentialSmoother.new
+    target = 0.01
+
+    simulate_observations(smoother, target, 90)
+
+    set_smoothed_value(smoother, 0.03)
+    initial_value = smoother.forecast
+
+    simulate_observations(smoother, target, 18)
+
+    convergence = measure_convergence_percentage(initial_value, smoother.forecast, target)
+
+    assert_operator(convergence, :>, 0)
+    assert_operator(smoother.forecast, :<, initial_value)
+  end
+
+  def test_high_confidence_converges_up_when_not_sensitive_enough
+    smoother = Semian::SimpleExponentialSmoother.new
+
+    simulate_observations(smoother, 0.01, 90)
+    initial_value = smoother.forecast
+    actual_rate = 0.05
+
+    simulate_observations(smoother, actual_rate, 18)
+
+    convergence = measure_convergence_percentage(initial_value, smoother.forecast, actual_rate)
+
+    assert_operator(convergence, :>=, 70.0)
+    assert_operator(smoother.forecast, :>, initial_value)
+  end
+
+  def test_high_confidence_stays_stable_when_perfect
+    smoother = Semian::SimpleExponentialSmoother.new
+    target = 0.01
+
+    simulate_observations(smoother, target, 180)
+
+    assert_in_delta(target, smoother.forecast, 0.001)
   end
 end
