@@ -29,6 +29,8 @@ module Semian
       @initial_value = initial_value
       @smoothed_value = initial_value
       @observation_count = 0
+      @consecutive_deviations = 0
+      @last_deviation_direction = nil
     end
 
     def add_observation(value)
@@ -42,11 +44,47 @@ module Semian
         @alpha *= 0.5
       end
 
-      # Ignore any observation higher than the cap_value
-      # Anomalous error rates should not affect the ideal error rate calculation
       return @smoothed_value if value > cap_value
 
-      @smoothed_value = (alpha * value) + ((1.0 - alpha) * @smoothed_value)
+      # Ignore observations significantly above baseline after burn-in
+      if @observation_count >= 5 # 5 Observations to establish baseline
+        incident_threshold = @smoothed_value * 7.0
+        return @smoothed_value if value > incident_threshold
+      end
+
+      # Track consecutive deviations for adaptive convergence
+      relative_threshold = @smoothed_value * 0.10
+      absolute_threshold = 0.001
+      deviation_threshold = [relative_threshold, absolute_threshold].max
+
+      current_deviation = value - @smoothed_value
+
+      if current_deviation.abs > deviation_threshold
+        deviation_direction = current_deviation > 0 ? :up : :down
+        if deviation_direction == @last_deviation_direction
+          @consecutive_deviations += 1
+        else
+          @consecutive_deviations = 1
+          @last_deviation_direction = deviation_direction
+        end
+      else
+        @consecutive_deviations = 0
+        @last_deviation_direction = nil
+      end
+
+      # Boost alpha for sustained deviations, excluding potential incidents
+      effective_alpha = alpha
+      if @consecutive_deviations >= 2
+        potential_incident_threshold = @smoothed_value * 6.0
+        is_potential_incident = value > potential_incident_threshold
+
+        unless is_potential_incident
+          boost_multiplier = @last_deviation_direction == :down ? 300 : 150
+          effective_alpha = [alpha * boost_multiplier, 0.45].min
+        end
+      end
+
+      @smoothed_value = (effective_alpha * value) + ((1.0 - effective_alpha) * @smoothed_value)
       @smoothed_value
     end
 
@@ -73,14 +111,14 @@ module Semian
       @smoothed_value = initial_value
       @observation_count = 0
       @alpha = initial_alpha
+      @consecutive_deviations = 0
+      @last_deviation_direction = nil
       self
     end
 
     private
 
     def validate_alpha!(alpha)
-      # alpha should always be less than 0.5
-      # The goal is to provide less weight for the more recent observations
       if alpha <= 0 || alpha >= 0.5
         raise ArgumentError, "alpha must be in range (0, 0.5), got: #{alpha}"
       end
