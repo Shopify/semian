@@ -1,5 +1,5 @@
 #include "resource.h"
-#include "shared_memory.h"
+#include "sysv_shared_memory.h"
 
 // Ruby variables
 ID id_wait_time;

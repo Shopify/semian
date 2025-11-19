@@ -1,8 +1,8 @@
 /*
 For managing SysV shared memory segments for cross-process state sharing.
 */
-#ifndef SEMIAN_SHARED_MEMORY_H
-#define SEMIAN_SHARED_MEMORY_H
+#ifndef SEMIAN_SYSV_SHARED_MEMORY_H
+#define SEMIAN_SYSV_SHARED_MEMORY_H
 
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -34,5 +34,5 @@ detach_shared_memory(void *addr);
 int
 destroy_shared_memory(int shm_id);
 
-#endif // SEMIAN_SHARED_MEMORY_H
+#endif // SEMIAN_SYSV_SHARED_MEMORY_H
 
