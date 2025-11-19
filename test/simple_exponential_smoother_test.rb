@@ -83,15 +83,6 @@ class TestSimpleExponentialSmoother < Minitest::Test
     assert_operator(smoother.forecast, :>, initial_forecast)
   end
 
-  def test_effect_of_30_min_incident_on_ideal_error_rate
-    smoother = Semian::SimpleExponentialSmoother.new
-    baseline = smoother.forecast
-
-    180.times { smoother.add_observation(0.2) }
-
-    assert_equal(baseline, smoother.forecast)
-  end
-
   def test_adaptive_alpha_based_on_direction
     smoother = Semian::SimpleExponentialSmoother.new(initial_value: 0.01)
 

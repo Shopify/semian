@@ -43,12 +43,24 @@ class TestForecastSuccessCriteria < Minitest::Test
     )
   end
 
-  def test_low_confidence_ier_lower_than_actual_converges_in_30_minutes
+  def test_low_confidence_ier_lower_than_actual_converges_in_30_minutes_for_2x_error_rate
     smoother = Semian::SimpleExponentialSmoother.new
     current_ier = smoother.forecast
     target_error_rate = current_ier * 2
 
-    observations = minutes_to_observations(30)
+    [5, 10].each do |minutes|
+      observations = minutes_to_observations(5)
+      simulate_observations(smoother, target_error_rate, observations)
+
+      refute_in_delta(
+        target_error_rate,
+        smoother.forecast,
+        DELTA_TOLERANCE,
+        "IER should not have converged to target after #{minutes} minutes during low confidence",
+      )
+    end
+
+    observations = minutes_to_observations(20)
     simulate_observations(smoother, target_error_rate, observations)
 
     assert_in_delta(
@@ -117,7 +129,19 @@ class TestForecastSuccessCriteria < Minitest::Test
     current_ier = smoother.forecast
     target_error_rate = current_ier * 2
 
-    observations = minutes_to_observations(60)
+    [10, 20].each do |minutes|
+      observations = minutes_to_observations(10)
+      simulate_observations(smoother, target_error_rate, observations)
+
+      refute_in_delta(
+        target_error_rate,
+        smoother.forecast,
+        DELTA_TOLERANCE,
+        "IER should not have converged to target after #{minutes} minutes during high confidence",
+      )
+    end
+
+    observations = minutes_to_observations(40)
     simulate_observations(smoother, target_error_rate, observations)
 
     assert_in_delta(
