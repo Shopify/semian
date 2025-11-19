@@ -1,5 +1,6 @@
 #include "resource.h"
 #include "sysv_shared_memory.h"
+#include "atomic_ops.h"
 
 // Ruby variables
 ID id_wait_time;
@@ -439,6 +440,138 @@ semian_resource_destroy_shared_memory(VALUE self, VALUE v_shm_id)
   }
 
   return Qtrue;
+}
+
+VALUE
+semian_atomic_int_load(VALUE self, VALUE v_addr)
+{
+  int *ptr;
+  int value;
+
+  if (TYPE(v_addr) != T_FIXNUM && TYPE(v_addr) != T_BIGNUM) {
+    rb_raise(rb_eTypeError, "address must be an integer");
+  }
+  ptr = (int *)(uintptr_t)NUM2ULL(v_addr);
+  value = atomic_int_load(ptr);
+
+  return INT2NUM(value);
+}
+
+VALUE
+semian_atomic_int_store(VALUE self, VALUE v_addr, VALUE v_value)
+{
+  int *ptr;
+  int value;
+
+  if (TYPE(v_addr) != T_FIXNUM && TYPE(v_addr) != T_BIGNUM) {
+    rb_raise(rb_eTypeError, "address must be an integer");
+  }
+  Check_Type(v_value, T_FIXNUM);
+
+  ptr = (int *)(uintptr_t)NUM2ULL(v_addr);
+  value = FIX2INT(v_value);
+
+  atomic_int_store(ptr, value);
+
+  return Qnil;
+}
+
+VALUE
+semian_atomic_int_fetch_add(VALUE self, VALUE v_addr, VALUE v_value)
+{
+  int *ptr;
+  int value;
+  int old_value;
+
+  if (TYPE(v_addr) != T_FIXNUM && TYPE(v_addr) != T_BIGNUM) {
+    rb_raise(rb_eTypeError, "address must be an integer");
+  }
+  Check_Type(v_value, T_FIXNUM);
+
+  ptr = (int *)(uintptr_t)NUM2ULL(v_addr);
+  value = FIX2INT(v_value);
+
+  old_value = atomic_int_fetch_add(ptr, value);
+
+  return INT2NUM(old_value);
+}
+
+VALUE
+semian_atomic_int_exchange(VALUE self, VALUE v_addr, VALUE v_value)
+{
+  int *ptr;
+  int value;
+  int old_value;
+
+  if (TYPE(v_addr) != T_FIXNUM && TYPE(v_addr) != T_BIGNUM) {
+    rb_raise(rb_eTypeError, "address must be an integer");
+  }
+  Check_Type(v_value, T_FIXNUM);
+
+  ptr = (int *)(uintptr_t)NUM2ULL(v_addr);
+  value = FIX2INT(v_value);
+
+  old_value = atomic_int_exchange(ptr, value);
+
+  return INT2NUM(old_value);
+}
+
+VALUE
+semian_atomic_double_load(VALUE self, VALUE v_addr)
+{
+  double *ptr;
+  double value;
+
+  if (TYPE(v_addr) != T_FIXNUM && TYPE(v_addr) != T_BIGNUM) {
+    rb_raise(rb_eTypeError, "address must be an integer");
+  }
+  ptr = (double *)(uintptr_t)NUM2ULL(v_addr);
+  value = atomic_double_load(ptr);
+
+  return DBL2NUM(value);
+}
+
+VALUE
+semian_atomic_double_store(VALUE self, VALUE v_addr, VALUE v_value)
+{
+  double *ptr;
+  double value;
+
+  if (TYPE(v_addr) != T_FIXNUM && TYPE(v_addr) != T_BIGNUM) {
+    rb_raise(rb_eTypeError, "address must be an integer");
+  }
+  if (TYPE(v_value) != T_FLOAT && TYPE(v_value) != T_FIXNUM) {
+    rb_raise(rb_eTypeError, "value must be a number");
+  }
+
+  ptr = (double *)(uintptr_t)NUM2ULL(v_addr);
+  value = NUM2DBL(v_value);
+
+  atomic_double_store(ptr, value);
+
+  return Qnil;
+}
+
+VALUE
+semian_atomic_double_exchange(VALUE self, VALUE v_addr, VALUE v_value)
+{
+  double *ptr;
+  double value;
+  double old_value;
+
+  if (TYPE(v_addr) != T_FIXNUM && TYPE(v_addr) != T_BIGNUM) {
+    rb_raise(rb_eTypeError, "address must be an integer");
+  }
+  if (TYPE(v_value) != T_FLOAT && TYPE(v_value) != T_FIXNUM) {
+    rb_raise(rb_eTypeError, "value must be a number");
+  }
+
+  ptr = (double *)(uintptr_t)NUM2ULL(v_addr);
+  value = NUM2DBL(v_value);
+
+  old_value = atomic_double_exchange(ptr, value);
+
+  return DBL2NUM(old_value);
 }
 
 static void

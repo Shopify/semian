@@ -75,6 +75,13 @@ void Init_semian()
   rb_define_method(cResource, "attach_shared_memory", semian_resource_attach_shared_memory, 1);
   rb_define_method(cResource, "detach_shared_memory", semian_resource_detach_shared_memory, 1);
   rb_define_method(cResource, "destroy_shared_memory", semian_resource_destroy_shared_memory, 1);
+  rb_define_method(cResource, "atomic_int_load", semian_atomic_int_load, 1);
+  rb_define_method(cResource, "atomic_int_store", semian_atomic_int_store, 2);
+  rb_define_method(cResource, "atomic_int_fetch_add", semian_atomic_int_fetch_add, 2);
+  rb_define_method(cResource, "atomic_int_exchange", semian_atomic_int_exchange, 2);
+  rb_define_method(cResource, "atomic_double_load", semian_atomic_double_load, 1);
+  rb_define_method(cResource, "atomic_double_store", semian_atomic_double_store, 2);
+  rb_define_method(cResource, "atomic_double_exchange", semian_atomic_double_exchange, 2);
 
   id_wait_time = rb_intern("wait_time");
   id_timeout = rb_intern("timeout");
