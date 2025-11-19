@@ -71,6 +71,10 @@ void Init_semian()
   rb_define_method(cResource, "reset_registered_workers!", semian_resource_reset_workers, 0);
   rb_define_method(cResource, "unregister_worker", semian_resource_unregister_worker, 0);
   rb_define_method(cResource, "in_use?", semian_resource_in_use, 0);
+  rb_define_method(cResource, "create_shared_memory", semian_resource_create_shared_memory, 2);
+  rb_define_method(cResource, "attach_shared_memory", semian_resource_attach_shared_memory, 1);
+  rb_define_method(cResource, "detach_shared_memory", semian_resource_detach_shared_memory, 1);
+  rb_define_method(cResource, "destroy_shared_memory", semian_resource_destroy_shared_memory, 1);
 
   id_wait_time = rb_intern("wait_time");
   id_timeout = rb_intern("timeout");

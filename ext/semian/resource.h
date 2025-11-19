@@ -159,4 +159,17 @@ semian_resource_alloc(VALUE klass);
 VALUE
 semian_resource_in_use(VALUE self);
 
+// Shared memory methods
+VALUE
+semian_resource_create_shared_memory(VALUE self, VALUE key, VALUE size);
+
+VALUE
+semian_resource_attach_shared_memory(VALUE self, VALUE shm_id);
+
+VALUE
+semian_resource_detach_shared_memory(VALUE self, VALUE addr);
+
+VALUE
+semian_resource_destroy_shared_memory(VALUE self, VALUE shm_id);
+
 #endif //SEMIAN_RESOURCE_H

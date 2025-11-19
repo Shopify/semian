@@ -1,4 +1,5 @@
 #include "resource.h"
+#include "shared_memory.h"
 
 // Ruby variables
 ID id_wait_time;
@@ -364,6 +365,80 @@ ms_to_timespec(long ms, struct timespec *ts)
 {
   ts->tv_sec = ms / 1000;
   ts->tv_nsec = (ms % 1000) * 1000000;
+}
+
+VALUE
+semian_resource_create_shared_memory(VALUE self, VALUE v_key, VALUE v_size)
+{
+  key_t key;
+  size_t size;
+  int shm_id;
+  int created = 0;
+
+  Check_Type(v_key, T_FIXNUM);
+  Check_Type(v_size, T_FIXNUM);
+
+  key = (key_t)FIX2LONG(v_key);
+  size = (size_t)FIX2LONG(v_size);
+
+  shm_id = create_or_attach_shared_memory(key, size, &created);
+
+  if (shm_id == -1) {
+    raise_semian_syscall_error("shmget()", errno);
+  }
+
+  return rb_ary_new_from_args(2, INT2FIX(shm_id), created ? Qtrue : Qfalse);
+}
+
+VALUE
+semian_resource_attach_shared_memory(VALUE self, VALUE v_shm_id)
+{
+  int shm_id;
+  void *addr;
+
+  Check_Type(v_shm_id, T_FIXNUM);
+  shm_id = FIX2INT(v_shm_id);
+
+  addr = attach_shared_memory(shm_id);
+
+  if (addr == (void *)-1) {
+    raise_semian_syscall_error("shmat()", errno);
+  }
+
+  return ULL2NUM((unsigned long long)(uintptr_t)addr);
+}
+
+VALUE
+semian_resource_detach_shared_memory(VALUE self, VALUE v_addr)
+{
+  void *addr;
+
+  if (TYPE(v_addr) != T_FIXNUM && TYPE(v_addr) != T_BIGNUM) {
+    rb_raise(rb_eTypeError, "address must be an integer");
+  }
+
+  addr = (void *)(uintptr_t)NUM2ULL(v_addr);
+
+  if (detach_shared_memory(addr) == -1) {
+    raise_semian_syscall_error("shmdt()", errno);
+  }
+
+  return Qnil;
+}
+
+VALUE
+semian_resource_destroy_shared_memory(VALUE self, VALUE v_shm_id)
+{
+  int shm_id;
+
+  Check_Type(v_shm_id, T_FIXNUM);
+  shm_id = FIX2INT(v_shm_id);
+
+  if (destroy_shared_memory(shm_id) == -1) {
+    raise_semian_syscall_error("shmctl()", errno);
+  }
+
+  return Qtrue;
 }
 
 static void
