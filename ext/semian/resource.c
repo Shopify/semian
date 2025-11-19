@@ -445,13 +445,13 @@ semian_resource_destroy_shared_memory(VALUE self, VALUE v_shm_id)
 VALUE
 semian_atomic_int_load(VALUE self, VALUE v_addr)
 {
-  int *ptr;
+  atomic_int *ptr;
   int value;
 
   if (TYPE(v_addr) != T_FIXNUM && TYPE(v_addr) != T_BIGNUM) {
     rb_raise(rb_eTypeError, "address must be an integer");
   }
-  ptr = (int *)(uintptr_t)NUM2ULL(v_addr);
+  ptr = (atomic_int *)(uintptr_t)NUM2ULL(v_addr);
   value = atomic_int_load(ptr);
 
   return INT2NUM(value);
@@ -460,7 +460,7 @@ semian_atomic_int_load(VALUE self, VALUE v_addr)
 VALUE
 semian_atomic_int_store(VALUE self, VALUE v_addr, VALUE v_value)
 {
-  int *ptr;
+  atomic_int *ptr;
   int value;
 
   if (TYPE(v_addr) != T_FIXNUM && TYPE(v_addr) != T_BIGNUM) {
@@ -468,7 +468,7 @@ semian_atomic_int_store(VALUE self, VALUE v_addr, VALUE v_value)
   }
   Check_Type(v_value, T_FIXNUM);
 
-  ptr = (int *)(uintptr_t)NUM2ULL(v_addr);
+  ptr = (atomic_int *)(uintptr_t)NUM2ULL(v_addr);
   value = FIX2INT(v_value);
 
   atomic_int_store(ptr, value);
@@ -479,7 +479,7 @@ semian_atomic_int_store(VALUE self, VALUE v_addr, VALUE v_value)
 VALUE
 semian_atomic_int_fetch_add(VALUE self, VALUE v_addr, VALUE v_value)
 {
-  int *ptr;
+  atomic_int *ptr;
   int value;
   int old_value;
 
@@ -488,7 +488,7 @@ semian_atomic_int_fetch_add(VALUE self, VALUE v_addr, VALUE v_value)
   }
   Check_Type(v_value, T_FIXNUM);
 
-  ptr = (int *)(uintptr_t)NUM2ULL(v_addr);
+  ptr = (atomic_int *)(uintptr_t)NUM2ULL(v_addr);
   value = FIX2INT(v_value);
 
   old_value = atomic_int_fetch_add(ptr, value);
@@ -499,7 +499,7 @@ semian_atomic_int_fetch_add(VALUE self, VALUE v_addr, VALUE v_value)
 VALUE
 semian_atomic_int_exchange(VALUE self, VALUE v_addr, VALUE v_value)
 {
-  int *ptr;
+  atomic_int *ptr;
   int value;
   int old_value;
 
@@ -508,7 +508,7 @@ semian_atomic_int_exchange(VALUE self, VALUE v_addr, VALUE v_value)
   }
   Check_Type(v_value, T_FIXNUM);
 
-  ptr = (int *)(uintptr_t)NUM2ULL(v_addr);
+  ptr = (atomic_int *)(uintptr_t)NUM2ULL(v_addr);
   value = FIX2INT(v_value);
 
   old_value = atomic_int_exchange(ptr, value);
@@ -519,13 +519,13 @@ semian_atomic_int_exchange(VALUE self, VALUE v_addr, VALUE v_value)
 VALUE
 semian_atomic_double_load(VALUE self, VALUE v_addr)
 {
-  double *ptr;
+  _Atomic double *ptr;
   double value;
 
   if (TYPE(v_addr) != T_FIXNUM && TYPE(v_addr) != T_BIGNUM) {
     rb_raise(rb_eTypeError, "address must be an integer");
   }
-  ptr = (double *)(uintptr_t)NUM2ULL(v_addr);
+  ptr = (_Atomic double *)(uintptr_t)NUM2ULL(v_addr);
   value = atomic_double_load(ptr);
 
   return DBL2NUM(value);
@@ -534,7 +534,7 @@ semian_atomic_double_load(VALUE self, VALUE v_addr)
 VALUE
 semian_atomic_double_store(VALUE self, VALUE v_addr, VALUE v_value)
 {
-  double *ptr;
+  _Atomic double *ptr;
   double value;
 
   if (TYPE(v_addr) != T_FIXNUM && TYPE(v_addr) != T_BIGNUM) {
@@ -544,7 +544,7 @@ semian_atomic_double_store(VALUE self, VALUE v_addr, VALUE v_value)
     rb_raise(rb_eTypeError, "value must be a number");
   }
 
-  ptr = (double *)(uintptr_t)NUM2ULL(v_addr);
+  ptr = (_Atomic double *)(uintptr_t)NUM2ULL(v_addr);
   value = NUM2DBL(v_value);
 
   atomic_double_store(ptr, value);
@@ -555,7 +555,7 @@ semian_atomic_double_store(VALUE self, VALUE v_addr, VALUE v_value)
 VALUE
 semian_atomic_double_exchange(VALUE self, VALUE v_addr, VALUE v_value)
 {
-  double *ptr;
+  _Atomic double *ptr;
   double value;
   double old_value;
 
@@ -566,7 +566,7 @@ semian_atomic_double_exchange(VALUE self, VALUE v_addr, VALUE v_value)
     rb_raise(rb_eTypeError, "value must be a number");
   }
 
-  ptr = (double *)(uintptr_t)NUM2ULL(v_addr);
+  ptr = (_Atomic double *)(uintptr_t)NUM2ULL(v_addr);
   value = NUM2DBL(v_value);
 
   old_value = atomic_double_exchange(ptr, value);

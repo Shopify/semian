@@ -1,105 +1,56 @@
 /*
-Lock-free atomic operations for shared memory.
+Lock-free atomic operations for shared memory using C11 stdatomic.h
 */
 #ifndef SEMIAN_ATOMIC_OPS_H
 #define SEMIAN_ATOMIC_OPS_H
 
-#include <stdint.h>
-
-#if defined(HAVE_GCC_ATOMIC) && (__SIZEOF_DOUBLE__ == 8)
-  #define HAVE_ATOMIC_DOUBLE 1
-#endif
+#ifdef HAVE_STDATOMIC_H
+#include <stdatomic.h>
 
 static inline int
-atomic_int_load(int *ptr)
+atomic_int_load(atomic_int *ptr)
 {
-#ifdef HAVE_GCC_ATOMIC
-  return __atomic_load_n(ptr, __ATOMIC_SEQ_CST);
-#else
-  return *ptr;
-#endif
+  return atomic_load(ptr);
 }
 
 static inline void
-atomic_int_store(int *ptr, int val)
+atomic_int_store(atomic_int *ptr, int val)
 {
-#ifdef HAVE_GCC_ATOMIC
-  __atomic_store_n(ptr, val, __ATOMIC_SEQ_CST);
-#else
-  *ptr = val;
-#endif
+  atomic_store(ptr, val);
 }
 
 static inline int
-atomic_int_fetch_add(int *ptr, int val)
+atomic_int_fetch_add(atomic_int *ptr, int val)
 {
-#ifdef HAVE_GCC_ATOMIC
-  return __atomic_fetch_add(ptr, val, __ATOMIC_SEQ_CST);
-#else
-  int old = *ptr;
-  *ptr += val;
-  return old;
-#endif
+  return atomic_fetch_add(ptr, val);
 }
 
 static inline int
-atomic_int_exchange(int *ptr, int val)
+atomic_int_exchange(atomic_int *ptr, int val)
 {
-#ifdef HAVE_GCC_ATOMIC
-  return __atomic_exchange_n(ptr, val, __ATOMIC_SEQ_CST);
-#else
-  int old = *ptr;
-  *ptr = val;
-  return old;
-#endif
+  return atomic_exchange(ptr, val);
 }
 
 static inline double
-atomic_double_load(double *ptr)
+atomic_double_load(_Atomic double *ptr)
 {
-#ifdef HAVE_ATOMIC_DOUBLE
-  union {
-    uint64_t as_int;
-    double as_double;
-  } converter;
-  converter.as_int = __atomic_load_n((uint64_t *)ptr, __ATOMIC_SEQ_CST);
-  return converter.as_double;
-#else
-  return *ptr;
-#endif
+  return atomic_load(ptr);
 }
 
 static inline void
-atomic_double_store(double *ptr, double val)
+atomic_double_store(_Atomic double *ptr, double val)
 {
-#ifdef HAVE_ATOMIC_DOUBLE
-  union {
-    double as_double;
-    uint64_t as_int;
-  } converter;
-  converter.as_double = val;
-  __atomic_store_n((uint64_t *)ptr, converter.as_int, __ATOMIC_SEQ_CST);
-#else
-  *ptr = val;
-#endif
+  atomic_store(ptr, val);
 }
 
 static inline double
-atomic_double_exchange(double *ptr, double val)
+atomic_double_exchange(_Atomic double *ptr, double val)
 {
-#ifdef HAVE_ATOMIC_DOUBLE
-  union {
-    double as_double;
-    uint64_t as_int;
-  } new_val, old_val;
-  new_val.as_double = val;
-  old_val.as_int = __atomic_exchange_n((uint64_t *)ptr, new_val.as_int, __ATOMIC_SEQ_CST);
-  return old_val.as_double;
-#else
-  double old = *ptr;
-  *ptr = val;
-  return old;
-#endif
+  return atomic_exchange(ptr, val);
 }
+
+#else
+#error "stdatomic.h not available - C11 compiler required"
+#endif
 
 #endif // SEMIAN_ATOMIC_OPS_H
