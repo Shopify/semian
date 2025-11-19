@@ -8,83 +8,54 @@ module Semian
   #   smoothed = alpha * value + (1 - alpha) * previous_smoothed
   #
   # Key characteristics:
-  # - Low alpha provides low recency bias, making it resilient to short incidents
-  # - Gradually adapts to sustained changes in error rate
-  # - Drops extreme values to prevent outliers from distorting the forecast
+  # - Adaptive alpha adjusts based on confidence period and convergence direction
+  # - Converges faster when error rate is decreasing (conservative)
+  # - Converges slower when error rate is increasing (cautious)
+  # - Drops extreme values above cap to prevent outliers from distorting the forecast
   #
   class SimpleExponentialSmoother
     DEFAULT_ALPHA = 0.001
     DEFAULT_CAP_VALUE = 0.1
-    DEFAULT_INITIAL_VALUE = 0.01
+    DEFAULT_INITIAL_VALUE = 0.05
+    DEFAULT_OBSERVATIONS_PER_MINUTE = 6
 
-    attr_reader :alpha, :initial_alpha, :cap_value, :initial_value, :smoothed_value
+    LOW_CONFIDENCE_ALPHA_UP = 0.017
+    LOW_CONFIDENCE_ALPHA_DOWN = 0.095
+    HIGH_CONFIDENCE_ALPHA_UP = 0.0083
+    HIGH_CONFIDENCE_ALPHA_DOWN = 0.049
+    LOW_CONFIDENCE_THRESHOLD_MINUTES = 30
+
+    attr_reader :alpha, :initial_alpha, :cap_value, :initial_value, :smoothed_value, :observations_per_minute
 
     def initialize(initial_alpha: DEFAULT_ALPHA, cap_value: DEFAULT_CAP_VALUE,
-      initial_value: DEFAULT_INITIAL_VALUE)
+      initial_value: DEFAULT_INITIAL_VALUE, observations_per_minute: DEFAULT_OBSERVATIONS_PER_MINUTE)
       validate_alpha!(initial_alpha)
-
       @initial_alpha = initial_alpha
       @alpha = initial_alpha
       @cap_value = cap_value
       @initial_value = initial_value
+      @observations_per_minute = observations_per_minute
       @smoothed_value = initial_value
       @observation_count = 0
-      @consecutive_deviations = 0
-      @last_deviation_direction = nil
     end
 
     def add_observation(value)
       raise ArgumentError, "value must be non-negative, got: #{value}" if value < 0
 
-      @observation_count += 1
-
-      if @observation_count == 90
-        @alpha *= 0.5
-      elsif @observation_count == 180
-        @alpha *= 0.5
-      end
-
       return @smoothed_value if value > cap_value
 
-      # Ignore observations significantly above baseline after burn-in
-      if @observation_count >= 5 # 5 Observations to establish baseline
-        incident_threshold = @smoothed_value * 7.0
-        return @smoothed_value if value > incident_threshold
-      end
+      @observation_count += 1
 
-      # Track consecutive deviations for adaptive convergence
-      relative_threshold = @smoothed_value * 0.10
-      absolute_threshold = 0.001
-      deviation_threshold = [relative_threshold, absolute_threshold].max
+      low_confidence = @observation_count < (@observations_per_minute * LOW_CONFIDENCE_THRESHOLD_MINUTES)
+      converging_up = value > @smoothed_value
 
-      current_deviation = value - @smoothed_value
-
-      if current_deviation.abs > deviation_threshold
-        deviation_direction = current_deviation > 0 ? :up : :down
-        if deviation_direction == @last_deviation_direction
-          @consecutive_deviations += 1
-        else
-          @consecutive_deviations = 1
-          @last_deviation_direction = deviation_direction
-        end
+      @alpha = if low_confidence
+        converging_up ? LOW_CONFIDENCE_ALPHA_UP : LOW_CONFIDENCE_ALPHA_DOWN
       else
-        @consecutive_deviations = 0
-        @last_deviation_direction = nil
+        converging_up ? HIGH_CONFIDENCE_ALPHA_UP : HIGH_CONFIDENCE_ALPHA_DOWN
       end
 
-      # Boost alpha for sustained deviations, excluding potential incidents
-      effective_alpha = alpha
-      if @consecutive_deviations >= 2
-        potential_incident_threshold = @smoothed_value * 6.0
-        is_potential_incident = value > potential_incident_threshold
-
-        unless is_potential_incident
-          boost_multiplier = @last_deviation_direction == :down ? 300 : 150
-          effective_alpha = [alpha * boost_multiplier, 0.45].min
-        end
-      end
-
-      @smoothed_value = (effective_alpha * value) + ((1.0 - effective_alpha) * @smoothed_value)
+      @smoothed_value = (@alpha * value) + ((1.0 - @alpha) * @smoothed_value)
       @smoothed_value
     end
 
@@ -103,6 +74,7 @@ module Semian
         initial_alpha: @initial_alpha,
         cap_value: @cap_value,
         initial_value: @initial_value,
+        observations_per_minute: @observations_per_minute,
         observation_count: @observation_count,
       }
     end
@@ -111,8 +83,6 @@ module Semian
       @smoothed_value = initial_value
       @observation_count = 0
       @alpha = initial_alpha
-      @consecutive_deviations = 0
-      @last_deviation_direction = nil
       self
     end
 
