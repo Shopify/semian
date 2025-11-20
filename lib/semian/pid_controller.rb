@@ -37,6 +37,7 @@ module Semian
         @smoother = SimpleExponentialSmoother.new(
           cap_value: smoother_cap_value,
           initial_value: initial_error_rate,
+          observations_per_minute: 60 / sliding_interval,
         )
 
         @errors = implementation::SlidingWindow.new
