@@ -37,7 +37,7 @@ class TestPIDController < Minitest::Test
         current_window_requests: { success: 0, error: 0, rejected: 0 },
         smoother_state: {
           smoothed_value: 0.01,
-          alpha: 0.095,
+          alpha: 0.078,
           cap_value: 0.1,
           initial_value: 0.01,
           observations_per_minute: 60,
@@ -194,7 +194,7 @@ class TestPIDController < Minitest::Test
         current_window_requests: { success: 0, error: 0, rejected: 0 },
         smoother_state: {
           smoothed_value: 0.01,
-          alpha: 0.095,
+          alpha: 0.078,
           cap_value: 0.1,
           initial_value: 0.01,
           observations_per_minute: 60,

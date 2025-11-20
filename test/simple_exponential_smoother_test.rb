@@ -16,7 +16,7 @@ class TestSimpleExponentialSmoother < Minitest::Test
     smoother = Semian::SimpleExponentialSmoother.new(observations_per_minute: 60)
 
     # Alpha starts at LOW_CONFIDENCE_ALPHA_DOWN
-    assert_equal(0.095, smoother.alpha)
+    assert_equal(0.078, smoother.alpha)
     assert_equal(0.1, smoother.cap_value)
     assert_equal(0.05, smoother.initial_value)
     assert_equal(0.05, smoother.forecast)
@@ -30,7 +30,7 @@ class TestSimpleExponentialSmoother < Minitest::Test
     )
 
     # Alpha starts at LOW_CONFIDENCE_ALPHA_DOWN
-    assert_equal(0.095, smoother.alpha)
+    assert_equal(0.078, smoother.alpha)
     assert_equal(0.5, smoother.cap_value)
     assert_equal(0.02, smoother.initial_value)
     assert_equal(0.02, smoother.forecast)
@@ -45,9 +45,9 @@ class TestSimpleExponentialSmoother < Minitest::Test
 
     smoother.add_observation(0.05)
 
-    # Converging up in low confidence: alpha = 0.017
-    # Expected: 0.017 * 0.05 + 0.983 * 0.01 = 0.01068
-    assert_in_delta(0.01068, smoother.forecast, 0.0001)
+    # Converging up in low confidence: alpha = 0.0017
+    # Expected: 0.0017 * 0.05 + 0.9983 * 0.01 = 0.010068
+    assert_in_delta(0.010068, smoother.forecast, 0.0001)
   end
 
   def test_add_observation_updates_smoothed_value
@@ -78,10 +78,10 @@ class TestSimpleExponentialSmoother < Minitest::Test
 
     smoother.add_observation(0.08)
 
-    # Converging up in low confidence: alpha = 0.017
-    assert_equal(0.017, smoother.alpha)
-    # Expected: 0.017 * 0.08 + 0.983 * 0.01 = 0.01119
-    assert_in_delta(0.01119, smoother.forecast, 0.0001)
+    # Converging up in low confidence: alpha = 0.0017
+    assert_equal(0.0017, smoother.alpha)
+    # Expected: 0.0017 * 0.08 + 0.9983 * 0.01 = 0.010119
+    assert_in_delta(0.010119, smoother.forecast, 0.0001)
   end
 
   def test_reset_returns_to_initial_state
@@ -104,7 +104,7 @@ class TestSimpleExponentialSmoother < Minitest::Test
     smoother.add_observation(0.08)
     low_confidence_alpha = smoother.alpha
 
-    180.times { smoother.add_observation(0.01) }
+    1800.times { smoother.add_observation(0.01) }
 
     smoother.add_observation(0.08)
     high_confidence_alpha = smoother.alpha
