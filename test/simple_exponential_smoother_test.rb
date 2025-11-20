@@ -19,7 +19,8 @@ class TestSimpleExponentialSmoother < Minitest::Test
   def test_initialization_with_defaults
     smoother = Semian::SimpleExponentialSmoother.new
 
-    assert_equal(0.001, smoother.alpha)
+    # Alpha starts at LOW_CONFIDENCE_ALPHA_DOWN
+    assert_equal(0.095, smoother.alpha)
     assert_equal(0.1, smoother.cap_value)
     assert_equal(0.05, smoother.initial_value)
     assert_equal(0.05, smoother.forecast)
@@ -31,21 +32,11 @@ class TestSimpleExponentialSmoother < Minitest::Test
       initial_value: 0.02,
     )
 
-    assert_equal(0.001, smoother.alpha)
+    # Alpha starts at LOW_CONFIDENCE_ALPHA_DOWN
+    assert_equal(0.095, smoother.alpha)
     assert_equal(0.5, smoother.cap_value)
     assert_equal(0.02, smoother.initial_value)
     assert_equal(0.02, smoother.forecast)
-  end
-
-  def test_initialization_validates_alpha
-    assert_raises(ArgumentError) { Semian::SimpleExponentialSmoother.new(initial_alpha: 0.0) }
-    assert_raises(ArgumentError) { Semian::SimpleExponentialSmoother.new(initial_alpha: -0.1) }
-    assert_raises(ArgumentError) { Semian::SimpleExponentialSmoother.new(initial_alpha: 0.5) }
-    assert_raises(ArgumentError) { Semian::SimpleExponentialSmoother.new(initial_alpha: 1.5) }
-
-    smoother = Semian::SimpleExponentialSmoother.new(initial_alpha: 0.49)
-
-    assert_equal(0.49, smoother.alpha)
   end
 
   def test_smoothing_formula

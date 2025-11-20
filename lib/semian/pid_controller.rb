@@ -13,7 +13,6 @@ module Semian
     attr_reader :name, :rejection_rate
 
     def initialize(kp:, ki:, kd:, window_size:, initial_history_duration:, initial_error_rate:,
-      smoother_alpha: SimpleExponentialSmoother::DEFAULT_ALPHA,
       smoother_cap_value: SimpleExponentialSmoother::DEFAULT_CAP_VALUE)
       # PID coefficients
       @kp = kp  # Proportional gain
@@ -33,7 +32,6 @@ module Semian
 
       # Ideal error rate estimation using Simple Exponential Smoother
       @smoother = SimpleExponentialSmoother.new(
-        initial_alpha: smoother_alpha,
         cap_value: smoother_cap_value,
         initial_value: initial_error_rate,
       )

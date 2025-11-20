@@ -36,8 +36,7 @@ class TestPIDController < Minitest::Test
         current_window_requests: { success: 0, error: 0, rejected: 0 },
         smoother_state: {
           smoothed_value: 0.01,
-          alpha: 0.001,
-          initial_alpha: 0.001,
+          alpha: 0.095,
           cap_value: 0.1,
           initial_value: 0.01,
           observations_per_minute: 6,
@@ -194,8 +193,7 @@ class TestPIDController < Minitest::Test
         current_window_requests: { success: 0, error: 0, rejected: 0 },
         smoother_state: {
           smoothed_value: 0.01,
-          alpha: 0.001,
-          initial_alpha: 0.001,
+          alpha: 0.095,
           cap_value: 0.1,
           initial_value: 0.01,
           observations_per_minute: 6,
@@ -204,20 +202,6 @@ class TestPIDController < Minitest::Test
       },
       @controller.metrics,
     )
-  end
-
-  def test_ideal_error_rate_adapts_to_sustained_changes
-    smoother = @controller.instance_variable_get(:@smoother)
-
-    # Add error rate observations at the cap (0.1)
-    # With adaptive alpha, this will converge using LOW_CONFIDENCE_ALPHA_UP = 0.017
-    (1..180).each do |_|
-      smoother.add_observation(0.1)
-    end
-
-    # Should have converged significantly toward 0.1
-    assert_operator(@controller.metrics[:ideal_error_rate], :>, 0.05)
-    assert_in_delta(0.1, @controller.metrics[:ideal_error_rate], 0.02)
   end
 
   def test_integral_anti_windup

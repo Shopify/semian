@@ -4,7 +4,7 @@ require "test_helper"
 require "semian/simple_exponential_smoother"
 
 class TestForecastSuccessCriteria < Minitest::Test
-  DELTA_TOLERANCE = 0.01
+  DELTA_TOLERANCE = 0.003
 
   def setup
     @smoother = Semian::SimpleExponentialSmoother.new
@@ -48,7 +48,7 @@ class TestForecastSuccessCriteria < Minitest::Test
     current_ier = smoother.forecast
     target_error_rate = current_ier * 2
 
-    [5, 10].each do |minutes|
+    [5, 10, 15, 20, 25].each do |minutes|
       observations = minutes_to_observations(5)
       simulate_observations(smoother, target_error_rate, observations)
 
@@ -60,7 +60,7 @@ class TestForecastSuccessCriteria < Minitest::Test
       )
     end
 
-    observations = minutes_to_observations(20)
+    observations = minutes_to_observations(5)
     simulate_observations(smoother, target_error_rate, observations)
 
     assert_in_delta(
@@ -129,7 +129,7 @@ class TestForecastSuccessCriteria < Minitest::Test
     current_ier = smoother.forecast
     target_error_rate = current_ier * 2
 
-    [10, 20].each do |minutes|
+    [10, 20, 30, 40, 50].each do |minutes|
       observations = minutes_to_observations(10)
       simulate_observations(smoother, target_error_rate, observations)
 
@@ -141,7 +141,7 @@ class TestForecastSuccessCriteria < Minitest::Test
       )
     end
 
-    observations = minutes_to_observations(40)
+    observations = minutes_to_observations(10)
     simulate_observations(smoother, target_error_rate, observations)
 
     assert_in_delta(

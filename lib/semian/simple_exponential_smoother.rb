@@ -14,7 +14,6 @@ module Semian
   # - Drops extreme values above cap to prevent outliers from distorting the forecast
   #
   class SimpleExponentialSmoother
-    DEFAULT_ALPHA = 0.001
     DEFAULT_CAP_VALUE = 0.1
     DEFAULT_INITIAL_VALUE = 0.05
     DEFAULT_OBSERVATIONS_PER_MINUTE = 6
@@ -25,13 +24,23 @@ module Semian
     HIGH_CONFIDENCE_ALPHA_DOWN = 0.049
     LOW_CONFIDENCE_THRESHOLD_MINUTES = 30
 
-    attr_reader :alpha, :initial_alpha, :cap_value, :initial_value, :smoothed_value, :observations_per_minute
+    # Validate all alpha constants at class load time
+    [
+      LOW_CONFIDENCE_ALPHA_UP,
+      LOW_CONFIDENCE_ALPHA_DOWN,
+      HIGH_CONFIDENCE_ALPHA_UP,
+      HIGH_CONFIDENCE_ALPHA_DOWN,
+    ].each do |alpha|
+      if alpha <= 0 || alpha >= 0.5
+        raise ArgumentError, "alpha constant must be in range (0, 0.5), got: #{alpha}"
+      end
+    end
 
-    def initialize(initial_alpha: DEFAULT_ALPHA, cap_value: DEFAULT_CAP_VALUE,
+    attr_reader :alpha, :cap_value, :initial_value, :smoothed_value, :observations_per_minute
+
+    def initialize(cap_value: DEFAULT_CAP_VALUE,
       initial_value: DEFAULT_INITIAL_VALUE, observations_per_minute: DEFAULT_OBSERVATIONS_PER_MINUTE)
-      validate_alpha!(initial_alpha)
-      @initial_alpha = initial_alpha
-      @alpha = initial_alpha
+      @alpha = LOW_CONFIDENCE_ALPHA_DOWN # Start with low confidence, converging down
       @cap_value = cap_value
       @initial_value = initial_value
       @observations_per_minute = observations_per_minute
@@ -71,7 +80,6 @@ module Semian
       {
         smoothed_value: @smoothed_value,
         alpha: @alpha,
-        initial_alpha: @initial_alpha,
         cap_value: @cap_value,
         initial_value: @initial_value,
         observations_per_minute: @observations_per_minute,
@@ -82,16 +90,8 @@ module Semian
     def reset
       @smoothed_value = initial_value
       @observation_count = 0
-      @alpha = initial_alpha
+      @alpha = LOW_CONFIDENCE_ALPHA_DOWN # Reset to initial state
       self
-    end
-
-    private
-
-    def validate_alpha!(alpha)
-      if alpha <= 0 || alpha >= 0.5
-        raise ArgumentError, "alpha must be in range (0, 0.5), got: #{alpha}"
-      end
     end
   end
 end
