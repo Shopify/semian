@@ -13,8 +13,8 @@ module Semian
     class PIDController
       attr_reader :name, :rejection_rate
 
-      def initialize(kp:, ki:, kd:, window_size:, sliding_interval:, implementation:, initial_history_duration:, initial_error_rate:,
-        smoother_alpha: SimpleExponentialSmoother::DEFAULT_ALPHA,
+      def initialize(kp:, ki:, kd:, window_size:, sliding_interval:, implementation:, initial_history_duration:,
+        initial_error_rate:,
         smoother_cap_value: SimpleExponentialSmoother::DEFAULT_CAP_VALUE)
         # PID coefficients
         @kp = kp  # Proportional gain

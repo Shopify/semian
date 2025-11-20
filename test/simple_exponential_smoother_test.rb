@@ -17,7 +17,7 @@ class TestSimpleExponentialSmoother < Minitest::Test
   public
 
   def test_initialization_with_defaults
-    smoother = Semian::SimpleExponentialSmoother.new
+    smoother = Semian::SimpleExponentialSmoother.new(observations_per_minute: 60)
 
     # Alpha starts at LOW_CONFIDENCE_ALPHA_DOWN
     assert_equal(0.095, smoother.alpha)
@@ -30,6 +30,7 @@ class TestSimpleExponentialSmoother < Minitest::Test
     smoother = Semian::SimpleExponentialSmoother.new(
       cap_value: 0.5,
       initial_value: 0.02,
+      observations_per_minute: 60,
     )
 
     # Alpha starts at LOW_CONFIDENCE_ALPHA_DOWN
@@ -40,7 +41,7 @@ class TestSimpleExponentialSmoother < Minitest::Test
   end
 
   def test_smoothing_formula
-    smoother = Semian::SimpleExponentialSmoother.new(initial_value: 0.01)
+    smoother = Semian::SimpleExponentialSmoother.new(initial_value: 0.01, observations_per_minute: 60)
 
     smoother.add_observation(0.01)
 
@@ -62,7 +63,7 @@ class TestSimpleExponentialSmoother < Minitest::Test
   end
 
   def test_cap_value_drops_high_observations
-    smoother = Semian::SimpleExponentialSmoother.new(initial_value: 0.01)
+    smoother = Semian::SimpleExponentialSmoother.new(initial_value: 0.01, observations_per_minute: 60)
     initial_forecast = smoother.forecast
 
     20.times { smoother.add_observation(1.0) }
@@ -75,7 +76,7 @@ class TestSimpleExponentialSmoother < Minitest::Test
   end
 
   def test_adaptive_alpha_based_on_direction
-    smoother = Semian::SimpleExponentialSmoother.new(initial_value: 0.01)
+    smoother = Semian::SimpleExponentialSmoother.new(initial_value: 0.01, observations_per_minute: 60)
 
     smoother.add_observation(0.08)
 
@@ -86,7 +87,7 @@ class TestSimpleExponentialSmoother < Minitest::Test
   end
 
   def test_reset_returns_to_initial_state
-    smoother = Semian::SimpleExponentialSmoother.new
+    smoother = Semian::SimpleExponentialSmoother.new(observations_per_minute: 60)
     initial_forecast = smoother.forecast
 
     50.times { smoother.add_observation(0.1) }
@@ -100,7 +101,7 @@ class TestSimpleExponentialSmoother < Minitest::Test
   end
 
   def test_alpha_changes_with_confidence_period
-    smoother = Semian::SimpleExponentialSmoother.new(initial_value: 0.01)
+    smoother = Semian::SimpleExponentialSmoother.new(initial_value: 0.01, observations_per_minute: 60)
 
     smoother.add_observation(0.08)
     low_confidence_alpha = smoother.alpha
@@ -114,7 +115,7 @@ class TestSimpleExponentialSmoother < Minitest::Test
   end
 
   def test_handles_edge_case_values
-    smoother = Semian::SimpleExponentialSmoother.new
+    smoother = Semian::SimpleExponentialSmoother.new(observations_per_minute: 60)
 
     initial_value = smoother.forecast
     smoother.add_observation(0.0)
