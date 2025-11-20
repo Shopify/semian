@@ -4,10 +4,6 @@ require "test_helper"
 require "semian/simple_exponential_smoother"
 
 class TestSimpleExponentialSmoother < Minitest::Test
-  def setup
-    @smoother = Semian::SimpleExponentialSmoother.new
-  end
-
   private
 
   def simulate_observations(smoother, error_rate, count)
@@ -55,11 +51,13 @@ class TestSimpleExponentialSmoother < Minitest::Test
   end
 
   def test_add_observation_updates_smoothed_value
-    initial_forecast = @smoother.forecast
-    @smoother.add_observation(0.08)
+    smoother = Semian::SimpleExponentialSmoother.new(observations_per_minute: 60)
 
-    assert_operator(@smoother.forecast, :>, initial_forecast)
-    assert_operator(@smoother.forecast, :<, 0.08)
+    initial_forecast = smoother.forecast
+    smoother.add_observation(0.08)
+
+    assert_operator(smoother.forecast, :>, initial_forecast)
+    assert_operator(smoother.forecast, :<, 0.08)
   end
 
   def test_cap_value_drops_high_observations
