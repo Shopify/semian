@@ -19,6 +19,7 @@ require "semian/simple_integer"
 require "semian/simple_state"
 require "semian/lru_hash"
 require "semian/configuration_validator"
+require "semian/shared_memory"
 
 #
 # === Overview
