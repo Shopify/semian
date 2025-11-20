@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "thread"
-require_relative "p2_estimator"
+require_relative "simple_exponential_smoother"
 
 module Semian
   # PID Controller for adaptive circuit breaking
@@ -12,7 +12,8 @@ module Semian
   class PIDController
     attr_reader :name, :rejection_rate
 
-    def initialize(kp:, ki:, kd:, window_size:, initial_history_duration:, initial_error_rate:)
+    def initialize(kp:, ki:, kd:, window_size:, initial_history_duration:, initial_error_rate:,
+      smoother_cap_value: SimpleExponentialSmoother::DEFAULT_CAP_VALUE)
       # PID coefficients
       @kp = kp  # Proportional gain
       @ki = ki  # Integral gain
@@ -29,11 +30,11 @@ module Semian
       @initial_error_rate = initial_error_rate
       @window_size = window_size # Time window in seconds
 
-      # P90 error rate estimation using P2 quantile estimator
-      @p90_estimator = P2QuantileEstimator.new(0.9)
-
-      # Prefill estimator with historical knowledge
-      prefill_p90_estimator
+      # Ideal error rate estimation using Simple Exponential Smoother
+      @smoother = SimpleExponentialSmoother.new(
+        cap_value: smoother_cap_value,
+        initial_value: initial_error_rate,
+      )
 
       # Current window counters
       @current_window_requests = { success: 0, error: 0, rejected: 0 }
@@ -114,10 +115,7 @@ module Semian
       @last_p_value = 0.0
       @current_window_requests = { success: 0, error: 0, rejected: 0 }
       @last_error_rate = 0.0
-      @p90_estimator.reset
-
-      # Refill P90 estimator after reset
-      prefill_p90_estimator
+      @smoother.reset
     end
 
     # Get current metrics for monitoring/debugging
@@ -131,7 +129,7 @@ module Semian
         integral: @integral,
         derivative: @derivative,
         current_window_requests: @current_window_requests.dup,
-        p90_estimator_state: @p90_estimator.state,
+        smoother_state: @smoother.state,
       }
     end
 
@@ -155,25 +153,11 @@ module Semian
     end
 
     def store_error_rate(error_rate)
-      @p90_estimator.add_observation(error_rate)
+      @smoother.add_observation(error_rate)
     end
 
     def calculate_ideal_error_rate
-      return 0.01 if @p90_estimator.state[:observations] == 0 # Default to 1% if no history
-
-      # Get P90 estimate from P2 estimator
-      p90_value = @p90_estimator.estimate
-
-      # Cap at 10% to prevent bootstrapping issues
-      [p90_value, 0.1].min
-    end
-
-    # Prefill the P2 estimator with observations using initial_error_rate
-    def prefill_p90_estimator
-      initial_history_size = Integer(@initial_history_duration / @window_size)
-      initial_history_size.times do
-        @p90_estimator.add_observation(@initial_error_rate)
-      end
+      @smoother.forecast
     end
   end
 

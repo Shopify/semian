@@ -5,6 +5,7 @@ module Semian
     # Experiment runner for circuit breaker experiments (both adaptive and classic)
     # Handles all the common logic: service creation, threading, monitoring, analysis, and visualization
     require "fileutils"
+    require "csv"
     class DegradationPhase
       attr_reader :healthy, :error_rate, :latency, :specific_endpoint_latency
 
@@ -680,8 +681,6 @@ module Semian
       end
 
       def save_csv_outputs
-        require "csv"
-
         # Save time-based analysis CSV
         if @time_analysis_data.any?
           csv_path = File.join(@csv_results_path, @time_analysis_csv_filename)

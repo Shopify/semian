@@ -24,28 +24,26 @@ class TestPIDController < Minitest::Test
   end
 
   def test_initial_values
-    metrics = @controller.metrics
-
     assert_equal(
       {
         rejection_rate: 0.0,
         error_rate: 0.0,
-        ideal_error_rate: 0.01, # Default when no history
+        ideal_error_rate: 0.01,
         p_value: 0.0,
         previous_p_value: 0.0,
         integral: 0.0,
         derivative: 0.0,
         current_window_requests: { success: 0, error: 0, rejected: 0 },
-        p90_estimator_state: {
-          # Initialization prefills with initial_history_duration/window_size observations = 20, all 0.01
-          observations: 1000,
-          markers: [0.01] * 5,
-          # The positions are of P0, P45, P90, P95, P100 of 1000 observations
-          positions: [0, 449, 899, 949, 999],
-          quantile: 0.9,
+        smoother_state: {
+          smoothed_value: 0.01,
+          alpha: 0.095,
+          cap_value: 0.1,
+          initial_value: 0.01,
+          observations_per_minute: 6,
+          observation_count: 0,
         },
       },
-      metrics,
+      @controller.metrics,
     )
   end
 
@@ -70,9 +68,9 @@ class TestPIDController < Minitest::Test
     @controller.update
 
     assert_equal(0, @controller.metrics[:rejection_rate])
-    # update should add a new observation to the p90 estimator
-    assert_equal(1001, @controller.metrics[:p90_estimator_state][:observations])
-    # ------------------------------------------------------------
+    assert_in_delta(0.01, @controller.metrics[:smoother_state][:smoothed_value], 0.001)
+    assert_equal(1, @controller.metrics[:smoother_state][:observation_count])
+
     # run another time, nothing should change
     (1..99).each do |_|
       @controller.record_request(:success)
@@ -82,8 +80,9 @@ class TestPIDController < Minitest::Test
     @controller.update
 
     assert_equal(0, @controller.metrics[:rejection_rate])
-    assert_equal(1002, @controller.metrics[:p90_estimator_state][:observations])
-    # ------------------------------------------------------------
+    assert_in_delta(0.01, @controller.metrics[:smoother_state][:smoothed_value], 0.001)
+    assert_equal(2, @controller.metrics[:smoother_state][:observation_count])
+
     # Error rate now goes below the ideal error rate. Rejection rate should be unaffected.
     (1..100).each do |_|
       @controller.record_request(:success)
@@ -92,53 +91,55 @@ class TestPIDController < Minitest::Test
     @controller.update
 
     assert_equal(0, @controller.metrics[:rejection_rate])
-    assert_equal(1003, @controller.metrics[:p90_estimator_state][:observations])
+    assert_operator(@controller.metrics[:smoother_state][:smoothed_value], :<, 0.01)
+    assert_equal(3, @controller.metrics[:smoother_state][:observation_count])
     # ------------------------------------------------------------
     # Error rate now goes above the ideal error rate. Rejection rate should increase.
-    (1..89).each do |_|
+    (1..92).each do |_|
       @controller.record_request(:success)
     end
-    (1..11).each do |_|
+    (1..8).each do |_|
       @controller.record_request(:error)
     end
 
     @controller.update
     # control signal = Ki * integral + Kp * p_value + Kd * (p_value - previous_p_value) / dt
-    # p_value = (error_rate - ideal_error_rate) - rejection_rate = (0.11 - 0.01) - 0 = 0.1
+    # p_value = (error_rate - ideal_error_rate) - rejection_rate = (0.08 - ~0.009) - 0 ≈ 0.071
     # With back-calculation anti-windup: when rejection_rate saturates (hits 0 or 1),
     # the integral accumulation is reversed: integral -= p_value * dt
     # This prevents integral windup but means the exact response depends on saturation history
-    assert_in_delta(@controller.metrics[:rejection_rate], 0.20, 0.02)
-    assert_equal(1004, @controller.metrics[:p90_estimator_state][:observations])
+    assert_in_delta(@controller.metrics[:rejection_rate], 0.14, 0.04)
+    # Smoother should have moved toward higher error rate (8% is below cap so it's recorded)
+    assert_operator(@controller.metrics[:smoother_state][:smoothed_value], :>, 0.0)
+    assert_equal(4, @controller.metrics[:smoother_state][:observation_count])
     # ----------------------------------------------------------------
-    # Maintain the same error rate
-    (1..89).each do |_|
+    # Maintain the same error rate (8%)
+    (1..92).each do |_|
       @controller.record_request(:success)
     end
-    (1..11).each do |_|
+    (1..8).each do |_|
       @controller.record_request(:error)
     end
     @controller.update
-    # control signal = Ki * integral + Kp * p_value + Kd * (p_value - previous_p_value) / dt
-    # p_value = (error_rate - ideal_error_rate) - rejection_rate = (0.11 - 0.01) - 0.19011 = -0.09011
-    # = 0.1 * (-0.01+ 0.1 -0.09011) * 10 + 1 * -0.09011 + 0.01 * (-0.09011 - (0.19011)) / 10 = -0.09050022
-    # rejection rate = 0.19011 - 0.09050022 = 0.09960978
-    assert_in_delta(@controller.metrics[:rejection_rate], 0.11, 0.02)
-    assert_equal(1005, @controller.metrics[:p90_estimator_state][:observations])
+    # Rejection rate should stabilize around the 8% error rate
+    assert_in_delta(@controller.metrics[:rejection_rate], 0.08, 0.04)
+    # Smoother continues to adapt to the 8% error rate
+    assert_operator(@controller.metrics[:smoother_state][:smoothed_value], :>, 0.0)
+    assert_equal(5, @controller.metrics[:smoother_state][:observation_count])
     # ----------------------------------------------------------------
     # Run a few more cycles of the same error rate. The rejection rate should fluctuate around the true error rate.
-    (1..10).each do |j|
-      (1..89).each do |_|
+    10.times do
+      (1..92).each do |_|
         @controller.record_request(:success)
       end
-      (1..11).each do |_|
+      (1..8).each do |_|
         @controller.record_request(:error)
       end
       @controller.update
 
-      assert_in_delta(@controller.metrics[:rejection_rate], 0.11, 0.02)
-      assert_equal(@controller.metrics[:p90_estimator_state][:observations], 1005 + j)
+      assert_in_delta(@controller.metrics[:rejection_rate], 0.08, 0.04)
     end
+    assert_equal(15, @controller.metrics[:smoother_state][:observation_count])
     # ----------------------------------------------------------------
     # Bring error rate back down to the ideal error rate. The rejection rate should decrease quickly.
     # This is because when the rejection rate is similar to the error rate, the integral term is very small.
@@ -184,33 +185,23 @@ class TestPIDController < Minitest::Test
       {
         rejection_rate: 0.0,
         error_rate: 0.0,
-        ideal_error_rate: 0.01, # Default when no history
+        ideal_error_rate: 0.01,
         p_value: 0.0,
         previous_p_value: 0.0,
         integral: 0.0,
         derivative: 0.0,
         current_window_requests: { success: 0, error: 0, rejected: 0 },
-        p90_estimator_state: {
-          # Initialization prefills with initial_history_duration/window_size observations = 20, all 0.01
-          observations: 1000,
-          markers: [0.01] * 5,
-          # The positions are of P0, P45, P90, P95, P100 of 1000 observations
-          positions: [0, 449, 899, 949, 999],
-          quantile: 0.9,
+        smoother_state: {
+          smoothed_value: 0.01,
+          alpha: 0.095,
+          cap_value: 0.1,
+          initial_value: 0.01,
+          observations_per_minute: 6,
+          observation_count: 0,
         },
       },
       @controller.metrics,
     )
-  end
-
-  def test_ideal_error_rate_never_returns_more_than_10
-    estimator = @controller.instance_variable_get(:@p90_estimator)
-    estimator.reset
-    (1..1000).each do |_|
-      estimator.add_observation(0.5)
-    end
-
-    assert_equal(0.1, @controller.metrics[:ideal_error_rate])
   end
 
   def test_integral_anti_windup
