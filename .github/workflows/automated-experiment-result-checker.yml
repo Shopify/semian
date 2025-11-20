@@ -30,14 +30,14 @@ jobs:
 
           # TODO: Include lower bound windup experiment once we have a way to make it run in a reasonable time.
           # Find all PNGs and CSV files, excluding those with "windup" in their filename
-          mapfile -t all_pngs < <(find experiments/results/main_graphs experiments/results/throughput_graphs experiments/results/duration_graphs -type f -name '*.png' ! -name '*windup*.png' | sort)
+          mapfile -t all_pngs < <(find experiments/results/main_graphs -type f -name '*.png' ! -name '*windup*.png' | sort)
           mapfile -t all_csvs < <(find experiments/results/csv -type f -name '*.csv' ! -name '*windup*.csv' 2>/dev/null | sort)
 
           # Combine all result files
           all_files=("${all_pngs[@]}" "${all_csvs[@]}")
 
           # Find all changed PNGs and CSVs in the latest commit
-          mapfile -t changed_files < <(git diff --name-only --diff-filter=AM HEAD~1..HEAD | grep -E '^experiments/results/(main_graphs|throughput_graphs|duration_graphs)/.*\.png$|^experiments/results/csv/.*\.csv$' | grep -v windup | sort)
+          mapfile -t changed_files < <(git diff --name-only --diff-filter=AM HEAD~1..HEAD | grep -E '^experiments/results/main_graphs/.*\.png$|^experiments/results/csv/.*\.csv$' | grep -v windup | sort)
 
           # Report any files that are not updated in the latest commit
           declare -a not_updated=()
