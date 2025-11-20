@@ -7,8 +7,7 @@ class TestForecastSuccessCriteria < Minitest::Test
   DELTA_TOLERANCE = 0.003
 
   def setup
-    @smoother = Semian::SimpleExponentialSmoother.new
-    @observations_per_minute = @smoother.observations_per_minute
+    @observations_per_minute = Semian::SimpleExponentialSmoother::DEFAULT_OBSERVATIONS_PER_MINUTE
   end
 
   private
