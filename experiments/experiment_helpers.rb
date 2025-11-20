@@ -45,12 +45,8 @@ module Semian
         @is_adaptive = semian_config[:adaptive_circuit_breaker] == true
         @graph_filename = graph_filename || "#{resource_name}.png"
         @main_results_path = File.join(File.dirname(__FILE__), "results/main_graphs")
-        @duration_results_path = File.join(File.dirname(__FILE__), "results/duration_graphs")
-        @throughput_results_path = File.join(File.dirname(__FILE__), "results/throughput_graphs")
         @csv_results_path = File.join(File.dirname(__FILE__), "results/csv")
         FileUtils.mkdir_p(@main_results_path) unless File.directory?(@main_results_path)
-        FileUtils.mkdir_p(@duration_results_path) unless File.directory?(@duration_results_path)
-        FileUtils.mkdir_p(@throughput_results_path) unless File.directory?(@throughput_results_path)
         FileUtils.mkdir_p(@csv_results_path) unless File.directory?(@csv_results_path)
         @num_threads = num_threads
         @requests_per_second = requests_per_second
@@ -571,20 +567,10 @@ module Semian
           bucket_end = bucket_start + bucket_size
           bucket_data = @outcomes.select { |time, _| time >= bucket_start && time < bucket_end }
 
-          bucket_samples = []
-          @thread_timings.each_value do |thread_data|
-            bucket_samples.concat(thread_data[:samples].select { |s| s[:timestamp] >= bucket_start && s[:timestamp] < bucket_end })
-          end
-
-          sum_request_duration = bucket_samples.sum { |s| s[:duration] }
-          throughput = bucket_samples.size
-
           bucketed_data << {
             success: bucket_data.values.sum { |d| d[:success] },
             circuit_open: bucket_data.values.sum { |d| d[:circuit_open] },
             error: bucket_data.values.sum { |d| d[:error] },
-            sum_request_duration: sum_request_duration,
-            throughput: throughput,
           }
         end
 
@@ -619,38 +605,6 @@ module Semian
         main_graph_path = File.join(@main_results_path, @graph_filename)
         graph.write(main_graph_path)
         puts "Graph saved to #{main_graph_path}"
-
-        # Generate duration graph
-        duration_graph = Gruff::Line.new(1400)
-        duration_graph.title = "#{@graph_title} - Total Request Duration"
-        duration_graph.x_axis_label = "Time (#{bucket_size}-second intervals)"
-        duration_graph.y_axis_label = "Total Request Duration (seconds)"
-        duration_graph.hide_dots = false
-        duration_graph.line_width = 3
-        duration_graph.labels = labels
-
-        duration_graph.data("Total Request Duration", bucketed_data.map { |d| d[:sum_request_duration] })
-
-        duration_filename = @graph_filename.sub(%r{([^/]+)$}, 'duration-\1')
-        duration_graph_path = File.join(@duration_results_path, duration_filename)
-        duration_graph.write(duration_graph_path)
-        puts "Duration graph saved to #{duration_graph_path}"
-
-        # Generate throughput graph
-        throughput_graph = Gruff::Line.new(1400)
-        throughput_graph.title = "#{@graph_title} - Total Request Throughput"
-        throughput_graph.x_axis_label = "Time (#{bucket_size}-second intervals)"
-        throughput_graph.y_axis_label = "Total Request Throughput"
-        throughput_graph.hide_dots = false
-        throughput_graph.line_width = 3
-        throughput_graph.labels = labels
-
-        throughput_graph.data("Total Request Throughput", bucketed_data.map { |d| d[:throughput] })
-
-        throughput_filename = @graph_filename.sub(%r{([^/]+)$}, 'throughput-\1')
-        throughput_graph_path = File.join(@throughput_results_path, throughput_filename)
-        throughput_graph.write(throughput_graph_path)
-        puts "Throughput graph saved to #{throughput_graph_path}"
       end
 
       def add_state_transition_markers(graph, bucketed_data, bucket_size, num_buckets)
