@@ -1,22 +1,22 @@
 GIT
   remote: https://github.com/rails/rails.git
-  revision: 7af1254170c852e92b293ed8ecc4e2fcb3c27a1e
+  revision: 8aebd0b50738ed8709ae80ef5aa839824a8f2b13
   branch: main
   specs:
-    activemodel (8.1.0.beta1)
-      activesupport (= 8.1.0.beta1)
-    activerecord (8.1.0.beta1)
-      activemodel (= 8.1.0.beta1)
-      activesupport (= 8.1.0.beta1)
+    activemodel (8.2.0.alpha)
+      activesupport (= 8.2.0.alpha)
+    activerecord (8.2.0.alpha)
+      activemodel (= 8.2.0.alpha)
+      activesupport (= 8.2.0.alpha)
       timeout (>= 0.4.0)
-    activesupport (8.1.0.beta1)
+    activesupport (8.2.0.alpha)
       base64
-      benchmark (>= 0.3)
       bigdecimal
       concurrent-ruby (~> 1.0, >= 1.3.1)
       connection_pool (>= 2.2.5)
       drb
       i18n (>= 1.6, < 2)
+      json
       logger (>= 1.4.2)
       minitest (>= 5.1)
       securerandom (>= 0.3)
@@ -34,7 +34,6 @@ GEM
   specs:
     ast (2.4.3)
     base64 (0.3.0)
-    benchmark (0.4.1)
     benchmark-ips (2.14.0)
     benchmark-memory (0.2.0)
       memory_profiler (~> 1)
@@ -160,7 +159,7 @@ GEM
     ruby2_keywords (0.0.5)
     securerandom (0.4.1)
     stringio (3.1.7)
-    timeout (0.4.3)
+    timeout (0.4.4)
     toxiproxy (2.0.2)
     trilogy (2.9.0)
     tzinfo (2.0.6)
@@ -168,7 +167,7 @@ GEM
     unicode-display_width (3.2.0)
       unicode-emoji (~> 4.1)
     unicode-emoji (4.1.0)
-    uri (1.0.3)
+    uri (1.1.1)
     webrick (1.9.1)
 
 PLATFORMS
