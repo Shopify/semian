@@ -2,41 +2,31 @@
 
 require "test_helper"
 require "semian/activerecord_trilogy_adapter"
+require "semian/activerecord_trilogy_adapter"
+require "adapters/activerecord_adapter_shared_tests"
 
 module ActiveRecord
   module ConnectionAdapters
     class ActiveRecordTrilogyAdapterTest < Minitest::Test
       include BackgroundHelper
-
-      ERROR_TIMEOUT = 5
-      ERROR_THRESHOLD = 1
-      SEMIAN_OPTIONS = {
-        name: "testing",
-        tickets: 1,
-        timeout: 0,
-        error_threshold: ERROR_THRESHOLD,
-        success_threshold: 2,
-        error_timeout: ERROR_TIMEOUT,
-      }.freeze
+      include ActiveRecordAdapterSharedTests
 
       def setup
         super
-        @proxy = Toxiproxy[:semian_test_mysql]
-        Semian.destroy(:mysql_testing)
-
         @configuration = {
           adapter: "trilogy",
           username: "root",
           password: "root",
           ssl: true,
           ssl_mode: 3,
-          host: SemianConfig["toxiproxy_upstream_host"],
-          port: SemianConfig["mysql_toxiproxy_port"],
+          host: toxyproxy_host,
+          port: toxyproxy_port,
           read_timeout: 2,
           write_timeout: 2,
           semian: SEMIAN_OPTIONS,
         }
-        @adapter = trilogy_adapter
+        @adapter = new_adapter
+        Semian.destroy(:mysql_testing)
       end
 
       def teardown
@@ -44,83 +34,26 @@ module ActiveRecord
         @adapter.disconnect!
       end
 
-      def test_semian_identifier
-        assert_equal(:mysql_testing, @adapter.semian_identifier)
-
-        adapter = trilogy_adapter(host: "127.0.0.1", semian: { name: nil })
-
-        assert_equal(:"mysql_127.0.0.1:13306", adapter.semian_identifier)
-
-        adapter = trilogy_adapter(host: "shopify.com", port: 42, semian: { name: nil })
-
-        assert_equal(:"mysql_shopify.com:42", adapter.semian_identifier)
-      end
-
-      def test_semian_can_be_disabled
-        resource = trilogy_adapter(
-          host: SemianConfig["toxiproxy_upstream_host"],
-          port: SemianConfig["mysql_toxiproxy_port"],
-          semian: false,
-        ).semian_resource
-
-        assert_instance_of(Semian::UnprotectedResource, resource)
-      end
-
-      def test_adapter_does_not_modify_config
-        assert(@configuration.key?(:semian))
-        TrilogyAdapter.new(@configuration)
-
-        assert(@configuration.key?(:semian))
-      end
-
-      def test_unconfigured
-        adapter = trilogy_adapter(
-          host: SemianConfig["toxiproxy_upstream_host"],
-          port: SemianConfig["mysql_toxiproxy_port"],
-        )
-
-        assert_equal(2, adapter.execute("SELECT 1 + 1;").to_a.flatten.first)
-      end
-
-      def test_connection_errors_open_the_circuit
-        @proxy.downstream(:latency, latency: 2200).apply do
-          ERROR_THRESHOLD.times do
-            assert_raises(ActiveRecord::ConnectionNotEstablished) do
-              @adapter.execute("SELECT 1;")
-            end
-          end
-
-          assert_raises(TrilogyAdapter::CircuitOpenError) do
-            @adapter.execute("SELECT 1;")
-          end
+      def test_with_resource_timeout
+        assert_equal(2.0, @adapter.raw_connection.read_timeout)
+        @adapter.with_resource_timeout(0.5) do
+          assert_equal(0.5, @adapter.raw_connection.read_timeout)
         end
-      end
-
-      def test_query_errors_do_not_open_the_circuit
-        ERROR_THRESHOLD.times do
-          assert_raises(ActiveRecord::StatementInvalid) do
-            @adapter.execute("ERROR!")
-          end
-        end
-        err = assert_raises(ActiveRecord::StatementInvalid) do
-          @adapter.execute("ERROR!")
-        end
-
-        refute_kind_of(TrilogyAdapter::CircuitOpenError, err)
+        assert_equal(2.0, @adapter.raw_connection.read_timeout)
       end
 
       def test_read_timeout_error_opens_the_circuit
         ERROR_THRESHOLD.times do
           assert_raises(ActiveRecord::StatementInvalid) do
-            @adapter.execute("SELECT sleep(5)")
+            @adapter.execute(sleep_query(5))
           end
         end
 
-        assert_raises(TrilogyAdapter::CircuitOpenError) do
-          @adapter.execute("SELECT sleep(5)")
+        assert_raises(adapter_class::CircuitOpenError) do
+          @adapter.execute(sleep_query(5))
         end
 
-        # After TrilogyAdapter::CircuitOpenError check regular queries are working fine.
+        # After adapter_class::CircuitOpenError check regular queries are working fine.
         result = time_travel(ERROR_TIMEOUT + 1) do
           @adapter.execute("SELECT 1 + 1;")
         end
@@ -128,237 +61,8 @@ module ActiveRecord
         assert_equal(2, result.first[0])
       end
 
-      def test_connect_instrumentation
-        notified = false
-        subscriber = Semian.subscribe do |event, resource, scope, adapter|
-          next unless event == :success
-
-          notified = true
-
-          assert_equal(Semian[:mysql_testing], resource)
-          assert_equal(:connection, scope)
-          assert_equal(:trilogy_adapter, adapter)
-        end
-
-        # We can't use the public #connect! API here because we'll call
-        # active?, which will scope the event to :ping.
-        @adapter.send(:connect)
-
-        assert(notified, "No notifications have been emitted")
-      ensure
-        Semian.unsubscribe(subscriber)
-      end
-
-      def test_query_instrumentation
-        @adapter.connect!
-
-        notified = false
-        subscriber = Semian.subscribe do |event, resource, scope, adapter|
-          notified = true
-
-          assert_equal(:success, event)
-          assert_equal(Semian[:mysql_testing], resource)
-          assert_equal(:query, scope)
-          assert_equal(:trilogy_adapter, adapter)
-        end
-
-        @adapter.execute("SELECT 1;")
-
-        assert(notified, "No notifications has been emitted")
-      ensure
-        Semian.unsubscribe(subscriber)
-      end
-
-      def test_active_instrumentation
-        @adapter.connect!
-
-        notified = false
-        subscriber = Semian.subscribe do |event, resource, scope, adapter|
-          notified = true
-
-          assert_equal(:success, event)
-          assert_equal(Semian[:mysql_testing], resource)
-          assert_equal(:ping, scope)
-          assert_equal(:trilogy_adapter, adapter)
-        end
-
-        @adapter.active?
-
-        assert(notified, "No notifications has been emitted")
-      ensure
-        Semian.unsubscribe(subscriber)
-      end
-
-      def test_network_errors_are_tagged_with_the_resource_identifier
-        @proxy.down do
-          error = assert_raises(ActiveRecord::ConnectionNotEstablished) do
-            @adapter.execute("SELECT 1 + 1;")
-          end
-
-          assert_equal(@adapter.semian_identifier, error.semian_identifier)
-        end
-      end
-
-      def test_connection_failed_errors_are_tagged_with_the_resource_identifier
-        @adapter.send(:raw_connection).close
-
-        error = assert_raises(ActiveRecord::ConnectionFailed) do
-          @adapter.execute("SELECT 1 + 1;")
-        end
-
-        assert_equal(@adapter.semian_identifier, error.semian_identifier)
-      end
-
-      def test_other_mysql_errors_are_not_tagged_with_the_resource_identifier
-        error = assert_raises(ActiveRecord::StatementInvalid) do
-          @adapter.execute("SYNTAX ERROR!")
-        end
-
-        assert_nil(error.semian_identifier)
-      end
-
-      def test_resource_acquisition_for_connect
-        @adapter.connect!
-
-        Semian[:mysql_testing].acquire do
-          error = assert_raises(TrilogyAdapter::ResourceBusyError) do
-            trilogy_adapter.send(:connect) # Avoid going through connect!, which will call #active?
-          end
-
-          assert_equal(:mysql_testing, error.semian_identifier)
-        end
-      end
-
-      def test_resource_acquisition_for_query
-        @adapter.connect!
-
-        Semian[:mysql_testing].acquire do
-          assert_raises(TrilogyAdapter::ResourceBusyError) do
-            @adapter.execute("SELECT 1;")
-          end
-        end
-      end
-
-      def test_resource_timeout_on_connect
-        @proxy.downstream(:latency, latency: 500).apply do
-          background do
-            assert_raises(TrilogyAdapter::CircuitOpenError) { @adapter.connect! }
-          end
-
-          assert_raises(TrilogyAdapter::ResourceBusyError) do
-            trilogy_adapter.send(:connect) # Avoid going through connect!, which will call #active?
-          end
-        end
-      end
-
-      def test_circuit_breaker_on_connect
-        @proxy.downstream(:latency, latency: 500).apply do
-          background do
-            assert_raises(TrilogyAdapter::CircuitOpenError) { @adapter.connect! }
-          end
-
-          ERROR_THRESHOLD.times do
-            assert_raises(TrilogyAdapter::ResourceBusyError) do
-              trilogy_adapter.send(:connect) # Avoid going through connect!, which will call #active?
-            end
-          end
-        end
-
-        yield_to_background
-
-        time_travel(ERROR_TIMEOUT + 1) do
-          trilogy_adapter.connect!
-        end
-      end
-
-      def test_resource_timeout_on_query
-        adapter2 = trilogy_adapter
-
-        @proxy.downstream(:latency, latency: 500).apply do
-          background { adapter2.execute("SELECT 1 + 1;") }
-
-          assert_raises(TrilogyAdapter::ResourceBusyError) do
-            @adapter.query("SELECT 1 + 1;")
-          end
-        end
-      end
-
-      def test_circuit_breaker_on_query
-        @proxy.downstream(:latency, latency: 2200).apply do
-          background { trilogy_adapter.execute("SELECT 1 + 1;") }
-
-          ERROR_THRESHOLD.times do
-            assert_raises(TrilogyAdapter::ResourceBusyError) do
-              @adapter.query("SELECT 1 + 1;")
-            end
-          end
-        end
-
-        yield_to_background
-
-        assert_raises(TrilogyAdapter::CircuitOpenError) do
-          @adapter.execute("SELECT 1 + 1;")
-        end
-
-        time_travel(ERROR_TIMEOUT + 1) do
-          assert_equal(2, @adapter.execute("SELECT 1 + 1;").to_a.flatten.first)
-        end
-      end
-
-      def test_semian_allows_rollback
-        @adapter.execute("START TRANSACTION;")
-
-        Semian[:mysql_testing].acquire do
-          @adapter.execute("ROLLBACK")
-        end
-      end
-
-      def test_semian_allows_rollback_with_marginalia
-        @adapter.execute("START TRANSACTION;")
-
-        Semian[:mysql_testing].acquire do
-          @adapter.execute("/*foo:bar*/ ROLLBACK")
-        end
-      end
-
-      def test_semian_allows_commit
-        @adapter.execute("START TRANSACTION;")
-
-        Semian[:mysql_testing].acquire do
-          @adapter.execute("COMMIT")
-        end
-      end
-
-      def test_query_allowlisted_returns_false_for_binary_sql
-        binary_query = File.read(File.expand_path("../../fixtures/binary.sql", __FILE__))
-
-        refute(Semian::ActiveRecordTrilogyAdapter.query_allowlisted?(binary_query))
-      end
-
-      def test_semian_allows_release_savepoint
-        @adapter.execute("START TRANSACTION;")
-        @adapter.execute("SAVEPOINT active_record_2;")
-
-        Semian[:mysql_testing].acquire do
-          @adapter.execute("RELEASE SAVEPOINT active_record_2")
-        end
-
-        @adapter.execute("ROLLBACK;")
-      end
-
-      def test_semian_allows_rollback_to_savepoint
-        @adapter.execute("START TRANSACTION;")
-        @adapter.execute("SAVEPOINT active_record_1;")
-
-        Semian[:mysql_testing].acquire do
-          @adapter.execute("ROLLBACK TO SAVEPOINT active_record_1")
-        end
-
-        @adapter.execute("ROLLBACK")
-      end
-
       def test_changes_timeout_when_half_open_and_configured
-        adapter = trilogy_adapter(semian: SEMIAN_OPTIONS.merge(half_open_resource_timeout: 1))
+        adapter = new_adapter(semian: SEMIAN_OPTIONS.merge(half_open_resource_timeout: 1))
 
         @proxy.downstream(:latency, latency: 3000).apply do
           ERROR_THRESHOLD.times do
@@ -368,7 +72,7 @@ module ActiveRecord
           end
         end
 
-        assert_raises(TrilogyAdapter::CircuitOpenError) do
+        assert_raises(adapter_class::CircuitOpenError) do
           adapter.execute("SELECT 1 + 1;")
         end
 
@@ -397,41 +101,38 @@ module ActiveRecord
         assert_equal(2, raw_connection.write_timeout)
       end
 
-      def test_trilogy_default_read_timeout
-        client = ::Trilogy.new(@configuration.slice(:username, :password, :ssl, :ssl_mode, :host, :port))
-
-        assert_equal(0, client.read_timeout)
-      end
-
-      def test_circuit_open_errors_do_not_trigger_the_circuit_breaker
-        @proxy.down do
-          ERROR_THRESHOLD.times do
-            assert_raises(ActiveRecord::ConnectionNotEstablished) do
-              @adapter.execute("SELECT 1;")
-            end
-          end
-
-          assert_raises(TrilogyAdapter::CircuitOpenError) do
-            @adapter.execute("SELECT 1;")
-          end
-          error = Semian[:mysql_testing].circuit_breaker.last_error
-
-          assert_instance_of(ActiveRecord::ConnectionNotEstablished, error)
-        end
-      end
-
-      def test_with_resource_timeout
-        assert_equal(2.0, @adapter.raw_connection.read_timeout)
-        @adapter.with_resource_timeout(0.5) do
-          assert_equal(0.5, @adapter.raw_connection.read_timeout)
-        end
-        assert_equal(2.0, @adapter.raw_connection.read_timeout)
-      end
-
       private
 
-      def trilogy_adapter(**config_overrides)
-        TrilogyAdapter.new(@configuration.merge(config_overrides))
+      def sleep_query(seconds)
+        "SELECT sleep(#{seconds})"
+      end
+
+      def adapter_class
+        TrilogyAdapter
+      end
+
+      def adapter_name
+        :trilogy_adapter
+      end
+
+      def adapter_default_port
+        3306
+      end
+
+      def adapter_identifier_prefix
+        :mysql
+      end
+
+      def adapter_resource
+        Semian[:mysql_testing]
+      end
+
+      def toxyproxy_port
+        SemianConfig["mysql_toxiproxy_port"]
+      end
+
+      def toxyproxy_resource
+        Toxiproxy[:semian_test_mysql]
       end
     end
   end
