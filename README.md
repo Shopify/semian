@@ -577,7 +577,7 @@ For more information about configuring these parameters, please read
 
 #### Adaptive Circuit Breaker (Experimental)
 
-Semian also includes an experimental adaptive circuit breaker that uses a [PID controller](https://en.wikipedia.org/wiki/Proportional%E2%80%93integral%E2%80%93derivative_controller)
+Semian also includes an experimental adaptive circuit breaker that uses a simple process controller
 to dynamically adjust the rejection rate based on real-time error rates. Unlike the
 traditional circuit breaker with fixed thresholds, the adaptive circuit breaker continuously
 monitors error rates and adjusts its behavior accordingly.
@@ -586,7 +586,7 @@ monitors error rates and adjusts its behavior accordingly.
 
 The adaptive circuit breaker uses the error function:
 ```
-P = (error_rate - ideal_error_rate) - rejection_rate
+P = (error_rate - ideal_error_rate) - 1/defensiveness rejection_rate
 ```
 
 This formula ensures that:
@@ -610,7 +610,7 @@ Semian.register(
 ```
 
 The adaptive circuit breaker uses carefully tuned internal parameters based on extensive testing:
-- PID controller gains optimized for stability and responsiveness
+- Process Controller gains optimized for stability and responsiveness
 - 10-second window for rate calculations
 - 1-hour history for ideal error rate calculation (p90)
 - 1-second interval for background health checks

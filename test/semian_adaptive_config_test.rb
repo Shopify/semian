@@ -97,7 +97,7 @@ class TestSemianAdaptiveConfig < Minitest::Test
       bulkhead: false,
     )
 
-    controller = resource.circuit_breaker.pid_controller
+    controller = resource.circuit_breaker.process_controller
     metrics = controller.metrics
 
     # Check that defaults were applied

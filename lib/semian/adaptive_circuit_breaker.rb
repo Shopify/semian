@@ -1,34 +1,31 @@
 # frozen_string_literal: true
 
-require_relative "pid_controller"
+require_relative "process_controller"
 require_relative "circuit_breaker_behaviour"
 
 module Semian
-  # Adaptive Circuit Breaker that uses PID controller for dynamic rejection
+  # Adaptive Circuit Breaker that uses Process controller for dynamic rejection
   class AdaptiveCircuitBreaker
     include CircuitBreakerBehaviour
 
-    attr_reader :pid_controller, :update_thread
+    attr_reader :process_controller, :update_thread
 
-    def initialize(name:, kp:, ki:, kd:, window_size:, sliding_interval:, initial_history_duration:, initial_error_rate:, implementation:)
+    def initialize(name:, defensiveness:, window_size:, sliding_interval:, initial_error_rate:, implementation:)
       initialize_behaviour(name: name)
 
       @window_size = window_size
       @sliding_interval = sliding_interval
       @stopped = false
 
-      @pid_controller = implementation::PIDController.new(
-        kp: kp,
-        ki: ki,
-        kd: kd,
+      @process_controller = implementation::ProcessController.new(
         window_size: window_size,
         sliding_interval: sliding_interval,
+        defensiveness: defensiveness,
         implementation: implementation,
-        initial_history_duration: initial_history_duration,
         initial_error_rate: initial_error_rate,
       )
 
-      start_pid_controller_update_thread
+      start_process_controller_update_thread
     end
 
     def acquire(resource = nil, &block)
@@ -49,7 +46,7 @@ module Semian
 
     def reset
       @last_error = nil
-      @pid_controller.reset
+      @process_controller.reset
     end
 
     def stop
@@ -60,19 +57,19 @@ module Semian
 
     def destroy
       stop
-      @pid_controller.reset
+      @process_controller.reset
     end
 
     def metrics
-      @pid_controller.metrics
+      @process_controller.metrics
     end
 
     def open?
-      @pid_controller.rejection_rate == 1
+      @process_controller.rejection_rate == 1
     end
 
     def closed?
-      @pid_controller.rejection_rate == 0
+      @process_controller.rejection_rate == 0
     end
 
     # half open is not a real concept for an adaptive circuit breaker. But we need to implement it for compatibility with ProtectedResource.
@@ -83,19 +80,19 @@ module Semian
 
     def mark_failed(error)
       @last_error = error
-      @pid_controller.record_request(:error)
+      @process_controller.record_request(:error)
     end
 
     def mark_success
-      @pid_controller.record_request(:success)
+      @process_controller.record_request(:success)
     end
 
     def mark_rejected
-      @pid_controller.record_request(:rejected)
+      @process_controller.record_request(:rejected)
     end
 
     def request_allowed?
-      !@pid_controller.should_reject?
+      !@process_controller.should_reject?
     end
 
     def in_use?
@@ -104,24 +101,24 @@ module Semian
 
     private
 
-    def start_pid_controller_update_thread
+    def start_process_controller_update_thread
       @update_thread = Thread.new do
         loop do
           break if @stopped
 
           wait_for_window
 
-          old_rejection_rate = @pid_controller.rejection_rate
-          pre_update_metrics = @pid_controller.metrics
+          old_rejection_rate = @process_controller.rejection_rate
+          pre_update_metrics = @process_controller.metrics
 
-          @pid_controller.update
-          new_rejection_rate = @pid_controller.rejection_rate
+          @process_controller.update
+          new_rejection_rate = @process_controller.rejection_rate
 
           check_and_notify_state_transition(old_rejection_rate, new_rejection_rate, pre_update_metrics)
           notify_metrics_update
         end
       rescue => e
-        Semian.logger&.warn("[#{@name}] PID controller update thread error: #{e.message}")
+        Semian.logger&.warn("[#{@name}] Process controller update thread error: #{e.message}")
       end
     end
 
@@ -154,14 +151,13 @@ module Semian
       str += " rejection_rate=#{(rejection_rate * 100).round(2)}%"
       str += " error_rate=#{(pre_update_metrics[:error_rate] * 100).round(2)}%"
       str += " ideal_error_rate=#{(pre_update_metrics[:ideal_error_rate] * 100).round(2)}%"
-      str += " integral=#{pre_update_metrics[:integral].round(4)}"
       str += " name=\"#{@name}\""
 
       Semian.logger.info(str)
     end
 
     def notify_metrics_update
-      metrics = @pid_controller.metrics
+      metrics = @process_controller.metrics
 
       Semian.notify(
         :adaptive_update,
@@ -172,9 +168,6 @@ module Semian
         error_rate: metrics[:error_rate],
         ideal_error_rate: metrics[:ideal_error_rate],
         p_value: metrics[:p_value],
-        integral: metrics[:integral],
-        derivative: metrics[:derivative],
-        previous_p_value: metrics[:previous_p_value],
       )
     end
   end

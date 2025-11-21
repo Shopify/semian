@@ -198,7 +198,7 @@ module Semian
   # +exceptions+: An array of exception classes that should be accounted as resource errors. Default [].
   # (circuit breaker)
   #
-  # +adaptive_circuit_breaker+: Enable adaptive circuit breaker using PID controller. Default false.
+  # +adaptive_circuit_breaker+: Enable adaptive circuit breaker using Process Controller. Default false.
   # When enabled, this replaces the traditional circuit breaker with an adaptive version
   # that dynamically adjusts rejection rates based on service health. (adaptive circuit breaker)
   #
@@ -316,14 +316,11 @@ module Semian
     # Fixed parameters based on design document recommendations
     AdaptiveCircuitBreaker.new(
       name: name,
-      kp: 0.75, # Standard proportional gain
-      ki: 0.01, # Moderate integral gain
-      kd: 0.5, # Small derivative gain (as per design doc)
       window_size: 10, # 10-second window for rate calculation and update interval
       sliding_interval: 1, # 1-second interval for background health checks
-      initial_history_duration: 900, # 15 minutes of initial history for p90 calculation
       initial_error_rate: options[:initial_error_rate] || 0.01, # 1% error rate for initial p90 calculation
       implementation: implementation(**options),
+      defensiveness: options[:defensiveness] || 5.0,
     )
   end
 

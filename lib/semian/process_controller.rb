@@ -5,31 +5,20 @@ require_relative "simple_exponential_smoother"
 
 module Semian
   module Simple
-    # PID Controller for adaptive circuit breaking
+    # Process Controller for adaptive circuit breaking
     # Based on the error function:
-    # P = (error_rate - ideal_error_rate) - rejection_rate
+    # P = (error_rate - ideal_error_rate) - (1/defensiveness) * rejection_rate
     # Note: P increases when error_rate increases
     #       P decreases when rejection_rate increases (providing feedback)
-    class PIDController
+    class ProcessController
       attr_reader :name, :rejection_rate
 
-      def initialize(kp:, ki:, kd:, window_size:, sliding_interval:, implementation:, initial_history_duration:,
+      def initialize(defensiveness:, window_size:, sliding_interval:, implementation:,
         initial_error_rate:,
         smoother_cap_value: SimpleExponentialSmoother::DEFAULT_CAP_VALUE)
-        # PID coefficients
-        @kp = kp  # Proportional gain
-        @ki = ki  # Integral gain
-        @kd = kd  # Derivative gain
-
-        # State variables
         @rejection_rate = 0.0
-        @integral = 0.0
-        @derivative = 0.0
-        @previous_p_value = 0.0
+        @defensiveness = defensiveness
 
-        # Store initialization parameters
-        @initial_history_duration = initial_history_duration
-        @initial_error_rate = initial_error_rate
         @window_size = window_size
         @sliding_interval = sliding_interval
 
@@ -44,10 +33,8 @@ module Semian
         @successes = implementation::SlidingWindow.new(max_size: 200 * window_size)
         @rejections = implementation::SlidingWindow.new(max_size: 200 * window_size)
 
-        # Last completed window metrics (used between updates)
-        @last_error_rate = 0.0
-
-        @last_p_value = 0.0
+        @error_rate = 0.0
+        @p_value = 0.0
       end
 
       def record_request(outcome)
@@ -62,38 +49,14 @@ module Semian
       end
 
       def update
-        # Store the last window's P value so that we can serve it up in the metrics snapshots
-        @previous_p_value = @last_p_value
+        @error_rate = calculate_error_rate
 
-        @last_error_rate = calculate_error_rate
+        store_error_rate(@error_rate)
 
-        store_error_rate(@last_error_rate)
-
-        dt = @sliding_interval
-
-        @last_p_value = calculate_p_value(@last_error_rate)
-
-        proportional = @kp * @last_p_value
-        @integral += @last_p_value * dt
-        integral = @ki * @integral
-        @derivative = @kd * (@last_p_value - @previous_p_value) / dt
-
-        # Calculate the control signal (change in rejection rate)
-        control_signal = proportional + integral + @derivative
+        @p_value = calculate_p_value
 
         # Calculate what the new rejection rate would be
-        new_rejection_rate = @rejection_rate + control_signal
-
-        # Update rejection rate (clamped between 0 and 1)
-        @rejection_rate = new_rejection_rate.clamp(0.0, 1.0)
-
-        # Anti-windup: back out the integral accumulation if output was saturated
-        if new_rejection_rate != @rejection_rate
-          # Output was clamped, reverse the integral accumulation
-          @integral -= @last_p_value * dt
-        end
-
-        @rejection_rate
+        @rejection_rate = (@rejection_rate + @p_value).clamp(0.0, 1.0)
       end
 
       # Should we reject this request based on current rejection rate?
@@ -104,14 +67,11 @@ module Semian
       # Reset the controller state
       def reset
         @rejection_rate = 0.0
-        @integral = 0.0
-        @previous_p_value = 0.0
-        @derivative = 0.0
-        @last_p_value = 0.0
+        @p_value = 0.0
         @errors.clear
         @successes.clear
         @rejections.clear
-        @last_error_rate = 0.0
+        @error_rate = 0.0
         @smoother.reset
       end
 
@@ -119,12 +79,9 @@ module Semian
       def metrics
         {
           rejection_rate: @rejection_rate,
-          error_rate: @last_error_rate,
+          error_rate: @error_rate,
           ideal_error_rate: calculate_ideal_error_rate,
-          p_value: @last_p_value,
-          previous_p_value: @previous_p_value,
-          integral: @integral,
-          derivative: @derivative,
+          p_value: @p_value,
           smoother_state: @smoother.state,
           current_window_requests: {
             success: @successes.size,
@@ -137,13 +94,13 @@ module Semian
       private
 
       # Calculate the current P value
-      def calculate_p_value(current_error_rate)
+      def calculate_p_value
         ideal_error_rate = calculate_ideal_error_rate
 
-        # P = (error_rate - ideal_error_rate) - rejection_rate
+        # P = (error_rate - ideal_error_rate) - (1/defensiveness) * rejection_rate
         # P increases when: error_rate > ideal
         # P decreases when: rejection_rate > 0 (feedback mechanism)
-        (current_error_rate - ideal_error_rate) - @rejection_rate
+        (@error_rate - ideal_error_rate) - (@rejection_rate / @defensiveness)
       end
 
       def calculate_error_rate
@@ -175,8 +132,8 @@ module Semian
   end
 
   module ThreadSafe
-    # Thread-safe version of PIDController
-    class PIDController < Simple::PIDController
+    # Thread-safe version of ProcessController
+    class ProcessController < Simple::ProcessController
       def initialize(**kwargs)
         super(**kwargs)
         @lock = Mutex.new

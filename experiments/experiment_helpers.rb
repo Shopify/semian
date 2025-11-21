@@ -59,9 +59,9 @@ module Semian
         @with_max_threads = with_max_threads
         base_filename = graph_filename ? graph_filename.sub(/\.png$/, "") : resource_name
         @time_analysis_csv_filename = "#{base_filename}_time_analysis.csv"
-        @pid_controller_csv_filename = "#{base_filename}_pid_controller.csv"
+        @process_controller_csv_filename = "#{base_filename}_process_controller.csv"
         @time_analysis_data = []
-        @pid_controller_data = []
+        @process_controller_data = []
       end
 
       def run
@@ -125,7 +125,7 @@ module Semian
         @outcomes = {}
         @done = false
         @outcomes_mutex = Mutex.new
-        @pid_mutex = Mutex.new
+        @adaptive_mutex = Mutex.new
         @thread_timings = {}
         @state_transitions = []
         @state_transitions_mutex = Mutex.new
@@ -226,7 +226,7 @@ module Semian
           # Only capture adaptive_update events for our target service thread resources
           next unless event == :adaptive_update && resource.name.to_s.start_with?(target_resource_prefix)
 
-          @pid_mutex.synchronize do
+          @adaptive_mutex.synchronize do
             timestamp = Time.now.to_i
 
             @raw_metrics << {
@@ -235,10 +235,7 @@ module Semian
               error_rate: payload[:error_rate],
               ideal_error_rate: payload[:ideal_error_rate],
               p_value: payload[:p_value],
-              previous_p_value: payload[:previous_p_value],
               rejection_rate: payload[:rejection_rate],
-              integral: payload[:integral],
-              derivative: payload[:derivative],
             }
           end
         end
@@ -328,7 +325,7 @@ module Semian
         display_summary_statistics
         display_time_based_analysis
         display_thread_timing_statistics
-        display_pid_controller_state
+        display_process_controller_state
 
         # Save CSV outputs
         save_csv_outputs
@@ -425,7 +422,7 @@ module Semian
         puts "  Average time per request: #{(avg_thread_time / avg_requests).round(4)}s" if avg_requests > 0
       end
 
-      def display_pid_controller_state
+      def display_process_controller_state
         return unless @is_adaptive
 
         if @raw_metrics.empty?
@@ -451,27 +448,21 @@ module Semian
             rejection_rate_avg: metrics.sum { |m| m[:rejection_rate] } / metrics.length.to_f,
             rejection_rate_min: metrics.map { |m| m[:rejection_rate] }.min,
             rejection_rate_max: metrics.map { |m| m[:rejection_rate] }.max,
-            integral_avg: metrics.sum { |m| m[:integral] } / metrics.length.to_f,
-            integral_min: metrics.map { |m| m[:integral] }.min,
-            integral_max: metrics.map { |m| m[:integral] }.max,
-            derivative_avg: metrics.sum { |m| m[:derivative] } / metrics.length.to_f,
-            derivative_min: metrics.map { |m| m[:derivative] }.min,
-            derivative_max: metrics.map { |m| m[:derivative] }.max,
             total_request_time: total_request_time,
             thread_count: metrics.length,
           }
         end
 
-        puts "\n=== PID Controller State Per Second (Aggregated across threads) ==="
+        puts "\n=== Process Controller State Per Second (Aggregated across threads) ==="
 
-        header = format("%-8s %-10s %-22s %-15s %-22s %-25s %-25s %-15s", "Window", "# Threads", "Err % (min-max)", "Ideal Err %", "Reject % (min-max)", "Integral (min-max)", "Derivative (min-max)", "Total Req Time")
+        header = format("%-8s %-10s %-22s %-15s %-22s %-15s", "Window", "# Threads", "Err % (min-max)", "Ideal Err %", "Reject % (min-max)", "Total Req Time")
         separator = "-" * 150
 
         puts header
         puts separator
 
         # Add CSV header
-        @pid_controller_data << [
+        @process_controller_data << [
           "Window",
           "Thread Count",
           "Error Rate Avg",
@@ -481,37 +472,27 @@ module Semian
           "Rejection Rate Avg",
           "Rejection Rate Min",
           "Rejection Rate Max",
-          "Integral Avg",
-          "Integral Min",
-          "Integral Max",
-          "Derivative Avg",
-          "Derivative Min",
-          "Derivative Max",
           "Total Request Time",
         ]
 
         aggregated_snapshots.each_with_index do |snapshot, idx|
           error_rate_str = format_metric_range(snapshot[:error_rate_avg], snapshot[:error_rate_min], snapshot[:error_rate_max], is_percent: true)
           reject_rate_str = format_metric_range(snapshot[:rejection_rate_avg], snapshot[:rejection_rate_min], snapshot[:rejection_rate_max], is_percent: true)
-          integral_str = format_metric_range(snapshot[:integral_avg], snapshot[:integral_min], snapshot[:integral_max])
-          derivative_str = format_metric_range(snapshot[:derivative_avg], snapshot[:derivative_min], snapshot[:derivative_max])
 
           # Console output
           row = format(
-            "%-8d %-10d %-22s %-15s %-22s %-25s %-25s %-15s",
+            "%-8d %-10d %-22s %-15s %-22s %-15s",
             idx + 1,
             snapshot[:thread_count],
             error_rate_str,
             "#{(snapshot[:ideal_error_rate] * 100).round(2)}%",
             reject_rate_str,
-            integral_str,
-            derivative_str,
             "#{(snapshot[:total_request_time] || 0).round(2)}s",
           )
           puts row
 
           # CSV data
-          @pid_controller_data << [
+          @process_controller_data << [
             idx + 1,
             snapshot[:thread_count],
             (snapshot[:error_rate_avg] * 100).round(2),
@@ -521,12 +502,6 @@ module Semian
             (snapshot[:rejection_rate_avg] * 100).round(2),
             (snapshot[:rejection_rate_min] * 100).round(2),
             (snapshot[:rejection_rate_max] * 100).round(2),
-            snapshot[:integral_avg].round(4),
-            snapshot[:integral_min].round(4),
-            snapshot[:integral_max].round(4),
-            snapshot[:derivative_avg].round(4),
-            snapshot[:derivative_min].round(4),
-            snapshot[:derivative_max].round(4),
             (snapshot[:total_request_time] || 0).round(2),
           ]
         end
@@ -534,7 +509,6 @@ module Semian
         puts "\n📊 Key Observations:"
         puts "  - Timestamps captured: #{aggregated_snapshots.length}"
         puts "  - Max avg rejection rate: #{(aggregated_snapshots.map { |s| s[:rejection_rate_avg] }.max * 100).round(2)}%"
-        puts "  - Avg integral range: #{aggregated_snapshots.map { |s| s[:integral_avg] }.min.round(4)} to #{aggregated_snapshots.map { |s| s[:integral_avg] }.max.round(4)}"
         puts "  - Thread counts per timestamp: min #{aggregated_snapshots.map { |s| s[:thread_count] }.min}, max #{aggregated_snapshots.map { |s| s[:thread_count] }.max}"
       end
 
@@ -644,13 +618,13 @@ module Semian
           puts "\nTime analysis CSV saved to #{csv_path}"
         end
 
-        # Save PID controller CSV (only for adaptive experiments)
-        if @is_adaptive && @pid_controller_data.any?
-          csv_path = File.join(@csv_results_path, @pid_controller_csv_filename)
+        # Save Process Controller CSV (only for adaptive experiments)
+        if @is_adaptive && @process_controller_data.any?
+          csv_path = File.join(@csv_results_path, @process_controller_csv_filename)
           CSV.open(csv_path, "w") do |csv|
-            @pid_controller_data.each { |row| csv << row }
+            @process_controller_data.each { |row| csv << row }
           end
-          puts "PID controller CSV saved to #{csv_path}"
+          puts "Process Controller CSV saved to #{csv_path}"
         end
       end
     end
