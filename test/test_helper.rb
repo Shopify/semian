@@ -37,6 +37,11 @@ Toxiproxy.populate([
     listen: "#{SemianConfig["toxiproxy_upstream_host"]}:#{SemianConfig["mysql_toxiproxy_port"]}",
   },
   {
+    name: "semian_test_postgres",
+    upstream: "#{SemianConfig["postgres_host"]}:#{SemianConfig["postgres_port"]}",
+    listen: "#{SemianConfig["toxiproxy_upstream_host"]}:#{SemianConfig["postgres_toxiproxy_port"]}",
+  },
+  {
     name: "semian_test_redis",
     upstream: "#{SemianConfig["redis_host"]}:#{SemianConfig["redis_port"]}",
     listen: "#{SemianConfig["toxiproxy_upstream_host"]}:#{SemianConfig["redis_toxiproxy_port"]}",

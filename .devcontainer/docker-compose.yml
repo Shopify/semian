@@ -22,6 +22,7 @@ services:
     depends_on:
       - redis
       - mysql
+      - postgres
       - toxiproxy
     command:
       - /bin/bash
@@ -60,8 +61,8 @@ services:
       - mysql
 
   redis:
-    image: redis:latest
     container_name: redis
+    image: redis:latest
     command: redis-server
 
   mysql:
@@ -70,3 +71,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_ROOT_HOST: "%"
+
+  postgres:
+    container_name: postgres
+    image: postgres:15
