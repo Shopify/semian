@@ -20,7 +20,7 @@ module Semian
     end
 
     def push(value)
-      resize_to(@max_size - 1) unless @max_size.nil? # make room
+      resize_to(@max_size - 1) # make room
       @window << value
       self
     end
@@ -43,7 +43,7 @@ module Semian
     class SlidingWindow # :nodoc:
       include SlidingWindowBehavior
 
-      def initialize(max_size: nil)
+      def initialize(max_size:)
         @max_size = max_size
         @window = []
       end
@@ -54,7 +54,7 @@ module Semian
     class SlidingWindow
       include SlidingWindowBehavior
 
-      def initialize(max_size: nil)
+      def initialize(max_size:)
         @max_size = max_size
         @window = Concurrent::Array.new
       end

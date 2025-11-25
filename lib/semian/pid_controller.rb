@@ -40,9 +40,9 @@ module Semian
           observations_per_minute: 60 / sliding_interval,
         )
 
-        @errors = implementation::SlidingWindow.new
-        @successes = implementation::SlidingWindow.new
-        @rejections = implementation::SlidingWindow.new
+        @errors = implementation::SlidingWindow.new(max_size: 200 * window_size)
+        @successes = implementation::SlidingWindow.new(max_size: 200 * window_size)
+        @rejections = implementation::SlidingWindow.new(max_size: 200 * window_size)
 
         # Last completed window metrics (used between updates)
         @last_error_rate = 0.0
