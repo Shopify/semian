@@ -29,7 +29,7 @@ module Semian
         semian_config:,
         graph_filename: nil,
         num_threads: 60,
-        requests_per_second: 3000,
+        requests_per_second: 1000,
         x_axis_label_interval: nil,
         service_count: 1,
         graph_bucket_size: nil,
@@ -54,7 +54,7 @@ module Semian
         @experiment_duration = degradation_phases.length * phase_duration
         @service_count = service_count
         @target_service = nil
-        @graph_bucket_size = graph_bucket_size || (@is_adaptive ? 10 : 1)
+        @graph_bucket_size = graph_bucket_size || 1
         @base_error_rate = if base_error_rate.nil?
           @is_adaptive ? 0.01 : 0.0
         else
@@ -145,7 +145,7 @@ module Semian
         @arrival_thread = Thread.new do
           until @done
             sleep(1.0 / @requests_per_second)
-            @request_queue << true
+            @request_queue << Time.now.to_i
           end
           # Push sentinel values to wake up all worker threads on shutdown
           @num_threads.times { @request_queue << :shutdown }
@@ -165,6 +165,8 @@ module Semian
               # Block waiting for a request token
               token = @request_queue.pop
               break if token == :shutdown || @done
+
+              next if token < Time.now.to_i - 1 # Ignore requests that are more than 1 second old
 
               service = @services.sample
               # technically, we are creating a new resource instance on every request.
@@ -585,12 +587,14 @@ module Semian
         # They're separate graphs because the difference in scale of the two values prevents the request duration signal from being clearly visible on the same graph.
 
         # Generate main graph (requests)
-        graph = Gruff::Line.new(1400)
+        graph = Gruff::Line.new
         graph.title = @graph_title
         graph.x_axis_label = "Time (#{bucket_size}-second intervals)"
         graph.y_axis_label = "Requests per Interval"
-        graph.hide_dots = false
-        graph.line_width = 3
+        graph.hide_dots = true
+        graph.line_width = 1
+        graph.y_axis_increment = 100
+        graph.marker_font_size = 12
         graph.labels = labels
 
         graph.data("Success", bucketed_data.map { |d| d[:success] })
