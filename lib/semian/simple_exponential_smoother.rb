@@ -8,20 +8,68 @@ module Semian
   #   smoothed = alpha * value + (1 - alpha) * previous_smoothed
   #
   # Key characteristics:
-  # - Adaptive alpha adjusts based on confidence period and convergence direction
-  # - Converges faster when error rate is decreasing (conservative)
-  # - Converges slower when error rate is increasing (cautious)
   # - Drops extreme values above cap to prevent outliers from distorting the forecast
+  # - Runs in two periods: low confidence (first 30 minutes) and high confidence (after 30 minutes)
+  # - During the low confidence period, we converge faster towards observed value than during the high confidence period
+  # - The choice of alphas follows the following criteria:
+  # - During low confidence:
+  #   - If we are observing 2x our current estimate, we need to converge towards it in 30 minutes
+  #   - If we are observing 0.5x our current estimate, we need to converge towards it in 5 minutes
+  # - During high confidence:
+  #   - If we are observing 2x our current estimate, we need to converge towards it in 1 hour
+  #   - If we are observing 0.5x our current estimate, we need to converge towards it in 10 minutes
+  # The following code snippet can be used to calculate the alphas:
+  # def find_alpha(name, start_point, multiplier, convergence_duration)
+  #   target = start_point * multiplier
+  #   desired_distance = 0.003
+  #   alpha_ceil = 0.5
+  #   alpha_floor = 0.0
+  #   alpha = 0.25
+  #   while true
+  #      smoothed_value = start_point
+  #      step_size = convergence_duration / 10
+  #      converged_too_fast = false
+  #      10.times do |step|
+  #          step_size.times do
+  #             smoothed_value = alpha * target + (1 - alpha) * smoothed_value
+  #          end
+  #          if step < 9 and (smoothed_value - target).abs < desired_distance
+  #             converged_too_fast = true
+  #          end
+  #      end
   #
+  #      if converged_too_fast
+  #         alpha_ceil = alpha
+  #         alpha = (alpha + alpha_floor) / 2
+  #         next
+  #      end
+  #
+  #      if (smoothed_value - target).abs > desired_distance
+  #         alpha_floor = alpha
+  #         alpha =  (alpha + alpha_ceil) / 2
+  #         next
+  #      end
+  #
+  #      break
+  #   end
+  #
+  #   print "#{name} is #{alpha}\n"
+  # end
+  #
+  # initial_error_rate = 0.05
+  #
+  # find_alpha("low confidence upward convergence alpha", initial_error_rate, 2, 1800)
+  # find_alpha("low confidence downward convergence alpha", initial_error_rate, 0.5, 300)
+  # find_alpha("high confidence upward convergence alpha", initial_error_rate, 2, 3600)
+  # find_alpha("high confidence downward convergence alpha", initial_error_rate, 0.5, 600)
   class SimpleExponentialSmoother
     DEFAULT_CAP_VALUE = 0.1
     DEFAULT_INITIAL_VALUE = 0.05
-    DEFAULT_OBSERVATIONS_PER_MINUTE = 6
 
-    LOW_CONFIDENCE_ALPHA_UP = 0.017
-    LOW_CONFIDENCE_ALPHA_DOWN = 0.095
-    HIGH_CONFIDENCE_ALPHA_UP = 0.0083
-    HIGH_CONFIDENCE_ALPHA_DOWN = 0.049
+    LOW_CONFIDENCE_ALPHA_UP = 0.0017
+    LOW_CONFIDENCE_ALPHA_DOWN = 0.078
+    HIGH_CONFIDENCE_ALPHA_UP = 0.0009
+    HIGH_CONFIDENCE_ALPHA_DOWN = 0.039
     LOW_CONFIDENCE_THRESHOLD_MINUTES = 30
 
     # Validate all alpha constants at class load time
@@ -39,7 +87,7 @@ module Semian
     attr_reader :alpha, :cap_value, :initial_value, :smoothed_value, :observations_per_minute
 
     def initialize(cap_value: DEFAULT_CAP_VALUE,
-      initial_value: DEFAULT_INITIAL_VALUE, observations_per_minute: DEFAULT_OBSERVATIONS_PER_MINUTE)
+      initial_value: DEFAULT_INITIAL_VALUE, observations_per_minute:)
       @alpha = LOW_CONFIDENCE_ALPHA_DOWN # Start with low confidence, converging down
       @cap_value = cap_value
       @initial_value = initial_value
