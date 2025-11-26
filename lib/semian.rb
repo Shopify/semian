@@ -198,7 +198,7 @@ module Semian
   # +exceptions+: An array of exception classes that should be accounted as resource errors. Default [].
   # (circuit breaker)
   #
-  # +adaptive_circuit_breaker+: Enable adaptive circuit breaker using Process Controller. Default false.
+  # +adaptive_circuit_breaker+: Enable adaptive circuit breaker using proportional controller. Default false.
   # When enabled, this replaces the traditional circuit breaker with an adaptive version
   # that dynamically adjusts rejection rates based on service health. (adaptive circuit breaker)
   #

@@ -20,9 +20,9 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
   end
 
   def test_acquire_with_success_returns_value_and_records_request
-    # Mock the Process Controller to allow the request
-    @breaker.process_controller.expects(:should_reject?).returns(false)
-    @breaker.process_controller.expects(:record_request).with(:success)
+    # Mock the proportional controller to allow the request
+    @breaker.proportional_controller.expects(:should_reject?).returns(false)
+    @breaker.proportional_controller.expects(:record_request).with(:success)
 
     # Execute the block and verify it returns the expected value
     result = @breaker.acquire { "successful_result" }
@@ -31,9 +31,9 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
   end
 
   def test_acquire_with_error_raises_and_records_request
-    # Mock the Process Controller to allow the request
-    @breaker.process_controller.expects(:should_reject?).returns(false)
-    @breaker.process_controller.expects(:record_request).with(:error)
+    # Mock the proportional controller to allow the request
+    @breaker.proportional_controller.expects(:should_reject?).returns(false)
+    @breaker.proportional_controller.expects(:record_request).with(:error)
 
     # Execute the block and verify it raises the error
     error = assert_raises(RuntimeError) do
@@ -45,9 +45,9 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
   end
 
   def test_acquire_with_rejection_raises_and_records_request
-    # Mock the Process Controller to reject the request
-    @breaker.process_controller.expects(:should_reject?).returns(true)
-    @breaker.process_controller.expects(:record_request).with(:rejected)
+    # Mock the proportional controller to reject the request
+    @breaker.proportional_controller.expects(:should_reject?).returns(true)
+    @breaker.proportional_controller.expects(:record_request).with(:rejected)
 
     # Verify that OpenCircuitError is raised and the block is never executed
     block_executed = false
@@ -63,7 +63,7 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
     assert_equal(false, block_executed)
   end
 
-  def test_update_thread_calls_process_controller_update_after_every_wait_interval
+  def test_update_thread_calls_proportional_controller_update_after_every_wait_interval
     # Verify that the update thread is created and alive
     assert_instance_of(Thread, @breaker.update_thread)
     assert(@breaker.update_thread.alive?)
@@ -81,7 +81,7 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
       @breaker.stop if wait_count >= 3
     }) do
       # We call update after sleeping. And since we exit on the third sleep, we only expect 2 updates.
-      @breaker.process_controller.expects(:update).times(2)
+      @breaker.proportional_controller.expects(:update).times(2)
 
       # Now allow the thread to start progressing
       ready_to_progress = true
@@ -115,9 +115,9 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
       @breaker.stop if wait_count >= 6
     }) do
       # Set up expectations before allowing the thread to progress
-      @breaker.process_controller.expects(:rejection_rate).returns(0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5, 0.0, 0.0, 0.0).times(10)
-      @breaker.process_controller.expects(:update).times(5)
-      @breaker.process_controller.expects(:metrics).returns({
+      @breaker.proportional_controller.expects(:rejection_rate).returns(0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5, 0.0, 0.0, 0.0).times(10)
+      @breaker.proportional_controller.expects(:update).times(5)
+      @breaker.proportional_controller.expects(:metrics).returns({
         rejection_rate: 0.5,
         error_rate: 0.35,
         ideal_error_rate: 0.10,
@@ -167,9 +167,9 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
       @breaker.stop if wait_count >= 3
     }) do
       # Set up expectations before allowing the thread to progress
-      @breaker.process_controller.expects(:update).times(2)
-      @breaker.process_controller.expects(:rejection_rate).returns(0.25).at_least_once
-      @breaker.process_controller.expects(:metrics).returns({
+      @breaker.proportional_controller.expects(:update).times(2)
+      @breaker.proportional_controller.expects(:rejection_rate).returns(0.25).at_least_once
+      @breaker.proportional_controller.expects(:metrics).returns({
         rejection_rate: 0.25,
         error_rate: 0.15,
         ideal_error_rate: 0.10,
@@ -214,9 +214,9 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
     }) do
       # Set up expectations before allowing the thread to progress
       # rejection_rate called twice: before update (0.0), after update (0.5)
-      @breaker.process_controller.expects(:rejection_rate).returns(0.0, 0.5).times(2)
-      @breaker.process_controller.expects(:update).once
-      @breaker.process_controller.expects(:metrics).returns({
+      @breaker.proportional_controller.expects(:rejection_rate).returns(0.0, 0.5).times(2)
+      @breaker.proportional_controller.expects(:update).once
+      @breaker.proportional_controller.expects(:metrics).returns({
         rejection_rate: 0.5,
         error_rate: 0.35,
         ideal_error_rate: 0.10,

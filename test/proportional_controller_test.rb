@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require "semian/process_controller"
+require "semian/proportional_controller"
 
-class TestProcessController < Minitest::Test
+class TestProportionalController < Minitest::Test
   include TimeHelper
 
   def setup
-    @controller = Semian::ThreadSafe::ProcessController.new(
+    @controller = Semian::ThreadSafe::ProportionalController.new(
       defensiveness: 5.0,
       window_size: 10,
       initial_error_rate: 0.01,
@@ -214,11 +214,11 @@ class TestProcessController < Minitest::Test
   end
 end
 
-class TestThreadSafeProcessController < Minitest::Test
+class TestThreadSafeProportionalController < Minitest::Test
   include TimeHelper
 
   def setup
-    @controller = Semian::ThreadSafe::ProcessController.new(
+    @controller = Semian::ThreadSafe::ProportionalController.new(
       defensiveness: 5.0,
       window_size: 10,
       initial_error_rate: 0.01,

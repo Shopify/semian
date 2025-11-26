@@ -1,14 +1,14 @@
 # frozen_string_literal: true
 
-require_relative "process_controller"
+require_relative "proportional_controller"
 require_relative "circuit_breaker_behaviour"
 
 module Semian
-  # Adaptive Circuit Breaker that uses Process controller for dynamic rejection
+  # Adaptive Circuit Breaker that uses proportional controller for dynamic rejection
   class AdaptiveCircuitBreaker
     include CircuitBreakerBehaviour
 
-    attr_reader :process_controller, :update_thread
+    attr_reader :proportional_controller, :update_thread
 
     def initialize(name:, defensiveness:, window_size:, sliding_interval:, initial_error_rate:, implementation:)
       initialize_behaviour(name: name)
@@ -17,7 +17,7 @@ module Semian
       @sliding_interval = sliding_interval
       @stopped = false
 
-      @process_controller = implementation::ProcessController.new(
+      @proportional_controller = implementation::ProportionalController.new(
         window_size: window_size,
         sliding_interval: sliding_interval,
         defensiveness: defensiveness,
@@ -25,7 +25,7 @@ module Semian
         initial_error_rate: initial_error_rate,
       )
 
-      start_process_controller_update_thread
+      start_proportional_controller_update_thread
     end
 
     def acquire(resource = nil, &block)
@@ -46,7 +46,7 @@ module Semian
 
     def reset
       @last_error = nil
-      @process_controller.reset
+      @proportional_controller.reset
     end
 
     def stop
@@ -57,19 +57,19 @@ module Semian
 
     def destroy
       stop
-      @process_controller.reset
+      @proportional_controller.reset
     end
 
     def metrics
-      @process_controller.metrics
+      @proportional_controller.metrics
     end
 
     def open?
-      @process_controller.rejection_rate == 1
+      @proportional_controller.rejection_rate == 1
     end
 
     def closed?
-      @process_controller.rejection_rate == 0
+      @proportional_controller.rejection_rate == 0
     end
 
     # half open is not a real concept for an adaptive circuit breaker. But we need to implement it for compatibility with ProtectedResource.
@@ -80,19 +80,19 @@ module Semian
 
     def mark_failed(error)
       @last_error = error
-      @process_controller.record_request(:error)
+      @proportional_controller.record_request(:error)
     end
 
     def mark_success
-      @process_controller.record_request(:success)
+      @proportional_controller.record_request(:success)
     end
 
     def mark_rejected
-      @process_controller.record_request(:rejected)
+      @proportional_controller.record_request(:rejected)
     end
 
     def request_allowed?
-      !@process_controller.should_reject?
+      !@proportional_controller.should_reject?
     end
 
     def in_use?
@@ -101,24 +101,24 @@ module Semian
 
     private
 
-    def start_process_controller_update_thread
+    def start_proportional_controller_update_thread
       @update_thread = Thread.new do
         loop do
           break if @stopped
 
           wait_for_window
 
-          old_rejection_rate = @process_controller.rejection_rate
-          pre_update_metrics = @process_controller.metrics
+          old_rejection_rate = @proportional_controller.rejection_rate
+          pre_update_metrics = @proportional_controller.metrics
 
-          @process_controller.update
-          new_rejection_rate = @process_controller.rejection_rate
+          @proportional_controller.update
+          new_rejection_rate = @proportional_controller.rejection_rate
 
           check_and_notify_state_transition(old_rejection_rate, new_rejection_rate, pre_update_metrics)
           notify_metrics_update
         end
       rescue => e
-        Semian.logger&.warn("[#{@name}] Process controller update thread error: #{e.message}")
+        Semian.logger&.warn("[#{@name}] proportional controller update thread error: #{e.message}")
       end
     end
 
@@ -157,7 +157,7 @@ module Semian
     end
 
     def notify_metrics_update
-      metrics = @process_controller.metrics
+      metrics = @proportional_controller.metrics
 
       Semian.notify(
         :adaptive_update,

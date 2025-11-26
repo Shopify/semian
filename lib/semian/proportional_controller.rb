@@ -5,12 +5,12 @@ require_relative "simple_exponential_smoother"
 
 module Semian
   module Simple
-    # Process Controller for adaptive circuit breaking
+    # proportional controller for adaptive circuit breaking
     # Based on the error function:
     # P = (error_rate - ideal_error_rate) - (1/defensiveness) * rejection_rate
     # Note: P increases when error_rate increases
     #       P decreases when rejection_rate increases (providing feedback)
-    class ProcessController
+    class ProportionalController
       attr_reader :name, :rejection_rate
 
       def initialize(defensiveness:, window_size:, sliding_interval:, implementation:,
@@ -132,8 +132,8 @@ module Semian
   end
 
   module ThreadSafe
-    # Thread-safe version of ProcessController
-    class ProcessController < Simple::ProcessController
+    # Thread-safe version of ProportionalController
+    class ProportionalController < Simple::ProportionalController
       def initialize(**kwargs)
         super(**kwargs)
         @lock = Mutex.new

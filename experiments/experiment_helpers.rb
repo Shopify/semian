@@ -59,9 +59,9 @@ module Semian
         @with_max_threads = with_max_threads
         base_filename = graph_filename ? graph_filename.sub(/\.png$/, "") : resource_name
         @time_analysis_csv_filename = "#{base_filename}_time_analysis.csv"
-        @process_controller_csv_filename = "#{base_filename}_process_controller.csv"
+        @proportional_controller_csv_filename = "#{base_filename}_proportional_controller.csv"
         @time_analysis_data = []
-        @process_controller_data = []
+        @proportional_controller_data = []
       end
 
       def run
@@ -325,7 +325,7 @@ module Semian
         display_summary_statistics
         display_time_based_analysis
         display_thread_timing_statistics
-        display_process_controller_state
+        display_proportional_controller_state
 
         # Save CSV outputs
         save_csv_outputs
@@ -422,7 +422,7 @@ module Semian
         puts "  Average time per request: #{(avg_thread_time / avg_requests).round(4)}s" if avg_requests > 0
       end
 
-      def display_process_controller_state
+      def display_proportional_controller_state
         return unless @is_adaptive
 
         if @raw_metrics.empty?
@@ -453,7 +453,7 @@ module Semian
           }
         end
 
-        puts "\n=== Process Controller State Per Second (Aggregated across threads) ==="
+        puts "\n=== proportional controller State Per Second (Aggregated across threads) ==="
 
         header = format("%-8s %-10s %-22s %-15s %-22s %-15s", "Window", "# Threads", "Err % (min-max)", "Ideal Err %", "Reject % (min-max)", "Total Req Time")
         separator = "-" * 150
@@ -462,7 +462,7 @@ module Semian
         puts separator
 
         # Add CSV header
-        @process_controller_data << [
+        @proportional_controller_data << [
           "Window",
           "Thread Count",
           "Error Rate Avg",
@@ -492,7 +492,7 @@ module Semian
           puts row
 
           # CSV data
-          @process_controller_data << [
+          @proportional_controller_data << [
             idx + 1,
             snapshot[:thread_count],
             (snapshot[:error_rate_avg] * 100).round(2),
@@ -618,13 +618,13 @@ module Semian
           puts "\nTime analysis CSV saved to #{csv_path}"
         end
 
-        # Save Process Controller CSV (only for adaptive experiments)
-        if @is_adaptive && @process_controller_data.any?
-          csv_path = File.join(@csv_results_path, @process_controller_csv_filename)
+        # Save proportional controller CSV (only for adaptive experiments)
+        if @is_adaptive && @proportional_controller_data.any?
+          csv_path = File.join(@csv_results_path, @proportional_controller_csv_filename)
           CSV.open(csv_path, "w") do |csv|
-            @process_controller_data.each { |row| csv << row }
+            @proportional_controller_data.each { |row| csv << row }
           end
-          puts "Process Controller CSV saved to #{csv_path}"
+          puts "proportional controller CSV saved to #{csv_path}"
         end
       end
     end
