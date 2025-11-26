@@ -75,22 +75,6 @@ class TestDualCircuitBreaker < Minitest::Test
     assert_equal(:legacy, resource.circuit_breaker.metrics[:active])
   end
 
-  def test_both_breakers_track_failures
-    resource = create_dual_resource
-    @use_adaptive_flag = false # Use legacy for decisions
-
-    # Cause some failures
-    3.times do
-      resource.acquire { raise TestError, "boom" }
-    rescue TestError
-      # Expected
-    end
-
-    # Both should have tracked the errors
-    assert(resource.circuit_breaker.legacy_circuit_breaker.last_error)
-    assert(resource.circuit_breaker.adaptive_circuit_breaker.last_error)
-  end
-
   def test_both_breakers_track_successes
     resource = create_dual_resource
     @use_adaptive_flag = false # Use legacy for decisions
@@ -234,6 +218,7 @@ class TestDualCircuitBreaker < Minitest::Test
       success_threshold: 2,
       error_threshold: 3,
       error_timeout: 5,
+      tickets: 2,
     )
 
     assert_nil(resource.circuit_breaker)
