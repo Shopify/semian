@@ -11,29 +11,21 @@ module Semian
     # Note: P increases when error_rate increases
     #       P decreases when rejection_rate increases (providing feedback)
     class PIDController
-      attr_reader :name, :rejection_rate
+      attr_reader :rejection_rate
 
-      def initialize(kp:, ki:, kd:, window_size:, sliding_interval:, implementation:, initial_history_duration:,
-        initial_error_rate:,
+      def initialize(kp:, ki:, kd:, window_size:, sliding_interval:, implementation:, initial_error_rate:,
         smoother_cap_value: SimpleExponentialSmoother::DEFAULT_CAP_VALUE)
-        # PID coefficients
-        @kp = kp  # Proportional gain
-        @ki = ki  # Integral gain
-        @kd = kd  # Derivative gain
+        @kp = kp
+        @ki = ki
+        @kd = kd
 
-        # State variables
         @rejection_rate = 0.0
         @integral = 0.0
         @derivative = 0.0
         @previous_p_value = 0.0
 
-        # Store initialization parameters
-        @initial_history_duration = initial_history_duration
-        @initial_error_rate = initial_error_rate
         @window_size = window_size
         @sliding_interval = sliding_interval
-
-        # Ideal error rate estimation using Simple Exponential Smoother
         @smoother = SimpleExponentialSmoother.new(
           cap_value: smoother_cap_value,
           initial_value: initial_error_rate,
@@ -44,9 +36,7 @@ module Semian
         @successes = implementation::SlidingWindow.new(max_size: 200 * window_size)
         @rejections = implementation::SlidingWindow.new(max_size: 200 * window_size)
 
-        # Last completed window metrics (used between updates)
         @last_error_rate = 0.0
-
         @last_p_value = 0.0
       end
 
