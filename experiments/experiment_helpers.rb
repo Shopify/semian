@@ -454,6 +454,9 @@ module Semian
             integral_avg: metrics.sum { |m| m[:integral] } / metrics.length.to_f,
             integral_min: metrics.map { |m| m[:integral] }.min,
             integral_max: metrics.map { |m| m[:integral] }.max,
+            p_value_avg: metrics.sum { |m| m[:p_value] } / metrics.length.to_f,
+            p_value_min: metrics.map { |m| m[:p_value] }.min,
+            p_value_max: metrics.map { |m| m[:p_value] }.max,
             derivative_avg: metrics.sum { |m| m[:derivative] } / metrics.length.to_f,
             derivative_min: metrics.map { |m| m[:derivative] }.min,
             derivative_max: metrics.map { |m| m[:derivative] }.max,
@@ -464,7 +467,7 @@ module Semian
 
         puts "\n=== PID Controller State Per Second (Aggregated across threads) ==="
 
-        header = format("%-8s %-10s %-22s %-15s %-22s %-25s %-25s %-15s", "Window", "# Threads", "Err % (min-max)", "Ideal Err %", "Reject % (min-max)", "Integral (min-max)", "Derivative (min-max)", "Total Req Time")
+        header = format("%-8s %-10s %-22s %-15s %-22s %-25s %-25s %-25s %-15s", "Window", "# Threads", "Err % (min-max)", "Ideal Err %", "Reject % (min-max)", "Integral (min-max)", "Derivative (min-max)", "P Value (min-max)", "Total Req Time")
         separator = "-" * 150
 
         puts header
@@ -487,6 +490,9 @@ module Semian
           "Derivative Avg",
           "Derivative Min",
           "Derivative Max",
+          "P Value Avg",
+          "P Value Min",
+          "P Value Max",
           "Total Request Time",
         ]
 
@@ -495,10 +501,11 @@ module Semian
           reject_rate_str = format_metric_range(snapshot[:rejection_rate_avg], snapshot[:rejection_rate_min], snapshot[:rejection_rate_max], is_percent: true)
           integral_str = format_metric_range(snapshot[:integral_avg], snapshot[:integral_min], snapshot[:integral_max])
           derivative_str = format_metric_range(snapshot[:derivative_avg], snapshot[:derivative_min], snapshot[:derivative_max])
+          p_value_str = format_metric_range(snapshot[:p_value_avg], snapshot[:p_value_min], snapshot[:p_value_max])
 
           # Console output
           row = format(
-            "%-8d %-10d %-22s %-15s %-22s %-25s %-25s %-15s",
+            "%-8d %-10d %-22s %-15s %-22s %-25s %-25s %-25s %-15s",
             idx + 1,
             snapshot[:thread_count],
             error_rate_str,
@@ -506,6 +513,7 @@ module Semian
             reject_rate_str,
             integral_str,
             derivative_str,
+            p_value_str,
             "#{(snapshot[:total_request_time] || 0).round(2)}s",
           )
           puts row
@@ -527,6 +535,9 @@ module Semian
             snapshot[:derivative_avg].round(4),
             snapshot[:derivative_min].round(4),
             snapshot[:derivative_max].round(4),
+            snapshot[:p_value_avg].round(4),
+            snapshot[:p_value_min].round(4),
+            snapshot[:p_value_max].round(4),
             (snapshot[:total_request_time] || 0).round(2),
           ]
         end

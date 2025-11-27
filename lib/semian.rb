@@ -315,9 +315,9 @@ module Semian
 
     AdaptiveCircuitBreaker.new(
       name: name,
-      kp: 0.75,
-      ki: 0.01,
-      kd: 0.5,
+      kp: 1.0,
+      ki: 0.2,
+      kd: 0.0,
       window_size: 10,
       sliding_interval: 1,
       initial_error_rate: options[:initial_error_rate] || 0.05,
