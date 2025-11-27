@@ -33,7 +33,7 @@ module Semian
         x_axis_label_interval: nil,
         service_count: 1,
         graph_bucket_size: nil,
-        base_error_rate: nil,
+        base_error_rate: 0.01,
         with_max_threads: false
       )
         @experiment_name = experiment_name
@@ -55,11 +55,7 @@ module Semian
         @service_count = service_count
         @target_service = nil
         @graph_bucket_size = graph_bucket_size || 1
-        @base_error_rate = if base_error_rate.nil?
-          @is_adaptive ? 0.01 : 0.0
-        else
-          base_error_rate
-        end
+        @base_error_rate = base_error_rate
         @with_max_threads = with_max_threads
         base_filename = graph_filename ? graph_filename.sub(/\.png$/, "") : resource_name
         @time_analysis_csv_filename = "#{base_filename}_time_analysis.csv"
@@ -85,7 +81,7 @@ module Semian
         @services = []
         mean_latency = 0.15
         # Provide barely enough threads for us to handle the expected load (using Little's law)
-        max_threads_per_service = ((@requests_per_second / @service_count) * (0.5 * mean_latency)).to_i
+        max_threads_per_service = ((@requests_per_second / @service_count) * mean_latency).to_i
         @service_count.times do
           @services << MockService.new(
             endpoints_count: 10,
@@ -99,7 +95,7 @@ module Semian
             error_rate: @base_error_rate,
             timeout: 10,
             max_threads: @with_max_threads ? max_threads_per_service : 0,
-            queue_timeout: 0.0,
+            queue_timeout: 1.0,
           )
         end
         # We always assume that you want to degrade one service, and we pick @services[0]
@@ -633,7 +629,7 @@ module Semian
           graph.reference_lines[:"transition_#{idx}"] = {
             index: bucket_idx,
             color: color,
-            width: 2,
+            width: 1,
           }
         end
       end
