@@ -28,7 +28,7 @@ class TestForecastSuccessCriteria < Minitest::Test
   public
 
   def test_low_confidence_during_incident_above_cap_stays_at_initial_value
-    smoother = Semian::SimpleExponentialSmoother.new(observations_per_minute: @observations_per_minute)
+    smoother = Semian::SimpleExponentialSmoother.new(initial_value: 0.05, observations_per_minute: @observations_per_minute)
     initial_value = smoother.forecast
 
     observations = minutes_to_observations(30)
@@ -43,7 +43,7 @@ class TestForecastSuccessCriteria < Minitest::Test
   end
 
   def test_low_confidence_ier_lower_than_actual_converges_in_30_minutes_for_2x_error_rate
-    smoother = Semian::SimpleExponentialSmoother.new(observations_per_minute: @observations_per_minute)
+    smoother = Semian::SimpleExponentialSmoother.new(initial_value: 0.05, observations_per_minute: @observations_per_minute)
     current_ier = smoother.forecast
     target_error_rate = current_ier * 2
 
@@ -71,7 +71,7 @@ class TestForecastSuccessCriteria < Minitest::Test
   end
 
   def test_low_confidence_ier_higher_than_actual_converges_in_5_minutes
-    smoother = Semian::SimpleExponentialSmoother.new(observations_per_minute: @observations_per_minute)
+    smoother = Semian::SimpleExponentialSmoother.new(initial_value: 0.05, observations_per_minute: @observations_per_minute)
     current_ier = smoother.forecast
     target_error_rate = current_ier * 0.5
 
@@ -87,7 +87,7 @@ class TestForecastSuccessCriteria < Minitest::Test
   end
 
   def test_low_confidence_ier_already_perfect_stays_static
-    smoother = Semian::SimpleExponentialSmoother.new(observations_per_minute: @observations_per_minute)
+    smoother = Semian::SimpleExponentialSmoother.new(initial_value: 0.05, observations_per_minute: @observations_per_minute)
     perfect_rate = smoother.forecast
 
     observations = minutes_to_observations(30)
@@ -102,7 +102,7 @@ class TestForecastSuccessCriteria < Minitest::Test
   end
 
   def test_high_confidence_during_incident_above_cap_stays_stable
-    smoother = Semian::SimpleExponentialSmoother.new(observations_per_minute: @observations_per_minute)
+    smoother = Semian::SimpleExponentialSmoother.new(initial_value: 0.05, observations_per_minute: @observations_per_minute)
     baseline_error_rate = 0.05
 
     establish_high_confidence(smoother, baseline_error_rate)
@@ -120,7 +120,7 @@ class TestForecastSuccessCriteria < Minitest::Test
   end
 
   def test_high_confidence_ier_lower_than_actual_converges_in_1_hour
-    smoother = Semian::SimpleExponentialSmoother.new(observations_per_minute: @observations_per_minute)
+    smoother = Semian::SimpleExponentialSmoother.new(initial_value: 0.05, observations_per_minute: @observations_per_minute)
     baseline_error_rate = 0.05
 
     establish_high_confidence(smoother, baseline_error_rate)
@@ -152,7 +152,7 @@ class TestForecastSuccessCriteria < Minitest::Test
   end
 
   def test_high_confidence_ier_higher_than_actual_converges_in_10_minutes
-    smoother = Semian::SimpleExponentialSmoother.new(observations_per_minute: @observations_per_minute)
+    smoother = Semian::SimpleExponentialSmoother.new(initial_value: 0.05, observations_per_minute: @observations_per_minute)
     baseline_error_rate = 0.05
 
     establish_high_confidence(smoother, baseline_error_rate)
@@ -172,7 +172,7 @@ class TestForecastSuccessCriteria < Minitest::Test
   end
 
   def test_high_confidence_ier_already_perfect_stays_static
-    smoother = Semian::SimpleExponentialSmoother.new(observations_per_minute: @observations_per_minute)
+    smoother = Semian::SimpleExponentialSmoother.new(initial_value: 0.05, observations_per_minute: @observations_per_minute)
     baseline_error_rate = 0.012
 
     establish_high_confidence(smoother, baseline_error_rate)

@@ -11,7 +11,6 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
       ki: 0.1,
       kd: 0.01,
       window_size: 0.05,
-      initial_history_duration: 100,
       initial_error_rate: 0.01,
       implementation: Semian::ThreadSafe,
       sliding_interval: 1,

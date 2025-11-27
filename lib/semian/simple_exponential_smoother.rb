@@ -64,7 +64,6 @@ module Semian
   # find_alpha("high confidence downward convergence alpha", initial_error_rate, 0.5, 600)
   class SimpleExponentialSmoother
     DEFAULT_CAP_VALUE = 0.1
-    DEFAULT_INITIAL_VALUE = 0.05
 
     LOW_CONFIDENCE_ALPHA_UP = 0.0017
     LOW_CONFIDENCE_ALPHA_DOWN = 0.078
@@ -86,8 +85,7 @@ module Semian
 
     attr_reader :alpha, :cap_value, :initial_value, :smoothed_value, :observations_per_minute
 
-    def initialize(cap_value: DEFAULT_CAP_VALUE,
-      initial_value: DEFAULT_INITIAL_VALUE, observations_per_minute:)
+    def initialize(cap_value: DEFAULT_CAP_VALUE, initial_value:, observations_per_minute:)
       @alpha = LOW_CONFIDENCE_ALPHA_DOWN # Start with low confidence, converging down
       @cap_value = cap_value
       @initial_value = initial_value
@@ -120,10 +118,6 @@ module Semian
       @smoothed_value
     end
 
-    def value
-      @smoothed_value
-    end
-
     def state
       {
         smoothed_value: @smoothed_value,
@@ -138,7 +132,7 @@ module Semian
     def reset
       @smoothed_value = initial_value
       @observation_count = 0
-      @alpha = LOW_CONFIDENCE_ALPHA_DOWN # Reset to initial state
+      @alpha = LOW_CONFIDENCE_ALPHA_DOWN
       self
     end
   end
