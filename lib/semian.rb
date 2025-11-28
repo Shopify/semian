@@ -313,16 +313,14 @@ module Semian
   def create_adaptive_circuit_breaker(name, **options)
     return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED") || ENV.key?("SEMIAN_ADAPTIVE_CIRCUIT_BREAKER_DISABLED")
 
-    # Fixed parameters based on design document recommendations
     AdaptiveCircuitBreaker.new(
       name: name,
-      kp: 0.75, # Standard proportional gain
-      ki: 0.01, # Moderate integral gain
-      kd: 0.5, # Small derivative gain (as per design doc)
-      window_size: 10, # 10-second window for rate calculation and update interval
-      sliding_interval: 1, # 1-second interval for background health checks
-      initial_history_duration: 900, # 15 minutes of initial history for p90 calculation
-      initial_error_rate: options[:initial_error_rate] || 0.01, # 1% error rate for initial p90 calculation
+      kp: 0.75,
+      ki: 0.01,
+      kd: 0.5,
+      window_size: 10,
+      sliding_interval: 1,
+      initial_error_rate: options[:initial_error_rate] || 0.05,
       implementation: implementation(**options),
     )
   end

@@ -12,7 +12,6 @@ class TestPIDController < Minitest::Test
       ki: 0.1,
       kd: 0.01,
       window_size: 10,
-      initial_history_duration: 10000, # 10000 seconds
       initial_error_rate: 0.01,
       implementation: Semian::ThreadSafe,
       sliding_interval: 1,
@@ -310,7 +309,6 @@ class TestThreadSafePIDController < Minitest::Test
       ki: 0.1,
       kd: 0.01,
       window_size: 10,
-      initial_history_duration: 10000, # 10000 seconds
       initial_error_rate: 0.01,
       implementation: Semian::ThreadSafe,
       sliding_interval: 1,
