@@ -12,7 +12,11 @@ module Semian
       @name = name
       @legacy_circuit_breaker = legacy_circuit_breaker
       @adaptive_circuit_breaker = adaptive_circuit_breaker
-      @use_adaptive = use_adaptive || ->() { false } # Default to legacy
+      @@adaptive_circuit_breaker_selector = ->() { false }
+    end
+
+    def DualCircuitBreaker.adaptive_circuit_breaker_selector=(selector)
+      @@adaptive_circuit_breaker_selector = selector
     end
 
     # Main acquire method - delegates to the active circuit breaker
@@ -130,7 +134,7 @@ module Semian
     end
 
     def use_adaptive?
-      @use_adaptive.call
+      @@adaptive_circuit_breaker_selector.call
     rescue => e
       # If the check fails, default to legacy for safety
       Semian.logger&.warn("[#{@name}] use_adaptive check failed: #{e.message}. Defaulting to legacy circuit breaker.")
