@@ -4,12 +4,15 @@ module Semian
   # DualCircuitBreaker wraps both legacy and adaptive circuit breakers,
   # allowing runtime switching between them via a callable that determines which to use.
   class DualCircuitBreaker
+    include CircuitBreakerBehaviour
+
     attr_reader :name, :legacy_circuit_breaker, :adaptive_circuit_breaker
 
     # use_adaptive should be a callable (Proc/lambda) that returns true/false
     # to determine which circuit breaker to use. If it returns true, use adaptive.
     def initialize(name:, legacy_circuit_breaker:, adaptive_circuit_breaker:, use_adaptive:)
-      @name = name
+      initialize_behaviour(name: name)
+
       @legacy_circuit_breaker = legacy_circuit_breaker
       @adaptive_circuit_breaker = adaptive_circuit_breaker
       @@adaptive_circuit_breaker_selector = ->() { false }
@@ -93,34 +96,6 @@ module Semian
         legacy: legacy_metrics,
         adaptive: adaptive_metrics,
       }
-    end
-
-    # Get state from the active circuit breaker
-    def state
-      return unless @legacy_circuit_breaker
-
-      @legacy_circuit_breaker.state
-    end
-
-    # Get error_timeout from legacy circuit breaker (for compatibility)
-    def error_timeout
-      return unless @legacy_circuit_breaker
-
-      @legacy_circuit_breaker.error_timeout
-    end
-
-    # Get half_open_resource_timeout from legacy circuit breaker (for compatibility)
-    def half_open_resource_timeout
-      return unless @legacy_circuit_breaker
-
-      @legacy_circuit_breaker.half_open_resource_timeout
-    end
-
-    # Get error_threshold_timeout_enabled from legacy circuit breaker (for compatibility)
-    def error_threshold_timeout_enabled
-      return unless @legacy_circuit_breaker
-
-      @legacy_circuit_breaker.error_threshold_timeout_enabled
     end
 
     private
