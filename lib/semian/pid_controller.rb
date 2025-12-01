@@ -7,7 +7,7 @@ module Semian
   module Simple
     # PID Controller for adaptive circuit breaking
     # Based on the error function:
-    # P = (error_rate - ideal_error_rate) - rejection_rate
+    # P = (error_rate - ideal_error_rate) - (1 - (error_rate - ideal_error_rate)) * rejection_rate
     # Note: P increases when error_rate increases
     #       P decreases when rejection_rate increases (providing feedback)
     class PIDController
@@ -126,7 +126,7 @@ module Semian
       def calculate_p_value(current_error_rate)
         ideal_error_rate = calculate_ideal_error_rate
 
-        # P = (error_rate - ideal_error_rate) - rejection_rate
+        # P = (error_rate - ideal_error_rate) - (1 - (error_rate - ideal_error_rate)) * rejection_rate
         # P increases when: error_rate > ideal
         # P decreases when: rejection_rate > 0 (feedback mechanism)
         delta_error = current_error_rate - ideal_error_rate
