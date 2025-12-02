@@ -82,8 +82,6 @@ module Semian
 
     if ActiveRecord.version >= Gem::Version.new("8.2.a")
       def execute_intent(intent)
-        compile_arel_in_intent(intent)
-        intent.processed_sql ||= preprocess_query(intent.raw_sql) if intent.raw_sql
         return super if Semian::ActiveRecordTrilogyAdapter.query_allowlisted?(intent.processed_sql)
 
         acquire_semian_resource(adapter: :trilogy_adapter, scope: :query) do
