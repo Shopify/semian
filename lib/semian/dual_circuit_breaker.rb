@@ -112,8 +112,7 @@ module Semian
     def use_adaptive?(resource = nil)
       return false unless defined?(@@adaptive_circuit_breaker_selector)
 
-      result = @@adaptive_circuit_breaker_selector.call(resource)
-      result
+      @@adaptive_circuit_breaker_selector.call(resource)
     rescue => e
       # If the check fails, default to legacy for safety
       Semian.logger&.warn("[#{@name}] use_adaptive check failed: #{e.message}. Defaulting to legacy circuit breaker.")
