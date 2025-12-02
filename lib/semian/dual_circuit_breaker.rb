@@ -15,7 +15,6 @@ module Semian
 
       @legacy_circuit_breaker = legacy_circuit_breaker
       @adaptive_circuit_breaker = adaptive_circuit_breaker
-      @@adaptive_circuit_breaker_selector = ->() { false }
     end
 
     def DualCircuitBreaker.adaptive_circuit_breaker_selector=(selector)
@@ -109,6 +108,8 @@ module Semian
     end
 
     def use_adaptive?
+      return false unless defined?(@@adaptive_circuit_breaker_selector)
+
       @@adaptive_circuit_breaker_selector.call
     rescue => e
       # If the check fails, default to legacy for safety
