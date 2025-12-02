@@ -340,7 +340,6 @@ module Semian
       name: name,
       legacy_circuit_breaker: legacy_cb,
       adaptive_circuit_breaker: adaptive_cb,
-      use_adaptive: use_adaptive,
     )
   end
 

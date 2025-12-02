@@ -10,7 +10,7 @@ module Semian
 
     # use_adaptive should be a callable (Proc/lambda) that returns true/false
     # to determine which circuit breaker to use. If it returns true, use adaptive.
-    def initialize(name:, legacy_circuit_breaker:, adaptive_circuit_breaker:, use_adaptive:)
+    def initialize(name:, legacy_circuit_breaker:, adaptive_circuit_breaker:)
       initialize_behaviour(name: name)
 
       @legacy_circuit_breaker = legacy_circuit_breaker
@@ -22,10 +22,23 @@ module Semian
       @@adaptive_circuit_breaker_selector = selector
     end
 
-    # Main acquire method - delegates to the active circuit breaker
+    # Main acquire method - implement directly to ensure both breakers are updated
     def acquire(resource = nil, &block)
       @active_circuit_breaker = get_active_circuit_breaker(resource)
-      @active_circuit_breaker.acquire(resource, &block)
+
+      unless @active_circuit_breaker.request_allowed?
+        mark_rejected
+        raise OpenCircuitError, "Rejected by #{active_breaker_name} circuit breaker"
+      end
+
+      begin
+        result = block.call
+        mark_success
+        result
+      rescue => error
+        mark_failed(error)
+        raise error
+      end
     end
 
     # State query methods - delegate to active circuit breaker
@@ -117,6 +130,10 @@ module Semian
       # If the check fails, default to legacy for safety
       Semian.logger&.warn("[#{@name}] use_adaptive check failed: #{e.message}. Defaulting to legacy circuit breaker.")
       false
+    end
+
+    def active_breaker_name
+      @active_circuit_breaker == @adaptive_circuit_breaker ? "adaptive" : "legacy"
     end
 
     def legacy_metrics

@@ -6,7 +6,7 @@ class TestDualCircuitBreaker < Minitest::Test
   def setup
     Semian.reset!
     @use_adaptive_flag = true
-    Semian::DualCircuitBreaker.adaptive_circuit_breaker_selector(->(resource) {
+    Semian::DualCircuitBreaker.adaptive_circuit_breaker_selector(->(_resource) {
       @use_adaptive_flag
     })
   end
@@ -81,15 +81,18 @@ class TestDualCircuitBreaker < Minitest::Test
     resource = create_dual_resource
     @use_adaptive_flag = false # Use legacy for decisions
 
+    # Get references to both circuit breakers
+    legacy_cb = resource.circuit_breaker.legacy_circuit_breaker
+    adaptive_cb = resource.circuit_breaker.adaptive_circuit_breaker
+
+    # Set up expectations that mark_success will be called on both breakers
+    legacy_cb.expects(:mark_success).times(3)
+    adaptive_cb.expects(:mark_success).times(3)
+
     # Generate some successes
     3.times do
       resource.acquire { "success" }
     end
-
-    # Both should have tracked successes
-    # We can verify through mark_success being called on both
-    refute_nil(resource.circuit_breaker.legacy_circuit_breaker)
-    refute_nil(resource.circuit_breaker.adaptive_circuit_breaker)
   end
 
   def test_request_allowed_delegates_to_active_breaker
@@ -196,7 +199,6 @@ class TestDualCircuitBreaker < Minitest::Test
     resource = Semian.register(
       :test_with_bulkhead,
       dual_circuit_breaker: true,
-      use_adaptive: @use_adaptive_proc,
       success_threshold: 2,
       error_threshold: 3,
       error_timeout: 5,
@@ -215,7 +217,6 @@ class TestDualCircuitBreaker < Minitest::Test
     resource = Semian.register(
       :test_disabled,
       dual_circuit_breaker: true,
-      use_adaptive: @use_adaptive_proc,
       success_threshold: 2,
       error_threshold: 3,
       error_timeout: 5,
@@ -254,7 +255,6 @@ class TestDualCircuitBreaker < Minitest::Test
     Semian.register(
       :test_dual_resource,
       dual_circuit_breaker: true,
-      use_adaptive: @use_adaptive_proc,
       success_threshold: 2,
       error_threshold: 3,
       error_timeout: 5,
