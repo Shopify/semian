@@ -15,6 +15,7 @@ module Semian
 
       @legacy_circuit_breaker = legacy_circuit_breaker
       @adaptive_circuit_breaker = adaptive_circuit_breaker
+      @active_circuit_breaker = nil
     end
 
     def DualCircuitBreaker.adaptive_circuit_breaker_selector=(selector)
@@ -23,24 +24,25 @@ module Semian
 
     # Main acquire method - delegates to the active circuit breaker
     def acquire(resource = nil, &block)
-      active_circuit_breaker.acquire(resource, &block)
+      @active_circuit_breaker = get_active_circuit_breaker(resource)
+      @active_circuit_breaker.acquire(resource, &block)
     end
 
     # State query methods - delegate to active circuit breaker
     def open?
-      active_circuit_breaker.open?
+      @active_circuit_breaker.open?
     end
 
     def closed?
-      active_circuit_breaker.closed?
+      @active_circuit_breaker.closed?
     end
 
     def half_open?
-      active_circuit_breaker.half_open?
+      @active_circuit_breaker.half_open?
     end
 
     def request_allowed?
-      active_circuit_breaker.request_allowed?
+      @active_circuit_breaker.request_allowed?
     end
 
     # Mark methods - record on BOTH circuit breakers for data consistency
@@ -85,7 +87,7 @@ module Semian
 
     # Get the last error from the active circuit breaker
     def last_error
-      active_circuit_breaker.last_error
+      @active_circuit_breaker.last_error
     end
 
     # Get metrics from both circuit breakers for comparison
@@ -99,18 +101,18 @@ module Semian
 
     private
 
-    def active_circuit_breaker
-      if use_adaptive?
+    def get_active_circuit_breaker(resource = nil)
+      if use_adaptive?(resource)
         @adaptive_circuit_breaker
       else
         @legacy_circuit_breaker
       end
     end
 
-    def use_adaptive?
+    def use_adaptive?(resource = nil)
       return false unless defined?(@@adaptive_circuit_breaker_selector)
 
-      @@adaptive_circuit_breaker_selector.call
+      @@adaptive_circuit_breaker_selector.call(resource)
     rescue => e
       # If the check fails, default to legacy for safety
       Semian.logger&.warn("[#{@name}] use_adaptive check failed: #{e.message}. Defaulting to legacy circuit breaker.")
