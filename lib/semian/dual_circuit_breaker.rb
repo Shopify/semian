@@ -101,7 +101,7 @@ module Semian
 
     private
 
-    def get_active_circuit_breaker(resource = nil)
+    def get_active_circuit_breaker(resource)
       if use_adaptive?(resource)
         @adaptive_circuit_breaker
       else
