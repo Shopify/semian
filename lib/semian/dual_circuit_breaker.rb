@@ -90,14 +90,14 @@ module Semian
       @active_circuit_breaker.last_error
     end
 
-    # Get metrics from both circuit breakers for comparison
-    def metrics
-      {
-        active: use_adaptive? ? :adaptive : :legacy,
-        legacy: legacy_metrics,
-        adaptive: adaptive_metrics,
-      }
-    end
+  # Get metrics from both circuit breakers for comparison
+  def metrics
+    {
+      active: @active_circuit_breaker&.respond_to?(:pid_controller) ? :adaptive : :legacy,
+      legacy: legacy_metrics,
+      adaptive: adaptive_metrics,
+    }
+  end
 
     private
 
