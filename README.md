@@ -260,6 +260,9 @@ For the `Net::HTTP` specific Semian adapter, since many external libraries may c
 HTTP connections on the user's behalf, the parameters are instead provided
 by associating callback functions with `Semian::NetHTTP`, perhaps in an initialization file.
 
+Example cases for `net-http` can be run using
+`BUNDLE_GEMFILE=gemfiles/net_http.gemfile bundle exec rake examples:net_http`. The filename of an example can also be passed optionally as an argument to run a specific example (e.g., `examples:net_http[03_circuit_open]`).
+
 ##### Naming and Options
 
 To give Semian parameters, assign a `proc` to `Semian::NetHTTP.semian_configuration`
@@ -394,7 +397,7 @@ default: &default
 ```
 
 Example cases for `activerecord-trilogy-adapter` can be run using
-`BUNDLE_GEMFILE=gemfiles/activerecord_trilogy_adapter.gemfile bundle exec rake examples:activerecord_trilogy_adapter`
+`BUNDLE_GEMFILE=gemfiles/activerecord_trilogy_adapter.gemfile bundle exec rake examples:activerecord_trilogy_adapter`. The filename of an example can also be passed optionally as an argument to run a specific example (e.g., `examples:activerecord_trilogy_adapter[03_circuit_open]`).
 
 # Understanding Semian
 
