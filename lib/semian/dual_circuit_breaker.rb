@@ -15,10 +15,10 @@ module Semian
 
       @legacy_circuit_breaker = legacy_circuit_breaker
       @adaptive_circuit_breaker = adaptive_circuit_breaker
-      @active_circuit_breaker = nil
+      @active_circuit_breaker = @adaptive_circuit_breaker
     end
 
-    def DualCircuitBreaker.adaptive_circuit_breaker_selector=(selector)
+    def self.adaptive_circuit_breaker_selector(selector)
       @@adaptive_circuit_breaker_selector = selector
     end
 
@@ -90,14 +90,14 @@ module Semian
       @active_circuit_breaker.last_error
     end
 
-  # Get metrics from both circuit breakers for comparison
-  def metrics
-    {
-      active: @active_circuit_breaker&.respond_to?(:pid_controller) ? :adaptive : :legacy,
-      legacy: legacy_metrics,
-      adaptive: adaptive_metrics,
-    }
-  end
+    # Get metrics from both circuit breakers for comparison
+    def metrics
+      {
+        active: @active_circuit_breaker&.respond_to?(:pid_controller) ? :adaptive : :legacy,
+        legacy: legacy_metrics,
+        adaptive: adaptive_metrics,
+      }
+    end
 
     private
 
@@ -112,7 +112,8 @@ module Semian
     def use_adaptive?(resource = nil)
       return false unless defined?(@@adaptive_circuit_breaker_selector)
 
-      @@adaptive_circuit_breaker_selector.call(resource)
+      result = @@adaptive_circuit_breaker_selector.call(resource)
+      result
     rescue => e
       # If the check fails, default to legacy for safety
       Semian.logger&.warn("[#{@name}] use_adaptive check failed: #{e.message}. Defaulting to legacy circuit breaker.")

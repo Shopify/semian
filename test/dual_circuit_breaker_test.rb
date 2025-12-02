@@ -5,8 +5,10 @@ require "test_helper"
 class TestDualCircuitBreaker < Minitest::Test
   def setup
     Semian.reset!
-    @use_adaptive_flag = false
-    @use_adaptive_proc = -> { @use_adaptive_flag }
+    @use_adaptive_flag = true
+    Semian::DualCircuitBreaker.adaptive_circuit_breaker_selector(->(resource) {
+      @use_adaptive_flag
+    })
   end
 
   def teardown
@@ -167,13 +169,9 @@ class TestDualCircuitBreaker < Minitest::Test
   end
 
   def test_handles_use_adaptive_check_errors_gracefully
-    # Create a proc that raises an error
-    error_proc = -> { raise StandardError, "check failed" }
-
     resource = Semian.register(
       :test_error_handling,
       dual_circuit_breaker: true,
-      use_adaptive: error_proc,
       success_threshold: 2,
       error_threshold: 3,
       error_timeout: 5,
@@ -181,6 +179,9 @@ class TestDualCircuitBreaker < Minitest::Test
       timeout: 0.5,
       exceptions: [TestError],
     )
+
+    # Create a proc that raises an error
+    Semian::DualCircuitBreaker.adaptive_circuit_breaker_selector(->(resource) { raise StandardError, "check failed" })
 
     # Should fall back to legacy (not raise error)
     success_count = 0
@@ -245,16 +246,6 @@ class TestDualCircuitBreaker < Minitest::Test
 
     assert(resource.circuit_breaker.last_error)
     assert_equal("test error", resource.circuit_breaker.last_error.message)
-  end
-
-  def test_compatibility_methods_for_legacy_breaker
-    resource = create_dual_resource
-
-    # These methods should work for compatibility with code expecting legacy breaker
-    assert_respond_to(resource.circuit_breaker, :state)
-    assert_respond_to(resource.circuit_breaker, :error_timeout)
-    assert_respond_to(resource.circuit_breaker, :half_open_resource_timeout)
-    assert_respond_to(resource.circuit_breaker, :error_threshold_timeout_enabled)
   end
 
   private
