@@ -57,101 +57,66 @@ class TestPIDController < Minitest::Test
     assert_equal({ success: 3, error: 3, rejected: 3 }, @controller.metrics[:current_window_requests])
   end
 
-  # def test_update_flow
-  #   # Start with error rate equal to the ideal error rate (1%)
-  #   (1..99).each do |_|
-  #     @controller.record_request(:success)
-  #   end
-  #   @controller.record_request(:error)
+  def test_update_flow
+    # Each iteration advances time by 1 second. Window is 10 seconds.
+    elapsed = 0
 
-  #   # update should maintain a rejection rate of 0
-  #   @controller.update
+    # Phase 1: Start with 1% error rate
+    elapsed += 1
+    time_travel(elapsed) do
+      99.times { @controller.record_request(:success) }
+      @controller.record_request(:error)
+      @controller.update
+    end
 
-  #   assert_equal(0, @controller.metrics[:rejection_rate])
-  #   assert_in_delta(0.01, @controller.metrics[:smoother_state][:smoothed_value], 0.001)
-  #   assert_equal(1, @controller.metrics[:smoother_state][:observation_count])
+    # Rejection should be 0 when error rate is less than or equal to ideal
+    assert_equal(0.0, @controller.metrics[:rejection_rate])
+    assert_equal(1, @controller.metrics[:smoother_state][:observation_count])
 
-  #   # run another time, nothing should change
-  #   (1..99).each do |_|
-  #     @controller.record_request(:success)
-  #   end
-  #   @controller.record_request(:error)
+    # Phase 2: Introduce error spike
+    elapsed += 1
+    time_travel(elapsed) do
+      61.times { @controller.record_request(:success) }
+      39.times { @controller.record_request(:error) }
+      @controller.update
+    end
 
-  #   @controller.update
+    # Rejection should be around 20% (± 2%)
+    assert_in_delta(0.20, @controller.metrics[:rejection_rate], 0.02, "Rejection should be ~20%")
+    rejection_after_spike = @controller.metrics[:rejection_rate]
 
-  #   assert_equal(0, @controller.metrics[:rejection_rate])
-  #   assert_in_delta(0.01, @controller.metrics[:smoother_state][:smoothed_value], 0.001)
-  #   assert_equal(2, @controller.metrics[:smoother_state][:observation_count])
+    # Phase 3: Continue high error rate (20% per window)
+    5.times do
+      elapsed += 1
+      time_travel(elapsed) do
+        80.times { @controller.record_request(:success) }
+        20.times { @controller.record_request(:error) }
+        @controller.update
+      end
+    end
 
-  #   # Error rate now goes below the ideal error rate. Rejection rate should be unaffected.
-  #   (1..100).each do |_|
-  #     @controller.record_request(:success)
-  #   end
+    # After sustained errors, rejection should be at least as high as after the initial spike
+    assert_operator(
+      @controller.metrics[:rejection_rate],
+      :>=,
+      rejection_after_spike,
+      "Rejection should remain elevated during sustained errors",
+    )
 
-  #   @controller.update
+    # Phase 4: Recovery - all successes to bring error rate down
+    10.times do
+      elapsed += 1
+      time_travel(elapsed) do
+        100.times { @controller.record_request(:success) }
+        @controller.update
+      end
+    end
 
-  #   assert_equal(0, @controller.metrics[:rejection_rate])
-  #   assert_operator(@controller.metrics[:smoother_state][:smoothed_value], :<, 0.01)
-  #   assert_equal(3, @controller.metrics[:smoother_state][:observation_count])
-  #   # ------------------------------------------------------------
-  #   # Error rate now goes above the ideal error rate. Rejection rate should increase.
-  #   (1..92).each do |_|
-  #     @controller.record_request(:success)
-  #   end
-  #   (1..8).each do |_|
-  #     @controller.record_request(:error)
-  #   end
-
-  #   @controller.update
-  #   # control signal = Ki * integral + Kp * p_value + Kd * (p_value - previous_p_value) / dt
-  #   # p_value = (error_rate - ideal_error_rate) - (1 - (error_rate - ideal_error_rate)) * rejection_rate = (0.08 - ~0.009) - 0 ≈ 0.071
-  #   # With back-calculation anti-windup: when rejection_rate saturates (hits 0 or 1),
-  #   # the integral accumulation is reversed: integral -= p_value * dt
-  #   # This prevents integral windup but means the exact response depends on saturation history
-  #   assert_in_delta(@controller.metrics[:rejection_rate], 0.14, 0.04)
-  #   # Smoother should have moved toward higher error rate (8% is below cap so it's recorded)
-  #   assert_operator(@controller.metrics[:smoother_state][:smoothed_value], :>, 0.0)
-  #   assert_equal(4, @controller.metrics[:smoother_state][:observation_count])
-  #   # ----------------------------------------------------------------
-  #   # Maintain the same error rate (8%)
-  #   (1..92).each do |_|
-  #     @controller.record_request(:success)
-  #   end
-  #   (1..8).each do |_|
-  #     @controller.record_request(:error)
-  #   end
-  #   @controller.update
-  #   # Rejection rate should stabilize around the 8% error rate
-  #   assert_in_delta(@controller.metrics[:rejection_rate], 0.08, 0.04)
-  #   # Smoother continues to adapt to the 8% error rate
-  #   assert_operator(@controller.metrics[:smoother_state][:smoothed_value], :>, 0.0)
-  #   assert_equal(5, @controller.metrics[:smoother_state][:observation_count])
-  #   # ----------------------------------------------------------------
-  #   # Run a few more cycles of the same error rate. The rejection rate should fluctuate around the true error rate.
-  #   10.times do
-  #     (1..92).each do |_|
-  #       @controller.record_request(:success)
-  #     end
-  #     (1..8).each do |_|
-  #       @controller.record_request(:error)
-  #     end
-  #     @controller.update
-
-  #     assert_in_delta(@controller.metrics[:rejection_rate], 0.08, 0.04)
-  #   end
-  #   assert_equal(15, @controller.metrics[:smoother_state][:observation_count])
-  #   # ----------------------------------------------------------------
-  #   # Bring error rate back down to the ideal error rate. The rejection rate should decrease quickly.
-  #   # This is because when the rejection rate is similar to the error rate, the integral term is very small.
-  #   # So the new P value dominates, bringing down the rejection rate quickly.
-  #   (1..99).each do |_|
-  #     @controller.record_request(:success)
-  #   end
-  #   @controller.record_request(:error)
-  #   @controller.update
-
-  #   assert_equal(0, @controller.metrics[:rejection_rate])
-  # end
+    # After 10 seconds of all successes (window fully refreshed),
+    # all error data has expired, so rejection should be ~0
+    assert_in_delta(0.0, @controller.metrics[:rejection_rate], 0.01, "Rejection should be ~0 after full recovery")
+    assert_equal(0.0, @controller.metrics[:error_rate], "Error rate should be 0 after window expires")
+  end
 
   def test_should_reject_probability
     @controller.instance_variable_set(:@rejection_rate, 0.5)
@@ -204,74 +169,31 @@ class TestPIDController < Minitest::Test
     )
   end
 
-  # def test_integral_anti_windup
-  #   # Test that integral doesn't accumulate when rejection_rate is saturated at 0 (low)
-  #   # Simulate prolonged low error rate (below ideal)
-  #   initial_integral = @controller.metrics[:integral]
+  def test_integral_anti_windup
+    # Test that integral is clamped between -10 and 10
 
-  #   # Run 50 windows with 0% error rate (below ideal 1%)
-  #   # With back-calculation anti-windup, integral tries to accumulate but is reversed when saturated
-  #   50.times do
-  #     100.times { @controller.record_request(:success) }
-  #     @controller.update
-  #   end
+    # Test lower bound: integral should not go below -10
+    # Simulate prolonged low error rate (below ideal) which would push integral negative
+    100.times do
+      100.times { @controller.record_request(:success) }
+      @controller.update
+    end
 
-  #   # Integral should not have accumulated large negative values
-  #   # because rejection_rate saturates at 0 and anti-windup reverses accumulation
-  #   final_integral = @controller.metrics[:integral]
+    # Integral should be clamped at -10, not accumulate unbounded negative values
+    assert_operator(@controller.metrics[:integral], :>=, -10.0, "Integral should not go below -10")
 
-  #   assert_equal(0.0, @controller.metrics[:rejection_rate], "Rejection rate should be 0")
-  #   assert_equal(initial_integral, final_integral, "Integral should not accumulate when saturated at 0")
+    @controller.reset
 
-  #   # Test that integral doesn't accumulate when rejection_rate is saturated at 1 (high)
-  #   # Manually set rejection rate close to 1 and integral to simulate near-saturation
-  #   @controller.instance_variable_set(:@rejection_rate, 0.95)
-  #   @controller.instance_variable_set(:@integral, 5.0)
+    # Test upper bound: integral should not go above 10
+    # Simulate prolonged high error rate (100%) which would push integral positive
+    50.times do
+      100.times { @controller.record_request(:error) }
+      @controller.update
+    end
 
-  #   # Run a window with very high error rate that would push rejection_rate above 1
-  #   90.times { @controller.record_request(:error) }
-  #   10.times { @controller.record_request(:success) }
-  #   @controller.update
-
-  #   # Rejection rate should be clamped at 1
-  #   assert_equal(1.0, @controller.metrics[:rejection_rate], "Rejection rate should be clamped at 1")
-
-  #   # Now run another window with same high error - integral should not accumulate further
-  #   integral_at_saturation = @controller.metrics[:integral]
-  #   90.times { @controller.record_request(:error) }
-  #   10.times { @controller.record_request(:success) }
-  #   @controller.update
-
-  #   assert_equal(1.0, @controller.metrics[:rejection_rate], "Rejection rate should remain at 1")
-  #   # Integral should not grow because anti-windup prevents accumulation when saturated
-  #   assert_equal(integral_at_saturation, @controller.metrics[:integral], "Integral should not accumulate when saturated at 1")
-
-  #   # Test that controller responds quickly to error spikes even after prolonged low-error period
-  #   @controller.reset
-
-  #   # Simulate long low error rate period (this was causing windup before the fix)
-  #   20.times do
-  #     100.times { @controller.record_request(:success) }
-  #     @controller.update
-  #   end
-
-  #   assert_equal(0.0, @controller.metrics[:rejection_rate])
-  #   assert_equal(0.0, @controller.metrics[:integral], "Integral should remain 0 due to anti-windup")
-
-  #   # Now introduce an error spike - controller should respond immediately
-  #   80.times { @controller.record_request(:success) }
-  #   20.times { @controller.record_request(:error) }
-  #   @controller.update
-
-  #   # Controller should respond to the spike with proportional and derivative terms
-  #   # With anti-windup, integral is 0 (not negative), so response is stronger
-  #   # p_value = (0.20 - 0.01) - 0 = 0.19
-  #   # control_signal = Kp*0.19 + Ki*0*dt + Kd*(0.19 - (-0.01))/dt
-  #   # = 1*0.19 + 0.1*0*10 + 0.01*(0.20)/10 = 0.19 + 0 + 0.0002 ≈ 0.19
-  #   # But there's also accumulated integral from previous windows, so expect higher
-  #   assert_operator(@controller.metrics[:rejection_rate], :>, 0.0, "Should respond to error spike")
-  #   assert_in_delta(@controller.metrics[:rejection_rate], 0.38, 0.10, "Should respond strongly to 20% error without negative integral windup")
-  # end
+    # Integral should be clamped at 10, not accumulate unbounded positive values
+    assert_operator(@controller.metrics[:integral], :<=, 10.0, "Integral should not go above 10")
+  end
 
   def test_sliding_window_behavior_of_controller
     time_travel(0.5) do
