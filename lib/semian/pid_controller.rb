@@ -7,7 +7,7 @@ module Semian
   module Simple
     # PID Controller for adaptive circuit breaking
     # Based on the error function:
-    # P = (error_rate - ideal_error_rate) - rejection_rate
+    # P = (error_rate - ideal_error_rate) - (1 - (error_rate - ideal_error_rate)) * rejection_rate
     # Note: P increases when error_rate increases
     #       P decreases when rejection_rate increases (providing feedback)
     class PIDController
@@ -77,11 +77,7 @@ module Semian
         # Update rejection rate (clamped between 0 and 1)
         @rejection_rate = new_rejection_rate.clamp(0.0, 1.0)
 
-        # Anti-windup: back out the integral accumulation if output was saturated
-        if new_rejection_rate != @rejection_rate
-          # Output was clamped, reverse the integral accumulation
-          @integral -= @last_p_value * dt
-        end
+        @integral = @integral.clamp(-10.0, 10.0)
 
         @rejection_rate
       end
@@ -130,10 +126,11 @@ module Semian
       def calculate_p_value(current_error_rate)
         ideal_error_rate = calculate_ideal_error_rate
 
-        # P = (error_rate - ideal_error_rate) - rejection_rate
+        # P = (error_rate - ideal_error_rate) - (1 - (error_rate - ideal_error_rate)) * rejection_rate
         # P increases when: error_rate > ideal
         # P decreases when: rejection_rate > 0 (feedback mechanism)
-        (current_error_rate - ideal_error_rate) - @rejection_rate
+        delta_error = current_error_rate - ideal_error_rate
+        delta_error - (1 - delta_error) * @rejection_rate
       end
 
       def calculate_error_rate

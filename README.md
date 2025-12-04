@@ -586,7 +586,7 @@ monitors error rates and adjusts its behavior accordingly.
 
 The adaptive circuit breaker uses the error function:
 ```
-P = (error_rate - ideal_error_rate) - rejection_rate
+P = (error_rate - ideal_error_rate) - (1 - (error_rate - ideal_error_rate)) * rejection_rate
 ```
 
 This formula ensures that:
