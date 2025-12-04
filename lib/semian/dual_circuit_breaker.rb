@@ -22,22 +22,46 @@ module Semian
       @@adaptive_circuit_breaker_selector = selector
     end
 
-    # Main acquire method - implement directly to ensure both breakers are updated
+    # Main acquire method
+    # Logic from both acquire methods is implemented here so that we can fan out mark_success and mark_failed
+    # to both circuit breakers.
+    # TODO: needs cleanup.
     def acquire(resource = nil, &block)
       @active_circuit_breaker = get_active_circuit_breaker(resource)
 
+      if active_breaker_name == "legacy"
+        @active_circuit_breaker.transition_to_half_open if @active_circuit_breaker.transition_to_half_open?
+      end
+
       unless @active_circuit_breaker.request_allowed?
-        mark_rejected
+        if active_breaker_name == "adaptive"
+          @active_circuit_breaker.mark_rejected
+        end
         raise OpenCircuitError, "Rejected by #{active_breaker_name} circuit breaker"
       end
 
-      begin
-        result = block.call
-        mark_success
+      if active_breaker_name == "adaptive"
+        begin
+          result = block.call
+          mark_success
+          result
+        rescue => error
+          mark_failed(error)
+          raise error
+        end
+      elsif active_breaker_name == "legacy"
+        result = nil
+        begin
+          result = @active_circuit_breaker.maybe_with_half_open_resource_timeout(resource, &block)
+        rescue *@exceptions => error
+          if !error.respond_to?(:marks_semian_circuits?) || error.marks_semian_circuits?
+            mark_failed(error)
+          end
+          raise error
+        else
+          mark_success
+        end
         result
-      rescue => error
-        mark_failed(error)
-        raise error
       end
     end
 
@@ -67,11 +91,6 @@ module Semian
     def mark_success
       @legacy_circuit_breaker&.mark_success
       @adaptive_circuit_breaker&.mark_success
-    end
-
-    def mark_rejected
-      @legacy_circuit_breaker&.mark_rejected if @legacy_circuit_breaker&.respond_to?(:mark_rejected)
-      @adaptive_circuit_breaker&.mark_rejected
     end
 
     # Stop both circuit breakers

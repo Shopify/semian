@@ -235,9 +235,9 @@ class TestDualCircuitBreaker < Minitest::Test
     assert(true)
   end
 
-  def test_last_error_comes_from_active_breaker
+  def test_adaptive_breaker_last_error_correctly_reports_the_last_error
     resource = create_dual_resource
-    @use_adaptive_flag = false
+    @use_adaptive_flag = true
 
     begin
       resource.acquire { raise TestError, "test error" }
