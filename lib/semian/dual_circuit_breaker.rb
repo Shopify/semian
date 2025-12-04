@@ -53,7 +53,7 @@ module Semian
         result = nil
         begin
           result = @active_circuit_breaker.maybe_with_half_open_resource_timeout(resource, &block)
-        rescue *@exceptions => error
+        rescue *@active_circuit_breaker.exceptions => error
           if !error.respond_to?(:marks_semian_circuits?) || error.marks_semian_circuits?
             mark_failed(error)
           end

@@ -237,7 +237,6 @@ class TestDualCircuitBreaker < Minitest::Test
 
   def test_adaptive_breaker_last_error_correctly_reports_the_last_error
     resource = create_dual_resource
-    @use_adaptive_flag = true
 
     begin
       resource.acquire { raise TestError, "test error" }
@@ -246,7 +245,10 @@ class TestDualCircuitBreaker < Minitest::Test
     end
 
     assert(resource.circuit_breaker.last_error)
-    assert_equal("test error", resource.circuit_breaker.last_error.message)
+
+    # Make sure the last error is tracked by both circuit breakers
+    assert_equal("test error", resource.circuit_breaker.legacy_circuit_breaker.last_error.message)
+    assert_equal("test error", resource.circuit_breaker.adaptive_circuit_breaker.last_error.message)
   end
 
   private

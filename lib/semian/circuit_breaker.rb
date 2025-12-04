@@ -9,6 +9,7 @@ module Semian
 
     def_delegators :@state, :closed?, :open?, :half_open?
 
+    attr_accessor :exceptions
     attr_reader(
       :half_open_resource_timeout,
       :error_timeout,
@@ -39,8 +40,6 @@ module Semian
     end
 
     def acquire(resource = nil, &block)
-      puts "footest"
-
       transition_to_half_open if transition_to_half_open?
 
       raise OpenCircuitError unless request_allowed?
