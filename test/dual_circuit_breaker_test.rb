@@ -231,11 +231,22 @@ class TestDualCircuitBreaker < Minitest::Test
   def test_returns_nil_if_either_breaker_cannot_be_created
     # This would happen if one of the create methods returns nil
     # For example, if required parameters are missing
-    # We can't easily test this without mocking, but we verify the logic exists
-    assert(true)
+    resource = Semian.register(
+      :test_with_bulkhead,
+      dual_circuit_breaker: true,
+      success_threshold: 2,
+      error_threshold: 3,
+      error_timeout: 5,
+      tickets: 2,
+      timeout: 0.5,
+      exceptions: [TestError],
+    )
+
+    assert_instance_of(Semian::CircuitBreaker, resource.circuit_breaker.legacy_circuit_breaker)
+    assert_instance_of(Semian::AdaptiveCircuitBreaker, resource.circuit_breaker.adaptive_circuit_breaker)
   end
 
-  def test_adaptive_breaker_last_error_correctly_reports_the_last_error
+  def test_both_breakers_track_last_error
     resource = create_dual_resource
 
     begin

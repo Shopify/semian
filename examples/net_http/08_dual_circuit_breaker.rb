@@ -27,16 +27,51 @@ module ExperimentFlags
   end
 end
 
+# Helper function to print state of all Semian objects between each phase
+def print_semian_state
+  puts "\n=== Semian Resources State ===\n"
+  Semian.resources.values.each do |resource|
+    puts "Resource: #{resource.name}"
+
+    # Bulkhead info
+    if resource.bulkhead
+      puts "  Bulkhead: tickets=#{resource.tickets}, count=#{resource.count}"
+    else
+      puts "  Bulkhead: disabled"
+    end
+
+    # Circuit breaker info
+    cb = resource.circuit_breaker
+    if cb.nil?
+      puts "  Circuit Breaker: disabled"
+    elsif cb.is_a?(Semian::DualCircuitBreaker)
+      puts "  Circuit Breaker: DualCircuitBreaker"
+      metrics = cb.metrics
+      puts "    Active: #{metrics[:active]}"
+      puts "    Legacy: state=#{metrics[:legacy][:state]}, open=#{metrics[:legacy][:open]}, half_open=#{metrics[:legacy][:half_open]}"
+      puts "    Adaptive: rejection_rate=#{metrics[:adaptive][:rejection_rate]}, error_rate=#{metrics[:adaptive][:error_rate]}"
+    elsif cb.is_a?(Semian::AdaptiveCircuitBreaker)
+      puts "  Circuit Breaker: AdaptiveCircuitBreaker"
+      puts "    open=#{cb.open?}, closed=#{cb.closed?}, half_open=#{cb.half_open?}"
+    else
+      puts "  Circuit Breaker: Legacy"
+      puts "    state=#{cb.state&.value}, open=#{cb.open?}, closed=#{cb.closed?}, half_open=#{cb.half_open?}"
+      puts "    last_error=#{cb.last_error&.class}"
+    end
+    puts ""
+  end
+  puts "=== END STATE OUTPUT ===\n\n"
+end
+
+Semian::DualCircuitBreaker.adaptive_circuit_breaker_selector(->(_resource) { ExperimentFlags.use_adaptive_circuit_breaker? })
+
 # Configure Semian with dual circuit breaker
 Semian::NetHTTP.semian_configuration = proc do |host, port|
   # Example: only enable for specific host
-  if host == "example.com"
+  if host == "shopify-debug.com"
     {
       # Enable dual circuit breaker mode
       dual_circuit_breaker: true,
-
-      # Callable to determine which breaker to use - checked at each request
-      use_adaptive: -> { ExperimentFlags.use_adaptive_circuit_breaker? },
 
       # Legacy circuit breaker settings (required)
       success_threshold: 2,
@@ -70,6 +105,8 @@ rescue => e
   e.class.name
 end
 
+print_semian_state
+
 # Phase 1: Use legacy circuit breaker
 puts "Phase 1: Using LEGACY circuit breaker"
 puts "-" * 50
@@ -77,19 +114,12 @@ ExperimentFlags.disable_adaptive!
 
 3.times do |i|
   puts "Request #{i + 1} (using legacy)..."
-  result = make_request("http://example.com/")
+  result = make_request("http://shopify-debug.com/")
   puts "  Result: #{result}\n\n"
-  sleep 0.5
+  sleep 3
 end
 
-# Get the resource and check metrics
-resource = Semian[:net_http_example_com_80]
-if resource && resource.circuit_breaker.respond_to?(:metrics)
-  metrics = resource.circuit_breaker.metrics
-  puts "Metrics after Phase 1:"
-  puts "  Active: #{metrics[:active]}"
-  puts "  Legacy state: #{metrics[:legacy][:state]}\n\n"
-end
+print_semian_state
 
 # Phase 2: Switch to adaptive circuit breaker
 puts "Phase 2: Switching to ADAPTIVE circuit breaker"
@@ -98,17 +128,12 @@ ExperimentFlags.enable_adaptive!
 
 3.times do |i|
   puts "Request #{i + 1} (using adaptive)..."
-  result = make_request("http://example.com/")
+  result = make_request("http://shopify-debug.com/")
   puts "  Result: #{result}\n\n"
-  sleep 0.5
+  sleep 3
 end
 
-if resource && resource.circuit_breaker.respond_to?(:metrics)
-  metrics = resource.circuit_breaker.metrics
-  puts "Metrics after Phase 2:"
-  puts "  Active: #{metrics[:active]}"
-  puts "  Adaptive rejection_rate: #{metrics[:adaptive][:rejection_rate]}\n\n"
-end
+print_semian_state
 
 # Phase 3: Demonstrate dynamic switching
 puts "Phase 3: Dynamic switching during runtime"
@@ -125,10 +150,12 @@ puts "-" * 50
   end
 
   puts "Request #{i + 1} (using #{active})..."
-  result = make_request("http://example.com/")
+  result = make_request("http://shopify-debug.com/")
   puts "  Result: #{result}\n\n"
-  sleep 0.3
+  sleep 3
 end
+
+print_semian_state
 
 puts "=== Demo Complete ===\n\n"
 puts "Key Benefits of Dual Circuit Breaker:"
@@ -137,13 +164,3 @@ puts "  2. Can switch between breakers without losing state"
 puts "  3. Can compare behavior of both approaches with same traffic"
 puts "  4. Enables gradual rollout with instant rollback capability"
 puts "  5. Perfect for A/B testing circuit breaker strategies"
-
-# Final metrics comparison
-if resource && resource.circuit_breaker.respond_to?(:metrics)
-  puts "\nFinal Metrics Comparison:"
-  metrics = resource.circuit_breaker.metrics
-  puts "  Currently active: #{metrics[:active]}"
-  puts "  Legacy: #{metrics[:legacy].inspect}"
-  puts "  Adaptive: #{metrics[:adaptive].inspect}"
-end
-
