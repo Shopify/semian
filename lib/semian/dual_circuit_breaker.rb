@@ -29,7 +29,7 @@ module Semian
     def acquire(resource = nil, &block)
       @active_circuit_breaker = get_active_circuit_breaker(resource)
 
-      if active_breaker_type == :adaptive
+      if active_breaker_type == :legacy
         @active_circuit_breaker.transition_to_half_open if @active_circuit_breaker.transition_to_half_open?
       end
 
