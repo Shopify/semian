@@ -126,13 +126,13 @@ module Semian
       Kernel.sleep(@sliding_interval)
     end
 
-    def check_and_notify_state_transition(old_rate, new_rate, pre_update_metrics)
+    def check_and_notify_state_transition(old_rate, new_rate)
       old_state = old_rate == 0.0 ? :closed : :open
       new_state = new_rate == 0.0 ? :closed : :open
 
       if old_state != new_state
         notify_state_transition(new_state)
-        log_state_transition(old_state, new_state, new_rate, pre_update_metrics)
+        log_state_transition(old_state, new_state, new_rate)
       end
     end
 
@@ -140,17 +140,15 @@ module Semian
       Semian.notify(:state_change, self, nil, nil, state: new_state)
     end
 
-    def log_state_transition(old_state, new_state, rejection_rate, pre_update_metrics)
-      requests = pre_update_metrics[:current_window_requests]
-
+    def log_state_transition(old_state, new_state, rejection_rate)
       str = "[#{self.class.name}] State transition from #{old_state} to #{new_state}."
-      str += " success_count=#{requests[:success]}"
-      str += " error_count=#{requests[:error]}"
-      str += " rejected_count=#{requests[:rejected]}"
+      str += " success_count=#{metrics[:success]}"
+      str += " error_count=#{metrics[:error]}"
+      str += " rejected_count=#{metrics[:rejected]}"
       str += " rejection_rate=#{(rejection_rate * 100).round(2)}%"
-      str += " error_rate=#{(pre_update_metrics[:error_rate] * 100).round(2)}%"
-      str += " ideal_error_rate=#{(pre_update_metrics[:ideal_error_rate] * 100).round(2)}%"
-      str += " integral=#{pre_update_metrics[:integral].round(4)}"
+      str += " error_rate=#{(metrics[:error_rate] * 100).round(2)}%"
+      str += " ideal_error_rate=#{(metrics[:ideal_error_rate] * 100).round(2)}%"
+      str += " integral=#{metrics[:integral].round(4)}"
       str += " name=\"#{@name}\""
 
       Semian.logger.info(str)
