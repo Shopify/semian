@@ -25,7 +25,6 @@ module Semian
     # Main acquire method
     # Logic from both acquire methods is implemented here so that we can fan out mark_success and mark_failed
     # to both circuit breakers.
-    # TODO: needs cleanup.
     def acquire(resource = nil, &block)
       @active_circuit_breaker = get_active_circuit_breaker(resource)
 
