@@ -330,12 +330,6 @@ module Semian
     legacy_cb = create_circuit_breaker(name, **options)
     adaptive_cb = create_adaptive_circuit_breaker(name, **options)
 
-    # Both must exist for dual mode to work
-    return if legacy_cb.nil? || adaptive_cb.nil?
-
-    # Get the use_adaptive proc, default to always use legacy
-    use_adaptive = options[:use_adaptive] || ->() { false }
-
     DualCircuitBreaker.new(
       name: name,
       legacy_circuit_breaker: legacy_cb,
