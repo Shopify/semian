@@ -18,7 +18,7 @@ runner = Semian::Experiments::CircuitBreakerExperimentRunner.new(
   with_max_threads: true,
   semian_config: {
     success_threshold: 2,
-    error_threshold: 2,
+    error_threshold: 3,
     error_threshold_timeout: 20,
     error_timeout: 15,
     bulkhead: false,

@@ -29,11 +29,11 @@ module Semian
         semian_config:,
         graph_filename: nil,
         num_threads: 60,
-        requests_per_second: 3000,
+        requests_per_second: 1000,
         x_axis_label_interval: nil,
         service_count: 1,
         graph_bucket_size: nil,
-        base_error_rate: nil,
+        base_error_rate: 0.01,
         with_max_threads: false
       )
         @experiment_name = experiment_name
@@ -54,12 +54,8 @@ module Semian
         @experiment_duration = degradation_phases.length * phase_duration
         @service_count = service_count
         @target_service = nil
-        @graph_bucket_size = graph_bucket_size || (@is_adaptive ? 10 : 1)
-        @base_error_rate = if base_error_rate.nil?
-          @is_adaptive ? 0.01 : 0.0
-        else
-          base_error_rate
-        end
+        @graph_bucket_size = graph_bucket_size || 1
+        @base_error_rate = base_error_rate
         @with_max_threads = with_max_threads
         base_filename = graph_filename ? graph_filename.sub(/\.png$/, "") : resource_name
         @time_analysis_csv_filename = "#{base_filename}_time_analysis.csv"
@@ -85,7 +81,7 @@ module Semian
         @services = []
         mean_latency = 0.15
         # Provide barely enough threads for us to handle the expected load (using Little's law)
-        max_threads_per_service = ((@requests_per_second / @service_count) * (0.5 * mean_latency)).to_i
+        max_threads_per_service = ((@requests_per_second / @service_count) * mean_latency).to_i
         @service_count.times do
           @services << MockService.new(
             endpoints_count: 10,
@@ -99,7 +95,7 @@ module Semian
             error_rate: @base_error_rate,
             timeout: 10,
             max_threads: @with_max_threads ? max_threads_per_service : 0,
-            queue_timeout: 0.0,
+            queue_timeout: 1.0,
           )
         end
         # We always assume that you want to degrade one service, and we pick @services[0]
@@ -145,7 +141,7 @@ module Semian
         @arrival_thread = Thread.new do
           until @done
             sleep(1.0 / @requests_per_second)
-            @request_queue << true
+            @request_queue << Time.now.to_i
           end
           # Push sentinel values to wake up all worker threads on shutdown
           @num_threads.times { @request_queue << :shutdown }
@@ -165,6 +161,8 @@ module Semian
               # Block waiting for a request token
               token = @request_queue.pop
               break if token == :shutdown || @done
+
+              next if token < Time.now.to_i - 1 # Ignore requests that are more than 1 second old
 
               service = @services.sample
               # technically, we are creating a new resource instance on every request.
@@ -456,6 +454,9 @@ module Semian
             integral_avg: metrics.sum { |m| m[:integral] } / metrics.length.to_f,
             integral_min: metrics.map { |m| m[:integral] }.min,
             integral_max: metrics.map { |m| m[:integral] }.max,
+            p_value_avg: metrics.sum { |m| m[:p_value] } / metrics.length.to_f,
+            p_value_min: metrics.map { |m| m[:p_value] }.min,
+            p_value_max: metrics.map { |m| m[:p_value] }.max,
             derivative_avg: metrics.sum { |m| m[:derivative] } / metrics.length.to_f,
             derivative_min: metrics.map { |m| m[:derivative] }.min,
             derivative_max: metrics.map { |m| m[:derivative] }.max,
@@ -466,7 +467,7 @@ module Semian
 
         puts "\n=== PID Controller State Per Second (Aggregated across threads) ==="
 
-        header = format("%-8s %-10s %-22s %-15s %-22s %-25s %-25s %-15s", "Window", "# Threads", "Err % (min-max)", "Ideal Err %", "Reject % (min-max)", "Integral (min-max)", "Derivative (min-max)", "Total Req Time")
+        header = format("%-8s %-10s %-22s %-15s %-22s %-25s %-25s %-25s %-15s", "Window", "# Threads", "Err % (min-max)", "Ideal Err %", "Reject % (min-max)", "Integral (min-max)", "Derivative (min-max)", "P Value (min-max)", "Total Req Time")
         separator = "-" * 150
 
         puts header
@@ -489,6 +490,9 @@ module Semian
           "Derivative Avg",
           "Derivative Min",
           "Derivative Max",
+          "P Value Avg",
+          "P Value Min",
+          "P Value Max",
           "Total Request Time",
         ]
 
@@ -497,10 +501,11 @@ module Semian
           reject_rate_str = format_metric_range(snapshot[:rejection_rate_avg], snapshot[:rejection_rate_min], snapshot[:rejection_rate_max], is_percent: true)
           integral_str = format_metric_range(snapshot[:integral_avg], snapshot[:integral_min], snapshot[:integral_max])
           derivative_str = format_metric_range(snapshot[:derivative_avg], snapshot[:derivative_min], snapshot[:derivative_max])
+          p_value_str = format_metric_range(snapshot[:p_value_avg], snapshot[:p_value_min], snapshot[:p_value_max])
 
           # Console output
           row = format(
-            "%-8d %-10d %-22s %-15s %-22s %-25s %-25s %-15s",
+            "%-8d %-10d %-22s %-15s %-22s %-25s %-25s %-25s %-15s",
             idx + 1,
             snapshot[:thread_count],
             error_rate_str,
@@ -508,6 +513,7 @@ module Semian
             reject_rate_str,
             integral_str,
             derivative_str,
+            p_value_str,
             "#{(snapshot[:total_request_time] || 0).round(2)}s",
           )
           puts row
@@ -529,6 +535,9 @@ module Semian
             snapshot[:derivative_avg].round(4),
             snapshot[:derivative_min].round(4),
             snapshot[:derivative_max].round(4),
+            snapshot[:p_value_avg].round(4),
+            snapshot[:p_value_min].round(4),
+            snapshot[:p_value_max].round(4),
             (snapshot[:total_request_time] || 0).round(2),
           ]
         end
@@ -585,12 +594,14 @@ module Semian
         # They're separate graphs because the difference in scale of the two values prevents the request duration signal from being clearly visible on the same graph.
 
         # Generate main graph (requests)
-        graph = Gruff::Line.new(1400)
+        graph = Gruff::Line.new
         graph.title = @graph_title
         graph.x_axis_label = "Time (#{bucket_size}-second intervals)"
         graph.y_axis_label = "Requests per Interval"
-        graph.hide_dots = false
-        graph.line_width = 3
+        graph.hide_dots = true
+        graph.line_width = 1
+        graph.y_axis_increment = 100
+        graph.marker_font_size = 12
         graph.labels = labels
 
         graph.data("Success", bucketed_data.map { |d| d[:success] })
@@ -629,7 +640,7 @@ module Semian
           graph.reference_lines[:"transition_#{idx}"] = {
             index: bucket_idx,
             color: color,
-            width: 2,
+            width: 1,
           }
         end
       end

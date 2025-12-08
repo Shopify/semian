@@ -10,31 +10,21 @@ module Semian
 
     attr_reader :pid_controller, :update_thread
 
-    def initialize(name:, kp:, ki:, kd:, window_size:, initial_history_duration:, initial_error_rate:, thread_safe:)
+    def initialize(name:, kp:, ki:, kd:, window_size:, sliding_interval:, initial_error_rate:, implementation:)
       initialize_behaviour(name: name)
 
-      @window_size = window_size
+      @sliding_interval = sliding_interval
       @stopped = false
 
-      @pid_controller = if thread_safe
-        ThreadSafePIDController.new(
-          kp: kp,
-          ki: ki,
-          kd: kd,
-          window_size: window_size,
-          initial_history_duration: initial_history_duration,
-          initial_error_rate: initial_error_rate,
-        )
-      else
-        PIDController.new(
-          kp: kp,
-          ki: ki,
-          kd: kd,
-          window_size: window_size,
-          initial_history_duration: initial_history_duration,
-          initial_error_rate: initial_error_rate,
-        )
-      end
+      @pid_controller = implementation::PIDController.new(
+        kp: kp,
+        ki: ki,
+        kd: kd,
+        window_size: window_size,
+        sliding_interval: sliding_interval,
+        implementation: implementation,
+        initial_error_rate: initial_error_rate,
+      )
 
       start_pid_controller_update_thread
     end
@@ -83,8 +73,7 @@ module Semian
       @pid_controller.rejection_rate == 0
     end
 
-    # half open is not a real concept for an adaptive circuit breaker. But we need to implement it for compatibility with ProtectedResource.
-    # So we return true if the rejection rate is not 0 or 1.
+    # Compatibility with ProtectedResource - Adaptive circuit breaker does not have a half open state
     def half_open?
       !open? && !closed?
     end
@@ -134,7 +123,7 @@ module Semian
     end
 
     def wait_for_window
-      Kernel.sleep(@window_size)
+      Kernel.sleep(@sliding_interval)
     end
 
     def check_and_notify_state_transition(old_rate, new_rate, pre_update_metrics)
@@ -152,7 +141,6 @@ module Semian
     end
 
     def log_state_transition(old_state, new_state, rejection_rate, pre_update_metrics)
-      # Use pre-update metrics to get the window that caused the transition
       requests = pre_update_metrics[:current_window_requests]
 
       str = "[#{self.class.name}] State transition from #{old_state} to #{new_state}."
