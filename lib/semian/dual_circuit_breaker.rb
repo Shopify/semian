@@ -6,7 +6,7 @@ module Semian
   class DualCircuitBreaker
     include CircuitBreakerBehaviour
 
-    attr_reader :name, :legacy_circuit_breaker, :adaptive_circuit_breaker
+    attr_reader :legacy_circuit_breaker, :adaptive_circuit_breaker
 
     # use_adaptive should be a callable (Proc/lambda) that returns true/false
     # to determine which circuit breaker to use. If it returns true, use adaptive.
@@ -29,40 +29,48 @@ module Semian
     def acquire(resource = nil, &block)
       @active_circuit_breaker = get_active_circuit_breaker(resource)
 
-      if active_breaker_name == "legacy"
+      if active_breaker_type == :adaptive
         @active_circuit_breaker.transition_to_half_open if @active_circuit_breaker.transition_to_half_open?
       end
 
       unless @active_circuit_breaker.request_allowed?
-        if active_breaker_name == "adaptive"
+        if active_breaker_type == :adaptive
           @active_circuit_breaker.mark_rejected
         end
-        raise OpenCircuitError, "Rejected by #{active_breaker_name} circuit breaker"
+        raise OpenCircuitError, "Rejected by #{active_breaker_type} circuit breaker"
       end
 
-      if active_breaker_name == "adaptive"
-        begin
-          result = block.call
-          mark_success
-          result
-        rescue => error
-          mark_failed(error)
-          raise error
-        end
-      elsif active_breaker_name == "legacy"
-        result = nil
-        begin
-          result = @active_circuit_breaker.maybe_with_half_open_resource_timeout(resource, &block)
-        rescue *@active_circuit_breaker.exceptions => error
-          if !error.respond_to?(:marks_semian_circuits?) || error.marks_semian_circuits?
-            mark_failed(error)
-          end
-          raise error
-        else
-          mark_success
-        end
-        result
+      if active_breaker_type == :adaptive
+        handle_adaptive_acquire(&block)
+      elsif active_breaker_type == :legacy
+        handle_legacy_acquire(resource, &block)
       end
+    end
+
+    def handle_adaptive_acquire(&block)
+      begin
+        result = block.call
+        mark_success
+        result
+      rescue => error
+        mark_failed(error)
+        raise error
+      end
+    end
+
+    def handle_legacy_acquire(resource, &block)
+      result = nil
+      begin
+        result = @active_circuit_breaker.maybe_with_half_open_resource_timeout(resource, &block)
+      rescue *@active_circuit_breaker.exceptions => error
+        if !error.respond_to?(:marks_semian_circuits?) || error.marks_semian_circuits?
+          mark_failed(error)
+        end
+        raise error
+      else
+        mark_success
+      end
+      result
     end
 
     # State query methods - delegate to active circuit breaker
@@ -125,10 +133,14 @@ module Semian
     # Get metrics from both circuit breakers for comparison
     def metrics
       {
-        active: @active_circuit_breaker&.respond_to?(:pid_controller) ? :adaptive : :legacy,
+        active: active_breaker_type,
         legacy: legacy_metrics,
         adaptive: adaptive_metrics,
       }
+    end
+
+    def active_breaker_type
+      @active_circuit_breaker.is_a?(Semian::AdaptiveCircuitBreaker) ? :adaptive : :legacy
     end
 
     private
@@ -149,10 +161,6 @@ module Semian
       # If the check fails, default to legacy for safety
       Semian.logger&.warn("[#{@name}] use_adaptive check failed: #{e.message}. Defaulting to legacy circuit breaker.")
       false
-    end
-
-    def active_breaker_name
-      @active_circuit_breaker == @adaptive_circuit_breaker ? "adaptive" : "legacy"
     end
 
     def legacy_metrics

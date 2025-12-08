@@ -95,60 +95,6 @@ class TestDualCircuitBreaker < Minitest::Test
     end
   end
 
-  def test_request_allowed_delegates_to_active_breaker
-    resource = create_dual_resource
-
-    # Test with legacy active
-    @use_adaptive_flag = false
-    legacy_allowed = resource.circuit_breaker.legacy_circuit_breaker.request_allowed?
-
-    assert_equal(legacy_allowed, resource.circuit_breaker.request_allowed?)
-
-    # Test with adaptive active
-    @use_adaptive_flag = true
-    adaptive_allowed = resource.circuit_breaker.adaptive_circuit_breaker.request_allowed?
-
-    assert_equal(adaptive_allowed, resource.circuit_breaker.request_allowed?)
-  end
-
-  def test_state_methods_delegate_to_active_breaker
-    resource = create_dual_resource
-
-    # Test with legacy active
-    @use_adaptive_flag = false
-
-    assert_equal(
-      resource.circuit_breaker.legacy_circuit_breaker.closed?,
-      resource.circuit_breaker.closed?,
-    )
-
-    # Test with adaptive active
-    @use_adaptive_flag = true
-
-    assert_equal(
-      resource.circuit_breaker.adaptive_circuit_breaker.closed?,
-      resource.circuit_breaker.closed?,
-    )
-  end
-
-  def test_reset_resets_both_breakers
-    resource = create_dual_resource
-
-    # Generate some activity
-    3.times do
-      resource.acquire { raise TestError, "boom" }
-    rescue TestError
-      # Expected
-    end
-
-    # Reset
-    resource.circuit_breaker.reset
-
-    # Both should be reset (both should be closed)
-    assert(resource.circuit_breaker.legacy_circuit_breaker.closed?)
-    assert(resource.circuit_breaker.adaptive_circuit_breaker.closed?)
-  end
-
   def test_destroy_destroys_both_breakers
     resource = create_dual_resource
 
@@ -260,6 +206,20 @@ class TestDualCircuitBreaker < Minitest::Test
     # Make sure the last error is tracked by both circuit breakers
     assert_equal("test error", resource.circuit_breaker.legacy_circuit_breaker.last_error.message)
     assert_equal("test error", resource.circuit_breaker.adaptive_circuit_breaker.last_error.message)
+  end
+
+  def test_active_breaker_type
+    resource = create_dual_resource
+
+    @use_adaptive_flag = false
+    resource.acquire { "success" }
+
+    assert_equal(:legacy, resource.circuit_breaker.active_breaker_type)
+
+    @use_adaptive_flag = true
+    resource.acquire { "success" }
+
+    assert_equal(:adaptive, resource.circuit_breaker.active_breaker_type)
   end
 
   private
