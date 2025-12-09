@@ -28,12 +28,9 @@ class TestDualCircuitBreaker < Minitest::Test
     @use_adaptive_flag = false
 
     # Legacy circuit breaker should handle the request
-    success_count = 0
-    3.times do
-      resource.acquire { success_count += 1 }
-    end
-
-    assert_equal(3, success_count)
+    resource.acquire { "success" }
+  
+    assert_instance_of(Semian::CircuitBreaker, resource.circuit_breaker.active_circuit_breaker)
   end
 
   def test_uses_adaptive_when_use_adaptive_returns_true
@@ -41,12 +38,9 @@ class TestDualCircuitBreaker < Minitest::Test
     @use_adaptive_flag = true
 
     # Adaptive circuit breaker should handle the request
-    success_count = 0
-    3.times do
-      resource.acquire { success_count += 1 }
-    end
-
-    assert_equal(3, success_count)
+    resource.acquire { "success" }
+  
+    assert_instance_of(Semian::AdaptiveCircuitBreaker, resource.circuit_breaker.active_circuit_breaker)
   end
 
   def test_can_switch_between_breakers_at_runtime
@@ -56,19 +50,19 @@ class TestDualCircuitBreaker < Minitest::Test
     @use_adaptive_flag = false
     resource.acquire { "success" }
 
-    assert_instance_of(Semian::CircuitBreaker, resource.circuit_breaker.legacy_circuit_breaker)
+    assert_instance_of(Semian::CircuitBreaker, resource.circuit_breaker.active_circuit_breaker)
 
     # Switch to adaptive
     @use_adaptive_flag = true
     resource.acquire { "success" }
 
-    assert_instance_of(Semian::AdaptiveCircuitBreaker, resource.circuit_breaker.adaptive_circuit_breaker)
+    assert_instance_of(Semian::AdaptiveCircuitBreaker, resource.circuit_breaker.active_circuit_breaker)
 
     # Switch back to legacy
     @use_adaptive_flag = false
     resource.acquire { "success" }
 
-    assert_instance_of(Semian::CircuitBreaker, resource.circuit_breaker.legacy_circuit_breaker)
+    assert_instance_of(Semian::CircuitBreaker, resource.circuit_breaker.active_circuit_breaker)
   end
 
   def test_both_breakers_track_successes
@@ -119,6 +113,7 @@ class TestDualCircuitBreaker < Minitest::Test
     resource.acquire { success_count += 1 }
 
     assert_equal(1, success_count)
+    assert_instance_of(Semian::CircuitBreaker, resource.circuit_breaker.active_circuit_breaker)
   end
 
   def test_with_bulkhead_enabled
@@ -152,24 +147,6 @@ class TestDualCircuitBreaker < Minitest::Test
     assert_nil(resource.circuit_breaker)
   ensure
     ENV.delete("SEMIAN_CIRCUIT_BREAKER_DISABLED")
-  end
-
-  def test_returns_nil_if_either_breaker_cannot_be_created
-    # This would happen if one of the create methods returns nil
-    # For example, if required parameters are missing
-    resource = Semian.register(
-      :test_with_bulkhead,
-      dual_circuit_breaker: true,
-      success_threshold: 2,
-      error_threshold: 3,
-      error_timeout: 5,
-      tickets: 2,
-      timeout: 0.5,
-      exceptions: [TestError],
-    )
-
-    assert_instance_of(Semian::CircuitBreaker, resource.circuit_breaker.legacy_circuit_breaker)
-    assert_instance_of(Semian::AdaptiveCircuitBreaker, resource.circuit_breaker.adaptive_circuit_breaker)
   end
 
   def test_both_breakers_track_last_error

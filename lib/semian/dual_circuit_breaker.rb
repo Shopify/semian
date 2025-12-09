@@ -6,7 +6,7 @@ module Semian
   class DualCircuitBreaker
     include CircuitBreakerBehaviour
 
-    attr_reader :legacy_circuit_breaker, :adaptive_circuit_breaker
+    attr_reader :legacy_circuit_breaker, :adaptive_circuit_breaker, :active_circuit_breaker
 
     # use_adaptive should be a callable (Proc/lambda) that returns true/false
     # to determine which circuit breaker to use. If it returns true, use adaptive.
