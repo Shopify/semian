@@ -326,13 +326,12 @@ module Semian
   def create_dual_circuit_breaker(name, **options)
     return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED")
 
-    # Create both circuit breakers
-    legacy_cb = create_circuit_breaker(name, **options)
+    classic_cb = create_circuit_breaker(name, **options)
     adaptive_cb = create_adaptive_circuit_breaker(name, **options)
 
     DualCircuitBreaker.new(
       name: name,
-      legacy_circuit_breaker: legacy_cb,
+      classic_circuit_breaker: classic_cb,
       adaptive_circuit_breaker: adaptive_cb,
     )
   end
