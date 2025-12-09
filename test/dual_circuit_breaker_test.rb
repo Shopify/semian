@@ -158,7 +158,7 @@ class TestDualCircuitBreaker < Minitest::Test
       # Expected
     end
 
-    assert(resource.circuit_breaker.last_error)
+    assert_equal("test error", resource.circuit_breaker.last_error.message)
 
     # Make sure the last error is tracked by both circuit breakers
     assert_equal("test error", resource.circuit_breaker.legacy_circuit_breaker.last_error.message)
