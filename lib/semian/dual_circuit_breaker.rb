@@ -1,21 +1,21 @@
 # frozen_string_literal: true
 
 module Semian
-  # DualCircuitBreaker wraps both legacy and adaptive circuit breakers,
+  # DualCircuitBreaker wraps both classic and adaptive circuit breakers,
   # allowing runtime switching between them via a callable that determines which to use.
   class DualCircuitBreaker
     include CircuitBreakerBehaviour
 
-    attr_reader :legacy_circuit_breaker, :adaptive_circuit_breaker, :active_circuit_breaker
+    attr_reader :classic_circuit_breaker, :adaptive_circuit_breaker, :active_circuit_breaker
 
     # use_adaptive should be a callable (Proc/lambda) that returns true/false
     # to determine which circuit breaker to use. If it returns true, use adaptive.
-    def initialize(name:, legacy_circuit_breaker:, adaptive_circuit_breaker:)
+    def initialize(name:, classic_circuit_breaker:, adaptive_circuit_breaker:)
       initialize_behaviour(name: name)
 
-      @legacy_circuit_breaker = legacy_circuit_breaker
+      @classic_circuit_breaker = classic_circuit_breaker
       @adaptive_circuit_breaker = adaptive_circuit_breaker
-      @active_circuit_breaker = @legacy_circuit_breaker
+      @active_circuit_breaker = @classic_circuit_breaker
     end
 
     def self.adaptive_circuit_breaker_selector(selector)
@@ -26,9 +26,13 @@ module Semian
     # Logic from both acquire methods is implemented here so that we can fan out mark_success and mark_failed
     # to both circuit breakers.
     def acquire(resource = nil, &block)
+      old_type = active_breaker_type
       @active_circuit_breaker = get_active_circuit_breaker(resource)
+      if old_type != active_breaker_type
+        Semian.notify(:circuit_breaker_mode_change, self, nil, nil, old_mode: old_type, new_mode: active_breaker_type)
+      end
 
-      if active_breaker_type == :legacy
+      if active_breaker_type == :classic
         @active_circuit_breaker.transition_to_half_open if @active_circuit_breaker.transition_to_half_open?
       end
 
@@ -41,23 +45,21 @@ module Semian
 
       if active_breaker_type == :adaptive
         handle_adaptive_acquire(&block)
-      elsif active_breaker_type == :legacy
-        handle_legacy_acquire(resource, &block)
+      elsif active_breaker_type == :classic
+        handle_classic_acquire(resource, &block)
       end
     end
 
     def handle_adaptive_acquire(&block)
-      begin
-        result = block.call
-        mark_success
-        result
-      rescue => error
-        mark_failed(error)
-        raise error
-      end
+      result = block.call
+      mark_success
+      result
+    rescue => error
+      mark_failed(error)
+      raise error
     end
 
-    def handle_legacy_acquire(resource, &block)
+    def handle_classic_acquire(resource, &block)
       result = nil
       begin
         result = @active_circuit_breaker.maybe_with_half_open_resource_timeout(resource, &block)
@@ -91,35 +93,35 @@ module Semian
 
     # Mark methods - record on BOTH circuit breakers for data consistency
     def mark_failed(error)
-      @legacy_circuit_breaker&.mark_failed(error)
+      @classic_circuit_breaker&.mark_failed(error)
       @adaptive_circuit_breaker&.mark_failed(error)
     end
 
     def mark_success
-      @legacy_circuit_breaker&.mark_success
+      @classic_circuit_breaker&.mark_success
       @adaptive_circuit_breaker&.mark_success
     end
 
-    # Stop circuit breakers (legacy doesn't implement this)
+    # Stop circuit breakers (classic doesn't implement this)
     def stop
       @adaptive_circuit_breaker&.stop
     end
 
     # Reset both circuit breakers
     def reset
-      @legacy_circuit_breaker&.reset
+      @classic_circuit_breaker&.reset
       @adaptive_circuit_breaker&.reset
     end
 
     # Destroy both circuit breakers
     def destroy
-      @legacy_circuit_breaker&.destroy
+      @classic_circuit_breaker&.destroy
       @adaptive_circuit_breaker&.destroy
     end
 
     # Check if either circuit breaker is in use
     def in_use?
-      @legacy_circuit_breaker&.in_use? || @adaptive_circuit_breaker&.in_use?
+      @classic_circuit_breaker&.in_use? || @adaptive_circuit_breaker&.in_use?
     end
 
     # Get the last error from the active circuit breaker
@@ -130,14 +132,14 @@ module Semian
     private
 
     def active_breaker_type
-      @active_circuit_breaker.is_a?(Semian::AdaptiveCircuitBreaker) ? :adaptive : :legacy
+      @active_circuit_breaker.is_a?(Semian::AdaptiveCircuitBreaker) ? :adaptive : :classic
     end
 
     def get_active_circuit_breaker(resource)
       if use_adaptive?(resource)
         @adaptive_circuit_breaker
       else
-        @legacy_circuit_breaker
+        @classic_circuit_breaker
       end
     end
 
@@ -146,20 +148,20 @@ module Semian
 
       @@adaptive_circuit_breaker_selector.call(resource)
     rescue => e
-      # If the check fails, default to legacy for safety
-      Semian.logger&.warn("[#{@name}] use_adaptive check failed: #{e.message}. Defaulting to legacy circuit breaker.")
+      # If the check fails, default to classic for safety
+      Semian.logger&.warn("[#{@name}] use_adaptive check failed: #{e.message}. Defaulting to classic circuit breaker.")
       false
     end
 
-    def legacy_metrics
-      return {} unless @legacy_circuit_breaker
+    def classic_metrics
+      return {} unless @classic_circuit_breaker
 
       {
-        state: @legacy_circuit_breaker.state&.value,
-        open: @legacy_circuit_breaker.open?,
-        closed: @legacy_circuit_breaker.closed?,
-        half_open: @legacy_circuit_breaker.half_open?,
-        last_error: @legacy_circuit_breaker.last_error&.message,
+        state: @classic_circuit_breaker.state&.value,
+        open: @classic_circuit_breaker.open?,
+        closed: @classic_circuit_breaker.closed?,
+        half_open: @classic_circuit_breaker.half_open?,
+        last_error: @classic_circuit_breaker.last_error&.message,
       }
     end
 
