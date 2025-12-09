@@ -18,14 +18,18 @@ module Semian
       @active_circuit_breaker = @classic_circuit_breaker
     end
 
-    def self.adaptive_circuit_breaker_selector(selector)
-      @@adaptive_circuit_breaker_selector = selector
+    def self.adaptive_circuit_breaker_selector(selector) # rubocop:disable Style/ClassMethodsDefinitions
+      @@adaptive_circuit_breaker_selector = selector # rubocop:disable Style/ClassVars
     end
 
     # Main acquire method
     # Logic from both acquire methods is implemented here so that we can fan out mark_success and mark_failed
     # to both circuit breakers.
     def acquire(resource = nil, &block)
+      # NOTE: This assignment is not thread-safe, but this is acceptable for now:
+      # - Each request gets its own decision based on the selector at that moment
+      # - The worst case is a brief inconsistency where a thread reads a stale value,
+      #    which just means it uses the previous circuit breaker type for that one request
       old_type = active_breaker_type
       @active_circuit_breaker = get_active_circuit_breaker(resource)
       if old_type != active_breaker_type
@@ -51,12 +55,18 @@ module Semian
     end
 
     def handle_adaptive_acquire(&block)
-      result = block.call
-      mark_success
+      result = nil
+      begin
+        result = block.call
+      rescue => error
+        if !error.respond_to?(:marks_semian_circuits?) || error.marks_semian_circuits?
+          mark_failed(error)
+        end
+        raise error
+      else
+        mark_success
+      end
       result
-    rescue => error
-      mark_failed(error)
-      raise error
     end
 
     def handle_classic_acquire(resource, &block)
@@ -74,7 +84,6 @@ module Semian
       result
     end
 
-    # State query methods - delegate to active circuit breaker
     def open?
       @active_circuit_breaker.open?
     end
@@ -91,7 +100,6 @@ module Semian
       @active_circuit_breaker.request_allowed?
     end
 
-    # Mark methods - record on BOTH circuit breakers for data consistency
     def mark_failed(error)
       @classic_circuit_breaker&.mark_failed(error)
       @adaptive_circuit_breaker&.mark_failed(error)
@@ -102,29 +110,24 @@ module Semian
       @adaptive_circuit_breaker&.mark_success
     end
 
-    # Stop circuit breakers (classic doesn't implement this)
     def stop
       @adaptive_circuit_breaker&.stop
     end
 
-    # Reset both circuit breakers
     def reset
       @classic_circuit_breaker&.reset
       @adaptive_circuit_breaker&.reset
     end
 
-    # Destroy both circuit breakers
     def destroy
       @classic_circuit_breaker&.destroy
       @adaptive_circuit_breaker&.destroy
     end
 
-    # Check if either circuit breaker is in use
     def in_use?
       @classic_circuit_breaker&.in_use? || @adaptive_circuit_breaker&.in_use?
     end
 
-    # Get the last error from the active circuit breaker
     def last_error
       @active_circuit_breaker.last_error
     end
@@ -148,32 +151,8 @@ module Semian
 
       @@adaptive_circuit_breaker_selector.call(resource)
     rescue => e
-      # If the check fails, default to classic for safety
       Semian.logger&.warn("[#{@name}] use_adaptive check failed: #{e.message}. Defaulting to classic circuit breaker.")
       false
-    end
-
-    def classic_metrics
-      return {} unless @classic_circuit_breaker
-
-      {
-        state: @classic_circuit_breaker.state&.value,
-        open: @classic_circuit_breaker.open?,
-        closed: @classic_circuit_breaker.closed?,
-        half_open: @classic_circuit_breaker.half_open?,
-        last_error: @classic_circuit_breaker.last_error&.message,
-      }
-    end
-
-    def adaptive_metrics
-      return {} unless @adaptive_circuit_breaker
-
-      base_metrics = @adaptive_circuit_breaker.metrics
-      base_metrics.merge(
-        open: @adaptive_circuit_breaker.open?,
-        closed: @adaptive_circuit_breaker.closed?,
-        half_open: @adaptive_circuit_breaker.half_open?,
-      )
     end
   end
 end

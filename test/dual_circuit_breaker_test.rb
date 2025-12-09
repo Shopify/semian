@@ -19,17 +19,16 @@ class TestDualCircuitBreaker < Minitest::Test
     resource = create_dual_resource
 
     assert_instance_of(Semian::DualCircuitBreaker, resource.circuit_breaker)
-    assert_instance_of(Semian::CircuitBreaker, resource.circuit_breaker.legacy_circuit_breaker)
+    assert_instance_of(Semian::CircuitBreaker, resource.circuit_breaker.classic_circuit_breaker)
     assert_instance_of(Semian::AdaptiveCircuitBreaker, resource.circuit_breaker.adaptive_circuit_breaker)
   end
 
-  def test_uses_legacy_when_use_adaptive_returns_false
+  def test_uses_classic_when_use_adaptive_returns_false
     resource = create_dual_resource
     @use_adaptive_flag = false
 
-    # Legacy circuit breaker should handle the request
     resource.acquire { "success" }
-  
+
     assert_instance_of(Semian::CircuitBreaker, resource.circuit_breaker.active_circuit_breaker)
   end
 
@@ -37,16 +36,15 @@ class TestDualCircuitBreaker < Minitest::Test
     resource = create_dual_resource
     @use_adaptive_flag = true
 
-    # Adaptive circuit breaker should handle the request
     resource.acquire { "success" }
-  
+
     assert_instance_of(Semian::AdaptiveCircuitBreaker, resource.circuit_breaker.active_circuit_breaker)
   end
 
   def test_can_switch_between_breakers_at_runtime
     resource = create_dual_resource
 
-    # Start with legacy
+    # Start with classic
     @use_adaptive_flag = false
     resource.acquire { "success" }
 
@@ -58,7 +56,7 @@ class TestDualCircuitBreaker < Minitest::Test
 
     assert_instance_of(Semian::AdaptiveCircuitBreaker, resource.circuit_breaker.active_circuit_breaker)
 
-    # Switch back to legacy
+    # Switch back to classic
     @use_adaptive_flag = false
     resource.acquire { "success" }
 
@@ -67,17 +65,14 @@ class TestDualCircuitBreaker < Minitest::Test
 
   def test_both_breakers_track_successes
     resource = create_dual_resource
-    @use_adaptive_flag = false # Use legacy for decisions
+    @use_adaptive_flag = false
 
-    # Get references to both circuit breakers
-    legacy_cb = resource.circuit_breaker.legacy_circuit_breaker
+    classic_cb = resource.circuit_breaker.classic_circuit_breaker
     adaptive_cb = resource.circuit_breaker.adaptive_circuit_breaker
 
-    # Set up expectations that mark_success will be called on both breakers
-    legacy_cb.expects(:mark_success).times(3)
+    classic_cb.expects(:mark_success).times(3)
     adaptive_cb.expects(:mark_success).times(3)
 
-    # Generate some successes
     3.times do
       resource.acquire { "success" }
     end
@@ -86,10 +81,8 @@ class TestDualCircuitBreaker < Minitest::Test
   def test_destroy_destroys_both_breakers
     resource = create_dual_resource
 
-    # Destroy
     resource.circuit_breaker.destroy
 
-    # Verify cleanup (threads should be stopped for adaptive)
     assert(resource.circuit_breaker.adaptive_circuit_breaker.instance_variable_get(:@stopped))
   end
 
@@ -105,10 +98,8 @@ class TestDualCircuitBreaker < Minitest::Test
       exceptions: [TestError],
     )
 
-    # Create a proc that raises an error
     Semian::DualCircuitBreaker.adaptive_circuit_breaker_selector(->(_resource) { raise StandardError, "check failed" })
 
-    # Should fall back to legacy (not raise error)
     success_count = 0
     resource.acquire { success_count += 1 }
 
@@ -155,13 +146,11 @@ class TestDualCircuitBreaker < Minitest::Test
     begin
       resource.acquire { raise TestError, "test error" }
     rescue TestError
-      # Expected
+      nil # expected
     end
 
     assert_equal("test error", resource.circuit_breaker.last_error.message)
-
-    # Make sure the last error is tracked by both circuit breakers
-    assert_equal("test error", resource.circuit_breaker.legacy_circuit_breaker.last_error.message)
+    assert_equal("test error", resource.circuit_breaker.classic_circuit_breaker.last_error.message)
     assert_equal("test error", resource.circuit_breaker.adaptive_circuit_breaker.last_error.message)
   end
 
@@ -171,12 +160,40 @@ class TestDualCircuitBreaker < Minitest::Test
     @use_adaptive_flag = false
     resource.acquire { "success" }
 
-    assert_instance_of(Semian::CircuitBreaker, resource.circuit_breaker.legacy_circuit_breaker)
+    assert_instance_of(Semian::CircuitBreaker, resource.circuit_breaker.classic_circuit_breaker)
 
     @use_adaptive_flag = true
     resource.acquire { "success" }
 
     assert_instance_of(Semian::AdaptiveCircuitBreaker, resource.circuit_breaker.adaptive_circuit_breaker)
+  end
+
+  def test_notifies_on_mode_change
+    resource = create_dual_resource
+    notifications = []
+
+    subscription = Semian.subscribe do |event, _, _, _, payload|
+      notifications << { event: event, payload: payload } if event == :circuit_breaker_mode_change
+    end
+
+    @use_adaptive_flag = false
+    resource.acquire { "success" }
+
+    @use_adaptive_flag = true
+    resource.acquire { "success" }
+
+    assert_equal(1, notifications.size)
+    assert_equal(:classic, notifications[0][:payload][:old_mode])
+    assert_equal(:adaptive, notifications[0][:payload][:new_mode])
+
+    @use_adaptive_flag = false
+    resource.acquire { "success" }
+
+    assert_equal(2, notifications.size)
+    assert_equal(:adaptive, notifications[1][:payload][:old_mode])
+    assert_equal(:classic, notifications[1][:payload][:new_mode])
+  ensure
+    Semian.unsubscribe(subscription)
   end
 
   private
