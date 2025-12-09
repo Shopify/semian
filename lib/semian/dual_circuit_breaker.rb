@@ -15,7 +15,7 @@ module Semian
 
       @legacy_circuit_breaker = legacy_circuit_breaker
       @adaptive_circuit_breaker = adaptive_circuit_breaker
-      @active_circuit_breaker = @adaptive_circuit_breaker
+      @active_circuit_breaker = @legacy_circuit_breaker
     end
 
     def self.adaptive_circuit_breaker_selector(selector)
@@ -100,9 +100,8 @@ module Semian
       @adaptive_circuit_breaker&.mark_success
     end
 
-    # Stop both circuit breakers
+    # Stop circuit breakers (legacy doesn't implement this)
     def stop
-      @legacy_circuit_breaker&.stop if @legacy_circuit_breaker&.respond_to?(:stop)
       @adaptive_circuit_breaker&.stop
     end
 
@@ -120,8 +119,7 @@ module Semian
 
     # Check if either circuit breaker is in use
     def in_use?
-      (@legacy_circuit_breaker&.in_use? || false) ||
-        (@adaptive_circuit_breaker&.in_use? || false)
+      @legacy_circuit_breaker&.in_use? || @adaptive_circuit_breaker&.in_use?
     end
 
     # Get the last error from the active circuit breaker
@@ -129,20 +127,11 @@ module Semian
       @active_circuit_breaker.last_error
     end
 
-    # Get metrics from both circuit breakers for comparison
-    def metrics
-      {
-        active: active_breaker_type,
-        legacy: legacy_metrics,
-        adaptive: adaptive_metrics,
-      }
-    end
+    private
 
     def active_breaker_type
       @active_circuit_breaker.is_a?(Semian::AdaptiveCircuitBreaker) ? :adaptive : :legacy
     end
-
-    private
 
     def get_active_circuit_breaker(resource)
       if use_adaptive?(resource)

@@ -9,7 +9,6 @@ module Semian
 
     def_delegators :@state, :closed?, :open?, :half_open?
 
-    attr_accessor :exceptions
     attr_reader(
       :half_open_resource_timeout,
       :error_timeout,
