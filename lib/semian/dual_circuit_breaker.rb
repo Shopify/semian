@@ -132,7 +132,36 @@ module Semian
       @active_circuit_breaker.last_error
     end
 
+    def metrics
+      {
+        active: active_breaker_type,
+        classic: classic_metrics,
+        adaptive: adaptive_metrics,
+      }
+    end
+
     private
+
+    def classic_metrics
+      return {} unless @classic_circuit_breaker
+
+      {
+        state: @classic_circuit_breaker.state&.value,
+        open: @classic_circuit_breaker.open?,
+        closed: @classic_circuit_breaker.closed?,
+        half_open: @classic_circuit_breaker.half_open?,
+      }
+    end
+
+    def adaptive_metrics
+      return {} unless @adaptive_circuit_breaker
+
+      @adaptive_circuit_breaker.metrics.merge(
+        open: @adaptive_circuit_breaker.open?,
+        closed: @adaptive_circuit_breaker.closed?,
+        half_open: @adaptive_circuit_breaker.half_open?,
+      )
+    end
 
     def active_breaker_type
       @active_circuit_breaker.is_a?(Semian::AdaptiveCircuitBreaker) ? :adaptive : :classic

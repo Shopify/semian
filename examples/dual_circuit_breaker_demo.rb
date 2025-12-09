@@ -46,7 +46,7 @@ def print_semian_state
       puts "  Circuit Breaker: DualCircuitBreaker"
       metrics = cb.metrics
       puts "    Active: #{metrics[:active]}"
-      puts "    Legacy: state=#{metrics[:legacy][:state]}, open=#{metrics[:legacy][:open]}, half_open=#{metrics[:legacy][:half_open]}"
+      puts "    Classic: state=#{metrics[:classic][:state]}, open=#{metrics[:classic][:open]}, half_open=#{metrics[:classic][:half_open]}"
       puts "    Adaptive: rejection_rate=#{metrics[:adaptive][:rejection_rate]}, error_rate=#{metrics[:adaptive][:error_rate]}"
     elsif cb.is_a?(Semian::AdaptiveCircuitBreaker)
       puts "  Circuit Breaker: AdaptiveCircuitBreaker"
