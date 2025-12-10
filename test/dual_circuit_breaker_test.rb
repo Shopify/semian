@@ -63,19 +63,30 @@ class TestDualCircuitBreaker < Minitest::Test
     assert_instance_of(Semian::DualCircuitBreaker::ChildClassicCircuitBreaker, resource.circuit_breaker.active_circuit_breaker)
   end
 
-  def test_both_breakers_track_successes
+  def test_both_breakers_record_requests
     resource = create_dual_resource
     @use_adaptive_flag = false
 
     classic_cb = resource.circuit_breaker.classic_circuit_breaker
     adaptive_cb = resource.circuit_breaker.adaptive_circuit_breaker
 
-    classic_cb.class.superclass.expects(:mark_success).times(3)
-    adaptive_cb.class.superclass.expects(:mark_success).times(3)
+    2.times { resource.acquire { "success" } }
 
-    3.times do
-      resource.acquire { "success" }
+    adaptive_metrics = adaptive_cb.pid_controller.metrics
+
+    assert_equal(2, adaptive_metrics[:current_window_requests][:success])
+
+    begin
+      resource.acquire { raise TestError, "test error" }
+    rescue TestError
+      nil
     end
+
+    assert_equal(1, classic_cb.instance_variable_get(:@errors).size)
+    assert_equal("test error", adaptive_cb.last_error.message)
+    adaptive_metrics = adaptive_cb.pid_controller.metrics
+
+    assert_equal(1, adaptive_metrics[:current_window_requests][:error])
   end
 
   def test_destroy_destroys_both_breakers

@@ -54,9 +54,6 @@ module Semian
       @@adaptive_circuit_breaker_selector = selector # rubocop:disable Style/ClassVars
     end
 
-    # Main acquire method
-    # Logic from both acquire methods is implemented here so that we can fan out mark_success and mark_failed
-    # to both circuit breakers.
     def acquire(resource = nil, &block)
       # NOTE: This assignment is not thread-safe, but this is acceptable for now:
       # - Each request gets its own decision based on the selector at that moment
