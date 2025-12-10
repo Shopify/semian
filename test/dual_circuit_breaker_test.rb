@@ -19,8 +19,8 @@ class TestDualCircuitBreaker < Minitest::Test
     resource = create_dual_resource
 
     assert_instance_of(Semian::DualCircuitBreaker, resource.circuit_breaker)
-    assert_instance_of(Semian::CircuitBreaker, resource.circuit_breaker.classic_circuit_breaker)
-    assert_instance_of(Semian::AdaptiveCircuitBreaker, resource.circuit_breaker.adaptive_circuit_breaker)
+    assert_instance_of(Semian::DualCircuitBreaker::ChildClassicCircuitBreaker, resource.circuit_breaker.classic_circuit_breaker)
+    assert_instance_of(Semian::DualCircuitBreaker::ChildAdaptiveCircuitBreaker, resource.circuit_breaker.adaptive_circuit_breaker)
   end
 
   def test_uses_classic_when_use_adaptive_returns_false
@@ -29,7 +29,7 @@ class TestDualCircuitBreaker < Minitest::Test
 
     resource.acquire { "success" }
 
-    assert_instance_of(Semian::CircuitBreaker, resource.circuit_breaker.active_circuit_breaker)
+    assert_instance_of(Semian::DualCircuitBreaker::ChildClassicCircuitBreaker, resource.circuit_breaker.active_circuit_breaker)
   end
 
   def test_uses_adaptive_when_use_adaptive_returns_true
@@ -38,7 +38,7 @@ class TestDualCircuitBreaker < Minitest::Test
 
     resource.acquire { "success" }
 
-    assert_instance_of(Semian::AdaptiveCircuitBreaker, resource.circuit_breaker.active_circuit_breaker)
+    assert_instance_of(Semian::DualCircuitBreaker::ChildAdaptiveCircuitBreaker, resource.circuit_breaker.active_circuit_breaker)
   end
 
   def test_can_switch_between_breakers_at_runtime
@@ -48,19 +48,19 @@ class TestDualCircuitBreaker < Minitest::Test
     @use_adaptive_flag = false
     resource.acquire { "success" }
 
-    assert_instance_of(Semian::CircuitBreaker, resource.circuit_breaker.active_circuit_breaker)
+    assert_instance_of(Semian::DualCircuitBreaker::ChildClassicCircuitBreaker, resource.circuit_breaker.active_circuit_breaker)
 
     # Switch to adaptive
     @use_adaptive_flag = true
     resource.acquire { "success" }
 
-    assert_instance_of(Semian::AdaptiveCircuitBreaker, resource.circuit_breaker.active_circuit_breaker)
+    assert_instance_of(Semian::DualCircuitBreaker::ChildAdaptiveCircuitBreaker, resource.circuit_breaker.active_circuit_breaker)
 
     # Switch back to classic
     @use_adaptive_flag = false
     resource.acquire { "success" }
 
-    assert_instance_of(Semian::CircuitBreaker, resource.circuit_breaker.active_circuit_breaker)
+    assert_instance_of(Semian::DualCircuitBreaker::ChildClassicCircuitBreaker, resource.circuit_breaker.active_circuit_breaker)
   end
 
   def test_both_breakers_track_successes
@@ -70,8 +70,8 @@ class TestDualCircuitBreaker < Minitest::Test
     classic_cb = resource.circuit_breaker.classic_circuit_breaker
     adaptive_cb = resource.circuit_breaker.adaptive_circuit_breaker
 
-    classic_cb.expects(:mark_success).times(3)
-    adaptive_cb.expects(:mark_success).times(3)
+    classic_cb.class.superclass.expects(:mark_success).times(3)
+    adaptive_cb.class.superclass.expects(:mark_success).times(3)
 
     3.times do
       resource.acquire { "success" }
@@ -104,7 +104,7 @@ class TestDualCircuitBreaker < Minitest::Test
     resource.acquire { success_count += 1 }
 
     assert_equal(1, success_count)
-    assert_instance_of(Semian::CircuitBreaker, resource.circuit_breaker.active_circuit_breaker)
+    assert_instance_of(Semian::DualCircuitBreaker::ChildClassicCircuitBreaker, resource.circuit_breaker.active_circuit_breaker)
   end
 
   def test_with_bulkhead_enabled
@@ -160,12 +160,12 @@ class TestDualCircuitBreaker < Minitest::Test
     @use_adaptive_flag = false
     resource.acquire { "success" }
 
-    assert_instance_of(Semian::CircuitBreaker, resource.circuit_breaker.classic_circuit_breaker)
+    assert_instance_of(Semian::DualCircuitBreaker::ChildClassicCircuitBreaker, resource.circuit_breaker.classic_circuit_breaker)
 
     @use_adaptive_flag = true
     resource.acquire { "success" }
 
-    assert_instance_of(Semian::AdaptiveCircuitBreaker, resource.circuit_breaker.adaptive_circuit_breaker)
+    assert_instance_of(Semian::DualCircuitBreaker::ChildAdaptiveCircuitBreaker, resource.circuit_breaker.adaptive_circuit_breaker)
   end
 
   def test_notifies_on_mode_change

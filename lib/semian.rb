@@ -326,8 +326,8 @@ module Semian
   def create_dual_circuit_breaker(name, **options)
     return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED")
 
-    classic_cb = create_circuit_breaker(name, **options)
-    adaptive_cb = create_adaptive_circuit_breaker(name, **options)
+    classic_cb = create_circuit_breaker(name, is_child: true, **options)
+    adaptive_cb = create_adaptive_circuit_breaker(name, is_child: true, **options)
 
     DualCircuitBreaker.new(
       name: name,
@@ -336,10 +336,11 @@ module Semian
     )
   end
 
-  def create_adaptive_circuit_breaker(name, **options)
+  def create_adaptive_circuit_breaker(name, is_child: false, **options)
     return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED") || ENV.key?("SEMIAN_ADAPTIVE_CIRCUIT_BREAKER_DISABLED")
 
-    AdaptiveCircuitBreaker.new(
+    cls = is_child ? DualCircuitBreaker::ChildAdaptiveCircuitBreaker : AdaptiveCircuitBreaker
+    cls.new(
       name: name,
       kp: 1.0,
       ki: 0.2,
@@ -351,12 +352,13 @@ module Semian
     )
   end
 
-  def create_circuit_breaker(name, **options)
+  def create_circuit_breaker(name, is_child: false, **options)
     return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED")
     return unless options.fetch(:circuit_breaker, true)
 
     exceptions = options[:exceptions] || []
-    CircuitBreaker.new(
+    cls = is_child ? DualCircuitBreaker::ChildClassicCircuitBreaker : CircuitBreaker
+    cls.new(
       name,
       success_threshold: options[:success_threshold],
       error_threshold: options[:error_threshold],

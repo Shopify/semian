@@ -6,6 +6,34 @@ module Semian
   class DualCircuitBreaker
     include CircuitBreakerBehaviour
 
+    class ChildClassicCircuitBreaker < CircuitBreaker
+      attr_writer :sibling
+
+      def mark_success
+        super
+        @sibling.method(:mark_success).super_method.call
+      end
+
+      def mark_failed(error)
+        super
+        @sibling.method(:mark_failed).super_method.call(error)
+      end
+    end
+
+    class ChildAdaptiveCircuitBreaker < AdaptiveCircuitBreaker
+      attr_writer :sibling
+
+      def mark_success
+        super
+        @sibling.method(:mark_success).super_method.call
+      end
+
+      def mark_failed(error)
+        super
+        @sibling.method(:mark_failed).super_method.call(error)
+      end
+    end
+
     attr_reader :classic_circuit_breaker, :adaptive_circuit_breaker, :active_circuit_breaker
 
     # use_adaptive should be a callable (Proc/lambda) that returns true/false
@@ -15,6 +43,10 @@ module Semian
 
       @classic_circuit_breaker = classic_circuit_breaker
       @adaptive_circuit_breaker = adaptive_circuit_breaker
+
+      @classic_circuit_breaker.sibling = @adaptive_circuit_breaker
+      @adaptive_circuit_breaker.sibling = @classic_circuit_breaker
+
       @active_circuit_breaker = @classic_circuit_breaker
     end
 
@@ -36,52 +68,9 @@ module Semian
         Semian.notify(:circuit_breaker_mode_change, self, nil, nil, old_mode: old_type, new_mode: active_breaker_type)
       end
 
-      if active_breaker_type == :classic
-        @active_circuit_breaker.transition_to_half_open if @active_circuit_breaker.transition_to_half_open?
-      end
-
-      unless @active_circuit_breaker.request_allowed?
-        if active_breaker_type == :adaptive
-          @active_circuit_breaker.mark_rejected
-        end
-        raise OpenCircuitError, "Rejected by #{active_breaker_type} circuit breaker"
-      end
-
-      if active_breaker_type == :adaptive
-        handle_adaptive_acquire(&block)
-      elsif active_breaker_type == :classic
-        handle_classic_acquire(resource, &block)
-      end
-    end
-
-    def handle_adaptive_acquire(&block)
-      result = nil
-      begin
-        result = block.call
-      rescue *@active_circuit_breaker.exceptions => error
-        if !error.respond_to?(:marks_semian_circuits?) || error.marks_semian_circuits?
-          mark_failed(error)
-        end
-        raise error
-      else
-        mark_success
-      end
-      result
-    end
-
-    def handle_classic_acquire(resource, &block)
-      result = nil
-      begin
-        result = @active_circuit_breaker.maybe_with_half_open_resource_timeout(resource, &block)
-      rescue *@active_circuit_breaker.exceptions => error
-        if !error.respond_to?(:marks_semian_circuits?) || error.marks_semian_circuits?
-          mark_failed(error)
-        end
-        raise error
-      else
-        mark_success
-      end
-      result
+      require "debug"
+      binding.break
+      @active_circuit_breaker.acquire(resource, &block)
     end
 
     def open?
