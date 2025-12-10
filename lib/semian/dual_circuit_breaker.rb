@@ -58,7 +58,7 @@ module Semian
       result = nil
       begin
         result = block.call
-      rescue => error
+      rescue *@active_circuit_breaker.exceptions => error
         if !error.respond_to?(:marks_semian_circuits?) || error.marks_semian_circuits?
           mark_failed(error)
         end

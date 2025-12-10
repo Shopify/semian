@@ -35,14 +35,18 @@ module Semian
         raise OpenCircuitError, "Rejected by adaptive circuit breaker"
       end
 
+      result = nil
       begin
         result = block.call
-        mark_success
-        result
-      rescue => error
-        mark_failed(error)
+      rescue *exceptions => error
+        if !error.respond_to?(:marks_semian_circuits?) || error.marks_semian_circuits?
+          mark_failed(error)
+        end
         raise error
+      else
+        mark_success
       end
+      result
     end
 
     def reset
