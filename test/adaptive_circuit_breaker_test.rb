@@ -7,6 +7,7 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
   def setup
     @breaker = Semian::AdaptiveCircuitBreaker.new(
       name: "test_breaker",
+      exceptions: [RuntimeError],
       kp: 1.0,
       ki: 0.1,
       kd: 0.01,

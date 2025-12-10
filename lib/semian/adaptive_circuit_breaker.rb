@@ -10,9 +10,10 @@ module Semian
 
     attr_reader :pid_controller, :update_thread
 
-    def initialize(name:, kp:, ki:, kd:, window_size:, sliding_interval:, initial_error_rate:, implementation:)
+    def initialize(name:, exceptions:, kp:, ki:, kd:, window_size:, sliding_interval:, initial_error_rate:, implementation:)
       initialize_behaviour(name: name)
 
+      @exceptions = exceptions
       @sliding_interval = sliding_interval
       @stopped = false
 
