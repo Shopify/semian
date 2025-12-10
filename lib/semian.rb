@@ -339,9 +339,11 @@ module Semian
   def create_adaptive_circuit_breaker(name, is_child: false, **options)
     return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED") || ENV.key?("SEMIAN_ADAPTIVE_CIRCUIT_BREAKER_DISABLED")
 
+    exceptions = options[:exceptions] || []
     cls = is_child ? DualCircuitBreaker::ChildAdaptiveCircuitBreaker : AdaptiveCircuitBreaker
     cls.new(
       name: name,
+      exceptions: Array(exceptions) + [::Semian::BaseError],
       kp: 1.0,
       ki: 0.2,
       kd: 0.0,

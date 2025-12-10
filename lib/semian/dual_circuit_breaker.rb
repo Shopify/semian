@@ -68,8 +68,6 @@ module Semian
         Semian.notify(:circuit_breaker_mode_change, self, nil, nil, old_mode: old_type, new_mode: active_breaker_type)
       end
 
-      require "debug"
-      binding.break
       @active_circuit_breaker.acquire(resource, &block)
     end
 
