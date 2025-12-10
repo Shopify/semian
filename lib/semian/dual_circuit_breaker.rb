@@ -85,13 +85,11 @@ module Semian
     end
 
     def mark_failed(error)
-      @classic_circuit_breaker&.mark_failed(error)
-      @adaptive_circuit_breaker&.mark_failed(error)
+      @active_circuit_breaker&.mark_failed(error)
     end
 
     def mark_success
-      @classic_circuit_breaker&.mark_success
-      @adaptive_circuit_breaker&.mark_success
+      @active_circuit_breaker&.mark_success
     end
 
     def stop
