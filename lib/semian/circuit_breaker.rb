@@ -97,16 +97,6 @@ module Semian
       !error_timeout_expired? && !@errors.empty?
     end
 
-    def maybe_with_half_open_resource_timeout(resource, &block)
-      if half_open? && @half_open_resource_timeout && resource.respond_to?(:with_resource_timeout)
-        resource.with_resource_timeout(@half_open_resource_timeout) do
-          block.call
-        end
-      else
-        block.call
-      end
-    end
-
     private
 
     def transition_to_close
@@ -175,6 +165,16 @@ module Semian
 
     def notify_state_transition(new_state)
       Semian.notify(:state_change, self, nil, nil, state: new_state)
+    end
+
+    def maybe_with_half_open_resource_timeout(resource, &block)
+      if half_open? && @half_open_resource_timeout && resource.respond_to?(:with_resource_timeout)
+        resource.with_resource_timeout(@half_open_resource_timeout) do
+          block.call
+        end
+      else
+        block.call
+      end
     end
   end
 end
