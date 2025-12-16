@@ -54,6 +54,10 @@ module Semian
       @@adaptive_circuit_breaker_selector = selector # rubocop:disable Style/ClassVars
     end
 
+    def active_breaker_type
+      @active_circuit_breaker.is_a?(Semian::AdaptiveCircuitBreaker) ? :adaptive : :classic
+    end
+
     def acquire(resource = nil, &block)
       # NOTE: This assignment is not thread-safe, but this is acceptable for now:
       # - Each request gets its own decision based on the selector at that moment
@@ -143,10 +147,6 @@ module Semian
         closed: @adaptive_circuit_breaker.closed?,
         half_open: @adaptive_circuit_breaker.half_open?,
       )
-    end
-
-    def active_breaker_type
-      @active_circuit_breaker.is_a?(Semian::AdaptiveCircuitBreaker) ? :adaptive : :classic
     end
 
     def get_active_circuit_breaker(resource)
