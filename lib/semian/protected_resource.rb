@@ -21,6 +21,7 @@ module Semian
       @name = name
       @bulkhead = bulkhead
       @circuit_breaker = circuit_breaker
+      @circuit_breaker.semian_resource = self if @circuit_breaker
       @updated_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     end
 

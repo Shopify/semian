@@ -16,6 +16,9 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
       implementation: Semian::ThreadSafe,
       sliding_interval: 1,
     )
+
+    # Stub resource for notify calls - CB expects a resource with .name
+    @breaker.semian_resource = Struct.new(:name).new(:test_breaker)
   end
 
   def teardown

@@ -36,6 +36,13 @@ module Semian
 
     attr_reader :classic_circuit_breaker, :adaptive_circuit_breaker, :active_circuit_breaker
 
+    # Override to propagate semian_resource to child breakers
+    def semian_resource=(resource)
+      @semian_resource = resource
+      @classic_circuit_breaker.semian_resource = resource if @classic_circuit_breaker
+      @adaptive_circuit_breaker.semian_resource = resource if @adaptive_circuit_breaker
+    end
+
     # use_adaptive should be a callable (Proc/lambda) that returns true/false
     # to determine which circuit breaker to use. If it returns true, use adaptive.
     def initialize(name:, classic_circuit_breaker:, adaptive_circuit_breaker:)
@@ -66,7 +73,7 @@ module Semian
       old_type = active_breaker_type
       @active_circuit_breaker = get_active_circuit_breaker(resource)
       if old_type != active_breaker_type
-        Semian.notify(:circuit_breaker_mode_change, self, nil, nil, old_mode: old_type, new_mode: active_breaker_type)
+        Semian.notify(:circuit_breaker_mode_change, @semian_resource, nil, nil, old_mode: old_type, new_mode: active_breaker_type)
       end
 
       @active_circuit_breaker.acquire(resource, &block)
