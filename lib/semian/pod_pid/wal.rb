@@ -42,8 +42,6 @@ module Semian
     class WAL
       DEFAULT_PATH = "/tmp/semian_pid.wal"
 
-      HEADER_SIZE = 16
-
       attr_reader :path
 
       def initialize(path = DEFAULT_PATH)

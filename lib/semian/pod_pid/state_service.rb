@@ -8,6 +8,7 @@ module Semian
   module PodPID
     class StateService
       attr_reader :resources, :config
+      attr_accessor :on_rejection_rate_change
 
       def initialize(
         kp:,
@@ -38,7 +39,7 @@ module Semian
 
       def record_observation(resource, outcome)
         controller = ensure_resource(resource)
-        controller.record_request(outcome)
+        controller.record_request(outcome.to_sym)
       end
 
       def rejection_rate(resource)
@@ -46,20 +47,21 @@ module Semian
         controller&.rejection_rate || 0.0
       end
 
-      def start_update_loop
+      def metrics(resource)
+        controller = @resources[resource.to_s]
+        controller&.metrics
+      end
+
+      def run_update_loop
         @running = true
-        @update_thread = Thread.new do
-          while @running
-            sleep(@config[:sliding_interval])
-            update_all_resources
-          end
+        while @running
+          sleep(@config[:sliding_interval])
+          update_all_resources
         end
       end
 
-      def stop_update_loop
+      def stop
         @running = false
-        @update_thread&.join(5)
-        @update_thread = nil
       end
 
       def update_all_resources
@@ -71,15 +73,10 @@ module Semian
 
             if old_rate != new_rate
               persist_state(name, controller)
-              notify_rejection_rate_change(name, new_rate)
+              @on_rejection_rate_change&.call(name, new_rate)
             end
           end
         end
-      end
-
-      def metrics(resource)
-        controller = @resources[resource.to_s]
-        controller&.metrics
       end
 
       private
@@ -122,10 +119,6 @@ module Semian
           integral: controller.instance_variable_get(:@integral),
         }
         @wal.write(resource, state)
-      end
-
-      def notify_rejection_rate_change(resource, new_rate)
-        @on_rejection_rate_change&.call(resource, new_rate)
       end
     end
   end

@@ -29,7 +29,7 @@ module Semian
       end
 
       def teardown
-        @service.stop_update_loop
+        @service.stop
         File.delete(@wal_path) if File.exist?(@wal_path)
         @temp_file&.unlink
       end
@@ -89,23 +89,15 @@ module Semian
       end
 
       def test_on_rejection_rate_change_callback
-        notified = []
-        service = StateService.new(
-          kp: 1.0,
-          ki: 0.2,
-          kd: 0.0,
-          window_size: 10,
-          sliding_interval: 1,
-          initial_error_rate: 0.05,
-          wal_path: @wal_path,
-          on_rejection_rate_change: ->(resource, rate) { notified << [resource, rate] },
-        )
+        updates = []
+        @service.on_rejection_rate_change = ->(resource, rate) { updates << [resource, rate] }
 
-        10.times { service.record_observation("mysql", :error) }
-        service.update_all_resources
+        10.times { @service.record_observation("mysql", :error) }
+        @service.update_all_resources
 
-        assert_equal(1, notified.size)
-        assert_equal("mysql", notified[0][0])
+        assert_equal(1, updates.size)
+        assert_equal("mysql", updates[0][0])
+        assert_operator(updates[0][1], :>, 0.0)
       end
     end
   end
