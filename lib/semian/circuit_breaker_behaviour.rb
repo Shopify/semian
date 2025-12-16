@@ -3,7 +3,7 @@
 module Semian
   module CircuitBreakerBehaviour
     attr_reader :name, :last_error
-    attr_accessor :exceptions
+    attr_accessor :exceptions, :semian_resource
 
     # Initialize common circuit breaker attributes
     def initialize_behaviour(name:)

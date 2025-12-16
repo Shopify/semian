@@ -166,7 +166,7 @@ module Semian
 
       Semian.notify(
         :adaptive_update,
-        self,
+        @semian_resource,
         nil,
         nil,
         rejection_rate: metrics[:rejection_rate],
