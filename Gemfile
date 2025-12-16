@@ -8,6 +8,8 @@ gem "concurrent-ruby"
 gem "async"
 gem "async-bus"
 gem "async-container-supervisor"
+gem "digest-crc"
+gem "msgpack"
 
 group :test do
   gem "benchmark-memory"
