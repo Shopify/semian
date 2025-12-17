@@ -99,6 +99,8 @@ module Semian
   extend self
   extend Instrumentable
 
+  autoload :PodAdaptiveCircuitBreaker, "semian/pod_adaptive_circuit_breaker"
+
   BaseError = Class.new(StandardError)
   SyscallError = Class.new(BaseError)
   TimeoutError = Class.new(BaseError)
@@ -112,6 +114,15 @@ module Semian
   self.minimum_lru_time = 300 # 300 seconds / 5 minutes
   self.default_permissions = 0660
   self.default_force_config_validation = false
+
+  DEFAULT_PID_CONFIG = {
+    kp: 1.0,
+    ki: 0.2,
+    kd: 0.0,
+    window_size: 10,
+    sliding_interval: 1,
+    initial_error_rate: 0.05,
+  }.freeze
 
   # We only allow disabling thread-safety for parts of the code that are on the hot path.
   # Since locking there could have a significant impact. Everything else is enforced thread safety
@@ -222,6 +233,8 @@ module Semian
 
     circuit_breaker = if options[:dual_circuit_breaker]
       create_dual_circuit_breaker(name, **options)
+    elsif options[:pod_adaptive_circuit_breaker]
+      create_pod_adaptive_circuit_breaker(name, **options)
     elsif options[:adaptive_circuit_breaker]
       create_adaptive_circuit_breaker(name, **options)
     else
@@ -344,13 +357,24 @@ module Semian
     cls.new(
       name: name,
       exceptions: Array(exceptions) + [::Semian::BaseError],
-      kp: 1.0,
-      ki: 0.2,
-      kd: 0.0,
-      window_size: 10,
-      sliding_interval: 1,
-      initial_error_rate: options[:initial_error_rate] || 0.05,
+      kp: DEFAULT_PID_CONFIG[:kp],
+      ki: DEFAULT_PID_CONFIG[:ki],
+      kd: DEFAULT_PID_CONFIG[:kd],
+      window_size: DEFAULT_PID_CONFIG[:window_size],
+      sliding_interval: DEFAULT_PID_CONFIG[:sliding_interval],
+      initial_error_rate: options[:initial_error_rate] || DEFAULT_PID_CONFIG[:initial_error_rate],
       implementation: implementation(**options),
+    )
+  end
+
+  def create_pod_adaptive_circuit_breaker(name, **options)
+    return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED") || ENV.key?("SEMIAN_POD_ADAPTIVE_CIRCUIT_BREAKER_DISABLED")
+
+    exceptions = options[:exceptions] || []
+    PodAdaptiveCircuitBreaker.new(
+      name: name,
+      exceptions: Array(exceptions) + [::Semian::BaseError],
+      client: options[:pod_pid_client],
     )
   end
 
