@@ -2,6 +2,7 @@
 
 require "async"
 require "async/bus"
+require "async/bus/server"
 require_relative "state_service"
 
 module Semian
@@ -55,12 +56,16 @@ module Semian
       private
 
       def broadcast_rejection_rate(resource, rate)
+        dead_clients = []
+
         @clients_mutex.synchronize do
           @clients.each do |client|
             client.update_rejection_rate(resource, rate)
           rescue StandardError
-            # Client disconnected
+            dead_clients << client
           end
+
+          @clients -= dead_clients
         end
       end
     end

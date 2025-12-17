@@ -48,12 +48,20 @@ module Semian
         nil
       end
 
+      def disconnect
+        @state_service&.unregister_client(@client_proxy)
+        close
+      rescue StandardError
+        # Ignore errors during disconnect
+      end
+
       protected
 
       def connected!(connection)
         @state_service = connection[:pid_controller]
+        @client_proxy = connection[:client]
         connection.bind(:client, self)
-        @state_service.register_client(connection[:client])
+        @state_service.register_client(@client_proxy)
       end
     end
   end
