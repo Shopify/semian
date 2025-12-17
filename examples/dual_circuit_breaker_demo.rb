@@ -12,15 +12,15 @@ require "semian"
 module ExperimentFlags
   @enabled = false
 
-  def self.enable_adaptive!
+  def enable_adaptive!
     @enabled = true
   end
 
-  def self.disable_adaptive!
+  def disable_adaptive!
     @enabled = false
   end
 
-  def self.use_adaptive_circuit_breaker?
+  def use_adaptive_circuit_breaker?
     @enabled
   end
 end
@@ -81,7 +81,8 @@ resource = Semian.register(
   exceptions: [RuntimeError],
 )
 
-Semian::DualCircuitBreaker.adaptive_circuit_breaker_selector(->(_resource) { ExperimentFlags.use_adaptive_circuit_breaker? })
+experiment_flags = ExperimentFlags.new
+Semian::DualCircuitBreaker.adaptive_circuit_breaker_selector(->(_resource) { experiment_flags.use_adaptive_circuit_breaker? })
 
 puts "=== Dual Circuit Breaker Demo ===\n\n"
 
@@ -99,7 +100,7 @@ puts "Phase 1: Using LEGACY circuit breaker (use_adaptive=false)"
 puts "The first 3 requests will succeed, the rest will fail."
 puts "-" * 50
 
-ExperimentFlags.disable_adaptive!
+experiment_flags.disable_adaptive!
 
 10.times do |i|
   result = Semian[:my_service].acquire do
@@ -123,7 +124,7 @@ puts "The first 3 requests will succeed, then the rest will be failures."
 puts "The adaptive circuit breaker is not expected to open yet."
 puts "-" * 50
 
-ExperimentFlags.enable_adaptive!
+experiment_flags.enable_adaptive!
 
 10.times do |i|
   begin
@@ -147,10 +148,10 @@ puts "-" * 50
 5.times do |i|
   # Toggle every 2 requests
   if i.even?
-    ExperimentFlags.disable_adaptive!
+    experiment_flags.disable_adaptive!
     puts "  Switched to LEGACY"
   else
-    ExperimentFlags.enable_adaptive!
+    experiment_flags.enable_adaptive!
     puts "  Switched to ADAPTIVE"
   end
 
