@@ -52,7 +52,7 @@ module Semian
         @state_service&.unregister_client(@client_proxy)
         close
       rescue StandardError
-        # Ignore errors during disconnect
+        nil
       end
 
       protected
