@@ -66,7 +66,7 @@ end
 Semian::DualCircuitBreaker.adaptive_circuit_breaker_selector(->(_resource) { ExperimentFlags.use_adaptive_circuit_breaker? })
 
 # Configure Semian with dual circuit breaker
-Semian::NetHTTP.semian_configuration = proc do |host, port|
+Semian::NetHTTP.semian_configuration = proc do |host, _port|
   # Example: only enable for specific host
   if host == "shopify-debug.com"
     {

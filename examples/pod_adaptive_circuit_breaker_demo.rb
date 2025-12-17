@@ -47,7 +47,7 @@ def run_worker(worker_id, phase_pipe_read, result_pipe_write)
       end
 
       task.sleep(0.1)
-      result_pipe_write.puts("#{stats[:success]},#{stats[:error]},#{stats[:rejected]},#{client.rejection_rate('mysql')}")
+      result_pipe_write.puts("#{stats[:success]},#{stats[:error]},#{stats[:rejected]},#{client.rejection_rate("mysql")}")
     end
 
     client.disconnect
@@ -122,7 +122,7 @@ NUM_WORKERS.times do |i|
 end
 
 puts "Waiting for #{NUM_WORKERS} worker processes to connect..."
-result_pipes.each { |pipe| pipe.gets }
+result_pipes.each(&:gets)
 puts "All workers connected!\n\n"
 
 PHASES.each do |phase|
@@ -160,7 +160,9 @@ result_pipes.each(&:close)
 sleep(0.5)
 
 (workers + [server_pid]).each do |pid|
-  Process.kill("KILL", pid) rescue nil
+  Process.kill("KILL", pid)
+rescue
+  nil
 end
 
 Process.waitall

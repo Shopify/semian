@@ -31,4 +31,3 @@ module Semian
     end
   end
 end
-

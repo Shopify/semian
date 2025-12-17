@@ -12,7 +12,6 @@ require "semian/platform"
 require "semian/resource"
 require "semian/circuit_breaker"
 require "semian/adaptive_circuit_breaker"
-require "semian/pod_adaptive_circuit_breaker"
 require "semian/dual_circuit_breaker"
 require "semian/protected_resource"
 require "semian/unprotected_resource"
@@ -99,6 +98,8 @@ require "semian/configuration_validator"
 module Semian
   extend self
   extend Instrumentable
+
+  autoload :PodAdaptiveCircuitBreaker, "semian/pod_adaptive_circuit_breaker"
 
   BaseError = Class.new(StandardError)
   SyscallError = Class.new(BaseError)
@@ -355,6 +356,7 @@ module Semian
     cls = is_child ? DualCircuitBreaker::ChildAdaptiveCircuitBreaker : AdaptiveCircuitBreaker
     cls.new(
       name: name,
+      exceptions: Array(exceptions) + [::Semian::BaseError],
       kp: DEFAULT_PID_CONFIG[:kp],
       ki: DEFAULT_PID_CONFIG[:ki],
       kd: DEFAULT_PID_CONFIG[:kd],

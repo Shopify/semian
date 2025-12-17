@@ -7,7 +7,7 @@ module Semian
   class PodAdaptiveCircuitBreaker < AdaptiveCircuitBreaker
     attr_reader :client
 
-    def initialize(name:, exceptions: [], client: nil)
+    def initialize(name:, exceptions: [], client: nil) # rubocop:disable Lint/MissingSuper
       initialize_behaviour(name: name)
       @exceptions = exceptions
       @client = client || PodPID::Client.new
