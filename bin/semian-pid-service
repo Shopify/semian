@@ -1,0 +1,17 @@
+#!/usr/bin/env async-service
+# frozen_string_literal: true
+
+require "bundler/setup"
+require "async/container/supervisor"
+require "semian"
+require "semian/pod_pid"
+require "semian/pod_pid/service"
+
+service "pid-state-service" do
+  service_class Semian::PodPID::Service
+  include Async::Container::Supervisor::Supervised
+end
+
+service "supervisor" do
+  include Async::Container::Supervisor::Environment
+end
