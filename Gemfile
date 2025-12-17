@@ -19,9 +19,10 @@ group :test do
 
   gem "bigdecimal"
   gem "mutex_m"
-  gem "grpc", "1.74.1"
+  gem "grpc", "1.76.0"
   gem "mysql2", "~> 0.5"
   gem "trilogy", "~> 2.9"
+  gem "pg", "~> 1.6"
   gem "activerecord", github: "rails/rails", branch: "main"
   gem "hiredis", "~> 0.6"
   # NOTE: v0.12.0 required for ruby 3.2.0. https://github.com/redis-rb/redis-client/issues/58
@@ -33,7 +34,7 @@ end
 group :lint do
   gem "rubocop-minitest", require: false
   gem "rubocop-rake", require: false
-  gem "rubocop", "~> 1.80", require: false
+  gem "rubocop", "~> 1.81", require: false
   gem "rubocop-shopify", "~> 2", require: false
   gem "rubocop-thread_safety", require: false
 end
