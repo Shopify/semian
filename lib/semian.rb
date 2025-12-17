@@ -12,6 +12,7 @@ require "semian/platform"
 require "semian/resource"
 require "semian/circuit_breaker"
 require "semian/adaptive_circuit_breaker"
+require "semian/pod_adaptive_circuit_breaker"
 require "semian/dual_circuit_breaker"
 require "semian/protected_resource"
 require "semian/unprotected_resource"
@@ -231,6 +232,8 @@ module Semian
 
     circuit_breaker = if options[:dual_circuit_breaker]
       create_dual_circuit_breaker(name, **options)
+    elsif options[:pod_adaptive_circuit_breaker]
+      create_pod_adaptive_circuit_breaker(name, **options)
     elsif options[:adaptive_circuit_breaker]
       create_adaptive_circuit_breaker(name, **options)
     else
@@ -359,6 +362,17 @@ module Semian
       sliding_interval: DEFAULT_PID_CONFIG[:sliding_interval],
       initial_error_rate: options[:initial_error_rate] || DEFAULT_PID_CONFIG[:initial_error_rate],
       implementation: implementation(**options),
+    )
+  end
+
+  def create_pod_adaptive_circuit_breaker(name, **options)
+    return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED") || ENV.key?("SEMIAN_POD_ADAPTIVE_CIRCUIT_BREAKER_DISABLED")
+
+    exceptions = options[:exceptions] || []
+    PodAdaptiveCircuitBreaker.new(
+      name: name,
+      exceptions: Array(exceptions) + [::Semian::BaseError],
+      client: options[:pod_pid_client],
     )
   end
 
