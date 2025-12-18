@@ -38,7 +38,7 @@ jobs:
       -
         name: Set up Ruby
         if: steps.check.outputs.is_release == 'true'
-        uses: ruby/setup-ruby@v1.267.0
+        uses: ruby/setup-ruby@v1.273.0
         with:
           ruby-version: "3.4"
           bundler-cache: true
@@ -64,7 +64,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
       -
         name: Set up Ruby
-        uses: ruby/setup-ruby@v1.267.0
+        uses: ruby/setup-ruby@v1.273.0
         with:
           ruby-version: "3.4"
           bundler-cache: true
