@@ -105,11 +105,14 @@ module RedisTests
     end
   end
 
-  def test_command_errors_because_of_oom_do_open_the_circuit
+  def test_command_errors_because_of_oom_do_not_open_the_circuit
+    # OOM errors should NOT open the circuit, because:
+    # 1. They are fast failures (no benefit from failing fast)
+    # 2. Blocking reads/dequeues prevents recovery from OOM
     client = connect_to_redis!
 
     with_maxmemory(1) do
-      ERROR_THRESHOLD.times do
+      (ERROR_THRESHOLD + 1).times do
         exception = assert_raises(::Redis::OutOfMemoryError) do
           client.set("foo", "bar")
         end
@@ -117,17 +120,21 @@ module RedisTests
         assert_equal(:redis_testing, exception.semian_identifier)
       end
 
-      assert_raises(::Redis::CircuitOpenError) do
+      # Circuit should NOT be open - we should still get OOM errors, not CircuitOpenError
+      assert_raises(::Redis::OutOfMemoryError) do
         client.set("foo", "bla")
       end
     end
   end
 
-  def test_script_errors_because_of_oom_do_open_the_circuit
+  def test_script_errors_because_of_oom_do_not_open_the_circuit
+    # OOM errors should NOT open the circuit, because:
+    # 1. They are fast failures (no benefit from failing fast)
+    # 2. Blocking reads/dequeues prevents recovery from OOM
     client = connect_to_redis!
 
     with_maxmemory(1) do
-      ERROR_THRESHOLD.times do
+      (ERROR_THRESHOLD + 1).times do
         exception = assert_raises(::Redis::OutOfMemoryError) do
           client.eval("return redis.call('set', 'foo', 'bar');")
         end
@@ -135,7 +142,8 @@ module RedisTests
         assert_equal(:redis_testing, exception.semian_identifier)
       end
 
-      assert_raises(::Redis::CircuitOpenError) do
+      # Circuit should NOT be open - we should still get OOM errors, not CircuitOpenError
+      assert_raises(::Redis::OutOfMemoryError) do
         client.eval("return redis.call('set', 'foo', 'bar');")
       end
     end

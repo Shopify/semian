@@ -5,6 +5,14 @@ require "semian/redis_client"
 class Redis
   BaseConnectionError.include(::Semian::AdapterError)
   OutOfMemoryError.include(::Semian::AdapterError)
+  OutOfMemoryError.class_eval do
+    # An OutOfMemoryError is a fast failure. We don't want to open circuits
+    # because that would block read and dequeue operations that could help
+    # Redis recover from the OOM state.
+    def marks_semian_circuits?
+      false
+    end
+  end
 
   class ReadOnlyError < Redis::BaseConnectionError
     # A ReadOnlyError is a fast failure and we don't want to track these errors so that we can reconnect

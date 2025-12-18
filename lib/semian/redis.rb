@@ -23,6 +23,13 @@ class Redis
 
   class OutOfMemoryError < Redis::CommandError
     include ::Semian::AdapterError
+
+    # An OutOfMemoryError is a fast failure. We don't want to open circuits
+    # because that would block read and dequeue operations that could help
+    # Redis recover from the OOM state.
+    def marks_semian_circuits?
+      false
+    end
   end
 
   class ConnectionError < Redis::BaseConnectionError
