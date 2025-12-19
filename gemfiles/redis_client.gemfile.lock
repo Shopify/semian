@@ -1,38 +1,42 @@
 GIT
   remote: https://github.com/redis-rb/redis-client.git
-  revision: cff9de3e5c42426c83529749fe14975a6576cb5c
+  revision: 7655bb8d2a86b5c7457271febf0807250f58b4b1
   specs:
-    hiredis-client (0.24.0)
-      redis-client (= 0.24.0)
-    redis-client (0.24.0)
+    hiredis-client (0.26.2)
+      redis-client (= 0.26.2)
+    redis-client (0.26.2)
       connection_pool
 
 GIT
   remote: https://github.com/redis/redis-rb.git
-  revision: 317a0204d8361927757117845f825b42c26fac14
+  revision: 028059d13f86cea6ca7331539077b0cf9afa30ae
   specs:
-    redis (5.4.0)
+    redis (5.4.1)
       redis-client (>= 0.22.0)
 
 PATH
   remote: ..
   specs:
-    semian (0.22.1)
+    semian (0.26.6)
+      concurrent-ruby
 
 GEM
   remote: https://rubygems.org/
   specs:
-    connection_pool (2.5.1)
+    concurrent-ruby (1.3.6)
+    connection_pool (3.0.2)
     hiredis (0.6.3)
-    minitest (5.25.5)
-    mocha (2.7.1)
+    minitest (6.0.0)
+      prism (~> 1.5)
+    mocha (3.0.1)
       ruby2_keywords (>= 0.0.5)
-    rake (13.2.1)
-    rake-compiler (1.3.0)
+    prism (1.7.0)
+    rake (13.3.1)
+    rake-compiler (1.3.1)
       rake
     ruby2_keywords (0.0.5)
     toxiproxy (2.0.2)
-    webrick (1.9.1)
+    webrick (1.9.2)
 
 PLATFORMS
   aarch64-linux
@@ -42,6 +46,7 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
+  concurrent-ruby
   hiredis (~> 0.6)
   hiredis-client!
   minitest
@@ -54,4 +59,4 @@ DEPENDENCIES
   webrick
 
 BUNDLED WITH
-   2.4.3
+   2.6.9
