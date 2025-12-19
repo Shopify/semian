@@ -1,22 +1,22 @@
 GIT
   remote: https://github.com/rails/rails.git
-  revision: 22a61df687a5408a37ed0b9dcf73c08b250dc9be
+  revision: a84c99b1a6a80d0be5059626941deea09c898446
   branch: main
   specs:
-    activemodel (8.1.0.alpha)
-      activesupport (= 8.1.0.alpha)
-    activerecord (8.1.0.alpha)
-      activemodel (= 8.1.0.alpha)
-      activesupport (= 8.1.0.alpha)
+    activemodel (8.2.0.alpha)
+      activesupport (= 8.2.0.alpha)
+    activerecord (8.2.0.alpha)
+      activemodel (= 8.2.0.alpha)
+      activesupport (= 8.2.0.alpha)
       timeout (>= 0.4.0)
-    activesupport (8.1.0.alpha)
+    activesupport (8.2.0.alpha)
       base64
-      benchmark (>= 0.3)
       bigdecimal
       concurrent-ruby (~> 1.0, >= 1.3.1)
       connection_pool (>= 2.2.5)
       drb
       i18n (>= 1.6, < 2)
+      json
       logger (>= 1.4.2)
       minitest (>= 5.1)
       securerandom (>= 0.3)
@@ -26,35 +26,38 @@ GIT
 PATH
   remote: ..
   specs:
-    semian (0.22.1)
+    semian (0.26.6)
+      concurrent-ruby
 
 GEM
   remote: https://rubygems.org/
   specs:
-    base64 (0.2.0)
-    benchmark (0.4.0)
-    bigdecimal (3.1.9)
-    concurrent-ruby (1.3.5)
-    connection_pool (2.5.1)
-    drb (2.2.1)
+    base64 (0.3.0)
+    bigdecimal (4.0.1)
+    concurrent-ruby (1.3.6)
+    connection_pool (3.0.2)
+    drb (2.2.3)
     i18n (1.14.7)
       concurrent-ruby (~> 1.0)
+    json (2.18.0)
     logger (1.7.0)
-    minitest (5.25.5)
-    mocha (2.7.1)
+    minitest (6.0.0)
+      prism (~> 1.5)
+    mocha (3.0.1)
       ruby2_keywords (>= 0.0.5)
-    rake (13.2.1)
-    rake-compiler (1.3.0)
+    prism (1.7.0)
+    rake (13.3.1)
+    rake-compiler (1.3.1)
       rake
     ruby2_keywords (0.0.5)
     securerandom (0.4.1)
-    timeout (0.4.3)
+    timeout (0.6.0)
     toxiproxy (2.0.2)
     trilogy (2.9.0)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
-    uri (1.0.3)
-    webrick (1.9.1)
+    uri (1.1.1)
+    webrick (1.9.2)
 
 PLATFORMS
   arm64-darwin-22
@@ -63,6 +66,7 @@ PLATFORMS
 
 DEPENDENCIES
   activerecord!
+  concurrent-ruby
   minitest
   mocha
   rake
