@@ -3,8 +3,8 @@
 # Configuration for regression detection - easily tunable thresholds
 module RegressionConfig
   # Percentile bounds for control limits
-  LOWER_PERCENTILE = 3
-  UPPER_PERCENTILE = 97
+  LOWER_PERCENTILE = 1
+  UPPER_PERCENTILE = 99
 
   # Violation thresholds
   DEVIATION_VIOLATION_THRESHOLD = 0.3
