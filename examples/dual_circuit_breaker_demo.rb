@@ -9,7 +9,7 @@ require "semian"
 # simultaneously, switching between them at runtime based on a callable.
 
 # Simulate a feature flag that can be toggled
-module ExperimentFlags
+class ExperimentFlags
   @enabled = false
 
   def enable_adaptive!
@@ -82,7 +82,7 @@ resource = Semian.register(
 )
 
 experiment_flags = ExperimentFlags.new
-Semian::DualCircuitBreaker.adaptive_circuit_breaker_selector(->(_resource) { experiment_flags.use_adaptive_circuit_breaker? })
+Semian::DualCircuitBreaker.adaptive_circuit_breaker_selector = ->(_resource) { experiment_flags.use_adaptive_circuit_breaker? }
 
 puts "=== Dual Circuit Breaker Demo ===\n\n"
 

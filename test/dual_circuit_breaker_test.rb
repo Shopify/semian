@@ -6,9 +6,9 @@ class TestDualCircuitBreaker < Minitest::Test
   def setup
     Semian.reset!
     @use_adaptive_flag = true
-    Semian::DualCircuitBreaker.adaptive_circuit_breaker_selector(->(_resource) {
+    Semian::DualCircuitBreaker.adaptive_circuit_breaker_selector = ->(_resource) {
       @use_adaptive_flag
-    })
+    }
   end
 
   def teardown
@@ -70,6 +70,12 @@ class TestDualCircuitBreaker < Minitest::Test
     classic_cb = resource.circuit_breaker.classic_circuit_breaker
     adaptive_cb = resource.circuit_breaker.adaptive_circuit_breaker
 
+    # Selectively mock only the mark_success method on the superclass.
+    # (If we mock mark_success on the ChildClassicCircuitBreaker class itself,
+    # the sibling circuit breaker's mark_success will never be called,
+    # which means adaptive_metrics will never contain any metrics, and that expectation will fail)
+    classic_cb.class.superclass.any_instance.expects(:mark_success).times(2)
+
     2.times { resource.acquire { "success" } }
 
     adaptive_metrics = adaptive_cb.pid_controller.metrics
@@ -109,7 +115,7 @@ class TestDualCircuitBreaker < Minitest::Test
       exceptions: [TestError],
     )
 
-    Semian::DualCircuitBreaker.adaptive_circuit_breaker_selector(->(_resource) { raise StandardError, "check failed" })
+    Semian::DualCircuitBreaker.adaptive_circuit_breaker_selector = ->(_resource) { raise StandardError, "check failed" }
 
     success_count = 0
     resource.acquire { success_count += 1 }

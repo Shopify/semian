@@ -6,7 +6,8 @@ module Semian
   class DualCircuitBreaker
     include CircuitBreakerBehaviour
 
-    class ChildClassicCircuitBreaker < CircuitBreaker
+    # Module to synchronize mark_success and mark_failed calls between sibling circuit breakers
+    module SiblingSync
       attr_writer :sibling
 
       def mark_success
@@ -20,18 +21,12 @@ module Semian
       end
     end
 
+    class ChildClassicCircuitBreaker < CircuitBreaker
+      include SiblingSync
+    end
+
     class ChildAdaptiveCircuitBreaker < AdaptiveCircuitBreaker
-      attr_writer :sibling
-
-      def mark_success
-        super
-        @sibling.method(:mark_success).super_method.call
-      end
-
-      def mark_failed(error)
-        super
-        @sibling.method(:mark_failed).super_method.call(error)
-      end
+      include SiblingSync
     end
 
     attr_reader :classic_circuit_breaker, :adaptive_circuit_breaker, :active_circuit_breaker
@@ -50,7 +45,7 @@ module Semian
       @active_circuit_breaker = @classic_circuit_breaker
     end
 
-    def self.adaptive_circuit_breaker_selector(selector) # rubocop:disable Style/ClassMethodsDefinitions
+    def self.adaptive_circuit_breaker_selector=(selector) # rubocop:disable Style/ClassMethodsDefinitions
       @@adaptive_circuit_breaker_selector = selector # rubocop:disable Style/ClassVars
     end
 
