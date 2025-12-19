@@ -23,6 +23,11 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libmagickwand-dev imagemagick
+
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1.267.0
         with:
