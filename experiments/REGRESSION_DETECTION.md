@@ -88,7 +88,7 @@ module RegressionConfig
   UPPER_PERCENTILE = 95
 
   # Violation thresholds (what % of time windows can violate bounds)
-  DEVIATION_VIOLATION_THRESHOLD = 0.5
+  DEVIATION_VIOLATION_THRESHOLD = 8
   ERROR_RATE_VIOLATION_THRESHOLD = 0.8
   REJECTION_RATE_VIOLATION_THRESHOLD = 0.8
 
