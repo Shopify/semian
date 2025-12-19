@@ -33,7 +33,15 @@ jobs:
         with:
           ruby-version: "3.4"
           bundler-cache: true
-          working-directory: experiments
+
+      - name: Build semian native extension
+        run: |
+          set -e
+          cd "$(git rev-parse --show-toplevel)"
+
+          echo "🔧 Installing semian dependencies and building native extension..."
+          bundle install
+          bundle exec rake compile
 
       - name: Run experiments and check for performance regressions
         run: |
