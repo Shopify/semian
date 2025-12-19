@@ -1,6 +1,9 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+# This script computes the percentiles for the baseline data and saves them to a file.
+# Usage: ruby compute_baselines.rb
+
 require_relative "regression_config"
 
 MID_PERCENTILE = RegressionConfig::LOWER_PERCENTILE + (RegressionConfig::UPPER_PERCENTILE - RegressionConfig::LOWER_PERCENTILE) / 2

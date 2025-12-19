@@ -1,6 +1,8 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+# This script detects regressions in the experiments by comparing the current experiment results to the baseline data.
+# Usage: ruby detect_regressions.rb
 require_relative "regression_config"
 
 def load_baseline(experiment_name)

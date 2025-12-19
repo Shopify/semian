@@ -9,8 +9,8 @@ Automated system to detect performance regressions in circuit breaker experiment
 ## How It Works
 
 1. **Baseline Collection**: Collect 5-10 historical "good" experiment runs for each experiment type
-2. **Percentile Analysis**: Calculate 3rd, 50th, and 97th percentiles for key metrics
-3. **Control Limits**: Set bounds at 3rd-97th percentile range (covers ~90% of historical variation)
+2. **Percentile Analysis**: Calculate 5th, 55th, and 95th percentiles for key metrics
+3. **Control Limits**: Set bounds at 5th-95th percentile range (covers ~90% of historical variation)
 4. **Violation Detection**: Flag experiment if >30% of time windows fall outside percentile bounds
 5. **Multi-metric Evaluation**: Check deviation from target, error rates, and rejection rates
 6. **Automated CI Integration**: GitHub Actions automatically runs full pipeline on every PR
@@ -84,13 +84,13 @@ All thresholds are easily adjustable in `regression_config.rb`:
 ```ruby
 module RegressionConfig
   # Percentile bounds for control limits
-  LOWER_PERCENTILE = 3
-  UPPER_PERCENTILE = 97
+  LOWER_PERCENTILE = 5
+  UPPER_PERCENTILE = 95
 
   # Violation thresholds (what % of time windows can violate bounds)
-  DEVIATION_VIOLATION_THRESHOLD = 0.3
-  ERROR_RATE_VIOLATION_THRESHOLD = 0.3
-  REJECTION_RATE_VIOLATION_THRESHOLD = 0.3
+  DEVIATION_VIOLATION_THRESHOLD = 0.5
+  ERROR_RATE_VIOLATION_THRESHOLD = 0.8
+  REJECTION_RATE_VIOLATION_THRESHOLD = 0.8
 
   # Minimum baseline runs needed
   MIN_BASELINE_RUNS = 10
