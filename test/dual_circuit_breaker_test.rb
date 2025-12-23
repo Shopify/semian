@@ -70,7 +70,10 @@ class TestDualCircuitBreaker < Minitest::Test
     classic_cb = resource.circuit_breaker.classic_circuit_breaker
     adaptive_cb = resource.circuit_breaker.adaptive_circuit_breaker
 
-    # Selectively mock only the mark_success method on the superclass.
+    # In the classic circuit breaker, mark_success doesn't result in any state change on a closed circuit,
+    # and just returns. So we have to use mocks to ensure it's being called.
+    #
+    # Here, we selectively mock only the mark_success method on the superclass.
     # (If we mock mark_success on the ChildClassicCircuitBreaker class itself,
     # the sibling circuit breaker's mark_success will never be called,
     # which means adaptive_metrics will never contain any metrics, and that expectation will fail)
@@ -211,6 +214,23 @@ class TestDualCircuitBreaker < Minitest::Test
     assert_equal(:classic, notifications[1][:payload][:new_mode])
   ensure
     Semian.unsubscribe(subscription)
+  end
+
+  def test_dual_circuit_breaker_is_not_used_when_configuration_is_not_specified
+    resource = Semian.register(
+      :test_classic_circuit_breaker,
+      circuit_breaker: true,
+      success_threshold: 2,
+      error_threshold: 3,
+      error_timeout: 5,
+      tickets: 5,
+      timeout: 0.5,
+      exceptions: [TestError],
+    )
+
+    assert_instance_of(Semian::CircuitBreaker, resource.circuit_breaker)
+    refute_instance_of(Semian::DualCircuitBreaker, resource.circuit_breaker)
+    refute_instance_of(Semian::AdaptiveCircuitBreaker, resource.circuit_breaker)
   end
 
   private
