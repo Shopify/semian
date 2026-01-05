@@ -9,7 +9,7 @@ require "semian"
 # simultaneously, switching between them at runtime based on a callable.
 
 # Simulate a feature flag that can be toggled
-module ExperimentFlags
+class ExperimentFlags
   @enabled = false
 
   def enable_adaptive!
