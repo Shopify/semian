@@ -6,11 +6,13 @@ class Redis
   BaseConnectionError.include(::Semian::AdapterError)
   OutOfMemoryError.include(::Semian::AdapterError)
   OutOfMemoryError.class_eval do
-    # An OutOfMemoryError is a fast failure. We don't want to open circuits
-    # because that would block read and dequeue operations that could help
-    # Redis recover from the OOM state.
+    attr_accessor :open_circuit_on_oom
+
+    # By default, OOM errors open circuits (backward compatible behavior).
+    # Set `open_circuit_on_oom: false` to disable this if you want reads/dequeues
+    # to continue working when Redis is OOM, allowing it to recover.
     def marks_semian_circuits?
-      false
+      @open_circuit_on_oom != false
     end
   end
 
@@ -55,6 +57,9 @@ module Semian
       if redis_error < ::Semian::AdapterError
         redis_error = redis_error.new(error.message)
         redis_error.semian_identifier = error.semian_identifier
+        if error.respond_to?(:open_circuit_on_oom) && redis_error.respond_to?(:open_circuit_on_oom=)
+          redis_error.open_circuit_on_oom = error.open_circuit_on_oom
+        end
       end
       raise redis_error, error.message, error.backtrace
     end

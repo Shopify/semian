@@ -105,14 +105,12 @@ module RedisTests
     end
   end
 
-  def test_command_errors_because_of_oom_do_not_open_the_circuit
-    # OOM errors should NOT open the circuit, because:
-    # 1. They are fast failures (no benefit from failing fast)
-    # 2. Blocking reads/dequeues prevents recovery from OOM
+  def test_command_errors_because_of_oom_open_the_circuit
+    # By default, OOM errors open the circuit (backward compatible behavior)
     client = connect_to_redis!
 
     with_maxmemory(1) do
-      (ERROR_THRESHOLD + 1).times do
+      ERROR_THRESHOLD.times do
         exception = assert_raises(::Redis::OutOfMemoryError) do
           client.set("foo", "bar")
         end
@@ -120,21 +118,19 @@ module RedisTests
         assert_equal(:redis_testing, exception.semian_identifier)
       end
 
-      # Circuit should NOT be open - we should still get OOM errors, not CircuitOpenError
-      assert_raises(::Redis::OutOfMemoryError) do
+      # Circuit should be open now
+      assert_raises(::Redis::CircuitOpenError) do
         client.set("foo", "bla")
       end
     end
   end
 
-  def test_script_errors_because_of_oom_do_not_open_the_circuit
-    # OOM errors should NOT open the circuit, because:
-    # 1. They are fast failures (no benefit from failing fast)
-    # 2. Blocking reads/dequeues prevents recovery from OOM
+  def test_script_errors_because_of_oom_open_the_circuit
+    # By default, OOM errors open the circuit (backward compatible behavior)
     client = connect_to_redis!
 
     with_maxmemory(1) do
-      (ERROR_THRESHOLD + 1).times do
+      ERROR_THRESHOLD.times do
         exception = assert_raises(::Redis::OutOfMemoryError) do
           client.eval("return redis.call('set', 'foo', 'bar');")
         end
@@ -142,11 +138,35 @@ module RedisTests
         assert_equal(:redis_testing, exception.semian_identifier)
       end
 
-      # Circuit should NOT be open - we should still get OOM errors, not CircuitOpenError
-      assert_raises(::Redis::OutOfMemoryError) do
+      # Circuit should be open now
+      assert_raises(::Redis::CircuitOpenError) do
         client.eval("return redis.call('set', 'foo', 'bar');")
       end
     end
+  end
+
+  def test_command_errors_because_of_oom_do_not_open_the_circuit_when_disabled
+    # When open_circuit_on_oom is false, OOM errors should NOT open the circuit
+    # This allows reads/dequeues to continue, helping Redis recover from OOM
+    Semian.destroy(:redis_testing_oom)
+    client = connect_to_redis!(semian: { name: :testing_oom, open_circuit_on_oom: false })
+
+    with_maxmemory(1) do
+      (ERROR_THRESHOLD + 1).times do
+        exception = assert_raises(::Redis::OutOfMemoryError) do
+          client.set("foo", "bar")
+        end
+
+        assert_equal(:redis_testing_oom, exception.semian_identifier)
+      end
+
+      # Circuit should NOT be open - we should still get OOM errors, not CircuitOpenError
+      assert_raises(::Redis::OutOfMemoryError) do
+        client.set("foo", "bla")
+      end
+    end
+  ensure
+    Semian.destroy(:redis_testing_oom)
   end
 
   def test_connect_instrumentation
@@ -506,7 +526,9 @@ module RedisTests
   def with_maxmemory(bytes)
     client = connect_to_redis!(semian: { name: "maxmemory" })
 
-    _, old = client.config("get", "maxmemory")
+    result = client.config("get", "maxmemory")
+    # Redis v5 returns a hash like {"maxmemory"=>"0"} instead of an array
+    old = result.is_a?(Hash) ? result["maxmemory"] : result[1]
     begin
       client.config("set", "maxmemory", bytes)
       yield
