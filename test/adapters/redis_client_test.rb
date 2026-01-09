@@ -233,6 +233,44 @@ module RedisClientTests
     Semian.destroy(:redis_testing_oom)
   end
 
+  def test_oom_config_does_not_leak_between_clients
+    # Ensure that open_circuit_on_oom config is isolated per client
+    Semian.destroy(:redis_testing_oom_enabled)
+    Semian.destroy(:redis_testing_oom_disabled)
+
+    client_opens_circuit = connect_to_redis!(name: :testing_oom_enabled, open_circuit_on_oom: true)
+    client_keeps_circuit = connect_to_redis!(name: :testing_oom_disabled, open_circuit_on_oom: false)
+
+    with_maxmemory(1) do
+      # Trigger OOM errors on client that should open circuit
+      ERROR_THRESHOLD.times do
+        assert_raises(::RedisClient::OutOfMemoryError) do
+          client_opens_circuit.call("SET", "foo", "bar")
+        end
+      end
+
+      # This client's circuit should be open
+      assert_raises(::RedisClient::CircuitOpenError) do
+        client_opens_circuit.call("SET", "foo", "bla")
+      end
+
+      # Trigger OOM errors on client that should NOT open circuit
+      (ERROR_THRESHOLD + 1).times do
+        assert_raises(::RedisClient::OutOfMemoryError) do
+          client_keeps_circuit.call("SET", "foo", "bar")
+        end
+      end
+
+      # This client's circuit should still be closed - OOM errors, not CircuitOpenError
+      assert_raises(::RedisClient::OutOfMemoryError) do
+        client_keeps_circuit.call("SET", "foo", "bla")
+      end
+    end
+  ensure
+    Semian.destroy(:redis_testing_oom_enabled)
+    Semian.destroy(:redis_testing_oom_disabled)
+  end
+
   def test_connect_instrumentation
     notified = false
     subscriber = Semian.subscribe do |event, resource, scope, adapter|
