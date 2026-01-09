@@ -27,7 +27,7 @@ class Redis
     attr_accessor :open_circuit_on_oom
 
     # By default, OOM errors open circuits (backward compatible behavior).
-    # Set `open_circuit_on_oom: false` to disable this if you want reads/dequeues
+    # Set `open_circuit_on_oom: false` to disable this if you want reads/deletes
     # to continue working when Redis is OOM, allowing it to recover.
     def marks_semian_circuits?
       @open_circuit_on_oom != false
