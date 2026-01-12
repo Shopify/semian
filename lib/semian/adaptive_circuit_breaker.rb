@@ -107,7 +107,7 @@ module Semian
     private
 
     def start_pid_controller_update_thread
-      @update_thread = Thread.new do
+      update_proc = proc do
         loop do
           break if @stopped
 
@@ -124,6 +124,12 @@ module Semian
         end
       rescue => e
         Semian.logger&.warn("[#{@name}] PID controller update thread error: #{e.message}")
+      end
+
+      @update_thread = if Fiber.scheduler
+        Fiber.schedule(&update_proc)
+      else
+        Thread.new(&update_proc)
       end
     end
 
