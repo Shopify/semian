@@ -29,7 +29,7 @@ module Semian
         initial_error_rate: initial_error_rate,
       )
 
-      @pid_controller_thread = PIDControllerThread.register_resource(self)
+      @pid_controller_thread = PIDControllerThread.instance.register_resource(self)
     end
 
     def acquire(resource = nil, &block)
@@ -106,8 +106,6 @@ module Semian
       true
     end
 
-    private
-
     def pid_controller_update
       old_rejection_rate = @pid_controller.rejection_rate
       pre_update_metrics = @pid_controller.metrics
@@ -118,6 +116,8 @@ module Semian
       check_and_notify_state_transition(old_rejection_rate, new_rejection_rate, pre_update_metrics)
       notify_metrics_update
     end
+
+    private
 
     # We can remove this now that it's set on the entire PIDControllerThread
     def wait_for_window

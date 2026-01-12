@@ -126,7 +126,8 @@ puts "-" * 50
 
 experiment_flags.enable_adaptive!
 
-10.times do |i|
+# We use 300 requests so that the adaptive circuit breaker has at least 10 seconds to open
+300.times do |i|
   begin
     result = Semian[:my_service].acquire do
       simulate_call(success: i < 3) # First 3 succeed, rest fail
