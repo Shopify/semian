@@ -12,11 +12,10 @@ module Semian
 
     @pid_controller_thread = nil
 
-    def initialize(name:, exceptions:, kp:, ki:, kd:, window_size:, sliding_interval:, initial_error_rate:, implementation:)
+    def initialize(name:, exceptions:, kp:, ki:, kd:, window_size:, initial_error_rate:, implementation:)
       initialize_behaviour(name: name)
 
       @exceptions = exceptions
-      @sliding_interval = sliding_interval
       @stopped = false
 
       @pid_controller = implementation::PIDController.new(
@@ -24,8 +23,8 @@ module Semian
         ki: ki,
         kd: kd,
         window_size: window_size,
-        sliding_interval: sliding_interval,
         implementation: implementation,
+        sliding_interval: 1,
         initial_error_rate: initial_error_rate,
       )
 
@@ -59,12 +58,11 @@ module Semian
 
     def stop
       @stopped = true
-      @update_thread&.kill
-      @update_thread = nil
     end
 
     def destroy
       stop
+      PIDControllerThread.instance.unregister_resource(self)
       @pid_controller.reset
     end
 
@@ -118,11 +116,6 @@ module Semian
     end
 
     private
-
-    # We can remove this now that it's set on the entire PIDControllerThread
-    def wait_for_window
-      Kernel.sleep(@sliding_interval)
-    end
 
     def notify_metrics_update(metrics)
       Semian.notify(

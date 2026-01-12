@@ -9,45 +9,57 @@ module Semian
 
     @stopped = true
     @update_thread = nil
-    @@workers = Concurrent::Map.new
-    @@sliding_interval = 10
+    @@circuit_breakers = Concurrent::Map.new
+    @@sliding_interval = 1
 
     # As per the singleton pattern, this is called only once
     def initialize
       @stopped = false
-      
-      #@workers = Concurrent::Map.new   # For thread-safety
-      @update_thread = Thread.new do
+
+      update_proc = proc do
         loop do
           break if @stopped
 
           wait_for_window
 
-          # Update state for each worker
-          @@workers.each do |name, worker|
-            worker.pid_controller_update
+          # Update PID controller state for each registered circuit breaker
+          @@circuit_breakers.each do |name, circuit_breaker|
+            circuit_breaker.pid_controller_update
           end
         rescue => e
           Semian.logger&.warn("[#{@name}] PID controller update thread error: #{e.message}")
         end
       end
+
+      @update_thread = if Fiber.scheduler
+        Fiber.schedule(&update_proc)
+      else
+        Thread.new(&update_proc)
+      end
+    end
+
+    def register_resource(circuit_breaker)
+      # Track every registered circuit breaker in a Concurrent::Map
+      @@circuit_breakers[circuit_breaker.name] = circuit_breaker
+    end
+
+    def unregister_resource(circuit_breaker)
+      @@circuit_breakers.delete(circuit_breaker.name)
+      stop if @@circuit_breakers.empty?
+    end
+
+    private
+
+    def wait_for_window
+      Kernel.sleep(@@sliding_interval)
     end
 
     def stop
       @stopped = true
-      @thread.kill
-    end
-
-    def register_resource(circuit_breaker)
-      # Creates a new worker named after the state of the resource
-      @@workers[circuit_breaker.name] = circuit_breaker
-      @@sliding_interval = circuit_breaker.sliding_interval
-    end
-
-    private
-    
-    def wait_for_window
-      Kernel.sleep(@@sliding_interval)
+      if @update_thread.is_a?(Thread)
+        @update_thread.kill
+        @update_thread = nil
+      end
     end
   end
 end
