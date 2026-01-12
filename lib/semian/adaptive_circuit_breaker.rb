@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "pid_controller"
 require_relative "circuit_breaker_behaviour"
 require_relative "pid_controller_thread"
 
@@ -9,7 +8,7 @@ module Semian
   class AdaptiveCircuitBreaker
     include CircuitBreakerBehaviour
 
-    attr_reader :pid_controller, :update_thread
+    attr_reader :pid_controller, :update_thread, :sliding_interval
 
     @pid_controller_thread = nil
 
@@ -30,9 +29,7 @@ module Semian
         initial_error_rate: initial_error_rate,
       )
 
-      @pid_controller_thread = PIDControllerThread.instance.start(name)
-
-      start_pid_controller_update_thread
+      @pid_controller_thread = PIDControllerThread.register_resource(self)
     end
 
     def acquire(resource = nil, &block)
@@ -111,29 +108,20 @@ module Semian
 
     private
 
-    def start_pid_controller_update_thread
-      update_proc = proc do
-        loop do
-          break if @stopped
+    def pid_controller_update
+      old_rejection_rate = @pid_controller.rejection_rate
+      pre_update_metrics = @pid_controller.metrics
 
-          sleep_duration = @sliding_interval * rand(0.9..1.1)
-          wait_for_window(sleep_duration)
-          @pid_controller.update(sleep_duration)
-          notify_metrics_update(@pid_controller.metrics(full: false))
-        end
-      rescue => e
-        Semian.logger&.warn("[#{@name}] PID controller update thread error: #{e.message}")
-      end
+      @pid_controller.update
+      new_rejection_rate = @pid_controller.rejection_rate
 
-      @update_thread = if Fiber.scheduler
-        Fiber.schedule(&update_proc)
-      else
-        Thread.new(&update_proc)
-      end
+      check_and_notify_state_transition(old_rejection_rate, new_rejection_rate, pre_update_metrics)
+      notify_metrics_update
     end
 
-    def wait_for_window(sleep_duration)
-      Kernel.sleep(sleep_duration)
+    # We can remove this now that it's set on the entire PIDControllerThread
+    def wait_for_window
+      Kernel.sleep(@sliding_interval)
     end
 
     def notify_metrics_update(metrics)
