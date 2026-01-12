@@ -2,6 +2,7 @@
 
 require_relative "pid_controller"
 require_relative "circuit_breaker_behaviour"
+require_relative "pid_controller_thread"
 
 module Semian
   # Adaptive Circuit Breaker that uses PID controller for dynamic rejection
@@ -9,6 +10,8 @@ module Semian
     include CircuitBreakerBehaviour
 
     attr_reader :pid_controller, :update_thread
+
+    @pid_controller_thread = nil
 
     def initialize(name:, exceptions:, kp:, ki:, kd:, window_size:, sliding_interval:, initial_error_rate:, implementation:)
       initialize_behaviour(name: name)
@@ -26,6 +29,8 @@ module Semian
         implementation: implementation,
         initial_error_rate: initial_error_rate,
       )
+
+      @pid_controller_thread = PIDControllerThread.instance.start(name)
 
       start_pid_controller_update_thread
     end
