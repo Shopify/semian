@@ -24,13 +24,13 @@ class Redis
   class OutOfMemoryError < Redis::CommandError
     include ::Semian::AdapterError
 
-    attr_accessor :open_circuit_on_oom
+    attr_accessor :semian_open_circuit_on_oom
 
     # By default, OOM errors open circuits (backward compatible behavior).
     # Set `open_circuit_on_oom: false` to disable this if you want reads/deletes
     # to continue working when Redis is OOM, allowing it to recover.
     def marks_semian_circuits?
-      @open_circuit_on_oom != false
+      @semian_open_circuit_on_oom != false
     end
   end
 
@@ -169,7 +169,7 @@ module Semian
       return unless reply.message =~ /OOM command not allowed when used memory > 'maxmemory'/
 
       error = ::Redis::OutOfMemoryError.new(reply.message)
-      error.open_circuit_on_oom = semian_options&.fetch(:open_circuit_on_oom, true)
+      error.semian_open_circuit_on_oom = semian_options&.fetch(:open_circuit_on_oom, true)
       raise error
     end
 
