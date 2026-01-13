@@ -45,21 +45,12 @@ module Semian
 
     def unregister_resource(circuit_breaker)
       @@circuit_breakers.delete(circuit_breaker.name)
-      stop if @@circuit_breakers.empty?
     end
 
     private
 
     def wait_for_window
       Kernel.sleep(@@sliding_interval)
-    end
-
-    def stop
-      @stopped = true
-      if @update_thread.is_a?(Thread)
-        @update_thread.kill
-        @update_thread = nil
-      end
     end
   end
 end
