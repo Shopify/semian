@@ -8,8 +8,7 @@ module Semian
   class AdaptiveCircuitBreaker
     include CircuitBreakerBehaviour
 
-    attr_reader :pid_controller, :update_thread, :sliding_interval
-
+    attr_reader :pid_controller, :update_thread, :sliding_interval, :pid_controller_thread, :stopped
     @pid_controller_thread = nil
 
     def initialize(name:, exceptions:, kp:, ki:, kd:, window_size:, initial_error_rate:, implementation:)
@@ -57,11 +56,11 @@ module Semian
     end
 
     def stop
-      @stopped = true
+      destroy
     end
 
     def destroy
-      stop
+      @stopped = true
       PIDControllerThread.instance.unregister_resource(self)
       @pid_controller.reset
     end

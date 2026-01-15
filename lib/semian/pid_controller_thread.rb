@@ -41,13 +41,12 @@ module Semian
     def register_resource(circuit_breaker)
       # Track every registered circuit breaker in a Concurrent::Map
       @@circuit_breakers[circuit_breaker.name] = circuit_breaker
+      self
     end
 
     def unregister_resource(circuit_breaker)
       @@circuit_breakers.delete(circuit_breaker.name)
     end
-
-    private
 
     def wait_for_window
       Kernel.sleep(@@sliding_interval)

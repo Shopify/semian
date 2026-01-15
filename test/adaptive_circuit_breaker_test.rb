@@ -14,12 +14,11 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
       window_size: 0.05,
       initial_error_rate: 0.01,
       implementation: Semian::ThreadSafe,
-      sliding_interval: 1,
     )
   end
 
   def teardown
-    @breaker.stop
+    @breaker.destroy
   end
 
   def test_acquire_with_success_returns_value_and_records_request
@@ -67,20 +66,17 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
   end
 
   def test_update_thread_calls_pid_controller_update_after_every_wait_interval
-    # Verify that the update thread is created and alive
-    assert_instance_of(Thread, @breaker.update_thread)
-    assert(@breaker.update_thread.alive?)
-
     # Track how many times wait_for_window is called
     wait_count = 0
     ready_to_progress = false
-    @breaker.stub(:wait_for_window, ->(duration) {
+
+    @breaker.pid_controller_thread.stub(:wait_for_window, -> {
       # Wait until we're ready to start
       Kernel.sleep(0.01) until ready_to_progress
 
       wait_count += 1
       # Stop the breaker after 3 waits
-      @breaker.stop if wait_count >= 3
+      @breaker.stop if @breaker.stopped == false && wait_count >= 3
     }) do
       # We call update after sleeping. And since we exit on the third sleep, we only expect 2 updates.
       @breaker.pid_controller.expects(:update).times(2)
@@ -89,11 +85,60 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
       ready_to_progress = true
 
       # Wait for the thread to complete
-      Kernel.sleep(0.01) while @breaker.update_thread.alive?
+      Kernel.sleep(0.01) while @breaker.stopped == false
     end
 
-    assert_equal(false, @breaker.update_thread.alive?)
-    assert_equal(3, wait_count)
+    assert_equal(true, @breaker.stopped)
+  end
+
+  def test_notify_state_transition
+    events = []
+    Semian.subscribe(:test_breaker) do |event, resource, _scope, _adapter, payload|
+      if event == :state_change
+        events << { name: resource.name, state: payload[:state] }
+      end
+    end
+
+    # Control when the update thread progresses
+    ready_to_progress = false
+    wait_count = 0
+
+    @breaker.pid_controller_thread.stub(:wait_for_window, -> {
+      # Wait until we're ready to start
+      Kernel.sleep(0.01) until ready_to_progress
+
+      wait_count += 1
+      # Stop the breaker after 6 waits
+      @breaker.stop if @breaker.stopped == false && wait_count >= 6
+    }) do
+      # Set up expectations before allowing the thread to progress
+      @breaker.pid_controller.expects(:rejection_rate).returns(0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5, 0.0, 0.0, 0.0).times(10)
+      @breaker.pid_controller.expects(:update).times(5)
+      @breaker.pid_controller.expects(:metrics).returns({
+        rejection_rate: 0.5,
+        error_rate: 0.35,
+        ideal_error_rate: 0.10,
+        integral: 5.0,
+        p_value: 0.1,
+        derivative: 0.01,
+        current_window_requests: { success: 10, error: 50, rejected: 5 },
+      }).at_least_once
+
+      # Now allow the thread to start progressing
+      ready_to_progress = true
+
+      # Wait for the thread to complete
+      Kernel.sleep(0.01) while @breaker.stopped == false
+    end
+
+    # Should receive exactly 2 notifications (only when state actually changes)
+    assert_equal(2, events.length)
+    assert_equal(:test_breaker, events[0][:name])
+    assert_equal(:open, events[0][:state])
+    assert_equal(:test_breaker, events[1][:name])
+    assert_equal(:closed, events[1][:state])
+  ensure
+    Semian.unsubscribe(:test_breaker)
   end
 
   def test_notify_adaptive_update
@@ -112,13 +157,13 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
     ready_to_progress = false
     wait_count = 0
 
-    @breaker.stub(:wait_for_window, ->(duration) {
+    @breaker.pid_controller_thread.stub(:wait_for_window, -> {
       # Wait until we're ready to start
       Kernel.sleep(0.01) until ready_to_progress
 
       wait_count += 1
       # Stop the breaker after 3 waits
-      @breaker.stop if wait_count >= 3
+      @breaker.stop if @breaker.stopped == false && wait_count >= 3
     }) do
       # Set up expectations before allowing the thread to progress
       @breaker.pid_controller.expects(:update).times(2)
@@ -136,7 +181,7 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
       ready_to_progress = true
 
       # Wait for the thread to complete
-      Kernel.sleep(0.01) while @breaker.update_thread&.alive?
+      Kernel.sleep(0.01) while @breaker.stopped == false
     end
 
     # Should receive 2 adaptive_update notifications (one per update)
@@ -148,5 +193,59 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
     end
   ensure
     Semian.unsubscribe(:test_breaker)
+  end
+
+  def test_state_transition_logging
+    strio = StringIO.new
+    original_logger = Semian.logger
+    Semian.logger = Logger.new(strio)
+
+    # Control when the update thread progresses
+    ready_to_progress = false
+    wait_count = 0
+
+    @breaker.pid_controller_thread.stub(:wait_for_window, -> {
+      # Wait until we're ready to start
+      Kernel.sleep(0.01) until ready_to_progress
+
+      wait_count += 1
+      # Stop the breaker after 2 waits
+      @breaker.stop if @breaker.stopped == false && wait_count >= 2
+    }) do
+      # Set up expectations before allowing the thread to progress
+      # rejection_rate called twice: before update (0.0), after update (0.5)
+      @breaker.pid_controller.expects(:rejection_rate).returns(0.0, 0.5).times(2)
+      @breaker.pid_controller.expects(:update).once
+      @breaker.pid_controller.expects(:metrics).returns({
+        rejection_rate: 0.5,
+        error_rate: 0.35,
+        ideal_error_rate: 0.10,
+        integral: 5.0,
+        p_value: 0.1,
+        derivative: 0.01,
+        current_window_requests: { success: 10, error: 50, rejected: 5 },
+      }).at_least_once
+
+      # Now allow the thread to start progressing
+      ready_to_progress = true
+
+      # Wait for the thread to complete
+      Kernel.sleep(0.01) while @breaker.stopped == false
+    end
+
+    log_output = strio.string
+
+    # Verify log contains expected fields
+    assert_match(/State transition from closed to open/, log_output)
+    assert_match(/rejection_rate=50.0%/, log_output)
+    assert_match(/error_rate=35.0%/, log_output)
+    assert_match(/ideal_error_rate=10.0%/, log_output)
+    assert_match(/integral=5.0/, log_output)
+    assert_match(/success_count=10/, log_output)
+    assert_match(/error_count=50/, log_output)
+    assert_match(/rejected_count=5/, log_output)
+    assert_match(/name="test_breaker"/, log_output)
+  ensure
+    Semian.logger = original_logger
   end
 end
