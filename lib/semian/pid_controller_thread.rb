@@ -40,12 +40,26 @@ module Semian
 
     def register_resource(circuit_breaker)
       # Track every registered circuit breaker in a Concurrent::Map
+
+      # Start the thread if it's not already running
+      if @@circuit_breakers.empty?
+        initialize
+      end
+
+      # Add the circuit breaker to the map
       @@circuit_breakers[circuit_breaker.name] = circuit_breaker
       self
     end
 
     def unregister_resource(circuit_breaker)
+      # Remove the circuit breaker from the map
       @@circuit_breakers.delete(circuit_breaker.name)
+
+      # Stop the thread if there are no more circuit breakers
+      if @@circuit_breakers.empty?
+        @stopped = true
+        @update_thread.kill    # TODO: This handles the Thread case; is this valid for fibers?
+      end
     end
 
     def wait_for_window
