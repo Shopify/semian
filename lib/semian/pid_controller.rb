@@ -23,6 +23,7 @@ module Semian
         @integral = 0.0
         @derivative = 0.0
         @previous_p_value = 0.0
+        @last_ideal_error_rate = initial_error_rate
 
         @window_size = window_size
         @sliding_interval = sliding_interval
@@ -99,6 +100,7 @@ module Semian
         @rejections.clear
         @last_error_rate = 0.0
         @smoother.reset
+        @last_ideal_error_rate = @smoother.forecast
       end
 
       # Get current metrics for monitoring/debugging
@@ -106,7 +108,7 @@ module Semian
         {
           rejection_rate: @rejection_rate,
           error_rate: @last_error_rate,
-          ideal_error_rate: calculate_ideal_error_rate,
+          ideal_error_rate: @last_ideal_error_rate,
           p_value: @last_p_value,
           previous_p_value: @previous_p_value,
           integral: @integral,
@@ -124,12 +126,12 @@ module Semian
 
       # Calculate the current P value
       def calculate_p_value(current_error_rate)
-        ideal_error_rate = calculate_ideal_error_rate
+        @last_ideal_error_rate = calculate_ideal_error_rate
 
         # P = (error_rate - ideal_error_rate) - (1 - (error_rate - ideal_error_rate)) * rejection_rate
         # P increases when: error_rate > ideal
         # P decreases when: rejection_rate > 0 (feedback mechanism)
-        delta_error = current_error_rate - ideal_error_rate
+        delta_error = current_error_rate - @last_ideal_error_rate
         delta_error - (1 - delta_error) * @rejection_rate
       end
 
