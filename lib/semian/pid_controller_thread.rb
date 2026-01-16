@@ -42,7 +42,7 @@ module Semian
       # Track every registered circuit breaker in a Concurrent::Map
 
       # Start the thread if it's not already running
-      if @@circuit_breakers.empty?
+      if @@circuit_breakers.empty? && @stopped
         initialize
       end
 
