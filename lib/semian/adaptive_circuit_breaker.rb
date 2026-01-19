@@ -120,7 +120,7 @@ module Semian
           new_rejection_rate = @pid_controller.rejection_rate
 
           check_and_notify_state_transition(old_rejection_rate, new_rejection_rate, pre_update_metrics)
-          notify_metrics_update
+          notify_metrics_update(@pid_controller.metrics(full: false))
         end
       rescue => e
         Semian.logger&.warn("[#{@name}] PID controller update thread error: #{e.message}")
@@ -167,9 +167,7 @@ module Semian
       Semian.logger.info(str)
     end
 
-    def notify_metrics_update
-      metrics = @pid_controller.metrics
-
+    def notify_metrics_update(metrics)
       Semian.notify(
         :adaptive_update,
         self,

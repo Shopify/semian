@@ -104,8 +104,8 @@ module Semian
       end
 
       # Get current metrics for monitoring/debugging
-      def metrics
-        {
+      def metrics(full: true)
+        result = {
           rejection_rate: @rejection_rate,
           error_rate: @last_error_rate,
           ideal_error_rate: @last_ideal_error_rate,
@@ -113,13 +113,18 @@ module Semian
           previous_p_value: @previous_p_value,
           integral: @integral,
           derivative: @derivative,
-          smoother_state: @smoother.state,
-          current_window_requests: {
+        }
+
+        if full
+          result[:smoother_state] = @smoother.state
+          result[:current_window_requests] = {
             success: @successes.size,
             error: @errors.size,
             rejected: @rejections.size,
-          },
-        }
+          }
+        end
+
+        result
       end
 
       private
