@@ -229,6 +229,7 @@ module Semian
         create_adaptive_circuit_breaker(name, **options)
       else
         create_circuit_breaker(name, **options)
+      end
     end
 
     bulkhead = create_bulkhead(name, **options)

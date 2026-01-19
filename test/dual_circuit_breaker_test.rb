@@ -232,6 +232,27 @@ class TestDualCircuitBreaker < Minitest::Test
     refute_instance_of(Semian::AdaptiveCircuitBreaker, resource.circuit_breaker)
   end
 
+  def test_uses_classic_circuit_breaker_when_environment_variable_is_set
+    ENV["SEMIAN_USE_CLASSIC_CIRCUIT_BREAKER"] = "1"
+
+    resource = Semian.register(
+      :test_classic_circuit_breaker,
+      circuit_breaker: true,
+      success_threshold: 2,
+      error_threshold: 3,
+      error_timeout: 5,
+      tickets: 5,
+      timeout: 0.5,
+      exceptions: [TestError],
+    )
+
+    assert_instance_of(Semian::CircuitBreaker, resource.circuit_breaker)
+    refute_instance_of(Semian::DualCircuitBreaker, resource.circuit_breaker)
+    refute_instance_of(Semian::AdaptiveCircuitBreaker, resource.circuit_breaker)
+  ensure
+    ENV.delete("SEMIAN_USE_CLASSIC_CIRCUIT_BREAKER")
+  end
+
   private
 
   def create_dual_resource
