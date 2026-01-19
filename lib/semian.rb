@@ -220,12 +220,15 @@ module Semian
     # Validate configuration before proceeding
     ConfigurationValidator.new(name, options).validate!
 
-    circuit_breaker = if options[:dual_circuit_breaker]
-      create_dual_circuit_breaker(name, **options)
-    elsif options[:adaptive_circuit_breaker]
-      create_adaptive_circuit_breaker(name, **options)
+    if ENV.key?("SEMIAN_USE_CLASSIC_CIRCUIT_BREAKER")
+      circuit_breaker = create_circuit_breaker(name, **options)
     else
-      create_circuit_breaker(name, **options)
+      circuit_breaker = if options[:dual_circuit_breaker]
+        create_dual_circuit_breaker(name, **options)
+      elsif options[:adaptive_circuit_breaker]
+        create_adaptive_circuit_breaker(name, **options)
+      else
+        create_circuit_breaker(name, **options)
     end
 
     bulkhead = create_bulkhead(name, **options)
