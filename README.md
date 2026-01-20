@@ -155,6 +155,33 @@ client = Redis.new(semian: {
 })
 ```
 
+##### Redis Out-of-Memory Errors
+
+By default, Redis Out-of-Memory (OOM) errors will open the circuit breaker. This can be
+problematic because it prevents read operations and commands that could free up memory
+(like `DEL`, `LPOP`, etc.) from executing, hindering Redis recovery.
+
+To allow OOM errors to fail fast without opening the circuit, set `open_circuit_on_oom: false`:
+
+```ruby
+client = Redis.new(semian: {
+  name: "inventory",
+  open_circuit_on_oom: false  # OOM errors won't open the circuit
+})
+```
+
+This also works with `RedisClient`:
+
+```ruby
+client = RedisClient.config(
+  host: "localhost",
+  semian: {
+    name: "inventory",
+    open_circuit_on_oom: false
+  }
+).new_client
+```
+
 #### Configuration Validation
 
 Semian now provides a flag to specify log-based and exception-based configuration validation. To

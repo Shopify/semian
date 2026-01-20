@@ -1,4 +1,5 @@
-# v026.6
+# v0.26.6
+
 * Remove force_config_validation spammy log
 
 # v0.26.5
