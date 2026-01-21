@@ -62,11 +62,11 @@ class TestPIDController < Minitest::Test
     elapsed = 0
 
     # Phase 1: Start with 1% error rate
-    elapsed += 1
+    elapsed += sliding_interval_with_jitter
     time_travel(elapsed) do
       99.times { @controller.record_request(:success) }
       @controller.record_request(:error)
-      @controller.update(1)
+      @controller.update(sliding_interval_with_jitter)
     end
 
     # Rejection should be 0 when error rate is less than or equal to ideal
@@ -74,11 +74,11 @@ class TestPIDController < Minitest::Test
     assert_equal(1, @controller.metrics[:smoother_state][:observation_count])
 
     # Phase 2: Introduce error spike
-    elapsed += 1
+    elapsed += sliding_interval_with_jitter
     time_travel(elapsed) do
       61.times { @controller.record_request(:success) }
       39.times { @controller.record_request(:error) }
-      @controller.update(1)
+      @controller.update(sliding_interval_with_jitter)
     end
 
     # Rejection should be around 20% (± 2%)
@@ -87,11 +87,11 @@ class TestPIDController < Minitest::Test
 
     # Phase 3: Continue high error rate (20% per window)
     5.times do
-      elapsed += 1
+      elapsed += sliding_interval_with_jitter
       time_travel(elapsed) do
         80.times { @controller.record_request(:success) }
         20.times { @controller.record_request(:error) }
-        @controller.update(1)
+        @controller.update(sliding_interval_with_jitter)
       end
     end
 
@@ -105,10 +105,10 @@ class TestPIDController < Minitest::Test
 
     # Phase 4: Recovery - all successes to bring error rate down
     10.times do
-      elapsed += 1
+      elapsed += sliding_interval_with_jitter
       time_travel(elapsed) do
         100.times { @controller.record_request(:success) }
-        @controller.update(1)
+        @controller.update(sliding_interval_with_jitter)
       end
     end
 
@@ -219,6 +219,12 @@ class TestPIDController < Minitest::Test
       # On the 11th second, the first second is excluded, and we're left with 1 error, so 100%
       assert_equal(1.0, @controller.metrics[:error_rate])
     end
+  end
+
+  private
+
+  def sliding_interval_with_jitter
+    1 * rand(0.9..1.1)
   end
 end
 

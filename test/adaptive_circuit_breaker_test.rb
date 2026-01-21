@@ -74,8 +74,7 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
     # Track how many times wait_for_window is called
     wait_count = 0
     ready_to_progress = false
-
-    @breaker.stub(:wait_for_window, -> {
+    @breaker.stub(:wait_for_window, ->(duration) {
       # Wait until we're ready to start
       Kernel.sleep(0.01) until ready_to_progress
 
@@ -113,7 +112,7 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
     ready_to_progress = false
     wait_count = 0
 
-    @breaker.stub(:wait_for_window, -> {
+    @breaker.stub(:wait_for_window, ->(duration) {
       # Wait until we're ready to start
       Kernel.sleep(0.01) until ready_to_progress
 
