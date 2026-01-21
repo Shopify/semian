@@ -66,7 +66,7 @@ class TestPIDController < Minitest::Test
     time_travel(elapsed) do
       99.times { @controller.record_request(:success) }
       @controller.record_request(:error)
-      @controller.update
+      @controller.update(1)
     end
 
     # Rejection should be 0 when error rate is less than or equal to ideal
@@ -78,7 +78,7 @@ class TestPIDController < Minitest::Test
     time_travel(elapsed) do
       61.times { @controller.record_request(:success) }
       39.times { @controller.record_request(:error) }
-      @controller.update
+      @controller.update(1)
     end
 
     # Rejection should be around 20% (± 2%)
@@ -91,7 +91,7 @@ class TestPIDController < Minitest::Test
       time_travel(elapsed) do
         80.times { @controller.record_request(:success) }
         20.times { @controller.record_request(:error) }
-        @controller.update
+        @controller.update(1)
       end
     end
 
@@ -108,7 +108,7 @@ class TestPIDController < Minitest::Test
       elapsed += 1
       time_travel(elapsed) do
         100.times { @controller.record_request(:success) }
-        @controller.update
+        @controller.update(1)
       end
     end
 
@@ -142,7 +142,7 @@ class TestPIDController < Minitest::Test
 
   def test_reset_clears_all_state
     @controller.record_request(:error)
-    @controller.update
+    @controller.update(1)
 
     @controller.reset
 
@@ -176,7 +176,7 @@ class TestPIDController < Minitest::Test
     # Simulate prolonged low error rate (below ideal) which would push integral negative
     100.times do
       100.times { @controller.record_request(:success) }
-      @controller.update
+      @controller.update(1)
     end
 
     # Integral should be clamped at -10, not accumulate unbounded negative values
@@ -188,7 +188,7 @@ class TestPIDController < Minitest::Test
     # Simulate prolonged high error rate (100%) which would push integral positive
     50.times do
       100.times { @controller.record_request(:error) }
-      @controller.update
+      @controller.update(1)
     end
 
     # Integral should be clamped at 10, not accumulate unbounded positive values
@@ -207,14 +207,14 @@ class TestPIDController < Minitest::Test
     end
 
     time_travel(10) do
-      @controller.update
+      @controller.update(1)
 
       # On the first 10 seconds, all requests are included
       assert_equal(0.5, @controller.metrics[:error_rate])
     end
 
     time_travel(11) do
-      @controller.update
+      @controller.update(1)
 
       # On the 11th second, the first second is excluded, and we're left with 1 error, so 100%
       assert_equal(1.0, @controller.metrics[:error_rate])
@@ -267,7 +267,7 @@ class TestThreadSafePIDController < Minitest::Test
 
   def test_no_deadlocks
     # Confirm the code does not try to acquire the same lock twice
-    @controller.update
+    @controller.update(1)
     @controller.record_request(:error)
     @controller.should_reject?
     @controller.reset
