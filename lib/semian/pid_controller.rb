@@ -52,7 +52,7 @@ module Semian
         end
       end
 
-      def update
+      def update(sleep_duration)
         # Store the last window's P value so that we can serve it up in the metrics snapshots
         @previous_p_value = @last_p_value
 
@@ -60,7 +60,7 @@ module Semian
 
         store_error_rate(@last_error_rate)
 
-        dt = @sliding_interval
+        dt = sleep_duration
 
         @last_p_value = calculate_p_value(@last_error_rate)
 
@@ -180,7 +180,7 @@ module Semian
         @lock.synchronize { super }
       end
 
-      def update
+      def update(sleep_duration)
         @lock.synchronize { super }
       end
 

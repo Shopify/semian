@@ -111,8 +111,9 @@ module Semian
         loop do
           break if @stopped
 
-          wait_for_window
-          @pid_controller.update
+          sleep_duration = @sliding_interval * rand(0.9..1.1)
+          wait_for_window(sleep_duration)
+          @pid_controller.update(sleep_duration)
           notify_metrics_update(@pid_controller.metrics(full: false))
         end
       rescue => e
@@ -126,8 +127,8 @@ module Semian
       end
     end
 
-    def wait_for_window
-      Kernel.sleep(@sliding_interval)
+    def wait_for_window(sleep_duration)
+      Kernel.sleep(sleep_duration)
     end
 
     def notify_metrics_update(metrics)
