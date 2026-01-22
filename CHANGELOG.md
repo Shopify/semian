@@ -1,24 +1,15 @@
 # v0.27.0
 
-* Redis: Namespace the added OOM error class attr
-* Redis: Add OOM configuration leak tests
-* Redis: Better command wording 2/2
-* Redis: Better command wording 1/2
-* Redis: Make OOM Errors configurable for circuit opening
-* Redis: Do not open circuit on OOM
-* Refresh dependencies for all adapters and fix time helper (#941)
-* Bump edge Rails
-* Add support for Active Record's PostgreSQL Adapter
-* Accept `QueryIntent` from Active Record 8.2 in `execute_intent`
-* Modify release workflow to preview changes through a PR (#825)
-* Use GitHub assets for RELEASE.md images (#816)
-* Create GitHub Action to publish new release (#779)
+* Add `semian/activerecord_postgresql_adapter` for Active Record's PostgreSQL adapter (#889)
+* Add `open_circuit_on_oom` option for Redis adapters to control whether OOM errors open the circuit breaker (defaults to `true` for backward compatibility) (#940)
+* Support Active Record 8.2's `QueryIntent` API in trilogy adapter (#904)
 
 # v0.26.6
 
 * Remove force_config_validation spammy log
 
 # v0.26.5
+
 * Made `consumers` and `resources` fields private in Semian (#795)
 
 # v0.25.5
