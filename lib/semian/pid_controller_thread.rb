@@ -11,6 +11,7 @@ module Semian
     @update_thread = nil
     @@circuit_breakers = Concurrent::Map.new
     @@sliding_interval = 1
+    @@use_fibers = ENV["SEMIAN_PID_CONTROLLER_USE_FIBERS"] == "true"
 
     # As per the singleton pattern, this is called only once
     def initialize
@@ -31,11 +32,11 @@ module Semian
         end
       end
 
-      # @update_thread = if Fiber.scheduler
-      #  Fiber.schedule(&update_proc)
-      # else
-      @update_thread = Thread.new(&update_proc)
-      # end
+      @update_thread = if @@use_fibers && Fiber.scheduler
+        Fiber.schedule(&update_proc)
+      else
+        Thread.new(&update_proc)
+      end
     end
 
     def register_resource(circuit_breaker)
