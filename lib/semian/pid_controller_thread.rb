@@ -31,11 +31,11 @@ module Semian
         end
       end
 
-      @update_thread = if Fiber.scheduler
-        Fiber.schedule(&update_proc)
-      else
-        Thread.new(&update_proc)
-      end
+      # @update_thread = if Fiber.scheduler
+      #  Fiber.schedule(&update_proc)
+      # else
+      @update_thread = Thread.new(&update_proc)
+      # end
     end
 
     def register_resource(circuit_breaker)
@@ -58,7 +58,7 @@ module Semian
       # Stop the thread if there are no more circuit breakers
       if @@circuit_breakers.empty?
         @stopped = true
-        @update_thread.kill    # TODO: This handles the Thread case; is this valid for fibers?
+        @update_thread.kill # TODO: This handles the Thread case; is this valid for fibers?
       end
     end
 
