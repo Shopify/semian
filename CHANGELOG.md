@@ -1,3 +1,20 @@
+# v0.27.0
+
+* use the correct bot for github actions (#998)
+* Redis: Namespace the added OOM error class attr
+* Redis: Add OOM configuration leak tests
+* Redis: Better command wording 2/2
+* Redis: Better command wording 1/2
+* Redis: Make OOM Errors configurable for circuit opening
+* Redis: Do not open circuit on OOM
+* Refresh dependencies for all adapters and fix time helper (#941)
+* Bump edge Rails
+* Add support for Active Record's PostgreSQL Adapter
+* Accept `QueryIntent` from Active Record 8.2 in `execute_intent`
+* Modify release workflow to preview changes through a PR (#825)
+* Use GitHub assets for RELEASE.md images (#816)
+* Create GitHub Action to publish new release (#779)
+
 # v0.26.6
 
 * Remove force_config_validation spammy log
