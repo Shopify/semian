@@ -96,6 +96,7 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ github.token }}
+          sign-commits: true
           branch: release/v${{ needs.read-version.outputs.new_version }}
           title: Release v${{ needs.read-version.outputs.new_version }}
           commit-message: Bump version to ${{ needs.read-version.outputs.new_version }}
