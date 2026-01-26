@@ -7,6 +7,10 @@ gem "rake-compiler"
 gem "concurrent-ruby"
 
 group :test do
+  # Async bus/service for circuit breaker sync (PoC)
+  gem "async-bus", "~> 0.3"
+  gem "async-service", "~> 0.14"
+
   gem "benchmark-memory"
   gem "benchmark-ips"
   gem "memory_profiler"

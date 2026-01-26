@@ -197,6 +197,11 @@ module Semian
   # +exceptions+: An array of exception classes that should be accounted as resource errors. Default [].
   # (circuit breaker)
   #
+  # +sync_scope+: Controls circuit breaker state synchronization scope. (circuit breaker)
+  #   - +:local+ (default): Circuit breaker state is local to this process
+  #   - +:shared+: Circuit breaker state is synchronized across all connected workers
+  #     via the Sync::Server. Requires SEMIAN_SYNC_ENABLED=1.
+  #
   # Returns the registered resource.
   def register(name, **options)
     return UnprotectedResource.new(name) if ENV.key?("SEMIAN_DISABLED")
@@ -302,9 +307,28 @@ module Semian
 
   def create_circuit_breaker(name, **options)
     return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED")
+
     return unless options.fetch(:circuit_breaker, true)
 
     exceptions = options[:exceptions] || []
+    sync_scope = options.fetch(:sync_scope, :local)
+
+    # Use synced circuit breaker for shared scope
+    if sync_scope == :shared && ENV["SEMIAN_SYNC_ENABLED"]
+      require_relative "semian/sync/circuit_breaker" unless defined?(Sync::CircuitBreaker)
+      Sync::Client.setup!
+
+      return Sync::CircuitBreaker.new(
+        name,
+        exceptions: Array(exceptions) + [::Semian::BaseError],
+        success_threshold: options[:success_threshold],
+        error_threshold: options[:error_threshold],
+        error_timeout: options[:error_timeout],
+        half_open_resource_timeout: options[:half_open_resource_timeout],
+      )
+    end
+
+    # Default: local circuit breaker
     CircuitBreaker.new(
       name,
       success_threshold: options[:success_threshold],
