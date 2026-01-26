@@ -96,8 +96,8 @@ jobs:
         with:
           token: ${{ github.token }}
           branch: release/v${{ needs.read-version.outputs.new_version }}
-          title: "Release v${{ needs.read-version.outputs.new_version }}"
-          commit-message: "Bump version to ${{ needs.read-version.outputs.new_version }}"
+          title: Release v${{ needs.read-version.outputs.new_version }}
+          commit-message: Bump version to ${{ needs.read-version.outputs.new_version }}
           add-paths: |
             lib/semian/version.rb
             Gemfile.lock
@@ -113,4 +113,5 @@ jobs:
             **Release type:** ${{ github.event.inputs.release_type }}
             **Triggered by:** @${{ github.actor }}
 
-            After merging this PR, the **Publish Release** workflow will automatically build the gem and publish it to GitHub releases.
+            After merging this PR, the **Publish Release** workflow will automatically
+            build the gem and publish it to GitHub releases.
