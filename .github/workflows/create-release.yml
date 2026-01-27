@@ -104,7 +104,7 @@ jobs:
           git push origin "$branch_name"
       -
         name: Create signed commit
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
         with:
           github-token: ${{ github.token }}
           script: |
@@ -115,7 +115,8 @@ jobs:
 
             execSync(`git add ${directory}`);
 
-            const status = execSync(`git -c core.quotePath=false status ${directory} --porcelain=v1`).toString();
+            const gitCmd = `git -c core.quotePath=false status ${directory} --porcelain=v1`;
+            const status = execSync(gitCmd).toString();
             const fileChanges = status
               .split('\n')
               .filter(line => line)
@@ -138,7 +139,9 @@ jobs:
               .flat();
 
             const additions = fileChanges.filter(f => f.contents !== null);
-            const deletions = fileChanges.filter(f => f.contents === null).map(f => ({ path: f.path }));
+            const deletions = fileChanges
+              .filter(f => f.contents === null)
+              .map(f => ({ path: f.path }));
 
             console.log('Committing changes:');
             additions.forEach(file => console.log(`  + ${file.path}`));
