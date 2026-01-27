@@ -16,7 +16,7 @@ jobs:
       pull-requests: write
     runs-on: ubuntu-latest
     if: |
-      github.event_name == 'workflow_call'
+      github.event_name == 'workflow_dispatch'
       || (github.event.issue.pull_request
           && !github.event.issue.pull_request.merged_at
           && contains(github.event.comment.body, 'signed'))
