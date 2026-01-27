@@ -201,5 +201,8 @@ jobs:
   cla:
     name: Run CLA check
     needs: [create-pr]
+    permissions:
+      actions: write
+      pull-requests: write
     uses: ./.github/workflows/cla.yml
     secrets: inherit
