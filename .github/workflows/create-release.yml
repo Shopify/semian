@@ -64,7 +64,8 @@ jobs:
         name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
-          fetch-depth: 30
+          ref: main
+          fetch-depth: 0
           fetch-tags: true
       -
         name: Set up Ruby
@@ -91,6 +92,88 @@ jobs:
             "${{ needs.read-version.outputs.new_version }}" \
             "${{ needs.read-version.outputs.current_version }}"
       -
+        name: Create and push branch
+        run: |
+          new_version="${{ needs.read-version.outputs.new_version }}"
+          branch_name="release/v$new_version"
+
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git checkout -b "$branch_name"
+          git push origin "$branch_name"
+      -
+        name: Create signed commit
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const { execSync } = require('child_process');
+            const fs = require('fs');
+            const message = 'Bump version to ${{ needs.read-version.outputs.new_version }}';
+            const directory = '.';
+
+            execSync(`git add ${directory}`);
+
+            const gitCmd = `git -c core.quotePath=false status ${directory} --porcelain=v1`;
+            const status = execSync(gitCmd).toString();
+            const fileChanges = status
+              .split('\n')
+              .filter(line => line)
+              .map(line => {
+                const [_, status, path] = line.match(/^(.). (.*)/);
+
+                if (status === 'R') {
+                  const [oldPath, newPath] = path.split(' -> ');
+                  return [
+                    { path: newPath, contents: fs.readFileSync(newPath).toString('base64') },
+                    { path: oldPath, contents: null }
+                  ];
+                }
+
+                return [{
+                  path,
+                  contents: status !== 'D' ? fs.readFileSync(path).toString('base64') : null
+                }];
+              })
+              .flat();
+
+            const additions = fileChanges.filter(f => f.contents !== null);
+            const deletions = fileChanges
+              .filter(f => f.contents === null)
+              .map(f => ({ path: f.path }));
+
+            console.log('Committing changes:');
+            additions.forEach(file => console.log(`  + ${file.path}`));
+            deletions.forEach(file => console.log(`  - ${file.path}`));
+
+            const branch = 'release/v${{ needs.read-version.outputs.new_version }}';
+            console.log(`Target branch: ${branch}`);
+
+            const query = `
+              mutation CreateCommit($input: CreateCommitOnBranchInput!) {
+                createCommitOnBranch(input: $input) {
+                  commit {
+                    url
+                  }
+                }
+              }
+            `;
+
+            const result = await github.graphql(query, {
+              input: {
+                branch: {
+                  repositoryNameWithOwner: `${context.repo.owner}/${context.repo.repo}`,
+                  branchName: branch
+                },
+                message: { headline: message },
+                fileChanges: { additions, deletions },
+                expectedHeadOid: context.sha
+              }
+            });
+
+            console.log(`Commit created: ${result.createCommitOnBranch.commit.url}`);
+      -
         name: Create pull request
         env:
           GH_TOKEN: ${{ github.token }}
@@ -98,21 +181,6 @@ jobs:
           new_version="${{ needs.read-version.outputs.new_version }}"
           branch_name="release/v$new_version"
 
-          # Configure git
-          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-
-          # Create and checkout new branch
-          git checkout -b "$branch_name"
-
-          # Add and commit changes
-          git add lib/semian/version.rb Gemfile.lock CHANGELOG.md
-          git commit -m "Bump version to $new_version" -m "Triggered by @${{ github.actor }}"
-
-          # Push the branch
-          git push origin "$branch_name"
-
-          # Create pull request
           gh pr create \
             --title "Release v$new_version" \
             --body "Automated version bump to $new_version
@@ -129,3 +197,12 @@ jobs:
           build the gem and publish it to GitHub releases." \
             --base main \
             --head "$branch_name"
+
+  cla:
+    name: Run CLA check
+    needs: [create-pr]
+    permissions:
+      actions: write
+      pull-requests: write
+    uses: ./.github/workflows/cla.yml
+    secrets: inherit
