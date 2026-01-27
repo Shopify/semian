@@ -104,7 +104,7 @@ jobs:
           git push origin "$branch_name"
       -
         name: Create signed commit
-        uses: Shopify/github-actions/signed-commit@v1
+        uses: Shopify/github-actions/signed-commit@main
         with:
           github-token: ${{ github.token }}
           comment: Bump version to ${{ needs.read-version.outputs.new_version }}
