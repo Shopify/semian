@@ -92,6 +92,24 @@ jobs:
             "${{ needs.read-version.outputs.new_version }}" \
             "${{ needs.read-version.outputs.current_version }}"
       -
+        name: Create and push branch
+        run: |
+          new_version="${{ needs.read-version.outputs.new_version }}"
+          branch_name="release/v$new_version"
+
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git checkout -b "$branch_name"
+          git push origin "$branch_name"
+      -
+        name: Create signed commit
+        uses: Shopify/github-actions/signed-commit@v1
+        with:
+          github-token: ${{ github.token }}
+          comment: Bump version to ${{ needs.read-version.outputs.new_version }}
+          directory: .
+      -
         name: Create pull request
         env:
           GH_TOKEN: ${{ github.token }}
@@ -99,21 +117,6 @@ jobs:
           new_version="${{ needs.read-version.outputs.new_version }}"
           branch_name="release/v$new_version"
 
-          # Configure git
-          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-
-          # Create and checkout new branch
-          git checkout -b "$branch_name"
-
-          # Add and commit changes (with signing)
-          git add lib/semian/version.rb Gemfile.lock CHANGELOG.md
-          git commit -S -m "Bump version to $new_version" -m "Triggered by @${{ github.actor }}"
-
-          # Push the branch
-          git push origin "$branch_name"
-
-          # Create pull request
           gh pr create \
             --title "Release v$new_version" \
             --body "Automated version bump to $new_version
