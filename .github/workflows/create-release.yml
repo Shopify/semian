@@ -197,3 +197,9 @@ jobs:
           build the gem and publish it to GitHub releases." \
             --base main \
             --head "$branch_name"
+
+  cla:
+    name: Run CLA check
+    needs: [create-pr]
+    uses: ./.github/workflows/cla.yml
+    secrets: inherit
