@@ -20,7 +20,7 @@ group :test do
   gem "mutex_m"
   gem "grpc", "1.76.0"
   gem "mysql2", "~> 0.5"
-  gem "trilogy", "~> 2.9"
+  gem "trilogy", "~> 2.10"
   gem "pg", "~> 1.6"
   gem "activerecord", github: "rails/rails", branch: "main"
   gem "hiredis", "~> 0.6"
