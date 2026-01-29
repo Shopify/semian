@@ -106,7 +106,7 @@ jobs:
         name: Create signed commit
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
         with:
-          github-token: ${{ github.token }}
+          github-token: ${{ secrets.SHOPIFY_GH_ACCESS_TOKEN }}
           script: |
             const { execSync } = require('child_process');
             const fs = require('fs');
@@ -176,7 +176,7 @@ jobs:
       -
         name: Create pull request
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.SHOPIFY_GH_ACCESS_TOKEN }}
         run: |
           new_version="${{ needs.read-version.outputs.new_version }}"
           branch_name="release/v$new_version"
@@ -197,12 +197,3 @@ jobs:
           build the gem and publish it to GitHub releases." \
             --base main \
             --head "$branch_name"
-
-  cla:
-    name: Run CLA check
-    needs: [create-pr]
-    permissions:
-      actions: write
-      pull-requests: write
-    uses: ./.github/workflows/cla.yml
-    secrets: inherit
