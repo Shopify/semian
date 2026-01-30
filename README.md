@@ -73,6 +73,7 @@ version is the version of the public gem with the same name:
 - [`semian/redis`][redis-semian-adapter] (~> 3.2.1)
 - [`semian/net_http`][nethttp-semian-adapter]
 - [`semian/activerecord_trilogy_adapter`][activerecord-trilogy-semian-adapter]
+- [`semian/activerecord_postgresql_adapter`][activerecord-postgresql-semian-adapter]
 - [`semian-postgres`][postgres-semian-adapter]
 
 ### Creating Adapters
@@ -152,6 +153,33 @@ client = Redis.new(semian: {
   error_threshold: 4,
   error_timeout: 20
 })
+```
+
+##### Redis Out-of-Memory Errors
+
+By default, Redis Out-of-Memory (OOM) errors will open the circuit breaker. This can be
+problematic because it prevents read operations and commands that could free up memory
+(like `DEL`, `LPOP`, etc.) from executing, hindering Redis recovery.
+
+To allow OOM errors to fail fast without opening the circuit, set `open_circuit_on_oom: false`:
+
+```ruby
+client = Redis.new(semian: {
+  name: "inventory",
+  open_circuit_on_oom: false  # OOM errors won't open the circuit
+})
+```
+
+This also works with `RedisClient`:
+
+```ruby
+client = RedisClient.config(
+  host: "localhost",
+  semian: {
+    name: "inventory",
+    open_circuit_on_oom: false
+  }
+).new_client
 ```
 
 #### Configuration Validation
@@ -1031,6 +1059,7 @@ $ bundle install
 [postgres-semian-adapter]: https://github.com/mschoenlaub/semian-postgres
 [redis-semian-adapter]: lib/semian/redis.rb
 [activerecord-trilogy-semian-adapter]: lib/semian/activerecord_trilogy_adapter.rb
+[activerecord-postgres-semian-adapter]: lib/semian/activerecord_postgres_adapter.rb
 [semian-adapter]: lib/semian/adapter.rb
 [nethttp-semian-adapter]: lib/semian/net_http.rb
 [nethttp-default-errors]: lib/semian/net_http.rb#L35-L45

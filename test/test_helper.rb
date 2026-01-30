@@ -15,9 +15,9 @@ require "mocha/minitest"
 require "helpers/adapter_helper"
 require "helpers/background_helper"
 require "helpers/circuit_breaker_helper"
-require "helpers/mock_server.rb"
+require "helpers/mock_server"
 require "helpers/resource_helper"
-require "helpers/time_helper.rb"
+require "helpers/time_helper"
 
 require "config/semian_config"
 
@@ -35,6 +35,11 @@ Toxiproxy.populate([
     name: "semian_test_mysql",
     upstream: "#{SemianConfig["mysql_host"]}:#{SemianConfig["mysql_port"]}",
     listen: "#{SemianConfig["toxiproxy_upstream_host"]}:#{SemianConfig["mysql_toxiproxy_port"]}",
+  },
+  {
+    name: "semian_test_postgresql",
+    upstream: "#{SemianConfig["postgresql_host"]}:#{SemianConfig["postgresql_port"]}",
+    listen: "#{SemianConfig["toxiproxy_upstream_host"]}:#{SemianConfig["postgresql_toxiproxy_port"]}",
   },
   {
     name: "semian_test_redis",

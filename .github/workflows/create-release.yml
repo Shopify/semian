@@ -32,7 +32,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
       -
         name: Set up Ruby
-        uses: ruby/setup-ruby@v1.263.0
+        uses: ruby/setup-ruby@v1.267.0
         with:
           ruby-version: "3.4"
           bundler-cache: true
@@ -68,7 +68,7 @@ jobs:
           fetch-tags: true
       -
         name: Set up Ruby
-        uses: ruby/setup-ruby@v1.263.0
+        uses: ruby/setup-ruby@v1.267.0
         with:
           ruby-version: "3.4"
           bundler-cache: true
@@ -99,8 +99,8 @@ jobs:
           branch_name="release/v$new_version"
 
           # Configure git
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
 
           # Create and checkout new branch
           git checkout -b "$branch_name"

@@ -46,6 +46,15 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: root
+        options: >-
+          --health-cmd="pg_isready"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
       redis:
         image: redis
         options: >-
@@ -124,6 +133,7 @@ jobs:
           - redis_5
           - redis_client
           - activerecord_trilogy_adapter
+          - activerecord_postgresql_adapter
         include:
           - gemfile: grpc
             adapter: grpc
@@ -143,6 +153,8 @@ jobs:
             adapter: redis_client
           - gemfile: activerecord_trilogy_adapter
             adapter: activerecord_trilogy_adapter
+          - gemfile: activerecord_postgresql_adapter
+            adapter: activerecord_postgresql_adapter
     services:
       mysql:
         image: mysql:9.3
@@ -150,6 +162,15 @@ jobs:
           MYSQL_ROOT_PASSWORD: root
         options: >-
           --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: root
+        options: >-
+          --health-cmd="pg_isready"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
