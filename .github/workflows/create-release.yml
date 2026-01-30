@@ -98,7 +98,7 @@ jobs:
           token: ${{ secrets.SHOPIFY_GH_ACCESS_TOKEN }}
           branch: release/v${{ needs.read-version.outputs.new_version }}
           base: main
-          title: "Release v${{ needs.read-version.outputs.new_version }}"
+          title: Release v${{ needs.read-version.outputs.new_version }}
           body: |
             Automated version bump to ${{ needs.read-version.outputs.new_version }}
 
@@ -110,10 +110,11 @@ jobs:
             **Release type:** ${{ github.event.inputs.release_type }}
             **Triggered by:** @${{ github.actor }}
 
-            After merging this PR, the **Publish Release** workflow will automatically build the gem and publish it to GitHub releases.
-          commit-message: "Bump version to ${{ needs.read-version.outputs.new_version }}"
-          committer: "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
-          author: "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+            After merging this PR, the **Publish Release** workflow will automatically
+            build the gem and publish it to GitHub releases.
+          commit-message: Bump version to ${{ needs.read-version.outputs.new_version }}
+          committer: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
           sign-commits: true
           add-paths: |
             lib/semian/version.rb
