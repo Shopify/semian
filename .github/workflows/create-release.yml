@@ -64,7 +64,8 @@ jobs:
         name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
-          fetch-depth: 30
+          ref: main
+          fetch-depth: 0
           fetch-tags: true
       -
         name: Set up Ruby
@@ -92,40 +93,30 @@ jobs:
             "${{ needs.read-version.outputs.current_version }}"
       -
         name: Create pull request
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          new_version="${{ needs.read-version.outputs.new_version }}"
-          branch_name="release/v$new_version"
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.SHOPIFY_GH_ACCESS_TOKEN }}
+          branch: release/v${{ needs.read-version.outputs.new_version }}
+          base: main
+          title: Release v${{ needs.read-version.outputs.new_version }}
+          body: |
+            Automated version bump to ${{ needs.read-version.outputs.new_version }}
 
-          # Configure git
-          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
+            This PR includes:
+            - Updated version in `lib/semian/version.rb`
+            - Updated `Gemfile.lock`
+            - Updated `CHANGELOG.md`
 
-          # Create and checkout new branch
-          git checkout -b "$branch_name"
+            **Release type:** ${{ github.event.inputs.release_type }}
+            **Triggered by:** @${{ github.actor }}
 
-          # Add and commit changes
-          git add lib/semian/version.rb Gemfile.lock CHANGELOG.md
-          git commit -m "Bump version to $new_version" -m "Triggered by @${{ github.actor }}"
-
-          # Push the branch
-          git push origin "$branch_name"
-
-          # Create pull request
-          gh pr create \
-            --title "Release v$new_version" \
-            --body "Automated version bump to $new_version
-
-          This PR includes:
-          - Updated version in \`lib/semian/version.rb\`
-          - Updated \`Gemfile.lock\`
-          - Updated \`CHANGELOG.md\`
-
-          **Release type:** ${{ github.event.inputs.release_type }}
-          **Triggered by:** @${{ github.actor }}
-
-          After merging this PR, the **Publish Release** workflow will automatically \
-          build the gem and publish it to GitHub releases." \
-            --base main \
-            --head "$branch_name"
+            After merging this PR, the **Publish Release** workflow will automatically
+            build the gem and publish it to GitHub releases.
+          commit-message: Bump version to ${{ needs.read-version.outputs.new_version }}
+          committer: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          sign-commits: true
+          add-paths: |
+            lib/semian/version.rb
+            Gemfile.lock
+            CHANGELOG.md
