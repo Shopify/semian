@@ -13,21 +13,36 @@ module Semian
       :state,
       :last_error,
       :error_threshold_timeout_enabled,
+      :dynamic_timeout,
     )
 
+    EXPONENTIAL_BACKOFF_MIN = 0.5  # 500ms
+    EXPONENTIAL_BACKOFF_MAX = 60   # 60 seconds
+    EXPONENTIAL_THRESHOLD = 20     # Switch from exponential to linear at 20s
+    LINEAR_INCREMENT = 1.0 # Linear increment after exponential threshold
+
     def initialize(name, exceptions:, success_threshold:, error_threshold:,
-      error_timeout:, implementation:, half_open_resource_timeout: nil,
+      error_timeout: nil, implementation:, half_open_resource_timeout: nil,
       error_threshold_timeout: nil, error_threshold_timeout_enabled: true,
-      lumping_interval: 0)
+      lumping_interval: 0, dynamic_timeout: false)
       @name = name.to_sym
       @success_count_threshold = success_threshold
       @error_count_threshold = error_threshold
       @error_threshold_timeout = error_threshold_timeout || error_timeout
       @error_threshold_timeout_enabled = error_threshold_timeout_enabled.nil? ? true : error_threshold_timeout_enabled
-      @error_timeout = error_timeout
+      @dynamic_timeout = dynamic_timeout
       @exceptions = exceptions
       @half_open_resource_timeout = half_open_resource_timeout
       @lumping_interval = lumping_interval
+
+      # Set initial error_timeout based on mode
+      # When using dynamic timeout, we simply adjust @error_timeout dynamically
+      # instead of maintaining separate backoff state variables
+      @error_timeout = if @dynamic_timeout
+        EXPONENTIAL_BACKOFF_MIN
+      else
+        error_timeout
+      end
 
       @errors = implementation::SlidingWindow.new(max_size: @error_count_threshold)
       @successes = implementation::Integer.new
@@ -102,9 +117,24 @@ module Semian
       log_state_transition(:closed)
       @state.close!
       @errors.clear
+
+      # Reset dynamic timeout when circuit closes
+      @error_timeout = EXPONENTIAL_BACKOFF_MIN if @dynamic_timeout
     end
 
     def transition_to_open
+      # Handle dynamic timeout on open
+      if @dynamic_timeout && half_open?
+        # Only increase timeout if we're transitioning from half-open to open (indicating failure)
+        # Uses a hybrid approach: exponential growth for quick retries on transient failures,
+        # then linear growth for more persistent outages
+        @error_timeout = if @error_timeout < EXPONENTIAL_THRESHOLD
+          [@error_timeout * 2, EXPONENTIAL_THRESHOLD].min
+        else
+          [@error_timeout + LINEAR_INCREMENT, EXPONENTIAL_BACKOFF_MAX].min
+        end
+      end
+
       notify_state_transition(:open)
       log_state_transition(:open)
       @state.open!
@@ -152,8 +182,15 @@ module Semian
       str += " success_count=#{@successes.value} error_count=#{@errors.size}"
       str += " success_count_threshold=#{@success_count_threshold}"
       str += " error_count_threshold=#{@error_count_threshold}"
-      str += " error_timeout=#{@error_timeout} error_last_at=\"#{@errors.last}\""
+      str += " error_timeout=#{@error_timeout}"
+
+      if @dynamic_timeout
+        str += " dynamic_timeout=true"
+      end
+
+      str += " error_last_at=\"#{@errors.last}\""
       str += " name=\"#{@name}\""
+
       if new_state == :open && @last_error
         str += " last_error_message=#{@last_error.message.inspect}"
       end
