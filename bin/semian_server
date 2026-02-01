@@ -1,0 +1,86 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Semian Sync Server
+#
+# This server aggregates circuit breaker state across all connected workers
+# and broadcasts state changes back to them.
+#
+# == Dynamic Resource Registration
+#
+# The server starts with NO predefined resources. Resources are registered
+# dynamically by clients when they create Semian resources with `sync_scope: :shared`.
+# This allows the server to be deployed as a sidecar without knowing all resources upfront.
+#
+# == Usage
+#
+#   bundle exec ruby bin/semian_server
+#
+# == Environment Variables
+#
+#   SEMIAN_SYNC_SOCKET - Path to Unix socket (default: /var/run/semian/semian.sock)
+#
+# == Client Configuration
+#
+# Clients connect and register resources when they call:
+#
+#   Semian.register(:mysql_shard_0,
+#     error_threshold: 6,
+#     error_timeout: 45,
+#     success_threshold: 2,
+#     sync_scope: :shared  # This triggers registration with the server
+#   )
+#
+
+require "bundler/setup"
+require "fileutils"
+
+$LOAD_PATH.unshift(File.expand_path("../lib", __dir__))
+require "semian/sync/server"
+
+def main
+  socket_path = ENV["SEMIAN_SYNC_SOCKET"] || "/var/run/semian/semian.sock"
+
+  # Ensure socket directory exists
+  socket_dir = File.dirname(socket_path)
+  FileUtils.mkdir_p(socket_dir) unless File.directory?(socket_dir)
+
+  puts "=" * 60
+  puts "Semian Sync Server"
+  puts "=" * 60
+  puts ""
+  puts "Socket: #{socket_path}"
+  puts ""
+  puts "Resources: (none - registered dynamically by clients)"
+  puts ""
+  puts "Clients will register resources when they create Semian"
+  puts "resources with sync_scope: :shared"
+  puts ""
+  puts "To enable clients, set:"
+  puts "  SEMIAN_SYNC_ENABLED=1"
+  puts "  SEMIAN_SYNC_SOCKET=#{socket_path}"
+  puts ""
+  puts "Press Ctrl+C to stop"
+  puts "=" * 60
+  puts ""
+
+  # Start server with empty resources - clients register dynamically
+  server = Semian::Sync::CircuitBreakerServer.new(
+    socket_path: socket_path,
+    resources: {},
+  )
+
+  # Handle shutdown signals
+  shutdown = proc do
+    puts "\nShutting down..."
+    server.stop
+    exit(0)
+  end
+
+  trap("INT", &shutdown)
+  trap("TERM", &shutdown)
+
+  server.start
+end
+
+main if __FILE__ == $PROGRAM_NAME
