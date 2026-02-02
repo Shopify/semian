@@ -1,20 +1,21 @@
 # frozen_string_literal: true
 
-require_relative "pid_controller"
 require_relative "circuit_breaker_behaviour"
+require_relative "pid_controller_thread"
 
 module Semian
   # Adaptive Circuit Breaker that uses PID controller for dynamic rejection
   class AdaptiveCircuitBreaker
     include CircuitBreakerBehaviour
 
-    attr_reader :pid_controller, :update_thread
+    attr_reader :pid_controller, :update_thread, :sliding_interval, :pid_controller_thread, :stopped
 
-    def initialize(name:, exceptions:, kp:, ki:, kd:, window_size:, sliding_interval:, initial_error_rate:, implementation:)
+    @pid_controller_thread = nil
+
+    def initialize(name:, exceptions:, kp:, ki:, kd:, window_size:, initial_error_rate:, implementation:)
       initialize_behaviour(name: name)
 
       @exceptions = exceptions
-      @sliding_interval = sliding_interval
       @stopped = false
 
       @pid_controller = implementation::PIDController.new(
@@ -22,12 +23,12 @@ module Semian
         ki: ki,
         kd: kd,
         window_size: window_size,
-        sliding_interval: sliding_interval,
         implementation: implementation,
+        sliding_interval: 1,
         initial_error_rate: initial_error_rate,
       )
 
-      start_pid_controller_update_thread
+      @pid_controller_thread = PIDControllerThread.instance.register_resource(self)
     end
 
     def acquire(resource = nil, &block)
@@ -56,13 +57,12 @@ module Semian
     end
 
     def stop
-      @stopped = true
-      @update_thread&.kill
-      @update_thread = nil
+      destroy
     end
 
     def destroy
-      stop
+      @stopped = true
+      PIDControllerThread.instance.unregister_resource(self)
       @pid_controller.reset
     end
 
@@ -104,32 +104,12 @@ module Semian
       true
     end
 
+    def pid_controller_update
+      @pid_controller.update
+      notify_metrics_update(@pid_controller.metrics(full: false))
+    end
+
     private
-
-    def start_pid_controller_update_thread
-      update_proc = proc do
-        loop do
-          break if @stopped
-
-          sleep_duration = @sliding_interval * rand(0.9..1.1)
-          wait_for_window(sleep_duration)
-          @pid_controller.update(sleep_duration)
-          notify_metrics_update(@pid_controller.metrics(full: false))
-        end
-      rescue => e
-        Semian.logger&.warn("[#{@name}] PID controller update thread error: #{e.message}")
-      end
-
-      @update_thread = if Fiber.scheduler
-        Fiber.schedule(&update_proc)
-      else
-        Thread.new(&update_proc)
-      end
-    end
-
-    def wait_for_window(sleep_duration)
-      Kernel.sleep(sleep_duration)
-    end
 
     def notify_metrics_update(metrics)
       Semian.notify(

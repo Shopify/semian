@@ -14,12 +14,11 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
       window_size: 0.05,
       initial_error_rate: 0.01,
       implementation: Semian::ThreadSafe,
-      sliding_interval: 1,
     )
   end
 
   def teardown
-    @breaker.stop
+    @breaker.destroy
   end
 
   def test_acquire_with_success_returns_value_and_records_request
@@ -67,20 +66,17 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
   end
 
   def test_update_thread_calls_pid_controller_update_after_every_wait_interval
-    # Verify that the update thread is created and alive
-    assert_instance_of(Thread, @breaker.update_thread)
-    assert(@breaker.update_thread.alive?)
-
     # Track how many times wait_for_window is called
     wait_count = 0
     ready_to_progress = false
-    @breaker.stub(:wait_for_window, ->(duration) {
+
+    @breaker.pid_controller_thread.stub(:wait_for_window, -> {
       # Wait until we're ready to start
       Kernel.sleep(0.01) until ready_to_progress
 
       wait_count += 1
       # Stop the breaker after 3 waits
-      @breaker.stop if wait_count >= 3
+      @breaker.stop if @breaker.stopped == false && wait_count >= 3
     }) do
       # We call update after sleeping. And since we exit on the third sleep, we only expect 2 updates.
       @breaker.pid_controller.expects(:update).times(2)
@@ -89,11 +85,10 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
       ready_to_progress = true
 
       # Wait for the thread to complete
-      Kernel.sleep(0.01) while @breaker.update_thread.alive?
+      Kernel.sleep(0.01) while @breaker.stopped == false
     end
 
-    assert_equal(false, @breaker.update_thread.alive?)
-    assert_equal(3, wait_count)
+    assert_equal(true, @breaker.stopped)
   end
 
   def test_notify_adaptive_update
@@ -112,13 +107,13 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
     ready_to_progress = false
     wait_count = 0
 
-    @breaker.stub(:wait_for_window, ->(duration) {
+    @breaker.pid_controller_thread.stub(:wait_for_window, -> {
       # Wait until we're ready to start
       Kernel.sleep(0.01) until ready_to_progress
 
       wait_count += 1
       # Stop the breaker after 3 waits
-      @breaker.stop if wait_count >= 3
+      @breaker.stop if @breaker.stopped == false && wait_count >= 3
     }) do
       # Set up expectations before allowing the thread to progress
       @breaker.pid_controller.expects(:update).times(2)
@@ -136,7 +131,7 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
       ready_to_progress = true
 
       # Wait for the thread to complete
-      Kernel.sleep(0.01) while @breaker.update_thread&.alive?
+      Kernel.sleep(0.01) while @breaker.stopped == false
     end
 
     # Should receive 2 adaptive_update notifications (one per update)

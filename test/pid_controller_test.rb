@@ -62,11 +62,11 @@ class TestPIDController < Minitest::Test
     elapsed = 0
 
     # Phase 1: Start with 1% error rate
-    elapsed += sliding_interval_with_jitter
+    elapsed += 1
     time_travel(elapsed) do
       99.times { @controller.record_request(:success) }
       @controller.record_request(:error)
-      @controller.update(sliding_interval_with_jitter)
+      @controller.update
     end
 
     # Rejection should be 0 when error rate is less than or equal to ideal
@@ -74,11 +74,11 @@ class TestPIDController < Minitest::Test
     assert_equal(1, @controller.metrics[:smoother_state][:observation_count])
 
     # Phase 2: Introduce error spike
-    elapsed += sliding_interval_with_jitter
+    elapsed += 1
     time_travel(elapsed) do
       61.times { @controller.record_request(:success) }
       39.times { @controller.record_request(:error) }
-      @controller.update(sliding_interval_with_jitter)
+      @controller.update
     end
 
     # Rejection should be around 20% (± 2%)
@@ -87,11 +87,11 @@ class TestPIDController < Minitest::Test
 
     # Phase 3: Continue high error rate (20% per window)
     5.times do
-      elapsed += sliding_interval_with_jitter
+      elapsed += 1
       time_travel(elapsed) do
         80.times { @controller.record_request(:success) }
         20.times { @controller.record_request(:error) }
-        @controller.update(sliding_interval_with_jitter)
+        @controller.update
       end
     end
 
@@ -105,10 +105,10 @@ class TestPIDController < Minitest::Test
 
     # Phase 4: Recovery - all successes to bring error rate down
     10.times do
-      elapsed += sliding_interval_with_jitter
+      elapsed += 1
       time_travel(elapsed) do
         100.times { @controller.record_request(:success) }
-        @controller.update(sliding_interval_with_jitter)
+        @controller.update
       end
     end
 
@@ -142,7 +142,7 @@ class TestPIDController < Minitest::Test
 
   def test_reset_clears_all_state
     @controller.record_request(:error)
-    @controller.update(1)
+    @controller.update
 
     @controller.reset
 
@@ -176,7 +176,7 @@ class TestPIDController < Minitest::Test
     # Simulate prolonged low error rate (below ideal) which would push integral negative
     100.times do
       100.times { @controller.record_request(:success) }
-      @controller.update(1)
+      @controller.update
     end
 
     # Integral should be clamped at -10, not accumulate unbounded negative values
@@ -188,7 +188,7 @@ class TestPIDController < Minitest::Test
     # Simulate prolonged high error rate (100%) which would push integral positive
     50.times do
       100.times { @controller.record_request(:error) }
-      @controller.update(1)
+      @controller.update
     end
 
     # Integral should be clamped at 10, not accumulate unbounded positive values
@@ -207,24 +207,18 @@ class TestPIDController < Minitest::Test
     end
 
     time_travel(10) do
-      @controller.update(1)
+      @controller.update
 
       # On the first 10 seconds, all requests are included
       assert_equal(0.5, @controller.metrics[:error_rate])
     end
 
     time_travel(11) do
-      @controller.update(1)
+      @controller.update
 
       # On the 11th second, the first second is excluded, and we're left with 1 error, so 100%
       assert_equal(1.0, @controller.metrics[:error_rate])
     end
-  end
-
-  private
-
-  def sliding_interval_with_jitter
-    1 * rand(0.9..1.1)
   end
 end
 
@@ -273,7 +267,7 @@ class TestThreadSafePIDController < Minitest::Test
 
   def test_no_deadlocks
     # Confirm the code does not try to acquire the same lock twice
-    @controller.update(1)
+    @controller.update
     @controller.record_request(:error)
     @controller.should_reject?
     @controller.reset
