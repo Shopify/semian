@@ -1,0 +1,147 @@
+# frozen_string_literal: true
+
+require "test_helper"
+require "semian/adaptive_circuit_breaker"
+
+class TestAdaptiveCircuitBreaker < Minitest::Test
+  def setup
+    @breaker = Semian::AdaptiveCircuitBreaker.new(
+      name: "test_breaker",
+      exceptions: [RuntimeError],
+      kp: 1.0,
+      ki: 0.1,
+      kd: 0.01,
+      window_size: 0.05,
+      initial_error_rate: 0.01,
+      implementation: Semian::ThreadSafe,
+    )
+  end
+
+  def teardown
+    @breaker.destroy
+  end
+
+  def test_acquire_with_success_returns_value_and_records_request
+    # Mock the PID controller to allow the request
+    @breaker.pid_controller.expects(:should_reject?).returns(false)
+    @breaker.pid_controller.expects(:record_request).with(:success)
+
+    # Execute the block and verify it returns the expected value
+    result = @breaker.acquire { "successful_result" }
+
+    assert_equal("successful_result", result)
+  end
+
+  def test_acquire_with_error_raises_and_records_request
+    # Mock the PID controller to allow the request
+    @breaker.pid_controller.expects(:should_reject?).returns(false)
+    @breaker.pid_controller.expects(:record_request).with(:error)
+
+    # Execute the block and verify it raises the error
+    error = assert_raises(RuntimeError) do
+      @breaker.acquire { raise "Something went wrong" }
+    end
+
+    assert_equal("Something went wrong", error.message)
+    assert_equal("Something went wrong", @breaker.last_error.message)
+  end
+
+  def test_acquire_with_rejection_raises_and_records_request
+    # Mock the PID controller to reject the request
+    @breaker.pid_controller.expects(:should_reject?).returns(true)
+    @breaker.pid_controller.expects(:record_request).with(:rejected)
+
+    # Verify that OpenCircuitError is raised and the block is never executed
+    block_executed = false
+
+    error = assert_raises(Semian::OpenCircuitError) do
+      @breaker.acquire do
+        block_executed = true
+        "should not be executed"
+      end
+    end
+
+    assert_equal("Rejected by adaptive circuit breaker", error.message)
+    assert_equal(false, block_executed)
+  end
+
+  def test_update_thread_calls_pid_controller_update_after_every_wait_interval
+    # Track how many times wait_for_window is called
+    wait_count = 0
+    ready_to_progress = false
+
+    @breaker.pid_controller_thread.stub(:wait_for_window, -> {
+      # Wait until we're ready to start
+      Kernel.sleep(0.01) until ready_to_progress
+
+      wait_count += 1
+      # Stop the breaker after 3 waits
+      @breaker.stop if @breaker.stopped == false && wait_count >= 3
+    }) do
+      # We call update after sleeping. And since we exit on the third sleep, we only expect 2 updates.
+      @breaker.pid_controller.expects(:update).times(2)
+
+      # Now allow the thread to start progressing
+      ready_to_progress = true
+
+      # Wait for the thread to complete
+      Kernel.sleep(0.01) while @breaker.stopped == false
+    end
+
+    assert_equal(true, @breaker.stopped)
+  end
+
+  def test_notify_adaptive_update
+    events = []
+    Semian.subscribe(:test_breaker) do |event, resource, _scope, _adapter, payload|
+      if event == :adaptive_update
+        events << {
+          name: resource.name,
+          rejection_rate: payload[:rejection_rate],
+          error_rate: payload[:error_rate],
+        }
+      end
+    end
+
+    # Control when the update thread progresses
+    ready_to_progress = false
+    wait_count = 0
+
+    @breaker.pid_controller_thread.stub(:wait_for_window, -> {
+      # Wait until we're ready to start
+      Kernel.sleep(0.01) until ready_to_progress
+
+      wait_count += 1
+      # Stop the breaker after 3 waits
+      @breaker.stop if @breaker.stopped == false && wait_count >= 3
+    }) do
+      # Set up expectations before allowing the thread to progress
+      @breaker.pid_controller.expects(:update).times(2)
+      @breaker.pid_controller.expects(:metrics).with(full: false).returns({
+        rejection_rate: 0.25,
+        error_rate: 0.15,
+        ideal_error_rate: 0.10,
+        integral: 2.5,
+        p_value: 0.05,
+        derivative: 0.01,
+        previous_p_value: 0.04,
+      }).at_least(2)
+
+      # Now allow the thread to start progressing
+      ready_to_progress = true
+
+      # Wait for the thread to complete
+      Kernel.sleep(0.01) while @breaker.stopped == false
+    end
+
+    # Should receive 2 adaptive_update notifications (one per update)
+    assert_equal(2, events.length)
+    events.each do |event|
+      assert_equal(:test_breaker, event[:name])
+      assert_equal(0.25, event[:rejection_rate])
+      assert_equal(0.15, event[:error_rate])
+    end
+  ensure
+    Semian.unsubscribe(:test_breaker)
+  end
+end

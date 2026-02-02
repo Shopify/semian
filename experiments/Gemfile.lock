@@ -1,12 +1,21 @@
+PATH
+  remote: ..
+  specs:
+    semian (0.26.6)
+      concurrent-ruby
+
 GEM
   remote: https://rubygems.org/
   specs:
     bigdecimal (3.3.0)
+    concurrent-ruby (1.3.5)
+    csv (3.3.5)
     gruff (0.29.0)
       bigdecimal (>= 3.0)
       histogram
       rmagick (>= 5.5)
     histogram (0.2.4.1)
+    logger (1.7.0)
     observer (0.1.2)
     pkg-config (1.6.4)
     rmagick (6.1.4)
@@ -18,7 +27,10 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  csv
   gruff (~> 0.23)
+  logger
+  semian!
 
 BUNDLED WITH
    2.6.9

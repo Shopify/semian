@@ -88,6 +88,7 @@ GEM
     language_server-protocol (3.17.0.5)
     lint_roller (1.1.0)
     logger (1.7.0)
+    matrix (0.4.3)
     memory_profiler (1.1.0)
     method_source (1.1.0)
     minitest (5.26.2)
@@ -161,6 +162,8 @@ GEM
       rubocop-ast (>= 1.44.0, < 2.0)
     ruby-progressbar (1.13.0)
     ruby2_keywords (0.0.5)
+    rubystats (0.4.1)
+      matrix
     securerandom (0.4.1)
     stringio (3.1.7)
     timeout (0.4.4)
@@ -181,6 +184,7 @@ PLATFORMS
   arm64-darwin-22
   arm64-darwin-23
   arm64-darwin-24
+  arm64-darwin-25
   x86_64-darwin-21
   x86_64-darwin-22
   x86_64-linux
@@ -210,6 +214,7 @@ DEPENDENCIES
   rubocop-rake
   rubocop-shopify (~> 2)
   rubocop-thread_safety
+  rubystats
   semian!
   toxiproxy
   trilogy (~> 2.9)

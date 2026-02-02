@@ -11,6 +11,8 @@ require "semian/instrumentable"
 require "semian/platform"
 require "semian/resource"
 require "semian/circuit_breaker"
+require "semian/adaptive_circuit_breaker"
+require "semian/dual_circuit_breaker"
 require "semian/protected_resource"
 require "semian/unprotected_resource"
 require "semian/simple_sliding_window"
@@ -197,6 +199,20 @@ module Semian
   # +exceptions+: An array of exception classes that should be accounted as resource errors. Default [].
   # (circuit breaker)
   #
+  # +adaptive_circuit_breaker+: Enable adaptive circuit breaker using PID controller. Default false.
+  # When enabled, this replaces the traditional circuit breaker with an adaptive version
+  # that dynamically adjusts rejection rates based on service health. (adaptive circuit breaker)
+  #
+  # +dual_circuit_breaker+: Enable dual circuit breaker mode where both legacy and adaptive
+  # circuit breakers are initialized. Default false. When enabled, both circuit breakers track
+  # requests, but only one is used for decision-making based on use_adaptive.
+  # (dual circuit breaker)
+  #
+  # +use_adaptive+: A callable (Proc/lambda) that returns true to use adaptive circuit breaker
+  # or false to use legacy. Only used when dual_circuit_breaker is enabled. Default: ->() { false }.
+  # Example: ->() { MyFeatureFlag.enabled?(:adaptive_circuit_breaker) }
+  # (dual circuit breaker)
+  #
   # Returns the registered resource.
   def register(name, **options)
     return UnprotectedResource.new(name) if ENV.key?("SEMIAN_DISABLED")
@@ -204,7 +220,14 @@ module Semian
     # Validate configuration before proceeding
     ConfigurationValidator.new(name, options).validate!
 
-    circuit_breaker = create_circuit_breaker(name, **options)
+    circuit_breaker = if options[:dual_circuit_breaker]
+      create_dual_circuit_breaker(name, **options)
+    elsif options[:adaptive_circuit_breaker]
+      create_adaptive_circuit_breaker(name, **options)
+    else
+      create_circuit_breaker(name, **options)
+    end
+
     bulkhead = create_bulkhead(name, **options)
 
     resources[name] = ProtectedResource.new(name, bulkhead, circuit_breaker)
@@ -300,12 +323,43 @@ module Semian
 
   private
 
-  def create_circuit_breaker(name, **options)
+  def create_dual_circuit_breaker(name, **options)
+    return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED")
+
+    classic_cb = create_circuit_breaker(name, is_child: true, **options)
+    adaptive_cb = create_adaptive_circuit_breaker(name, is_child: true, **options)
+
+    DualCircuitBreaker.new(
+      name: name,
+      classic_circuit_breaker: classic_cb,
+      adaptive_circuit_breaker: adaptive_cb,
+    )
+  end
+
+  def create_adaptive_circuit_breaker(name, is_child: false, **options)
+    return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED") || ENV.key?("SEMIAN_ADAPTIVE_CIRCUIT_BREAKER_DISABLED")
+
+    exceptions = options[:exceptions] || []
+    cls = is_child ? DualCircuitBreaker::ChildAdaptiveCircuitBreaker : AdaptiveCircuitBreaker
+    cls.new(
+      name: name,
+      exceptions: Array(exceptions) + [::Semian::BaseError],
+      kp: 1.0,
+      ki: 0.2,
+      kd: 0.0,
+      window_size: 10,
+      initial_error_rate: options[:initial_error_rate] || 0.05,
+      implementation: implementation(**options),
+    )
+  end
+
+  def create_circuit_breaker(name, is_child: false, **options)
     return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED")
     return unless options.fetch(:circuit_breaker, true)
 
     exceptions = options[:exceptions] || []
-    CircuitBreaker.new(
+    cls = is_child ? DualCircuitBreaker::ChildClassicCircuitBreaker : CircuitBreaker
+    cls.new(
       name,
       success_threshold: options[:success_threshold],
       error_threshold: options[:error_threshold],
