@@ -1,3 +1,8 @@
+# v0.27.1
+
+* Add exponential_backoff_error_timeout feature (#861)
+* Use API-based commits for verification (#1002)
+
 # v0.27.0
 
 * Add `semian/activerecord_postgresql_adapter` for Active Record's PostgreSQL adapter (#889)
