@@ -18,7 +18,7 @@ group :test do
 
   gem "bigdecimal"
   gem "mutex_m"
-  gem "grpc", "1.76.0"
+  gem "grpc", "1.78.0"
   gem "mysql2", "~> 0.5"
   gem "trilogy", "~> 2.9"
   gem "pg", "~> 1.6"
