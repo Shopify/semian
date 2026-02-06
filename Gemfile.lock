@@ -48,30 +48,30 @@ GEM
       reline (>= 0.3.8)
     drb (2.2.3)
     erb (5.0.1)
-    google-protobuf (4.33.0-aarch64-linux-gnu)
+    google-protobuf (4.33.5-aarch64-linux-gnu)
       bigdecimal
       rake (>= 13)
-    google-protobuf (4.33.0-arm64-darwin)
+    google-protobuf (4.33.5-arm64-darwin)
       bigdecimal
       rake (>= 13)
-    google-protobuf (4.33.0-x86_64-darwin)
+    google-protobuf (4.33.5-x86_64-darwin)
       bigdecimal
       rake (>= 13)
-    google-protobuf (4.33.0-x86_64-linux-gnu)
+    google-protobuf (4.33.5-x86_64-linux-gnu)
       bigdecimal
       rake (>= 13)
     googleapis-common-protos-types (1.22.0)
       google-protobuf (~> 4.26)
-    grpc (1.76.0-aarch64-linux-gnu)
+    grpc (1.78.0-aarch64-linux-gnu)
       google-protobuf (>= 3.25, < 5.0)
       googleapis-common-protos-types (~> 1.0)
-    grpc (1.76.0-arm64-darwin)
+    grpc (1.78.0-arm64-darwin)
       google-protobuf (>= 3.25, < 5.0)
       googleapis-common-protos-types (~> 1.0)
-    grpc (1.76.0-x86_64-darwin)
+    grpc (1.78.0-x86_64-darwin)
       google-protobuf (>= 3.25, < 5.0)
       googleapis-common-protos-types (~> 1.0)
-    grpc (1.76.0-x86_64-linux-gnu)
+    grpc (1.78.0-x86_64-linux-gnu)
       google-protobuf (>= 3.25, < 5.0)
       googleapis-common-protos-types (~> 1.0)
     hiredis (0.6.3)
@@ -192,7 +192,7 @@ DEPENDENCIES
   bigdecimal
   concurrent-ruby
   debug
-  grpc (= 1.76.0)
+  grpc (= 1.78.0)
   hiredis (~> 0.6)
   hiredis-client (>= 0.12.0)
   memory_profiler
