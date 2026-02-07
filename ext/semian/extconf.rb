@@ -22,10 +22,13 @@ abort "openssl is missing. please install openssl." unless find_library("crypto"
 
 have_header "sys/ipc.h"
 have_header "sys/sem.h"
+have_header "sys/shm.h"
 have_header "sys/types.h"
 
 have_func "rb_thread_blocking_region"
 have_func "rb_thread_call_without_gvl"
+
+have_header "stdatomic.h"
 
 $CFLAGS = "-D_GNU_SOURCE -Werror -Wall "
 $CFLAGS += if ENV.key?("DEBUG")

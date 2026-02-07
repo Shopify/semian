@@ -92,6 +92,8 @@ module Semian
       @observations_per_minute = observations_per_minute
       @smoothed_value = initial_value
       @observation_count = 0
+      @consecutive_deviations = 0
+      @last_deviation_direction = nil
     end
 
     def add_observation(value)
