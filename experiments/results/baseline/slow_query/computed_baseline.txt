@@ -1,0 +1,15 @@
+# Baseline computed at 2025-12-19 13:05:58 -0500
+# Source files: run_010_time_analysis.csv, run_015_time_analysis.csv, run_009_time_analysis.csv, run_011_time_analysis.csv, run_014_time_analysis.csv, run_008_time_analysis.csv, run_012_time_analysis.csv, run_013_time_analysis.csv, run_003_time_analysis.csv, run_006_time_analysis.csv, run_002_time_analysis.csv, run_007_time_analysis.csv, run_001_time_analysis.csv, run_004_time_analysis.csv, run_005_time_analysis.csv
+# Total data points: 210
+
+deviation_p5=6.450000000000002
+deviation_p50=828.9999999999999
+deviation_p95=1008.0499999999998
+
+error_rate_p5=0.94
+error_rate_p50=2.07
+error_rate_p95=3.3609999999999998
+
+rejection_rate_p5=0.0
+rejection_rate_p50=6.925000000000001
+rejection_rate_p95=8.641
