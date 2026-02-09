@@ -165,7 +165,8 @@ GEM
     stringio (3.1.7)
     timeout (0.4.4)
     toxiproxy (2.0.2)
-    trilogy (2.9.0)
+    trilogy (2.10.0)
+      bigdecimal
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
     unicode-display_width (3.2.0)
@@ -212,7 +213,7 @@ DEPENDENCIES
   rubocop-thread_safety
   semian!
   toxiproxy
-  trilogy (~> 2.9)
+  trilogy (~> 2.10)
   webrick
 
 BUNDLED WITH
