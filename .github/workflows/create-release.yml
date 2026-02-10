@@ -93,7 +93,7 @@ jobs:
             "${{ needs.read-version.outputs.current_version }}"
       -
         name: Create pull request
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.SHOPIFY_GH_ACCESS_TOKEN }}
           branch: release/v${{ needs.read-version.outputs.new_version }}
