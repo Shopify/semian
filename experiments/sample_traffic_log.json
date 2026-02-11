@@ -1,0 +1,26 @@
+{"timestamp": "2025-10-02T16:19:30.000000000Z", "attrs.db.sql.total_duration_ms": 2.5, "attrs.db.sql.total_count": 1}
+{"timestamp": "2025-10-02T16:19:30.500000000Z", "attrs.db.sql.total_duration_ms": 3.2, "attrs.db.sql.total_count": 1}
+{"timestamp": "2025-10-02T16:19:31.000000000Z", "attrs.db.sql.total_duration_ms": 2.8, "attrs.db.sql.total_count": 1}
+{"timestamp": "2025-10-02T16:19:31.500000000Z", "attrs.db.sql.total_duration_ms": 5.1, "attrs.db.sql.total_count": 2}
+{"timestamp": "2025-10-02T16:19:32.000000000Z", "attrs.db.sql.total_duration_ms": 8.5, "attrs.db.sql.total_count": 2}
+{"timestamp": "2025-10-02T16:19:32.500000000Z", "attrs.db.sql.total_duration_ms": 15.3, "attrs.db.sql.total_count": 3}
+{"timestamp": "2025-10-02T16:19:33.000000000Z", "attrs.db.sql.total_duration_ms": 25.7, "attrs.db.sql.total_count": 4}
+{"timestamp": "2025-10-02T16:19:33.500000000Z", "attrs.db.sql.total_duration_ms": 45.2, "attrs.db.sql.total_count": 5}
+{"timestamp": "2025-10-02T16:19:34.000000000Z", "attrs.db.sql.total_duration_ms": 78.4, "attrs.db.sql.total_count": 8}
+{"timestamp": "2025-10-02T16:19:34.500000000Z", "attrs.db.sql.total_duration_ms": 125.6, "attrs.db.sql.total_count": 10}
+{"timestamp": "2025-10-02T16:19:35.000000000Z", "attrs.db.sql.total_duration_ms": 187.3, "attrs.db.sql.total_count": 15}
+{"timestamp": "2025-10-02T16:19:35.500000000Z", "attrs.db.sql.total_duration_ms": 245.8, "attrs.db.sql.total_count": 18}
+{"timestamp": "2025-10-02T16:19:36.000000000Z", "attrs.db.sql.total_duration_ms": 298.2, "attrs.db.sql.total_count": 20}
+{"timestamp": "2025-10-02T16:19:36.500000000Z", "attrs.db.sql.total_duration_ms": 312.5, "attrs.db.sql.total_count": 22}
+{"timestamp": "2025-10-02T16:19:37.000000000Z", "attrs.db.sql.total_duration_ms": 287.6, "attrs.db.sql.total_count": 20}
+{"timestamp": "2025-10-02T16:19:37.500000000Z", "attrs.db.sql.total_duration_ms": 234.3, "attrs.db.sql.total_count": 18}
+{"timestamp": "2025-10-02T16:19:38.000000000Z", "attrs.db.sql.total_duration_ms": 178.9, "attrs.db.sql.total_count": 15}
+{"timestamp": "2025-10-02T16:19:38.500000000Z", "attrs.db.sql.total_duration_ms": 125.4, "attrs.db.sql.total_count": 12}
+{"timestamp": "2025-10-02T16:19:39.000000000Z", "attrs.db.sql.total_duration_ms": 82.1, "attrs.db.sql.total_count": 8}
+{"timestamp": "2025-10-02T16:19:39.500000000Z", "attrs.db.sql.total_duration_ms": 45.7, "attrs.db.sql.total_count": 5}
+{"timestamp": "2025-10-02T16:19:40.000000000Z", "attrs.db.sql.total_duration_ms": 25.3, "attrs.db.sql.total_count": 3}
+{"timestamp": "2025-10-02T16:19:40.500000000Z", "attrs.db.sql.total_duration_ms": 12.8, "attrs.db.sql.total_count": 2}
+{"timestamp": "2025-10-02T16:19:41.000000000Z", "attrs.db.sql.total_duration_ms": 6.5, "attrs.db.sql.total_count": 1}
+{"timestamp": "2025-10-02T16:19:41.500000000Z", "attrs.db.sql.total_duration_ms": 3.8, "attrs.db.sql.total_count": 1}
+{"timestamp": "2025-10-02T16:19:42.000000000Z", "attrs.db.sql.total_duration_ms": 2.7, "attrs.db.sql.total_count": 1}
+
