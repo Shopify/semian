@@ -954,6 +954,24 @@ $ git clone https://github.com/Shopify/semian.git
 $ cd semian
 ```
 
+## Alternative: Using Podman
+
+If you prefer Podman over Docker, see our [Podman setup guide](docs/PODMAN.md).
+
+Quick start with Podman:
+```bash
+# Initialize everything
+./scripts/podman-setup.sh init
+
+# Run tests
+./scripts/podman-setup.sh test
+
+# Get a development shell
+./scripts/podman-setup.sh shell
+```
+
+The Podman setup provides the same functionality as the Docker setup with full backward compatibility.
+
 ## Visual Studio Code
 
 - Open semian in vscode

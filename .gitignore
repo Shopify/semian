@@ -16,3 +16,11 @@
 /tmp
 nohup.out
 vendor/
+
+# Podman-specific
+.podman-machine-*
+podman-compose.override.yml
+.env.podman
+
+# VS Code + Podman local settings
+.vscode/settings.local.json
