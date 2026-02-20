@@ -349,6 +349,7 @@ module Semian
       kd: 0.0,
       window_size: 10,
       initial_error_rate: options[:initial_error_rate] || 0.05,
+      dead_zone_ratio: 0.25,
       implementation: implementation(**options),
     )
   end

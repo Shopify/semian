@@ -29,6 +29,7 @@ class TestPIDController < Minitest::Test
         rejection_rate: 0.0,
         error_rate: 0.0,
         ideal_error_rate: 0.01,
+        dead_zone_ratio: 0.0,
         p_value: 0.0,
         previous_p_value: 0.0,
         integral: 0.0,
@@ -151,6 +152,7 @@ class TestPIDController < Minitest::Test
         rejection_rate: 0.0,
         error_rate: 0.0,
         ideal_error_rate: 0.01,
+        dead_zone_ratio: 0.0,
         p_value: 0.0,
         previous_p_value: 0.0,
         integral: 0.0,
@@ -219,6 +221,99 @@ class TestPIDController < Minitest::Test
       # On the 11th second, the first second is excluded, and we're left with 1 error, so 100%
       assert_equal(1.0, @controller.metrics[:error_rate])
     end
+  end
+  def test_dead_zone_suppresses_noise
+    # Create a controller with a 25% dead zone ratio
+    controller = Semian::ThreadSafe::PIDController.new(
+      kp: 1.0, ki: 0.1, kd: 0.01,
+      window_size: 10,
+      initial_error_rate: 0.05,
+      implementation: Semian::ThreadSafe,
+      sliding_interval: 1,
+      dead_zone_ratio: 0.25,
+    )
+
+    # With ideal=0.05 and dead_zone_ratio=0.25, the dead zone threshold is 0.05 * 0.25 = 0.0125
+    # So error rates up to 0.0625 (6.25%) should NOT trigger rejection
+
+    time_travel(1) do
+      # Produce a 6% error rate (within dead zone: 6% < 6.25%)
+      94.times { controller.record_request(:success) }
+      6.times { controller.record_request(:error) }
+      controller.update
+    end
+
+    assert_equal(0.0, controller.metrics[:rejection_rate], "Rejection should be 0 when error rate is within dead zone")
+  ensure
+    controller&.reset
+  end
+
+  def test_dead_zone_allows_reaction_above_threshold
+    controller = Semian::ThreadSafe::PIDController.new(
+      kp: 1.0, ki: 0.1, kd: 0.01,
+      window_size: 10,
+      initial_error_rate: 0.05,
+      implementation: Semian::ThreadSafe,
+      sliding_interval: 1,
+      dead_zone_ratio: 0.25,
+    )
+
+    # With ideal=0.05 and dead_zone_ratio=0.25, threshold is 6.25%
+    # A 20% error rate should trigger rejection
+
+    time_travel(1) do
+      80.times { controller.record_request(:success) }
+      20.times { controller.record_request(:error) }
+      controller.update
+    end
+
+    assert_operator(controller.metrics[:rejection_rate], :>, 0.0, "Rejection should be > 0 when error rate exceeds dead zone")
+  ensure
+    controller&.reset
+  end
+
+  def test_dead_zone_does_not_impede_recovery
+    controller = Semian::ThreadSafe::PIDController.new(
+      kp: 1.0, ki: 0.1, kd: 0.01,
+      window_size: 10,
+      initial_error_rate: 0.05,
+      implementation: Semian::ThreadSafe,
+      sliding_interval: 1,
+      dead_zone_ratio: 0.25,
+    )
+
+    elapsed = 0
+
+    # Phase 1: Push rejection rate up with a high error rate
+    elapsed += 1
+    time_travel(elapsed) do
+      50.times { controller.record_request(:success) }
+      50.times { controller.record_request(:error) }
+      controller.update
+    end
+
+    rejection_after_spike = controller.metrics[:rejection_rate]
+    assert_operator(rejection_after_spike, :>, 0.0, "Rejection should be elevated after error spike")
+
+    # Phase 2: Recovery -- all successes for multiple windows
+    10.times do
+      elapsed += 1
+      time_travel(elapsed) do
+        100.times { controller.record_request(:success) }
+        controller.update
+      end
+    end
+
+    # Recovery should not be impeded by dead zone (negative deltas pass through)
+    assert_operator(
+      controller.metrics[:rejection_rate],
+      :<,
+      rejection_after_spike,
+      "Rejection should decrease during recovery (dead zone must not impede negative deltas)",
+    )
+    assert_in_delta(0.0, controller.metrics[:rejection_rate], 0.01, "Rejection should be ~0 after full recovery")
+  ensure
+    controller&.reset
   end
 end
 

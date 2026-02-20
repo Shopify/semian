@@ -14,10 +14,11 @@ module Semian
       attr_reader :rejection_rate
 
       def initialize(kp:, ki:, kd:, window_size:, sliding_interval:, implementation:, initial_error_rate:,
-        smoother_cap_value: SimpleExponentialSmoother::DEFAULT_CAP_VALUE)
+        dead_zone_ratio: 0.0, smoother_cap_value: SimpleExponentialSmoother::DEFAULT_CAP_VALUE)
         @kp = kp
         @ki = ki
         @kd = kd
+        @dead_zone_ratio = dead_zone_ratio
 
         @rejection_rate = 0.0
         @integral = 0.0
@@ -109,6 +110,7 @@ module Semian
           rejection_rate: @rejection_rate,
           error_rate: @last_error_rate,
           ideal_error_rate: @last_ideal_error_rate,
+          dead_zone_ratio: @dead_zone_ratio,
           p_value: @last_p_value,
           previous_p_value: @previous_p_value,
           integral: @integral,
@@ -129,14 +131,27 @@ module Semian
 
       private
 
-      # Calculate the current P value
+      # Calculate the current P value with dead-zone noise suppression.
+      # The dead zone prevents the controller from reacting to small, noisy
+      # deviations from the ideal error rate. Only deviations exceeding
+      # ideal_error_rate * dead_zone_ratio trigger a response.
       def calculate_p_value(current_error_rate)
         @last_ideal_error_rate = calculate_ideal_error_rate
 
-        # P = (error_rate - ideal_error_rate) - (1 - (error_rate - ideal_error_rate)) * rejection_rate
-        # P increases when: error_rate > ideal
-        # P decreases when: rejection_rate > 0 (feedback mechanism)
-        delta_error = current_error_rate - @last_ideal_error_rate
+        raw_delta = current_error_rate - @last_ideal_error_rate
+        dead_zone = @last_ideal_error_rate * @dead_zone_ratio
+
+        if raw_delta <= 0
+          # Below or at ideal: pass through for recovery
+          delta_error = raw_delta
+        elsif raw_delta <= dead_zone
+          # Within dead zone: suppress noise
+          delta_error = 0.0
+        else
+          # Above dead zone: react to excess only
+          delta_error = raw_delta - dead_zone
+        end
+
         delta_error - (1 - delta_error) * @rejection_rate
       end
 
