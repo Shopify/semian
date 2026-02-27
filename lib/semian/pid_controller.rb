@@ -148,8 +148,8 @@ module Semian
           # Within dead zone: suppress noise
           delta_error = 0.0
         else
-          # Above dead zone: react to excess only
-          delta_error = raw_delta - dead_zone
+          # Above dead zone: full signal, dead zone only silences noise
+          delta_error = raw_delta
         end
 
         delta_error - (1 - delta_error) * @rejection_rate
