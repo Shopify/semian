@@ -23,48 +23,40 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Check for updated experiment result graphs and tables
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libmagickwand-dev imagemagick
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1.267.0
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Build semian native extension
         run: |
           set -e
           cd "$(git rev-parse --show-toplevel)"
 
-          # TODO: Include lower bound windup experiment once we have a way to make it run in a reasonable time.
-          # Find all PNGs and CSV files, excluding those with "windup" in their filename
-          mapfile -t all_pngs < <(find experiments/results/main_graphs -type f -name '*.png' ! -name '*windup*.png' | sort)
-          mapfile -t all_csvs < <(find experiments/results/csv -type f -name '*.csv' ! -name '*windup*.csv' 2>/dev/null | sort)
+          echo "🔧 Installing semian dependencies and building native extension..."
+          bundle install
+          bundle exec rake compile
 
-          # Combine all result files
-          all_files=("${all_pngs[@]}" "${all_csvs[@]}")
+      - name: Run experiments and check for performance regressions
+        run: |
+          set -e
+          cd "$(git rev-parse --show-toplevel)/experiments"
 
-          # Find all changed PNGs and CSVs in the latest commit
-          mapfile -t changed_files < <(git diff --name-only --diff-filter=AM HEAD~1..HEAD | grep -E '^experiments/results/main_graphs/.*\.png$|^experiments/results/csv/.*\.csv$' | grep -v windup | sort)
+          echo "📊 Running all experiments..."
+          bundle install
+          bundle exec ruby run_all_experiments.rb
 
-          # Report any files that are not updated in the latest commit
-          declare -a not_updated=()
-          for file in "${all_files[@]}"; do
-            if ! printf "%s\n" "${changed_files[@]}" | grep -qx "$file"; then
-              not_updated+=("$file")
-            fi
-          done
+          echo ""
+          echo "🔍 Checking for performance regressions..."
+          ruby detect_regressions.rb
 
-          if [ ${#not_updated[@]} -gt 0 ]; then
-            echo "❌ The following result files have NOT been updated in the latest commit:"
-            for f in "${not_updated[@]}"; do
-              echo "  - $f"
-            done
-            echo ""
-            echo "Every commit must update all non-windup experiment result graphs and CSV files. You may be missing updates."
-            echo "Run:"
-            echo ""
-            echo "    cd experiments"
-            echo "    bundle install"
-            echo "    bundle exec ruby run_all_experiments.rb"
-            echo ""
-            echo "Commit the updated graphs and CSV files to resolve this check."
-            exit 1
-          fi
-
-          echo "✅ All non-windup experiment result graphs and CSV files are up to date for this commit!"
+          echo "✅ No performance regressions detected!"
 
 
 
