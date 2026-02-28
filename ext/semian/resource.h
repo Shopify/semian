@@ -159,4 +159,39 @@ semian_resource_alloc(VALUE klass);
 VALUE
 semian_resource_in_use(VALUE self);
 
+// Shared memory methods
+VALUE
+semian_resource_create_shared_memory(VALUE self, VALUE key, VALUE size);
+
+VALUE
+semian_resource_attach_shared_memory(VALUE self, VALUE shm_id);
+
+VALUE
+semian_resource_detach_shared_memory(VALUE self, VALUE addr);
+
+VALUE
+semian_resource_destroy_shared_memory(VALUE self, VALUE shm_id);
+
+// Atomic operations methods
+VALUE
+semian_atomic_int_load(VALUE self, VALUE addr);
+
+VALUE
+semian_atomic_int_store(VALUE self, VALUE addr, VALUE value);
+
+VALUE
+semian_atomic_int_fetch_add(VALUE self, VALUE addr, VALUE value);
+
+VALUE
+semian_atomic_int_exchange(VALUE self, VALUE addr, VALUE value);
+
+VALUE
+semian_atomic_double_load(VALUE self, VALUE addr);
+
+VALUE
+semian_atomic_double_store(VALUE self, VALUE addr, VALUE value);
+
+VALUE
+semian_atomic_double_exchange(VALUE self, VALUE addr, VALUE value);
+
 #endif //SEMIAN_RESOURCE_H
