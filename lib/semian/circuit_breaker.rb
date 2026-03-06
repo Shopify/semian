@@ -44,8 +44,8 @@ module Semian
       reset
     end
 
-    def acquire(resource = nil, &block)
-      transition_to_half_open if transition_to_half_open?
+    def acquire(resource = nil, scope: nil, adapter: nil, &block)
+      transition_to_half_open(scope: scope, adapter: adapter) if transition_to_half_open?
 
       raise OpenCircuitError unless request_allowed?
 
@@ -54,11 +54,11 @@ module Semian
         result = maybe_with_half_open_resource_timeout(resource, &block)
       rescue *@exceptions => error
         if !error.respond_to?(:marks_semian_circuits?) || error.marks_semian_circuits?
-          mark_failed(error)
+          mark_failed(error, scope: scope, adapter: adapter)
         end
         raise error
       else
-        mark_success
+        mark_success(scope: scope, adapter: adapter)
       end
       result
     end
@@ -71,26 +71,26 @@ module Semian
       closed? || half_open? || transition_to_half_open?
     end
 
-    def mark_failed(error)
+    def mark_failed(error, scope: nil, adapter: nil)
       push_error(error)
       if closed?
-        transition_to_open if error_threshold_reached?
+        transition_to_open(scope: scope, adapter: adapter) if error_threshold_reached?
       elsif half_open?
-        transition_to_open
+        transition_to_open(scope: scope, adapter: adapter)
       end
     end
 
-    def mark_success
+    def mark_success(scope: nil, adapter: nil)
       return unless half_open?
 
       @successes.increment
-      transition_to_close if success_threshold_reached?
+      transition_to_close(scope: scope, adapter: adapter) if success_threshold_reached?
     end
 
-    def reset
+    def reset(scope: nil, adapter: nil)
       @errors.clear
       @successes.reset
-      transition_to_close
+      transition_to_close(scope: scope, adapter: adapter)
     end
 
     def destroy
@@ -105,8 +105,8 @@ module Semian
 
     private
 
-    def transition_to_close
-      notify_state_transition(:closed)
+    def transition_to_close(scope: nil, adapter: nil)
+      notify_state_transition(:closed, scope: scope, adapter: adapter)
       log_state_transition(:closed)
       @state.close!
       @errors.clear
@@ -114,14 +114,14 @@ module Semian
       @current_error_timeout = @exponential_backoff_error_timeout ? @exponential_backoff_initial_timeout : @error_timeout
     end
 
-    def transition_to_open
-      notify_state_transition(:open)
+    def transition_to_open(scope: nil, adapter: nil)
+      notify_state_transition(:open, scope: scope, adapter: adapter)
       log_state_transition(:open)
       @state.open!
     end
 
-    def transition_to_half_open
-      notify_state_transition(:half_open)
+    def transition_to_half_open(scope: nil, adapter: nil)
+      notify_state_transition(:half_open, scope: scope, adapter: adapter)
       log_state_transition(:half_open)
       @state.half_open!
       @successes.reset
@@ -178,8 +178,8 @@ module Semian
       Semian.logger.info(str)
     end
 
-    def notify_state_transition(new_state)
-      Semian.notify(:state_change, self, nil, nil, state: new_state)
+    def notify_state_transition(new_state, scope: nil, adapter: nil)
+      Semian.notify(:state_change, self, scope, adapter, state: new_state)
     end
 
     def maybe_with_half_open_resource_timeout(resource, &block)
