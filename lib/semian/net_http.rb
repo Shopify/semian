@@ -106,7 +106,7 @@ module Semian
         return super if disabled?
 
         acquire_semian_resource(adapter: :http, scope: :query) do
-          handle_error_responses(super)
+          handle_error_responses(super, adapter: :http, scope: :query)
         end
       end
     end
@@ -126,9 +126,9 @@ module Semian
 
     private
 
-    def handle_error_responses(result)
+    def handle_error_responses(result, scope:, adapter:)
       if raw_semian_options.fetch(:open_circuit_server_errors, false)
-        semian_resource.mark_failed(result) if result.is_a?(::Net::HTTPServerError)
+        semian_resource.mark_failed(result, scope: scope, adapter: adapter) if result.is_a?(::Net::HTTPServerError)
       end
       result
     end
