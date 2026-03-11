@@ -48,7 +48,7 @@ module Semian
       if @circuit_breaker.nil?
         yield self
       else
-        @circuit_breaker.acquire(resource) do
+        @circuit_breaker.acquire(resource, scope: scope, adapter: adapter) do
           yield self
         end
       end

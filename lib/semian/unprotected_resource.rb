@@ -35,7 +35,7 @@ module Semian
       0
     end
 
-    def reset
+    def reset(**)
     end
 
     def open?
@@ -54,10 +54,10 @@ module Semian
       true
     end
 
-    def mark_failed(_error)
+    def mark_failed(_error, **)
     end
 
-    def mark_success
+    def mark_success(**)
     end
 
     def bulkhead
