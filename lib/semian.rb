@@ -199,6 +199,18 @@ module Semian
   # +exceptions+: An array of exception classes that should be accounted as resource errors. Default [].
   # (circuit breaker)
   #
+  #   # +exponential_backoff_error_timeout+: When set to true, instead of opening the circuit for the full
+  # error_timeout duration, it starts with a smaller timeout and increases exponentially on each subsequent
+  # opening up to error_timeout. This helps avoid over-opening the circuit for temporary issues.
+  # Default false. (circuit breaker)
+  #
+  # +exponential_backoff_initial_timeout+: The initial timeout in seconds when exponential backoff is enabled.
+  # Only valid when exponential_backoff_error_timeout is true. Default 1. (circuit breaker)
+  #
+  # +exponential_backoff_multiplier+: The factor by which to multiply the timeout on each subsequent opening
+  # when exponential backoff is enabled. Only valid when exponential_backoff_error_timeout is true.
+  # Default 2. (circuit breaker)
+  #
   # +adaptive_circuit_breaker+: Enable adaptive circuit breaker using PID controller. Default false.
   # When enabled, this replaces the traditional circuit breaker with an adaptive version
   # that dynamically adjusts rejection rates based on service health. (adaptive circuit breaker)
@@ -382,6 +394,9 @@ module Semian
                         end,
       exceptions: Array(exceptions) + [::Semian::BaseError],
       half_open_resource_timeout: options[:half_open_resource_timeout],
+      exponential_backoff_error_timeout: options[:exponential_backoff_error_timeout] || false,
+      exponential_backoff_initial_timeout: options[:exponential_backoff_initial_timeout] || 1,
+      exponential_backoff_multiplier: options[:exponential_backoff_multiplier] || 2,
       implementation: implementation(**options),
     )
   end

@@ -791,6 +791,438 @@ class TestCircuitBreaker < Minitest::Test
     assert_match("Missing required arguments for Semian: [:error_threshold, :error_timeout]", error.message)
   end
 
+  def test_exponential_backoff_error_timeout_starts_at_one_second
+    resource = Semian.register(
+      :exponential_backoff_test,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 16,
+      success_threshold: 2,
+      exponential_backoff_error_timeout: true,
+    )
+
+    # Open the circuit
+    open_circuit!(resource)
+
+    assert_circuit_opened(resource)
+    # Should stay open for only 1 second on first opening
+    time_travel(0.5) do
+      assert_circuit_opened(resource)
+    end
+    time_travel(1.5) do
+      # Circuit should transition to half-open after 1 second
+      resource.acquire { nil }
+
+      assert_predicate(resource, :half_open?)
+    end
+  ensure
+    Semian.destroy(:exponential_backoff_test)
+  end
+
+  def test_exponential_backoff_doubles_timeout_on_subsequent_openings
+    resource = Semian.register(
+      :exponential_backoff_doubling_test,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 16,
+      success_threshold: 1,
+      exponential_backoff_error_timeout: true,
+    )
+
+    # First opening - 1 second timeout
+    open_circuit!(resource)
+
+    assert_circuit_opened(resource)
+
+    # Opens for 1 second, then transitions to half-open
+    time_travel(1.5) do
+      begin
+        resource.acquire do
+          # Assert that we are in half-open state, but then trigger error to reopen the circuit
+          assert_predicate(resource, :half_open?)
+          raise SomeError, "some error message"
+        end
+      rescue
+        nil
+      end
+
+      assert_circuit_opened(resource)
+    end
+    # Second opening - It will be open from the 1.5 second mark to the 3.5 second mark. Check that it's open
+    time_travel(3) do
+      assert_circuit_opened(resource)
+    end
+
+    # Now, after the 3.5 second mark, it's half open
+    time_travel(4) do
+      begin
+        resource.acquire do
+          # Assert that we are in half-open state, but then trigger error to reopen the circuit
+          assert_predicate(resource, :half_open?)
+          raise SomeError, "some error message"
+        end
+      rescue
+        nil
+      end
+
+      assert_circuit_opened(resource)
+    end
+
+    # Third opening - should be open from the 4 second mark to the 8 second mark. Check that it's open
+    time_travel(7) do
+      assert_circuit_opened(resource) # Still open at 3 seconds into third opening
+    end
+
+    time_travel(9) do # Now half open
+      begin
+        resource.acquire do
+          # Assert that we are in half-open state, but then trigger error to reopen the circuit
+          assert_predicate(resource, :half_open?)
+          raise SomeError, "some error message"
+        end
+      rescue
+        nil
+      end
+
+      assert_circuit_opened(resource)
+    end
+
+    # Fourth opening - should be open from the 9 second mark to the 17 second mark. Check that it's open
+    time_travel(15) do
+      assert_circuit_opened(resource)
+    end
+
+    time_travel(18) do # Now half open
+      begin
+        resource.acquire do
+          # Assert that we are in half-open state, but then trigger error to reopen the circuit
+          assert_predicate(resource, :half_open?)
+          trigger_error!(resource)
+        end
+      rescue
+        nil
+      end
+
+      assert_circuit_opened(resource)
+    end
+
+    # Fifth opening - should be open from the 18 second mark to the 34 second mark. Check that it's open
+    time_travel(33) do
+      assert_circuit_opened(resource)
+    end
+
+    time_travel(35) do # Now half open
+      begin
+        resource.acquire do
+          # Assert that we are in half-open state, but then trigger error to reopen the circuit
+          assert_predicate(resource, :half_open?)
+          raise SomeError, "some error message"
+        end
+      rescue
+        nil
+      end
+
+      assert_circuit_opened(resource)
+    end
+
+    # Confirm that we don't keep extending beyond the max (16 seconds)
+    # If we are mistakenly keeping the doubling, then the circuit should only be open between the 35 and 51 second mark
+    time_travel(50) do
+      assert_circuit_opened(resource)
+    end
+    time_travel(51) do
+      resource.acquire do
+        # Assert that we are in half-open state, but then trigger error to reopen the circuit
+        assert_predicate(resource, :half_open?)
+        raise SomeError, "some error message"
+      end
+    rescue
+      nil
+    end
+  ensure
+    Semian.destroy(:exponential_backoff_doubling_test)
+  end
+
+  def test_exponential_backoff_resets_on_successful_close
+    resource = Semian.register(
+      :exponential_backoff_reset_test,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 8,
+      success_threshold: 1,
+      exponential_backoff_error_timeout: true,
+    )
+
+    # First opening - 1 second timeout
+    open_circuit!(resource)
+
+    assert_circuit_opened(resource)
+
+    time_travel(1.5) do
+      begin
+        resource.acquire do
+          # Assert that we are in half-open state, but then trigger error to reopen the circuit
+          assert_predicate(resource, :half_open?)
+          raise SomeError, "some error message"
+        end
+      rescue
+        nil
+      end
+
+      assert_circuit_opened(resource)
+    end
+
+    # Circuit should be half-open now. Last error_timeout was 2 seconds.
+    time_travel(4) do # 1.5 + 2.5 = 4 seconds total
+      resource.acquire do
+        # Assert that we are in half-open state, and then return a successful response to close the circuit
+        assert_predicate(resource, :half_open?)
+      end
+
+      assert_predicate(resource, :closed?)
+    end
+
+    # Now open the circuit again
+    time_travel(5) do
+      open_circuit!(resource)
+
+      assert_circuit_opened(resource)
+    end
+
+    # Should reset to 1 second timeout after successful close
+    time_travel(5.5) do
+      assert_circuit_opened(resource) # Still open at 0.5 seconds
+    end
+
+    time_travel(6.5) do
+      resource.acquire do
+        assert_predicate(resource, :half_open?) # Half-open after 1 second
+      end
+    end
+  ensure
+    Semian.destroy(:exponential_backoff_reset_test)
+  end
+
+  def test_exponential_backoff_disabled_by_default
+    resource = Semian.register(
+      :exponential_backoff_disabled_test,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 5,
+      success_threshold: 1,
+      # exponential_backoff_error_timeout not specified, should default to false
+    )
+
+    open_circuit!(resource)
+
+    assert_circuit_opened(resource)
+
+    # Should use full error_timeout (5 seconds)
+    time_travel(3) do
+      assert_circuit_opened(resource)
+    end
+
+    time_travel(5.5) do
+      resource.acquire do
+        assert_predicate(resource, :half_open?)
+      end
+    end
+  ensure
+    Semian.destroy(:exponential_backoff_disabled_test)
+  end
+
+  def test_exponential_backoff_validation_rejects_non_boolean
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :exponential_backoff_invalid_test,
+        force_config_validation: true,
+        bulkhead: false,
+        exceptions: [SomeError],
+        error_threshold: 2,
+        error_timeout: 5,
+        success_threshold: 1,
+        exponential_backoff_error_timeout: "true", # String instead of boolean
+      )
+    end
+    assert_match("exponential_backoff_error_timeout must be a boolean", error.message)
+  end
+
+  def test_exponential_backoff_with_custom_initial_timeout
+    resource = Semian.register(
+      :exponential_backoff_custom_initial,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 10,
+      success_threshold: 1,
+      exponential_backoff_error_timeout: true,
+      exponential_backoff_initial_timeout: 2, # Start at 2 seconds instead of 1
+    )
+
+    # Open the circuit
+    open_circuit!(resource)
+
+    assert_circuit_opened(resource)
+
+    # Should stay open for 2 seconds on first opening (instead of the usual 1 second)
+    time_travel(1.5) do
+      assert_circuit_opened(resource)
+    end
+
+    time_travel(2.5) do
+      # Circuit should transition to half-open after 2 seconds
+      begin
+        resource.acquire do
+          assert_predicate(resource, :half_open?)
+          raise SomeError, "some error message"
+        end
+      rescue
+        nil
+      end
+
+      assert_circuit_opened(resource)
+    end
+
+    # Confirm the exponential backoff is continues correctly with the custom initial timeout
+    time_travel(6) do
+      assert_circuit_opened(resource)
+    end
+    time_travel(7) do
+      resource.acquire do
+        assert_predicate(resource, :half_open?)
+      end
+    end
+  ensure
+    Semian.destroy(:exponential_backoff_custom_initial)
+  end
+
+  def test_exponential_backoff_with_custom_multiplier
+    resource = Semian.register(
+      :exponential_backoff_custom_multiplier,
+      bulkhead: false,
+      exceptions: [SomeError],
+      error_threshold: 2,
+      error_timeout: 27,
+      success_threshold: 1,
+      exponential_backoff_error_timeout: true,
+      exponential_backoff_multiplier: 3, # Triple instead of double
+    )
+
+    # Open the circuit
+    open_circuit!(resource)
+
+    assert_circuit_opened(resource)
+
+    # First opening - 1 second
+    time_travel(1.5) do
+      resource.acquire do
+        assert_predicate(resource, :half_open?)
+        raise SomeError, "some error message"
+      end
+    rescue
+      nil
+    end
+
+    # Second opening - 3 seconds (1 * 3)
+    time_travel(4) do
+      assert_circuit_opened(resource)
+    end
+
+    time_travel(5) do
+      resource.acquire do
+        assert_predicate(resource, :half_open?)
+      end
+    end
+  ensure
+    Semian.destroy(:exponential_backoff_custom_multiplier)
+  end
+
+  def test_exponential_backoff_parameters_require_exponential_backoff_enabled
+    # Test initial timeout without exponential backoff enabled
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :exponential_params_without_backoff_1,
+        force_config_validation: true,
+        bulkhead: false,
+        exceptions: [SomeError],
+        error_threshold: 2,
+        error_timeout: 5,
+        success_threshold: 1,
+        exponential_backoff_initial_timeout: 2, # This should fail
+      )
+    end
+    assert_match("exponential_backoff_initial_timeout can only be specified when exponential_backoff_error_timeout is true", error.message)
+
+    # Test multiplier without exponential backoff enabled
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :exponential_params_without_backoff_2,
+        force_config_validation: true,
+        bulkhead: false,
+        exceptions: [SomeError],
+        error_threshold: 2,
+        error_timeout: 5,
+        success_threshold: 1,
+        exponential_backoff_multiplier: 2, # This should fail
+      )
+    end
+    assert_match("exponential_backoff_multiplier can only be specified when exponential_backoff_error_timeout is true", error.message)
+  end
+
+  def test_exponential_backoff_validation_for_parameters
+    # Test invalid initial timeout (negative)
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :exponential_invalid_initial,
+        force_config_validation: true,
+        bulkhead: false,
+        exceptions: [SomeError],
+        error_threshold: 2,
+        error_timeout: 5,
+        success_threshold: 1,
+        exponential_backoff_error_timeout: true,
+        exponential_backoff_initial_timeout: -1,
+      )
+    end
+    assert_match("exponential_backoff_initial_timeout must be a positive number", error.message)
+
+    # Test invalid multiplier (less than 1)
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :exponential_invalid_multiplier,
+        force_config_validation: true,
+        bulkhead: false,
+        exceptions: [SomeError],
+        error_threshold: 2,
+        error_timeout: 5,
+        success_threshold: 1,
+        exponential_backoff_error_timeout: true,
+        exponential_backoff_multiplier: 0.5,
+      )
+    end
+    assert_match("exponential_backoff_multiplier must be a number greater than 1", error.message)
+
+    # Test initial timeout >= error_timeout
+    error = assert_raises(ArgumentError) do
+      Semian.register(
+        :exponential_initial_too_large,
+        force_config_validation: true,
+        bulkhead: false,
+        exceptions: [SomeError],
+        error_threshold: 2,
+        error_timeout: 5,
+        success_threshold: 1,
+        exponential_backoff_error_timeout: true,
+        exponential_backoff_initial_timeout: 5, # Same as error_timeout
+      )
+    end
+    assert_match("exponential_backoff_initial_timeout (5) must be less than error_timeout (5)", error.message)
+  end
+
   def test_half_open_resource_timeout_negative
     error = assert_raises(ArgumentError) do
       Semian.register(

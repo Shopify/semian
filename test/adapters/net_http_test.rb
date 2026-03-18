@@ -422,6 +422,35 @@ class TestNetHTTP < Minitest::Test
     end
   end
 
+  def test_5xxs_emit_state_changes_with_scope_and_adapter
+    options = proc do |host, port|
+      {
+        tickets: 2,
+        success_threshold: 1,
+        error_threshold: 1,
+        error_timeout: 10,
+        open_circuit_server_errors: true,
+        name: "#{host}_#{port}",
+      }
+    end
+
+    events = []
+    subscriber = Semian.subscribe do |event, _resource, scope, adapter|
+      events << { adapter: adapter, scope: scope } if event == :state_change
+    end
+
+    with_semian_configuration(options) do
+      with_server do
+        http = Net::HTTP.new(SemianConfig["http_host"], SemianConfig["http_port_service_a"])
+        http.get("/500")
+      end
+    end
+
+    assert_includes(events, { adapter: :http, scope: :query })
+  ensure
+    Semian.unsubscribe(subscriber)
+  end
+
   def test_5xxs_dont_raise_exceptions_unless_fatal_server_flag_enabled
     skip if ENV["SKIP_FLAKY_TESTS"]
     with_semian_configuration do

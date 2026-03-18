@@ -69,16 +69,41 @@ class TestInstrumentation < Minitest::Test
     end
   end
 
+  def test_instrumentation_handles_scope_and_adapter_for_state_events
+    assert_notify(:success, :busy, :state_change, scope: :foo, adapter: :bar) do
+      Semian[:testing].acquire(scope: :foo, adapter: :bar) do
+        assert_raises(Semian::TimeoutError) do
+          Semian[:testing].acquire(scope: :foo, adapter: :bar) {}
+        end
+      end
+    end
+  end
+
+  def test_instrumentation_handles_scope_and_adapter_for_circuit_open_events
+    assert_raises(Semian::BaseError) do
+      Semian[:testing].acquire { raise Semian::BaseError }
+    end
+
+    assert_notify(:circuit_open, scope: :foo, adapter: :bar) do
+      assert_raises(Semian::OpenCircuitError) do
+        Semian[:testing].acquire(scope: :foo, adapter: :bar) {}
+      end
+    end
+  end
+
   private
 
-  def assert_notify(*expected_events)
+  def assert_notify(*expected_events, scope: nil, adapter: nil)
     events = []
-    subscription = Semian.subscribe do |event, _resource|
-      events << event
+    subscription = Semian.subscribe do |event, _resource, scope, adapter|
+      events << { event: event, scope: scope, adapter: adapter }
     end
     yield
 
-    assert_equal(expected_events, events, "The timeline of events was not as expected")
+    assert_equal(
+      expected_events.map { |event| { event: event, scope: scope, adapter: adapter } },
+      events,
+    )
   ensure
     Semian.unsubscribe(subscription)
   end

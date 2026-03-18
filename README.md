@@ -155,6 +155,33 @@ client = Redis.new(semian: {
 })
 ```
 
+##### Redis Out-of-Memory Errors
+
+By default, Redis Out-of-Memory (OOM) errors will open the circuit breaker. This can be
+problematic because it prevents read operations and commands that could free up memory
+(like `DEL`, `LPOP`, etc.) from executing, hindering Redis recovery.
+
+To allow OOM errors to fail fast without opening the circuit, set `open_circuit_on_oom: false`:
+
+```ruby
+client = Redis.new(semian: {
+  name: "inventory",
+  open_circuit_on_oom: false  # OOM errors won't open the circuit
+})
+```
+
+This also works with `RedisClient`:
+
+```ruby
+client = RedisClient.config(
+  host: "localhost",
+  semian: {
+    name: "inventory",
+    open_circuit_on_oom: false
+  }
+).new_client
+```
+
 #### Configuration Validation
 
 Semian now provides a flag to specify log-based and exception-based configuration validation. To
@@ -561,6 +588,10 @@ There are four configuration parameters for circuit breakers in Semian:
   Defaults to `error_timeout` seconds if not set.
 - **error_timeout**. The amount of time in seconds until trying to query the resource
   again.
+- **exponential_backoff_error_timeout**. If set to `true`, we will progress towards error_timeout exponentially, instead of committing to it directly.
+This is useful to avoid rejecting too many requests if the dependency is not really degraded.
+- **exponential_backoff_initial_timeout**. Where to start the exponential backoff towards `error_timeout` from. Defaults to 1 second.
+- **exponential_backoff_multiplier**. The exponential multiplier to use during the exponential backoff towards the `error_timeout`. Defaults to 2.
 - **error_threshold_timeout_enabled**. If set to false it will disable
   the time window for evicting old exceptions. `error_timeout` is still used and
   will reset the circuit. Defaults to `true` if not set.

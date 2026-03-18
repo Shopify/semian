@@ -135,6 +135,24 @@ class TestMysql2 < Minitest::Test
     end
   end
 
+  def test_network_errors_emit_state_changes_with_scope_and_adapter
+    client = FakeMysql.new(semian: SEMIAN_OPTIONS)
+    client.stubs(:raw_query).raises(::Mysql2::Error.new("Too many connections"))
+
+    events = []
+    subscriber = Semian.subscribe do |event, _resource, scope, adapter|
+      events << { adapter: adapter, scope: scope } if event == :state_change
+    end
+
+    assert_raises(::Mysql2::Error) do
+      client.query("SELECT 1 + 1;")
+    end
+
+    assert_includes(events, { adapter: :mysql, scope: :query })
+  ensure
+    Semian.unsubscribe(subscriber)
+  end
+
   def test_other_mysql_errors_are_not_tagged_with_the_resource_identifier
     client = connect_to_mysql!
 

@@ -13,6 +13,17 @@ class RedisClient
   end
 
   OutOfMemoryError.include(::Semian::AdapterError)
+  OutOfMemoryError.class_eval do
+    attr_accessor :semian_open_circuit_on_oom
+
+    # By default, OOM errors open circuits (backward compatible behavior).
+    # Set `open_circuit_on_oom: false` to disable this if you want reads/dequeues
+    # to continue working when Redis is OOM, allowing it to recover.
+    # This is considered a fast failure.
+    def marks_semian_circuits?
+      @semian_open_circuit_on_oom != false
+    end
+  end
 
   class ReadOnlyError < RedisClient::ConnectionError
     # A ReadOnlyError is a fast failure and we don't want to track these errors so that we can reconnect
@@ -110,6 +121,10 @@ module Semian
         super do |connection|
           acquire_semian_resource(adapter: :redis_client, scope: :query) do
             yield connection
+          rescue ::RedisClient::OutOfMemoryError => error
+            error.semian_identifier = semian_identifier
+            error.semian_open_circuit_on_oom = semian_options&.fetch(:open_circuit_on_oom, true)
+            raise
           end
         end
       else
