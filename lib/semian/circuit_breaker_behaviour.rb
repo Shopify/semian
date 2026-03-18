@@ -12,12 +12,12 @@ module Semian
     end
 
     # Main method to execute a block with circuit breaker protection
-    def acquire(resource = nil, &block)
+    def acquire(resource = nil, scope: nil, adapter: nil, &block)
       raise NotImplementedError, "#{self.class} must implement #acquire"
     end
 
     # Reset the circuit breaker to its initial state
-    def reset
+    def reset(scope: nil, adapter: nil)
       raise NotImplementedError, "#{self.class} must implement #reset"
     end
 
@@ -47,12 +47,12 @@ module Semian
     end
 
     # Mark a request as failed
-    def mark_failed(error)
+    def mark_failed(error, scope: nil, adapter: nil)
       raise NotImplementedError, "#{self.class} must implement #mark_failed"
     end
 
     # Mark a request as successful
-    def mark_success
+    def mark_success(scope: nil, adapter: nil)
       raise NotImplementedError, "#{self.class} must implement #mark_success"
     end
 

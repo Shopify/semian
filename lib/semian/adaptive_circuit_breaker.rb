@@ -37,9 +37,9 @@ module Semian
       @pid_controller_thread = PIDControllerThread.instance.register_resource(self)
     end
 
-    def acquire(resource = nil, &block)
+    def acquire(resource = nil, scope: nil, adapter: nil, &block)
       unless request_allowed?
-        mark_rejected
+        mark_rejected(scope:, adapter:)
         raise OpenCircuitError, "Rejected by adaptive circuit breaker"
       end
 
@@ -48,16 +48,16 @@ module Semian
         result = block.call
       rescue *@exceptions => error
         if !error.respond_to?(:marks_semian_circuits?) || error.marks_semian_circuits?
-          mark_failed(error)
+          mark_failed(error, scope:, adapter:)
         end
         raise error
       else
-        mark_success
+        mark_success(scope:, adapter:)
       end
       result
     end
 
-    def reset
+    def reset(scope: nil, adapter: nil)
       @last_error = nil
       @pid_controller.reset
     end
@@ -89,16 +89,16 @@ module Semian
       !open? && !closed?
     end
 
-    def mark_failed(error)
+    def mark_failed(error, scope: nil, adapter: nil)
       @last_error = error
       @pid_controller.record_request(:error)
     end
 
-    def mark_success
+    def mark_success(scope: nil, adapter: nil)
       @pid_controller.record_request(:success)
     end
 
-    def mark_rejected
+    def mark_rejected(scope: nil, adapter: nil)
       @pid_controller.record_request(:rejected)
     end
 

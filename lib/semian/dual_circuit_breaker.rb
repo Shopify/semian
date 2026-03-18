@@ -11,14 +11,14 @@ module Semian
     module SiblingSync
       attr_writer :sibling
 
-      def mark_success
+      def mark_success(scope: nil, adapter: nil)
         super
-        @sibling.method(:mark_success).super_method.call
+        @sibling.method(:mark_success).super_method.call(scope:, adapter:)
       end
 
-      def mark_failed(error)
+      def mark_failed(error, scope: nil, adapter: nil)
         super
-        @sibling.method(:mark_failed).super_method.call(error)
+        @sibling.method(:mark_failed).super_method.call(error, scope:, adapter:)
       end
     end
 
@@ -54,7 +54,7 @@ module Semian
       @active_circuit_breaker.is_a?(Semian::AdaptiveCircuitBreaker) ? :adaptive : :classic
     end
 
-    def acquire(resource = nil, &block)
+    def acquire(resource = nil, scope: nil, adapter: nil, &block)
       # NOTE: This assignment is not thread-safe, but this is acceptable for now:
       # - Each request gets its own decision based on the selector at that moment
       # - The worst case is a brief inconsistency where a thread reads a stale value,
@@ -65,7 +65,7 @@ module Semian
         Semian.notify(:circuit_breaker_mode_change, self, nil, nil, old_mode: old_type, new_mode: active_breaker_type)
       end
 
-      @active_circuit_breaker.acquire(resource, &block)
+      @active_circuit_breaker.acquire(resource, scope:, adapter:, &block)
     end
 
     def open?
@@ -84,21 +84,21 @@ module Semian
       @active_circuit_breaker.request_allowed?
     end
 
-    def mark_failed(error)
-      @active_circuit_breaker&.mark_failed(error)
+    def mark_failed(error, scope: nil, adapter: nil)
+      @active_circuit_breaker&.mark_failed(error, scope: nil, adapter: nil)
     end
 
-    def mark_success
-      @active_circuit_breaker&.mark_success
+    def mark_success(scope: nil, adapter: nil)
+      @active_circuit_breaker&.mark_success(scope: nil, adapter: nil)
     end
 
     def stop
       @adaptive_circuit_breaker&.stop
     end
 
-    def reset
-      @classic_circuit_breaker&.reset
-      @adaptive_circuit_breaker&.reset
+    def reset(scope: nil, adapter: nil)
+      @classic_circuit_breaker&.reset(scope:, adapter:)
+      @adaptive_circuit_breaker&.reset(scope:, adapter:)
     end
 
     def destroy
