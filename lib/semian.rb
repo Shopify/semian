@@ -362,7 +362,8 @@ module Semian
       window_size: options[:window_size] || 10,
       initial_error_rate: options[:initial_error_rate] || 0.05,
       dead_zone_ratio: options[:dead_zone_ratio] || 0.25,
-      sliding_interval: options[:sliding_interval] || 1,
+      # We use an environment vraiable for the sliding interval because it is shared among all circuit breakers
+      sliding_interval: ENV.fetch("SEMIAN_ADAPTIVE_CIRCUIT_BREAKER_SLIDING_INTERVAL", 1).to_i,
       ideal_error_rate_estimator_cap_value: options[:ideal_error_rate_estimator_cap_value] || 0.1,
       integral_upper_cap: options[:integral_upper_cap] || 10.0,
       integral_lower_cap: options[:integral_lower_cap] || -10.0,

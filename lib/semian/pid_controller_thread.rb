@@ -10,7 +10,7 @@ module Semian
     @stopped = true
     @update_thread = nil
     @@circuit_breakers = Concurrent::Map.new
-    @@sliding_interval = 1
+    @@sliding_interval = ENV.fetch("SEMIAN_ADAPTIVE_CIRCUIT_BREAKER_SLIDING_INTERVAL", 1).to_i
 
     # As per the singleton pattern, this is called only once
     def initialize
