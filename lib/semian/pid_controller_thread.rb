@@ -31,7 +31,7 @@ module Semian
         end
       end
 
-      Thread.new(&update_proc)
+      @update_thread = Thread.new(&update_proc)
     end
 
     def register_resource(circuit_breaker)
