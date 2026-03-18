@@ -13,6 +13,11 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
       kd: 0.01,
       window_size: 0.05,
       initial_error_rate: 0.01,
+      dead_zone_ratio: 0.25,
+      sliding_interval: 1,
+      ideal_error_rate_estimator_cap_value: 0.1,
+      integral_upper_cap: 10.0,
+      integral_lower_cap: -10.0,
       implementation: Semian::ThreadSafe,
     )
   end

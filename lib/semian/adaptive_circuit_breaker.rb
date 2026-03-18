@@ -13,7 +13,8 @@ module Semian
     @pid_controller_thread = nil
 
     def initialize(name:, exceptions:, kp:, ki:, kd:, window_size:, initial_error_rate:, implementation:,
-      dead_zone_ratio: 0.0)
+      sliding_interval:, dead_zone_ratio:, ideal_error_rate_estimator_cap_value:, integral_upper_cap:,
+      integral_lower_cap:)
       initialize_behaviour(name: name)
 
       @exceptions = exceptions
@@ -25,9 +26,12 @@ module Semian
         kd: kd,
         window_size: window_size,
         implementation: implementation,
-        sliding_interval: 1,
+        sliding_interval: sliding_interval,
         initial_error_rate: initial_error_rate,
         dead_zone_ratio: dead_zone_ratio,
+        ideal_error_rate_estimator_cap_value: ideal_error_rate_estimator_cap_value,
+        integral_upper_cap: integral_upper_cap,
+        integral_lower_cap: integral_lower_cap,
       )
 
       @pid_controller_thread = PIDControllerThread.instance.register_resource(self)

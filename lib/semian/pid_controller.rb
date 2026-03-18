@@ -14,11 +14,13 @@ module Semian
       attr_reader :rejection_rate
 
       def initialize(kp:, ki:, kd:, window_size:, sliding_interval:, implementation:, initial_error_rate:,
-        dead_zone_ratio: 0.0, smoother_cap_value: SimpleExponentialSmoother::DEFAULT_CAP_VALUE)
+        dead_zone_ratio:, ideal_error_rate_estimator_cap_value:, integral_upper_cap:, integral_lower_cap:)
         @kp = kp
         @ki = ki
         @kd = kd
         @dead_zone_ratio = dead_zone_ratio
+        @integral_upper_cap = integral_upper_cap
+        @integral_lower_cap = integral_lower_cap
 
         @rejection_rate = 0.0
         @integral = 0.0
@@ -29,7 +31,7 @@ module Semian
         @window_size = window_size
         @sliding_interval = sliding_interval
         @smoother = SimpleExponentialSmoother.new(
-          cap_value: smoother_cap_value,
+          cap_value: ideal_error_rate_estimator_cap_value,
           initial_value: initial_error_rate,
           observations_per_minute: 60 / sliding_interval,
         )
@@ -79,7 +81,7 @@ module Semian
         # Update rejection rate (clamped between 0 and 1)
         @rejection_rate = new_rejection_rate.clamp(0.0, 1.0)
 
-        @integral = @integral.clamp(-10.0, 10.0)
+        @integral = @integral.clamp(@integral_lower_cap, @integral_upper_cap)
 
         @rejection_rate
       end
@@ -141,15 +143,15 @@ module Semian
         raw_delta = current_error_rate - @last_ideal_error_rate
         dead_zone = @last_ideal_error_rate * @dead_zone_ratio
 
-        if raw_delta <= 0
+        delta_error = if raw_delta <= 0
           # Below or at ideal: pass through for recovery
-          delta_error = raw_delta
+          raw_delta
         elsif raw_delta <= dead_zone
           # Within dead zone: suppress noise
-          delta_error = 0.0
+          0.0
         else
           # Above dead zone: full signal, dead zone only silences noise
-          delta_error = raw_delta
+          raw_delta
         end
 
         delta_error - (1 - delta_error) * @rejection_rate

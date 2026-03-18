@@ -13,6 +13,10 @@ class TestPIDController < Minitest::Test
       kd: 0.01,
       window_size: 10,
       initial_error_rate: 0.01,
+      dead_zone_ratio: 0.25,
+      ideal_error_rate_estimator_cap_value: 0.1,
+      integral_upper_cap: 10.0,
+      integral_lower_cap: -10.0,
       implementation: Semian::ThreadSafe,
       sliding_interval: 1,
     )
@@ -222,15 +226,21 @@ class TestPIDController < Minitest::Test
       assert_equal(1.0, @controller.metrics[:error_rate])
     end
   end
+
   def test_dead_zone_suppresses_noise
     # Create a controller with a 25% dead zone ratio
     controller = Semian::ThreadSafe::PIDController.new(
-      kp: 1.0, ki: 0.1, kd: 0.01,
+      kp: 1.0,
+      ki: 0.1,
+      kd: 0.01,
       window_size: 10,
       initial_error_rate: 0.05,
       implementation: Semian::ThreadSafe,
       sliding_interval: 1,
       dead_zone_ratio: 0.25,
+      ideal_error_rate_estimator_cap_value: 0.1,
+      integral_upper_cap: 10.0,
+      integral_lower_cap: -10.0,
     )
 
     # With ideal=0.05 and dead_zone_ratio=0.25, the dead zone threshold is 0.05 * 0.25 = 0.0125
@@ -250,12 +260,17 @@ class TestPIDController < Minitest::Test
 
   def test_dead_zone_allows_reaction_above_threshold
     controller = Semian::ThreadSafe::PIDController.new(
-      kp: 1.0, ki: 0.1, kd: 0.01,
+      kp: 1.0,
+      ki: 0.1,
+      kd: 0.01,
       window_size: 10,
       initial_error_rate: 0.05,
       implementation: Semian::ThreadSafe,
       sliding_interval: 1,
       dead_zone_ratio: 0.25,
+      ideal_error_rate_estimator_cap_value: 0.1,
+      integral_upper_cap: 10.0,
+      integral_lower_cap: -10.0,
     )
 
     # With ideal=0.05 and dead_zone_ratio=0.25, threshold is 6.25%
@@ -274,12 +289,17 @@ class TestPIDController < Minitest::Test
 
   def test_dead_zone_does_not_impede_recovery
     controller = Semian::ThreadSafe::PIDController.new(
-      kp: 1.0, ki: 0.1, kd: 0.01,
+      kp: 1.0,
+      ki: 0.1,
+      kd: 0.01,
       window_size: 10,
       initial_error_rate: 0.05,
       implementation: Semian::ThreadSafe,
       sliding_interval: 1,
       dead_zone_ratio: 0.25,
+      ideal_error_rate_estimator_cap_value: 0.1,
+      integral_upper_cap: 10.0,
+      integral_lower_cap: -10.0,
     )
 
     elapsed = 0
@@ -293,6 +313,7 @@ class TestPIDController < Minitest::Test
     end
 
     rejection_after_spike = controller.metrics[:rejection_rate]
+
     assert_operator(rejection_after_spike, :>, 0.0, "Rejection should be elevated after error spike")
 
     # Phase 2: Recovery -- all successes for multiple windows
@@ -327,6 +348,10 @@ class TestThreadSafePIDController < Minitest::Test
       kd: 0.01,
       window_size: 10,
       initial_error_rate: 0.01,
+      dead_zone_ratio: 0.25,
+      ideal_error_rate_estimator_cap_value: 0.1,
+      integral_upper_cap: 10.0,
+      integral_lower_cap: -10.0,
       implementation: Semian::ThreadSafe,
       sliding_interval: 1,
     )
