@@ -38,7 +38,7 @@ module Semian
 
     def stop
       @stopped = true
-      @update_thread.kill
+      @update_thread&.kill
       @update_thread = nil
     end
 
