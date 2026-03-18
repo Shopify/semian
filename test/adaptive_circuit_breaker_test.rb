@@ -93,7 +93,7 @@ class TestAdaptiveCircuitBreaker < Minitest::Test
       Kernel.sleep(0.01) while @breaker.stopped == false
     end
 
-    assert_equal(true, @breaker.stopped)
+    assert(@breaker.stopped)
   end
 
   def test_notify_adaptive_update
