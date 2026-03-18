@@ -36,6 +36,12 @@ module Semian
       @update_thread = Thread.new(&update_proc)
     end
 
+    def stop
+      @stopped = true
+      @update_thread.kill
+      @update_thread = nil
+    end
+
     def register_resource(circuit_breaker)
       # Track every registered circuit breaker in a Concurrent::Map
 
@@ -55,8 +61,7 @@ module Semian
 
       # Stop the thread if there are no more circuit breakers
       if @circuit_breakers.empty?
-        @stopped = true
-        @update_thread.kill
+        stop
       end
     end
 
