@@ -74,14 +74,6 @@ module Semian
       validate_timeouts!
     end
 
-    def validate_adaptive_circuit_breaker_configuration!
-      return unless @configuration[:adaptive_circuit_breaker]
-
-      nil if ENV.key?("SEMIAN_ADAPTIVE_CIRCUIT_BREAKER_DISABLED")
-
-      # No additional validation needed - adaptive circuit breaker uses fixed internal parameters
-    end
-
     def validate_thresholds!
       success_threshold = @configuration[:success_threshold]
       error_threshold = @configuration[:error_threshold]

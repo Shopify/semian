@@ -18,22 +18,6 @@ class TestSemianAdaptiveConfig < Minitest::Test
     assert_instance_of(Semian::AdaptiveCircuitBreaker, resource.circuit_breaker)
   end
 
-  def test_adaptive_circuit_breaker_disabled_by_env
-    ENV["SEMIAN_ADAPTIVE_CIRCUIT_BREAKER_DISABLED"] = "1"
-
-    resource = Semian.register(
-      :test_adaptive_disabled,
-      adaptive_circuit_breaker: true,
-      bulkhead: true,
-      tickets: 1,
-    )
-
-    assert_instance_of(Semian::ProtectedResource, resource)
-    assert_nil(resource.circuit_breaker)
-  ensure
-    ENV.delete("SEMIAN_ADAPTIVE_CIRCUIT_BREAKER_DISABLED")
-  end
-
   def test_traditional_circuit_breaker_still_works
     resource = Semian.register(
       :test_traditional,

@@ -616,9 +616,6 @@ The adaptive circuit breaker uses carefully tuned internal parameters based on e
 - 1-hour history for ideal error rate calculation (p90)
 - 1-second interval for background health checks
 
-The adaptive circuit breaker can be disabled with the environment variable
-`SEMIAN_ADAPTIVE_CIRCUIT_BREAKER_DISABLED=1`.
-
 **Note**: When `adaptive_circuit_breaker: true` is set, traditional circuit breaker
 parameters (`error_threshold`, `error_timeout`, etc.) are ignored.
 
