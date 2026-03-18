@@ -13,7 +13,6 @@ module Semian
       validate_circuit_breaker_or_bulkhead!
       validate_bulkhead_configuration!
       validate_circuit_breaker_configuration!
-      validate_adaptive_circuit_breaker_configuration!
       validate_resource_name!
     end
 
