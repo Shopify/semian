@@ -1,3 +1,9 @@
+# v0.28.0
+
+* Add adaptive circuit breaker (#760)
+* Pass scope/adapter through failure paths
+* Pass scope and adapter through on state changes
+
 # v0.27.1
 
 * Add exponential_backoff_error_timeout feature (#861)
