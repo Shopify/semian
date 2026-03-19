@@ -616,21 +616,41 @@ monitors error rates and adjusts its behavior accordingly.
 
 ##### How It Works
 
-The adaptive circuit breaker uses the error function:
+The adaptive circuit breaker has two components:
+
+1. An ideal error rate estimator that determines when the service is starting to become unhealthy
+2. A PID controller that opens the circuit fully or partially based on how bad the situation is.
+
+The ideal error rate estimator uses a "simple exponential smoother", which means it simply takes the average error rate
+that it observes as the ideal. With the following caveat:
+
+1. It ignores any data that is too high from its calculations. For example, we know that 20% error rate is an anamolous
+observation so we ignore it.
+1. It starts with an educated guess about the ideal error rate,
+and then converges down quickly if it observes a lower error rate, and slowly if it observes a higher error rate.
+1. After 30 minutes, it becomes more confident of its guess, and thus converges even slower in either directions.
+
+The PID controller uses the following equation to determine whether to open or close the circuit:
+
 ```
 P = (error_rate - ideal_error_rate) - (1 - (error_rate - ideal_error_rate)) * rejection_rate
 ```
 
-This formula ensures that:
-- Rejection rate increases when the service is unhealthy
-- Rejection rate decreases when the service recovers
-- The system finds an equilibrium that protects against cascading failures while allowing recovery
+Or, more simply, if you define `delta_error = error_rate - ideal_error_rate` then:
+
+```
+P = delta_error - (1 - delta_error) * rejection_rate
+```
+
+In simple terms: This equation says: open more when the error rate is higher than the rejection rate,
+and less when the opposite. The multiplier of `(1 - delta_error)` is called the aggressiveness multiplier.
+It allows the circuit to open more aggressively depending on how bad the situation is.
+
+This P is fed into a typical PID equation, and is used to control the rejection rate of the circuit breaker.
 
 ##### Adaptive Circuit Breaker Configuration
 
-To enable the adaptive circuit breaker, simply set:
-
-- **adaptive_circuit_breaker**. Enable adaptive circuit breaker instead of traditional. Defaults to `false`.
+To enable the adaptive circuit breaker, simply set **adaptive_circuit_breaker** to true.
 
 Example configuration:
 ```ruby
@@ -641,14 +661,22 @@ Semian.register(
 )
 ```
 
-The adaptive circuit breaker uses carefully tuned internal parameters based on extensive testing:
-- PID controller gains optimized for stability and responsiveness
-- 10-second window for rate calculations
-- 1-hour history for ideal error rate calculation (p90)
-- 1-second interval for background health checks
-
 **Note**: When `adaptive_circuit_breaker: true` is set, traditional circuit breaker
 parameters (`error_threshold`, `error_timeout`, etc.) are ignored.
+
+
+We **_highly_** recommend just setting that configuration and not any other.
+One of the main goals of the adaptive circuit breaker is that it "just works".
+Configuring it might be difficult and not provide much value. That said, here are the configurations you can set:
+* **kp:** The contribution of P in the PID equation. Increasing it means you react more quickly to the latest data. Defaults to 1.0
+* **ki**: The contribution of the integral in the PID equation. Increasing it means adding more "memory", which is useful to ignoring noise. Defaults to 0.2
+* **kd**: The contribution of the derivative in the PID equation. Its behaviour can be complex because of our complex P equation. Defaults to 0.0
+* **integral_upper_cap**: Maximum value of the integral, prevents integral windup. Default to 10.0
+* **integral_lower_cap**: Minimum value of the integral, prevents integral windup. Default to -10.0
+* **window_size**: How many seconds of observations to take into account. Note that this window is a sliding window of 1 second sliding interval. To control the sliding interval you should set the environment variable SEMIAN_ADAPTIVE_CIRCUIT_BREAKER_SLIDING_INTERVAL (shared among all adaptive circuit breakers). window_size default to 10 seconds
+* **dead_zone_ratio**: An error percentage above the ideal_error_rate to ignore. This helps remove noise. Defaults to 0.25
+* **initial_error_rate**: The guess to start with for the ideal error rate. Defaults to 0.05 (5%)
+* **ideal_error_rate_estimator_cap_value**: The value above which we ignore observations for the ideal error rate. Defaults to 0.1 (10%)
 
 ### Bulkheading
 
