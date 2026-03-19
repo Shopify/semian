@@ -1,0 +1,136 @@
+# frozen_string_literal: true
+
+require_relative "circuit_breaker_behaviour"
+require_relative "pid_controller_thread"
+
+module Semian
+  # Adaptive Circuit Breaker that uses PID controller for dynamic rejection
+  class AdaptiveCircuitBreaker
+    include CircuitBreakerBehaviour
+
+    attr_reader :pid_controller, :update_thread, :sliding_interval, :pid_controller_thread, :stopped
+
+    @pid_controller_thread = nil
+
+    def initialize(name:, exceptions:, kp:, ki:, kd:, window_size:, initial_error_rate:, implementation:,
+      sliding_interval:, dead_zone_ratio:, ideal_error_rate_estimator_cap_value:, integral_upper_cap:,
+      integral_lower_cap:)
+      initialize_behaviour(name: name)
+
+      @exceptions = exceptions
+      @stopped = false
+
+      @pid_controller = implementation::PIDController.new(
+        kp: kp,
+        ki: ki,
+        kd: kd,
+        window_size: window_size,
+        implementation: implementation,
+        sliding_interval: sliding_interval,
+        initial_error_rate: initial_error_rate,
+        dead_zone_ratio: dead_zone_ratio,
+        ideal_error_rate_estimator_cap_value: ideal_error_rate_estimator_cap_value,
+        integral_upper_cap: integral_upper_cap,
+        integral_lower_cap: integral_lower_cap,
+      )
+
+      @pid_controller_thread = PIDControllerThread.instance.register_resource(self)
+    end
+
+    def acquire(resource = nil, scope: nil, adapter: nil, &block)
+      unless request_allowed?
+        mark_rejected(scope:, adapter:)
+        raise OpenCircuitError, "Rejected by adaptive circuit breaker"
+      end
+
+      result = nil
+      begin
+        result = block.call
+      rescue *@exceptions => error
+        if !error.respond_to?(:marks_semian_circuits?) || error.marks_semian_circuits?
+          mark_failed(error, scope:, adapter:)
+        end
+        raise error
+      else
+        mark_success(scope:, adapter:)
+      end
+      result
+    end
+
+    def reset(scope: nil, adapter: nil)
+      @last_error = nil
+      @pid_controller.reset
+    end
+
+    def stop
+      destroy
+    end
+
+    def destroy
+      @stopped = true
+      PIDControllerThread.instance.unregister_resource(self)
+      @pid_controller.reset
+    end
+
+    def metrics
+      @pid_controller.metrics
+    end
+
+    def open?
+      @pid_controller.rejection_rate == 1
+    end
+
+    def closed?
+      @pid_controller.rejection_rate == 0
+    end
+
+    # Compatibility with ProtectedResource - Adaptive circuit breaker does not have a half open state
+    def half_open?
+      !open? && !closed?
+    end
+
+    def mark_failed(error, scope: nil, adapter: nil)
+      @last_error = error
+      @pid_controller.record_request(:error)
+    end
+
+    def mark_success(scope: nil, adapter: nil)
+      @pid_controller.record_request(:success)
+    end
+
+    def mark_rejected(scope: nil, adapter: nil)
+      @pid_controller.record_request(:rejected)
+    end
+
+    def request_allowed?
+      !@pid_controller.should_reject?
+    end
+
+    def in_use?
+      true
+    end
+
+    def pid_controller_update
+      @pid_controller.update
+      notify_metrics_update(@pid_controller.metrics(full: false))
+    end
+
+    private
+
+    def notify_metrics_update(metrics)
+      Semian.notify(
+        :adaptive_update,
+        self,
+        nil,
+        nil,
+        rejection_rate: metrics[:rejection_rate],
+        error_rate: metrics[:error_rate],
+        ideal_error_rate: metrics[:ideal_error_rate],
+        p_value: metrics[:p_value],
+        integral: metrics[:integral],
+        derivative: metrics[:derivative],
+        previous_p_value: metrics[:previous_p_value],
+      )
+    end
+  end
+end

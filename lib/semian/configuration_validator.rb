@@ -66,6 +66,7 @@ module Semian
     def validate_circuit_breaker_configuration!
       return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED")
       return unless @configuration.fetch(:circuit_breaker, true)
+      return if @configuration[:adaptive_circuit_breaker] # Skip traditional validation if using adaptive
 
       require_keys!([:success_threshold, :error_threshold, :error_timeout], @configuration)
       validate_thresholds!
