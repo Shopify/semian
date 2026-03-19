@@ -54,26 +54,6 @@ module Semian
       super
     end
 
-    if ActiveRecord.version >= Gem::Version.new("8.2.a")
-      def execute_intent(intent)
-        return super if self.class.query_allowlisted?(intent.processed_sql)
-
-        acquire_semian_resource(adapter: semian_adapter_name, scope: :query) do
-          super
-        end
-      end
-    else
-      def raw_execute(sql, *args, **kwargs, &block)
-        if self.class.query_allowlisted?(sql)
-          super
-        else
-          acquire_semian_resource(adapter: semian_adapter_name, scope: :query) do
-            super(sql, *args, **kwargs, &block)
-          end
-        end
-      end
-    end
-
     def active?
       acquire_semian_resource(adapter: semian_adapter_name, scope: :ping) do
         super
@@ -107,6 +87,28 @@ module Semian
     def connect(*args)
       acquire_semian_resource(adapter: semian_adapter_name, scope: :connection) do
         super
+      end
+    end
+
+    if ActiveRecord.version >= Gem::Version.new("8.2.a")
+      def perform_query(raw_connection, intent)
+        return super if self.class.query_allowlisted?(intent.processed_sql)
+
+        acquire_semian_resource(adapter: semian_adapter_name, scope: :query) do
+          super
+        rescue => e
+          raise translate_exception_class(e, intent.processed_sql, nil)
+        end
+      end
+    else
+      def raw_execute(sql, *args, **kwargs, &block)
+        if self.class.query_allowlisted?(sql)
+          super
+        else
+          acquire_semian_resource(adapter: semian_adapter_name, scope: :query) do
+            super(sql, *args, **kwargs, &block)
+          end
+        end
       end
     end
 
