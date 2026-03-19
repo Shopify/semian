@@ -1,8 +1,7 @@
 # v0.28.0
 
-* Add adaptive circuit breaker (#760)
-* Pass scope/adapter through failure paths
-* Pass scope and adapter through on state changes
+* Add adaptive circuit breaker (experimental feature), and a dual circuit breaker to allow switching between it and classic circuit breaker (#760)
+* Pass scope/adapter to notification (#1035)
 
 # v0.27.1
 
