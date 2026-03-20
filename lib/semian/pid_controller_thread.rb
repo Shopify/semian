@@ -16,6 +16,7 @@ module Semian
 
     # As per the singleton pattern, this is called only once
     def start
+      Semian.logger.info("Thread start called from #{caller}")
       @stopped = false
 
       update_proc = proc do
@@ -37,6 +38,7 @@ module Semian
     end
 
     def stop
+      Semian.logger.info("Thread stop called from #{caller}")
       @stopped = true
       @update_thread&.kill
       @update_thread = nil
