@@ -232,17 +232,24 @@ module Semian
     # Validate configuration before proceeding
     ConfigurationValidator.new(name, options).validate!
 
+    Semian.logger.info("Choosing which cb to create for #{name}")
     circuit_breaker = if options[:dual_circuit_breaker]
+      Semian.logger.info("Creating dual cb for #{name}")
       create_dual_circuit_breaker(name, **options)
     elsif options[:adaptive_circuit_breaker]
+      Semian.logger.info("Creating adaptive cb for #{name}")
       create_adaptive_circuit_breaker(name, **options)
     else
+      Semian.logger.info("Creating classic cb for #{name}")
       create_circuit_breaker(name, **options)
     end
 
     bulkhead = create_bulkhead(name, **options)
 
+    Semian.logger.info("Adding #{name} to #{resources}")
     resources[name] = ProtectedResource.new(name, bulkhead, circuit_breaker)
+    Semian.logger.info("Added #{name} to #{resources}")
+    resources[name]
   end
 
   def retrieve_or_register(name, **args)
@@ -353,6 +360,7 @@ module Semian
 
     exceptions = options[:exceptions] || []
     cls = is_child ? DualCircuitBreaker::ChildAdaptiveCircuitBreaker : AdaptiveCircuitBreaker
+    Semian.logger.info("cls is #{cls}")
     cls.new(
       name: name,
       exceptions: Array(exceptions) + [::Semian::BaseError],

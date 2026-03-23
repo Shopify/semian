@@ -8,6 +8,7 @@ module Semian
     include Singleton
 
     def initialize
+      Semian.logger.info("Thread initialized from #{caller}")
       @stopped = true
       @update_thread = nil
       @circuit_breakers = Concurrent::Map.new
@@ -46,6 +47,7 @@ module Semian
 
     def register_resource(circuit_breaker)
       # Track every registered circuit breaker in a Concurrent::Map
+      Semian.logger.info("Thread register called with resource #{circuit_breaker.name} from #{caller}")
 
       # Start the thread if it's not already running
       if @circuit_breakers.empty? && @stopped
@@ -59,6 +61,8 @@ module Semian
 
     def unregister_resource(circuit_breaker)
       # Remove the circuit breaker from the map
+      Semian.logger.info("Thread unregister called with resource #{circuit_breaker.name} from #{caller}")
+
       @circuit_breakers.delete(circuit_breaker.name)
 
       # Stop the thread if there are no more circuit breakers

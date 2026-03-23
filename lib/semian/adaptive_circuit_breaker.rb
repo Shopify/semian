@@ -20,6 +20,8 @@ module Semian
       @exceptions = exceptions
       @stopped = false
 
+      Semian.logger.info("Creating adaptive cb #{name}")
+
       @pid_controller = implementation::PIDController.new(
         kp: kp,
         ki: ki,
@@ -33,6 +35,8 @@ module Semian
         integral_upper_cap: integral_upper_cap,
         integral_lower_cap: integral_lower_cap,
       )
+
+      Semian.logger.info("Registering adaptive cb #{name} into PID controller thread")
 
       @pid_controller_thread = PIDControllerThread.instance.register_resource(self)
     end
