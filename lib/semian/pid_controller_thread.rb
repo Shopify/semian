@@ -22,17 +22,25 @@ module Semian
 
       update_proc = proc do
         loop do
+          Semian.logger.info("PIDControllerThread Step1")
           break if @stopped
 
+          Semian.logger.info("PIDControllerThread Step2")
+
           wait_for_window
+          Semian.logger.info("PIDControllerThread Step3")
 
           # Update PID controller state for each registered circuit breaker
           @circuit_breakers.each do |_, circuit_breaker|
             circuit_breaker.pid_controller_update
           end
+          Semian.logger.info("PIDControllerThread Step4")
         rescue => e
-          Semian.logger&.warn("[#{@name}] PID controller update thread error: #{e.message}")
+          Semian.logger.info("PIDControllerThread Step5")
+          Semian.logger&.warn("PID controller update thread error: #{e.message}")
+          Semian.logger.info("PIDControllerThread Step6")
         end
+        Semian.logger.info("PIDControllerThread Step7")
       end
 
       @update_thread = Thread.new(&update_proc)
