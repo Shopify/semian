@@ -232,23 +232,23 @@ module Semian
     # Validate configuration before proceeding
     ConfigurationValidator.new(name, options).validate!
 
-    Semian.logger.info("Choosing which cb to create for #{name}")
+    Semian.logger.info("Choosing which cb to create for #{name} #{Process.pid}")
     circuit_breaker = if options[:dual_circuit_breaker]
-      Semian.logger.info("Creating dual cb for #{name}")
+      Semian.logger.info("Creating dual cb for #{name} #{Process.pid}")
       create_dual_circuit_breaker(name, **options)
     elsif options[:adaptive_circuit_breaker]
-      Semian.logger.info("Creating adaptive cb for #{name}")
+      Semian.logger.info("Creating adaptive cb for #{name} #{Process.pid}")
       create_adaptive_circuit_breaker(name, **options)
     else
-      Semian.logger.info("Creating classic cb for #{name}")
+      Semian.logger.info("Creating classic cb for #{name} #{Process.pid}")
       create_circuit_breaker(name, **options)
     end
 
     bulkhead = create_bulkhead(name, **options)
 
-    Semian.logger.info("Adding #{name} to #{resources}")
+    Semian.logger.info("Adding #{name} to #{resources} #{Process.pid}")
     resources[name] = ProtectedResource.new(name, bulkhead, circuit_breaker)
-    Semian.logger.info("Added #{name} to #{resources}")
+    Semian.logger.info("Added #{name} to #{resources} #{Process.pid}")
     resources[name]
   end
 
@@ -360,7 +360,7 @@ module Semian
 
     exceptions = options[:exceptions] || []
     cls = is_child ? DualCircuitBreaker::ChildAdaptiveCircuitBreaker : AdaptiveCircuitBreaker
-    Semian.logger.info("cls is #{cls}")
+    Semian.logger.info("cls is #{cls} #{Process.pid}")
     cls.new(
       name: name,
       exceptions: Array(exceptions) + [::Semian::BaseError],
