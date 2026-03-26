@@ -1,6 +1,6 @@
 # v0.28.1
 
-* remove unused variable (#1039)
+* remove accidentally added @name variable in PIDControllerThread (#1039)
 
 # v0.28.0
 
