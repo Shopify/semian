@@ -1,3 +1,7 @@
+# v0.28.1
+
+* remove unused variable (#1039)
+
 # v0.28.0
 
 * Add adaptive circuit breaker (experimental feature), and a dual circuit breaker to allow switching between it and classic circuit breaker (#760)
