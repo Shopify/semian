@@ -29,7 +29,7 @@ module Semian
             circuit_breaker.pid_controller_update
           end
         rescue => e
-          Semian.logger&.warn("[#{@name}] PID controller update thread error: #{e.message}")
+          Semian.logger&.warn("PID controller update thread error: #{e.message}")
         end
       end
 
