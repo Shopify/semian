@@ -1,6 +1,5 @@
 ---
 
-version: "3.7"
 services:
   semian: &base
     container_name: semian
@@ -55,25 +54,21 @@ services:
 
   toxiproxy:
     image: ghcr.io/shopify/toxiproxy:2.12.0
-    container_name: toxiproxy
     depends_on:
       - redis
       - mysql
 
   redis:
-    container_name: redis
     image: redis:latest
     command: redis-server
 
   mysql:
-    container_name: mysql
     image: mysql:9.3
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_ROOT_HOST: "%"
 
   postgres:
-    container_name: postgres
     image: postgres:15
     environment:
       POSTGRES_PASSWORD: root
