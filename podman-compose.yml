@@ -1,0 +1,87 @@
+---
+
+version: "3.7"
+services:
+  semian: &base
+    container_name: semian
+    build:
+      dockerfile: .devcontainer/Dockerfile
+      context: .
+      target: base
+    working_dir: /workspace
+    volumes:
+      # :Z for SELinux relabeling (works on macOS, required on SELinux systems)
+      - ./:/workspace:Z
+    # Privileged mode needed for SysV semaphores and debugging
+    privileged: true
+    # Rootless mode: keep user ID mapping for file permissions
+    userns_mode: keep-id
+    cap_add:
+      - SYS_PTRACE   # For ptrace-based debuggers
+      - SYS_ADMIN    # May be needed for SysV semaphore operations
+    security_opt:
+      - seccomp:unconfined
+      - label=disable  # Disable SELinux label separation
+    # IPC namespace sharing is CRITICAL for SysV semaphores to work
+    ipc: shareable
+    depends_on:
+      - redis
+      - mysql
+      - postgres
+      - toxiproxy
+    command:
+      - /bin/bash
+      - -c
+      - |
+          bundle install
+          sleep infinity
+
+  test:
+    <<: *base
+    container_name: semian-tests
+    # Hostname is important for toxiproxy tests (acts as HTTP server)
+    hostname: http-server
+    build:
+      context: ./
+      dockerfile: dockerfiles/semian-ci
+    command:
+      - bash
+      - -c
+      - |-
+          if [ -f .env ]; then
+            set -a
+            source .env
+            set +a
+          fi
+          ./scripts/run_tests.sh ${DEBUG:+--with-debugger}
+    ports:
+      - 31050:31050  # HTTP mock server port A
+      - 31150:31150  # HTTP mock server port B
+      - 12345:12345  # Debugger port for remote debugging
+    profiles:
+      - test
+
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:2.12.0
+    container_name: toxiproxy
+    depends_on:
+      - redis
+      - mysql
+
+  redis:
+    container_name: redis
+    image: redis:latest
+    command: redis-server
+
+  mysql:
+    container_name: mysql
+    image: mysql:9.3
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_HOST: "%"
+
+  postgres:
+    container_name: postgres
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: root
