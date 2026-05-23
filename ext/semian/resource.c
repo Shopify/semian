@@ -234,7 +234,7 @@ semian_resource_initialize(VALUE self, VALUE id, VALUE tickets, VALUE quota, VAL
 
   // Populate struct fields
   ms_to_timespec(c_timeout * 1000, &res->timeout);
-  res->name = strdup(c_id_str);
+  res->name = ruby_strdup(c_id_str);
   res->quota = c_quota;
   res->wait_time = -1;
 
@@ -370,11 +370,18 @@ static void
 semian_resource_free(void *ptr)
 {
   semian_resource_t *res = (semian_resource_t *) ptr;
+
   if (res->name) {
-    free(res->name);
+    xfree(res->name); // ruby_strdup
     res->name = NULL;
   }
-  xfree(res);
+
+  if (res->strkey) {
+    free(res->strkey); // malloc
+    res->strkey = NULL;
+  }
+
+  xfree(res); // TypedData_Make_Struct
 }
 
 static size_t
