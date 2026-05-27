@@ -424,6 +424,15 @@ class TestResource < Minitest::Test
     assert_equal("0x874714f2", resource.key)
   end
 
+  def test_resource_native_memory_can_be_reclaimed_by_gc
+    # Regression coverage for Semian::Resource's native free callback. ASAN/LSAN
+    # builds catch allocator mismatches and leaked native fields when GC runs it.
+    10.times do |i|
+      create_and_destroy_untracked_resource("testing_gc_#{Process.pid}_#{i}")
+      GC.start(full_mark: true, immediate_sweep: true)
+    end
+  end
+
   def test_count
     resource = create_resource(:testing, tickets: 2)
     acquired = false
@@ -598,6 +607,13 @@ class TestResource < Minitest::Test
     resource = Semian::Resource.new(name, **kwargs)
     @resources << resource
     resource
+  end
+
+  def create_and_destroy_untracked_resource(name)
+    resource = create_resource(name, tickets: 1)
+    resource.destroy
+    @resources.delete(resource)
+    nil
   end
 
   def destroy_resources
