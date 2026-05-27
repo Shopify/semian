@@ -1,3 +1,8 @@
+# v0.28.2
+
+* Fix Semian resource allocator pairing
+* pin github actions to SHAs
+
 # v0.28.1
 
 * remove accidentally added @name variable in PIDControllerThread (#1039)
