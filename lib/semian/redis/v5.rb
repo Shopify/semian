@@ -52,8 +52,8 @@ module Semian
   end
 
   module RedisV5Client
-    def translate_error!(error)
-      redis_error = translate_error_class(error.class)
+    def translate_error!(error, mapping: ::Redis::Client::ERROR_MAPPING)
+      redis_error = translate_error_class(error.class, mapping: mapping)
       if redis_error < ::Semian::AdapterError
         redis_error = redis_error.new(error.message)
         redis_error.semian_identifier = error.semian_identifier
