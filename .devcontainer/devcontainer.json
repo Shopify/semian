@@ -7,30 +7,29 @@
     "shutdownAction": "stopCompose",
     "postCreateCommand": "bundle install",
 
-    "settings": {
-        "C_Cpp.updateChannel": "Insiders",
-        "ruby.format": "rubocop",
-        "ruby.codeCompletion": "rcodetools",
-        "ruby.useLanguageServer": true,
-        "ruby.useBundler": true,
-        "ruby.intellisense": "rubyLocate",
-        "ruby.lint": {
-            "rubocop": true,
-        },
-        "ruby.lintDebounceTime": 500,
-        "[ruby]": {
-            "editor.insertSpaces": true,
-			"editor.tabSize": 2,
-            "editor.formatOnSaveTimeout": 1500,
-            //TODO:paranoidaditya remove comment after repo is formatted correctly
-            // "editor.formatOnSave": true,
-            "editor.defaultFormatter": "rebornix.ruby",
-        },
-        "terminal.integrated.shell.linux": "/bin/bash"
-    },
-
-    "extensions": [
-        "ms-vscode.cpptools",
-        "rebornix.ruby"
-    ]
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "C_Cpp.updateChannel": "Insiders",
+                "ruby.format": "rubocop",
+                "ruby.codeCompletion": "rcodetools",
+                "ruby.useLanguageServer": true,
+                "ruby.useBundler": true,
+                "ruby.intellisense": "rubyLocate",
+                "ruby.lint": {
+                    "rubocop": true
+                },
+                "ruby.lintDebounceTime": 500,
+                "[ruby]": {
+                    "editor.insertSpaces": true,
+                    "editor.tabSize": 2,
+                    "editor.formatOnSaveTimeout": 1500
+                },
+                "terminal.integrated.shell.linux": "/bin/bash"
+            },
+            "extensions": [
+                "ms-vscode.cpptools"
+            ]
+        }
+    }
 }

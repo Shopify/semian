@@ -347,6 +347,31 @@ module ActiveRecordAdapterSharedTests
     end
   end
 
+  def test_semian_counts_each_retry_attempt_individually
+    @adapter = new_adapter(
+      connection_retries: 1,
+      semian: SEMIAN_OPTIONS.merge(error_threshold: 3),
+    )
+    @adapter.connect!
+
+    query_acquisition_count = 0
+    subscriber = Semian.subscribe do |event, _resource, scope, _adapter|
+      if event == :success && scope == :query
+        query_acquisition_count += 1
+      end
+    end
+
+    # Close the raw connection to trigger a retryable connection error
+    @adapter.send(:raw_connection).close
+
+    value = @adapter.query_value("SELECT 1;")
+
+    assert_equal(2, value)
+    assert_equal(2, query_acquisition_count)
+  ensure
+    Semian.unsubscribe(subscriber)
+  end
+
   private
 
   def adapter_class
