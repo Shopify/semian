@@ -50,8 +50,8 @@ class Redis
     end
   end
 
-  ResourceBusyError = Class.new(SemianError)
-  CircuitOpenError = Class.new(SemianError)
+  ResourceBusyError = Class.new(SemianError) { include ::Semian::AdapterResourceBusyError }
+  CircuitOpenError = Class.new(SemianError) { include ::Semian::AdapterCircuitOpenError }
   ResolveError = Class.new(SemianError)
 
   alias_method :_original_initialize, :initialize

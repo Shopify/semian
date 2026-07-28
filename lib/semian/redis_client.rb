@@ -40,8 +40,8 @@ class RedisClient
     end
   end
 
-  ResourceBusyError = Class.new(SemianError)
-  CircuitOpenError = Class.new(SemianError)
+  ResourceBusyError = Class.new(SemianError) { include ::Semian::AdapterResourceBusyError }
+  CircuitOpenError = Class.new(SemianError) { include ::Semian::AdapterCircuitOpenError }
 
   module SemianConfig
     def initialize(semian: nil, **kwargs)
