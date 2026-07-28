@@ -31,8 +31,8 @@ class Redis
     end
   end
 
-  ResourceBusyError = Class.new(SemianError)
-  CircuitOpenError = Class.new(SemianError)
+  ResourceBusyError = Class.new(SemianError) { include ::Semian::AdapterResourceBusyError }
+  CircuitOpenError = Class.new(SemianError) { include ::Semian::AdapterCircuitOpenError }
 
   Client::ERROR_MAPPING.merge!(
     RedisClient::CircuitOpenError => Redis::CircuitOpenError,
