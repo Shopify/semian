@@ -83,7 +83,8 @@ To create a Semian adapter you must implement the following methods:
 1. [`include Semian::Adapter`][semian-adapter]. Use the helpers to wrap the
    resource. This takes care of situations such as monitoring, nested resources,
    unsupported platforms, creating the Semian resource if it doesn't already
-   exist and so on.
+   exist and so on. Include it in an object that represents a single resource,
+   typically one connection — see [Thread Safety](#thread-safety).
 2. `#semian_identifier`. This is responsible for returning a symbol that
    represents every unique resource, for example `redis_master` or
    `mysql_shard_1`. This is usually assembled from a `name` attribute on the
@@ -213,6 +214,27 @@ Example log entries to look for:
 Semian's circuit breaker implementation is thread-safe by default as of
 `v0.7.0`. If you'd like to disable it for performance reasons, pass
 `thread_safety_disabled: true` to the resource options.
+
+An adapter instance represents one resource. Once that resource has been
+acquired, Semian treats further access through the same instance as part of the
+same session: nested or overlapping calls do not re-enter the circuit breaker
+and do not take a second bulkhead ticket, so a circuit that opens elsewhere in
+the process cannot interrupt a session that is already in flight and
+succeeding. Every adapter that ships with Semian has this shape — the mixin is
+included in a connection object, and the session is that connection's unit of
+work.
+
+This is likely to give unexpected results if the adapter instance is shared
+process-wide, such as by a singleton. While any call is in flight, calls made
+through the same instance from other threads are treated as part of that
+session, so they are not fast-failed when the circuit has opened since that
+first acquire, and they cannot contribute failures. Where calls overlap
+continuously, that keeps the circuit closed while the resource is failing.
+Consider introducing a "session" object as the adapterized wrapper around the
+singleton instead, created per unit of work — per request, say. Circuit breaker
+and bulkhead state is keyed by `semian_identifier` and held in a process-wide
+registry, so short-lived adapter instances that share an identifier all share
+one circuit.
 
 Bulkheads should be disabled (pass `bulkhead: false`) in a threaded environment
 (e.g. Puma or Sidekiq), but can safely be enabled in non-threaded environments
