@@ -106,6 +106,58 @@ class TestSemianAdapter < Minitest::Test
     assert_empty(Semian.consumers)
   end
 
+  def test_reentrancy_guard_short_circuits_nested_acquires
+    client = Semian::AdapterTestClient.new(bulkhead: false)
+    acquisitions = 0
+    Semian.subscribe(:test_reentrancy_guard) do |event, resource, _scope, _adapter, _payload|
+      acquisitions += 1 if event == :success && resource.name == client.semian_identifier
+    end
+
+    client.send(:acquire_semian_resource, scope: :query, adapter: :test) do
+      assert(client.send(:resource_already_acquired?))
+
+      client.send(:acquire_semian_resource, scope: :query, adapter: :test) { :nested }
+    end
+
+    assert_equal(1, acquisitions)
+    refute(client.send(:resource_already_acquired?))
+  ensure
+    Semian.unsubscribe(:test_reentrancy_guard)
+  end
+
+  # An adapter instance is meant to belong to one session at a time, but when that is
+  # not the case two callers can interleave inside `mark_resource_as_acquired`. The
+  # guard must not outlive them: one left set disables the circuit breaker for that
+  # object for the life of the process.
+  def test_reentrancy_guard_is_cleared_when_marks_interleave
+    client = Semian::AdapterTestClient.new(bulkhead: false)
+    first_holding = Queue.new
+    first_restored = Queue.new
+    second_marked = Queue.new
+
+    first = Thread.new do
+      client.send(:mark_resource_as_acquired) do
+        first_holding << true
+        second_marked.pop
+      end
+      first_restored << true
+    end
+    first_holding.pop
+
+    second = Thread.new do
+      client.send(:mark_resource_as_acquired) do
+        second_marked << true
+        first_restored.pop
+      end
+    end
+
+    [first, second].each do |thread|
+      assert(thread.join(5), "thread did not finish")
+    end
+
+    refute(client.send(:resource_already_acquired?), "re-entrancy guard was left set")
+  end
+
   class MyAdapterError < StandardError
     include Semian::AdapterError
   end
