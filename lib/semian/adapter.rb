@@ -79,11 +79,10 @@ module Semian
     end
 
     def mark_resource_as_acquired
-      previous = @resource_acquired
       @resource_acquired = true
       yield
     ensure
-      @resource_acquired = previous
+      @resource_acquired = false
     end
   end
 end
