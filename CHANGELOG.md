@@ -1,3 +1,10 @@
+# v0.28.3
+
+* Make sure PG adapter correctly handles PG::ConnectionBad errors. rails/rails@e61b5e24 rescues these and converts them to ActiveRecord::ConnectionNotEstablished, but that is only on edge. Now that we are also testing on 8.1 it exposed that we are not handling the 8.1 behaviour which is to raise a PG::ConnectionBad.
+* Improve testing matrix for this gem.
+* Execute_intent no longe raises errors. We need to check the error stored on the query intent and raise it to trip the circuit breaker, then rescue and allow Rails to continue execution.
+* Bump rails to latest for testing
+
 # v0.28.2
 
 * Fix Semian resource allocator pairing
