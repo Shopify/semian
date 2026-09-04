@@ -7,6 +7,7 @@
 .vscode/ipch
 .vscode/launch.json
 *.gem
+gemfiles/*.gemfile.lock
 *.swo
 *.swp
 /checksums/
