@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   semian:
-    name: Ruby ${{ matrix.ruby }} / semian
+    name: Ruby ${{ matrix.ruby }} / semian / Rails ${{ matrix.rails_version }}
     runs-on: ubuntu-latest
     container:
       image: ruby:${{ matrix.ruby }}
@@ -28,14 +28,21 @@ jobs:
       options: --hostname http-server
     env:
       CI: "1"
-      BUNDLE_GEMFILE: Gemfile
+      BUNDLE_GEMFILE: ${{ matrix.gemfile }}
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         ruby:
           - "3.4"
           - "3.3"
-          - "3.2"
+        gemfile:
+          - Gemfile
+          - gemfiles/rails_edge.gemfile
+        include:
+          - gemfile: Gemfile
+            rails_version: released
+          - gemfile: gemfiles/rails_edge.gemfile
+            rails_version: edge
     services:
       mysql:
         image: mysql:9.3
@@ -74,9 +81,9 @@ jobs:
         with:
           path: vendor/bundle
           # yamllint disable-line rule:line-length
-          key: ${{ runner.os }}-ruby-${{ matrix.ruby }}-gems-${{ hashFiles( format('{0}.lock', env.BUNDLE_GEMFILE) ) }}
+          key: ${{ runner.os }}-ruby-${{ matrix.ruby }}-semian-${{ matrix.rails_version }}-gems-${{ hashFiles(env.BUNDLE_GEMFILE, format('{0}.lock', env.BUNDLE_GEMFILE)) }}
           restore-keys: |
-            ${{ runner.os }}-ruby-${{ matrix.ruby }}-gems-
+            ${{ runner.os }}-ruby-${{ matrix.ruby }}-semian-${{ matrix.rails_version }}-gems-
       -
         name: Bundle
         run: |
@@ -122,18 +129,21 @@ jobs:
         ruby:
           - "3.4"
           - "3.3"
-          - "3.2"
         gemfile:
           - grpc
           - mysql2
           - net_http
           - rails_mysql2
+          - rails_mysql2_edge
           - rails_trilogy
+          - rails_trilogy_edge
           - redis_4
           - redis_5
           - redis_client
           - activerecord_trilogy_adapter
+          - activerecord_trilogy_adapter_edge
           - activerecord_postgresql_adapter
+          - activerecord_postgresql_adapter_edge
         include:
           - gemfile: grpc
             adapter: grpc
@@ -143,7 +153,11 @@ jobs:
             adapter: net_http
           - gemfile: rails_mysql2
             adapter: rails_mysql2
+          - gemfile: rails_mysql2_edge
+            adapter: rails_mysql2
           - gemfile: rails_trilogy
+            adapter: rails_trilogy
+          - gemfile: rails_trilogy_edge
             adapter: rails_trilogy
           - gemfile: redis_4
             adapter: redis
@@ -153,7 +167,11 @@ jobs:
             adapter: redis_client
           - gemfile: activerecord_trilogy_adapter
             adapter: activerecord_trilogy_adapter
+          - gemfile: activerecord_trilogy_adapter_edge
+            adapter: activerecord_trilogy_adapter
           - gemfile: activerecord_postgresql_adapter
+            adapter: activerecord_postgresql_adapter
+          - gemfile: activerecord_postgresql_adapter_edge
             adapter: activerecord_postgresql_adapter
     services:
       mysql:
@@ -193,7 +211,7 @@ jobs:
         with:
           path: vendor/bundle
           # yamllint disable-line rule:line-length
-          key: ${{ runner.os }}-ruby-${{ matrix.ruby }}-adapter-${{ matrix.gemfile }}-gems-${{ hashFiles( format('{0}.lock', env.BUNDLE_GEMFILE) ) }}
+          key: ${{ runner.os }}-ruby-${{ matrix.ruby }}-adapter-${{ matrix.gemfile }}-gems-${{ hashFiles(env.BUNDLE_GEMFILE, format('{0}.lock', env.BUNDLE_GEMFILE)) }}
           restore-keys: |
             ${{ runner.os }}-ruby-${{ matrix.ruby }}-adapter-${{ matrix.gemfile }}-gems-
       -

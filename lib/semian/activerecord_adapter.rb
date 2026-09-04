@@ -58,8 +58,26 @@ module Semian
       def execute_intent(intent)
         return super if self.class.query_allowlisted?(intent.processed_sql)
 
+        result = nil
+        delivered_error = nil
+
         acquire_semian_resource(adapter: semian_adapter_name, scope: :query) do
-          super
+          result = super
+
+          # In Rails 8.2 execute_intent no longer raises errors. Instead, they are stored on the intent
+          # and handled later by the caller to better enable asynchronous execution. However, we need to raise
+          # any errors here to trip the circuit breaker. Then we can swallow the error and return the result for
+          # Rails to continue with.
+          if intent.respond_to?(:error)
+            delivered_error = intent.error
+            raise delivered_error if delivered_error
+          end
+        end
+      rescue => error
+        if error.equal?(delivered_error)
+          result
+        else
+          raise
         end
       end
     else

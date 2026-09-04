@@ -39,8 +39,14 @@ jobs:
         name: Bundle update adapters
         run: |
           for gemfile_path in gemfiles/*.gemfile; do
+            # Edge Gemfiles intentionally have no lockfile so CI resolves rails/main at run time.
+            case "${gemfile_path}" in
+              *_edge.gemfile) continue ;;
+            esac
+
             BUNDLE_GEMFILE="${gemfile_path}" bundle update
           done
+          rm -f gemfiles/*_edge.gemfile.lock
       -
         name: Create Pull Request
         id: cpr

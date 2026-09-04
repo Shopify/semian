@@ -41,6 +41,10 @@ module ActiveRecord
         PostgreSQLAdapter
       end
 
+      def connection_failed_error_classes
+        super + [::PG::ConnectionBad]
+      end
+
       def adapter_name
         :postgresql_adapter
       end

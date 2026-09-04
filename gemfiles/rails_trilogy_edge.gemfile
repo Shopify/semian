@@ -11,6 +11,6 @@ gem "webrick"
 gem "concurrent-ruby"
 
 gem "trilogy", "~> 2.4"
-gem "activerecord", "~> 8.1.0"
+gem "activerecord", github: "rails/rails", branch: "main"
 
 gemspec path: "../"

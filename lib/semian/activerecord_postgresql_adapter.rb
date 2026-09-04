@@ -7,6 +7,7 @@ module ActiveRecord
   module ConnectionAdapters
     class PostgreSQLAdapter
       ActiveRecord::ActiveRecordError.include(::Semian::AdapterError)
+      ::PG::ConnectionBad.include(::Semian::AdapterError)
 
       class SemianError < ConnectionNotEstablished
         def initialize(semian_identifier, *args)
@@ -39,6 +40,10 @@ module Semian
     end
 
     private
+
+    def resource_exceptions
+      super + [::PG::ConnectionBad]
+    end
 
     def semian_adapter_name = :postgresql_adapter
 
