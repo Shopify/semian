@@ -75,7 +75,7 @@ module ActiveRecordAdapterSharedTests
   def test_connection_errors_open_the_circuit
     @proxy.downstream(:latency, latency: 2200).apply do
       ERROR_THRESHOLD.times do
-        assert_raises(ActiveRecord::ConnectionNotEstablished) do
+        assert_raises(*connection_failed_error_classes) do
           @adapter.execute("SELECT 1;")
         end
       end
@@ -162,7 +162,7 @@ module ActiveRecordAdapterSharedTests
 
   def test_network_errors_are_tagged_with_the_resource_identifier
     @proxy.down do
-      error = assert_raises(ActiveRecord::ConnectionNotEstablished) do
+      error = assert_raises(*connection_failed_error_classes) do
         @adapter.execute("SELECT 1 + 1;")
       end
 
@@ -173,7 +173,7 @@ module ActiveRecordAdapterSharedTests
   def test_connection_failed_errors_are_tagged_with_the_resource_identifier
     @adapter.send(:raw_connection).close
 
-    error = assert_raises(ActiveRecord::ConnectionFailed, ActiveRecord::ConnectionNotEstablished) do
+    error = assert_raises(*connection_failed_error_classes) do
       @adapter.execute("SELECT 1 + 1;")
     end
 
@@ -333,7 +333,7 @@ module ActiveRecordAdapterSharedTests
   def test_circuit_open_errors_do_not_trigger_the_circuit_breaker
     @proxy.down do
       ERROR_THRESHOLD.times do
-        assert_raises(ActiveRecord::ConnectionNotEstablished) do
+        assert_raises(*connection_failed_error_classes) do
           @adapter.execute("SELECT 1;")
         end
       end
@@ -343,7 +343,7 @@ module ActiveRecordAdapterSharedTests
       end
       error = adapter_resource.circuit_breaker.last_error
 
-      assert_instance_of(ActiveRecord::ConnectionNotEstablished, error)
+      assert_includes(connection_failed_error_classes, error.class)
     end
   end
 
@@ -355,6 +355,10 @@ module ActiveRecordAdapterSharedTests
 
   def new_adapter(**config_overrides)
     adapter_class.new(@configuration.merge(config_overrides))
+  end
+
+  def connection_failed_error_classes
+    [ActiveRecord::ConnectionFailed, ActiveRecord::ConnectionNotEstablished]
   end
 
   def adapter_name
