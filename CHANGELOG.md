@@ -1,3 +1,8 @@
+# v0.28.4
+
+* Clear the re-entrancy guard instead of restoring its previous value
+* Document that an adapter instance represents one resource
+
 # v0.28.3
 
 * Make sure PG adapter correctly handles PG::ConnectionBad errors. rails/rails@e61b5e24 rescues these and converts them to ActiveRecord::ConnectionNotEstablished, but that is only on edge. Now that we are also testing on 8.1 it exposed that we are not handling the 8.1 behaviour which is to raise a PG::ConnectionBad.
