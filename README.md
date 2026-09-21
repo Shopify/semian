@@ -344,6 +344,49 @@ and associate successes, failures, errors with the protected resource.
 We only require that the `semian_configuration` be **set only once** over the lifetime of
 the library.
 
+An individual `Net::HTTP` instance inherits this configuration by default. It can instead
+explicitly disable Semian or replace the entire platform resource with caller-owned options:
+
+```ruby
+Net::HTTP.new("github.com", 80)                         # Inherit semian_configuration
+Net::HTTP.new("github.com", 80, semian: true)           # Also inherit semian_configuration
+Net::HTTP.new("github.com", 80, semian: false)          # Disable Semian for this instance
+Net::HTTP.new("github.com", 80, semian: {
+  name: "github_api",
+  bulkhead: false,
+  success_threshold: 1,
+  error_threshold: 3,
+  error_timeout: 10,
+})
+```
+
+Libraries that construct `Net::HTTP` themselves can select the same policy before the first
+Semian configuration or resource lookup:
+
+```ruby
+http = Net::HTTP.new("github.com", 80)
+http.semian_policy = false
+# or: http.semian_policy = { name: "github_api", ... }
+```
+
+A `false` or `Hash` policy is a **whole-resource replacement**, not a merge with the
+process-wide callback. In particular, a bulkhead configured by `semian_configuration` does
+not protect an instance with caller-owned options unless those options also configure a
+bulkhead (with `tickets` or `quota`). Likewise, `false` disables both the circuit breaker and
+the bulkhead for that instance. Caller-owned options must include their own `name`.
+
+The instance copies and freezes caller-owned options. The `name` must be a non-empty `String`
+or `Symbol` of at most 255 bytes and cannot contain control characters. Per-instance hashes
+are static and cannot set `dynamic: true`; use the process-wide callback described below when
+options must be evaluated dynamically.
+
+A policy may be assigned at most once before the first Semian lookup. Repeating the same policy
+is allowed, but changing it after assignment or use raises
+`Semian::NetHTTP::SemianPolicyChangedError`. Constructor policies are installed after normal
+Ruby object initialization. A `Net::HTTP` subclass that performs a Semian lookup from its own
+`initialize` method therefore cannot use the constructor override; such initializers must not
+perform Semian work when per-instance policy selection is required.
+
 If you need to return different values for the same pair of `host`/`port` value, you **must**
 include the `dynamic: true` option. Returning different values for the same `host`/`port` values
 without setting the `dynamic` option can lead to undesirable behavior.
