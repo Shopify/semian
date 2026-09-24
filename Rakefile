@@ -107,8 +107,14 @@ end
 
 namespace :examples do
   desc "Run examples for net_http"
-  task :net_http do
-    Dir["examples/net_http/*.rb"].entries.each do |f|
+  task :net_http, [:file] do |_, args|
+    files = if args[:file]
+      ["examples/net_http/#{args[:file]}.rb"]
+    else
+      Dir["examples/net_http/*.rb"]
+    end
+
+    files.each do |f|
       ruby f do |ok, status|
         if !ok && status.respond_to?(:signaled?) && status.signaled?
           raise SignalException, status.termsig
@@ -123,8 +129,14 @@ namespace :examples do
   end
 
   desc "Run examples for activerecord-trilogy-adapter"
-  task :activerecord_trilogy_adapter do
-    Dir["examples/activerecord_trilogy_adapter/*.rb"].entries.each do |f|
+  task :activerecord_trilogy_adapter, [:file] do |_, args|
+    files = if args[:file]
+      ["examples/activerecord_trilogy_adapter/#{args[:file]}.rb"]
+    else
+      Dir["examples/activerecord_trilogy_adapter/*.rb"]
+    end
+
+    files.each do |f|
       ruby f do |ok, status|
         if !ok && status.respond_to?(:signaled?) && status.signaled?
           raise SignalException, status.termsig
