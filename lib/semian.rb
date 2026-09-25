@@ -155,6 +155,14 @@ module Semian
     end
   end
 
+  module AdapterResourceBusyError
+    include AdapterError
+  end
+
+  module AdapterCircuitOpenError
+    include AdapterError
+  end
+
   attr_accessor :logger
 
   self.logger = Logger.new($stderr)
