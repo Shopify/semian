@@ -106,7 +106,17 @@ module Semian
   OpenCircuitError = Class.new(BaseError)
   SemaphoreMissingError = Class.new(BaseError)
 
-  attr_accessor :maximum_lru_size, :minimum_lru_time, :default_permissions, :namespace, :default_force_config_validation
+  def main_ractor?
+    !defined?(Ractor.main?) || Ractor.main?
+  end
+  private :main_ractor?
+
+  attr_accessor :maximum_lru_size, :minimum_lru_time, :default_permissions, :default_force_config_validation
+  attr_reader :namespace
+
+  def namespace=(namespace)
+    @namespace = namespace.is_a?(String) ? -namespace : namespace
+  end
 
   self.maximum_lru_size = 500
   self.minimum_lru_time = 300 # 300 seconds / 5 minutes
@@ -116,9 +126,7 @@ module Semian
   # We only allow disabling thread-safety for parts of the code that are on the hot path.
   # Since locking there could have a significant impact. Everything else is enforced thread safety
   def thread_safe?
-    return @thread_safe if defined?(@thread_safe)
-
-    @thread_safe = true
+    defined?(@thread_safe) ? @thread_safe : true
   end
 
   def thread_safe=(thread_safe)
@@ -128,9 +136,15 @@ module Semian
   @reset_mutex = Mutex.new
 
   def issue_disabled_semaphores_warning
-    return if defined?(@warning_issued)
+    if main_ractor?
+      return if defined?(@warning_issued)
 
-    @warning_issued = true
+      @warning_issued = true
+    else
+      return if Ractor[:semian_warning_issued]
+
+      Ractor[:semian_warning_issued] = true
+    end
     if !sysv_semaphores_supported?
       logger.info("Semian sysv semaphores are not supported on #{RUBY_PLATFORM} - all operations will no-op")
     elsif disabled?
@@ -155,9 +169,22 @@ module Semian
     end
   end
 
-  attr_accessor :logger
+  def logger
+    return @logger if main_ractor?
 
-  self.logger = Logger.new($stderr)
+    Ractor[:semian_logger] || shared_logger || Ractor.store_if_absent(:semian_default_logger) { Logger.new($stderr) }
+  end
+
+  def logger=(logger)
+    if main_ractor?
+      @logger_set = true
+      @logger = logger
+    else
+      Ractor[:semian_logger] = logger
+    end
+  end
+
+  @logger = Logger.new($stderr)
 
   # Registers a resource.
   #
@@ -296,6 +323,11 @@ module Semian
   end
 
   def reset!
+    unless main_ractor?
+      Ractor[:semian_consumers] = Concurrent::Map.new
+      return Ractor[:semian_resources] = LRUHash.new
+    end
+
     @reset_mutex.synchronize do
       @consumers = Concurrent::Map.new
       @resources = LRUHash.new
@@ -318,6 +350,7 @@ module Semian
   end
 
   def resources
+    return Ractor.store_if_absent(:semian_resources) { LRUHash.new } unless main_ractor?
     return @resources if defined?(@resources) && @resources
 
     @reset_mutex.synchronize do
@@ -326,6 +359,7 @@ module Semian
   end
 
   def consumers
+    return Ractor.store_if_absent(:semian_consumers) { Concurrent::Map.new } unless main_ractor?
     return @consumers if defined?(@consumers) && @consumers
 
     @reset_mutex.synchronize do
@@ -334,6 +368,12 @@ module Semian
   end
 
   private
+
+  def shared_logger
+    @logger if @logger_set
+  rescue Ractor::IsolationError
+    nil
+  end
 
   def create_dual_circuit_breaker(name, **options)
     return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED")
