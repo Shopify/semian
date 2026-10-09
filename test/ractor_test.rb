@@ -178,4 +178,21 @@ class TestRactor < Minitest::Test
 
     assert_equal(1, ractor_value(ractor))
   end
+
+  def test_shares_bulkheads_with_non_main_ractors
+    skip("Semaphores are disabled") unless Semian.semaphores_enabled?
+
+    resource = Semian.register(:ractor_test_bulkhead, tickets: 1, timeout: 0, circuit_breaker: false)
+    result = resource.acquire do
+      ractor = Ractor.new do
+        bulkhead = Semian.register(:ractor_test_bulkhead, tickets: 1, timeout: 0, circuit_breaker: false)
+        bulkhead.acquire { :not_called }
+      rescue Semian::TimeoutError => error
+        [error.class, bulkhead.registered_workers]
+      end
+      ractor_value(ractor)
+    end
+
+    assert_equal([Semian::TimeoutError, 2], result)
+  end
 end
