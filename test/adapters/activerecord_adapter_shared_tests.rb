@@ -347,7 +347,176 @@ module ActiveRecordAdapterSharedTests
     end
   end
 
+  {
+    circuit_open: [Semian::OpenCircuitError, :CircuitOpenError],
+    resource_busy: [Semian::TimeoutError, :ResourceBusyError],
+  }.each do |rejection, (error_class, adapter_error)|
+    define_method("test_#{rejection}_is_not_a_retryable_connection_error") do
+      error = adapter_class.const_get(adapter_error).new(@adapter.semian_identifier, "access rejected")
+
+      assert_kind_of(ActiveRecord::ConnectionNotEstablished, error)
+      refute(@adapter.send(:retryable_connection_error?, error))
+    end
+
+    define_method("test_#{rejection}_does_not_retry_reconnect") do
+      reject_semian_acquisition(error_class)
+      @adapter.expects(:backoff).never
+
+      assert_raises(adapter_class.const_get(adapter_error)) { @adapter.reconnect! }
+    end
+
+    define_method("test_#{rejection}_verify_preserves_existing_connection") do
+      reject_semian_acquisition(error_class)
+      connection = mock("existing connection")
+      connection.expects(:reset).never
+      connection.expects(:close).never
+      @adapter.instance_variable_set(:@raw_connection, connection)
+
+      assert_raises(adapter_class.const_get(adapter_error)) { @adapter.verify! }
+      assert_same(connection, @adapter.instance_variable_get(:@raw_connection))
+    ensure
+      @adapter.instance_variable_set(:@raw_connection, nil)
+    end
+
+    define_method("test_#{rejection}_reconnect_preserves_existing_connection") do
+      reject_semian_acquisition(error_class)
+      connection = mock("existing connection")
+      connection.expects(:reset).never
+      connection.expects(:close).never
+      @adapter.instance_variable_set(:@raw_connection, connection)
+
+      assert_raises(adapter_class.const_get(adapter_error)) { @adapter.reconnect! }
+      assert_same(connection, @adapter.instance_variable_get(:@raw_connection))
+    ensure
+      @adapter.instance_variable_set(:@raw_connection, nil)
+    end
+
+    define_method("test_#{rejection}_active_returns_false") do
+      reject_semian_acquisition(error_class)
+
+      refute_predicate(@adapter, :active?)
+    end
+
+    [false, true].each do |allow_retry|
+      define_method("test_#{rejection}_query_does_not_retry_with_allow_retry_#{allow_retry}") do
+        reject_semian_acquisition(error_class)
+        @adapter.expects(:reconnect!).never
+        @adapter.expects(:backoff).never
+
+        assert_raises(adapter_class.const_get(adapter_error)) do
+          @adapter.execute("SELECT 1", allow_retry: allow_retry)
+        end
+      end
+    end
+
+    if ActiveRecord.version >= Gem::Version.new("8.2.a")
+      define_method("test_#{rejection}_async_query_completes_without_another_acquisition") do
+        reject_semian_acquisition(error_class)
+        pool = mock("connection pool")
+        pool.stubs(:with_connection).yields(@adapter)
+        @adapter.stubs(:pool).returns(pool)
+        @adapter.stubs(:async_enabled?).returns(true)
+        @adapter.stubs(:sql_notifications?).returns(false)
+        session = ActiveRecord::AsynchronousQueriesTracker::Session.new
+        ActiveRecord::Base.stubs(:asynchronous_queries_session).returns(session)
+        intent = ActiveRecord::ConnectionAdapters::QueryIntent.new(
+          adapter: @adapter,
+          processed_sql: "SELECT 1",
+          allow_async: true,
+          allow_retry: true,
+          materialize_transactions: false,
+        )
+        intent.retry_budget = @adapter.send(:build_retry_budget, allow_retry: true, reconnectable: true)
+        pool.expects(:schedule_query).with(intent)
+        intent.execute!
+
+        # Run the background path to completion before observing the result.
+        Thread.new { intent.execute_or_skip }.value
+        error = intent.error
+
+        assert_instance_of(adapter_class.const_get(adapter_error), error)
+        assert(intent.raw_result_available?)
+        refute_predicate(intent, :pending?)
+        2.times do
+          assert_same(error, assert_raises(adapter_class.const_get(adapter_error)) { intent.raw_result })
+        end
+      ensure
+        session&.finalize
+      end
+    end
+  end
+
+  def test_driver_connection_errors_still_retry_reconnect
+    @adapter.expects(:reconnect).twice.raises(ActiveRecord::ConnectionFailed)
+    @adapter.expects(:backoff).with(1).once
+
+    assert_raises(ActiveRecord::ConnectionFailed) { @adapter.reconnect! }
+  end
+
+  [:verify!, :reconnect!].each do |operation|
+    define_method("test_connection_recovers_after_rejected_#{operation}") do
+      @adapter.connect!
+      connection = @adapter.instance_variable_get(:@raw_connection)
+      resource = @adapter.semian_resource
+      resource.mark_failed(ActiveRecord::ConnectionFailed.new("database unavailable"))
+
+      assert_raises(adapter_class::CircuitOpenError) { @adapter.public_send(operation) }
+      assert_same(connection, @adapter.instance_variable_get(:@raw_connection))
+
+      resource.reset
+      @adapter.public_send(operation)
+
+      assert_equal(2, @adapter.query_value("SELECT 1 + 1"))
+    end
+  end
+
+  def test_verify_rejects_an_open_circuit_once
+    @adapter = new_adapter(semian: SEMIAN_OPTIONS.merge(bulkhead: false, error_timeout: 3600))
+    resource = @adapter.semian_resource
+    cause = ActiveRecord::ConnectionFailed.new("database unavailable")
+    resource.mark_failed(cause)
+    rejections = 0
+    subscriber = Semian.subscribe do |event, notified_resource|
+      rejections += 1 if event == :circuit_open && notified_resource == resource
+    end
+
+    error = assert_raises(adapter_class::CircuitOpenError) { @adapter.verify! }
+
+    assert_same(cause, error.cause)
+    assert(resource.open?)
+    assert_equal(1, rejections)
+  ensure
+    Semian.unsubscribe(subscriber)
+  end
+
+  def test_verify_acquires_once_for_a_healthy_connection
+    @adapter = new_adapter(semian: SEMIAN_OPTIONS.merge(bulkhead: false))
+    @adapter.semian_resource.expects(:acquire).once.yields.returns(true)
+    connection = mock("healthy connection")
+    if adapter_name == :postgresql_adapter
+      connection.stubs(:finished?).returns(false)
+      connection.stubs(:status).returns(PG::CONNECTION_OK)
+    end
+    connection.stubs(:query).with(";")
+    connection.stubs(:closed?).returns(false)
+    connection.stubs(:ping)
+    @adapter.instance_variable_set(:@raw_connection, connection)
+
+    @adapter.verify!
+
+    assert_same(connection, @adapter.instance_variable_get(:@raw_connection))
+  ensure
+    @adapter.instance_variable_set(:@raw_connection, nil)
+  end
+
   private
+
+  def reject_semian_acquisition(error_class)
+    @adapter = new_adapter(semian: SEMIAN_OPTIONS.merge(bulkhead: false))
+    @adapter.pool.stubs(:shard).returns(:default)
+    @adapter.pool.stubs(:role).returns(:writing)
+    @adapter.semian_resource.expects(:acquire).once.raises(error_class)
+  end
 
   def adapter_class
     raise NotImplementedError
