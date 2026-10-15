@@ -215,26 +215,20 @@ Semian's circuit breaker implementation is thread-safe by default as of
 `v0.7.0`. If you'd like to disable it for performance reasons, pass
 `thread_safety_disabled: true` to the resource options.
 
-An adapter instance represents one resource. Once that resource has been
-acquired, Semian treats further access through the same instance as part of the
-same session: nested or overlapping calls do not re-enter the circuit breaker
-and do not take a second bulkhead ticket, so a circuit that opens elsewhere in
-the process cannot interrupt a session that is already in flight and
-succeeding. Every adapter that ships with Semian has this shape — the mixin is
-included in a connection object, and the session is that connection's unit of
-work.
+An adapter instance represents one resource. Within the same fiber,
+once that resource has been acquired, nested access through the same instance is
+treated as part of the same session and does not re-enter the circuit breaker or
+take a second bulkhead ticket. Calls from other threads or fibers are checked
+independently, even when they share an adapter instance. Every adapter that
+ships with Semian is included in a connection object, and the session is that
+connection's unit of work.
 
-This is likely to give unexpected results if the adapter instance is shared
-process-wide, such as by a singleton. While any call is in flight, calls made
-through the same instance from other threads are treated as part of that
-session, so they are not fast-failed when the circuit has opened since that
-first acquire, and they cannot contribute failures. Where calls overlap
-continuously, that keeps the circuit closed while the resource is failing.
-Consider introducing a "session" object as the adapterized wrapper around the
-singleton instead, created per unit of work — per request, say. Circuit breaker
-and bulkhead state is keyed by `semian_identifier` and held in a process-wide
-registry, so short-lived adapter instances that share an identifier all share
-one circuit.
+Calls through a shared adapter instance are checked independently in each
+fiber, but this does not make the wrapped client itself safe for
+concurrent use. Follow the driver's concurrency requirements; a per-connection
+adapter remains a useful way to model a session explicitly. Circuit breaker and
+bulkhead state is keyed by `semian_identifier` and held in a process-wide
+registry, so adapter instances that share an identifier all share one circuit.
 
 Bulkheads should be disabled (pass `bulkhead: false`) in a threaded environment
 (e.g. Puma or Sidekiq), but can safely be enabled in non-threaded environments
