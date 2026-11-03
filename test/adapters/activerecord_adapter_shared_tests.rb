@@ -223,23 +223,43 @@ module ActiveRecordAdapterSharedTests
   end
 
   def test_circuit_breaker_on_connect
-    @proxy.downstream(:latency, latency: 500).apply do
-      background do
-        assert_raises(adapter_class::CircuitOpenError) { @adapter.connect! }
-      end
+    resource = @adapter.semian_resource
+    admitted = Queue.new
+    resume = Queue.new
+    test_thread = Thread.current
+    acquisitions = 0
+    subscriber = Semian.subscribe do |event, notified_resource|
+      next unless event == :success && notified_resource == resource && Thread.current != test_thread
 
-      ERROR_THRESHOLD.times do
-        assert_raises(adapter_class::ResourceBusyError) do
-          new_adapter.send(:connect) # Avoid going through connect!, which will call #active?
-        end
+      acquisitions += 1
+      if acquisitions == 1
+        admitted << true
+        resume.pop
       end
     end
 
+    background { assert_same(@adapter, @adapter.connect!) }
+    Timeout.timeout(5) { admitted.pop }
+
+    ERROR_THRESHOLD.times do
+      assert_raises(adapter_class::ResourceBusyError) { new_adapter.send(:connect) }
+    end
+    assert(resource.open?)
+
+    resume << true
     yield_to_background
 
-    time_travel(ERROR_TIMEOUT + 1) do
-      new_adapter.connect!
-    end
+    assert_equal(1, acquisitions)
+    assert(resource.open?)
+    assert_raises(adapter_class::CircuitOpenError) { new_adapter.connect! }
+
+    resource.circuit_breaker.stubs(:error_timeout_expired?).returns(true)
+    SEMIAN_OPTIONS.fetch(:success_threshold).times { new_adapter.connect! }
+
+    assert(resource.closed?)
+  ensure
+    resume << true if resume
+    Semian.unsubscribe(subscriber) if subscriber
   end
 
   def test_resource_timeout_on_query
