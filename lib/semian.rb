@@ -227,6 +227,8 @@ module Semian
   #
   # Returns the registered resource.
   def register(name, **options)
+    raise ArgumentError, "name must not contain null bytes" if name.to_s.b.include?("\0")
+
     return UnprotectedResource.new(name) if ENV.key?("SEMIAN_DISABLED")
 
     # Validate configuration before proceeding
