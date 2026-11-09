@@ -332,18 +332,17 @@ check_tickets_arg(VALUE tickets)
 static const char*
 check_id_arg(VALUE id)
 {
-  const char *c_id_str = NULL;
-
   if (TYPE(id) != T_SYMBOL && TYPE(id) != T_STRING) {
     rb_raise(rb_eTypeError, "id must be a symbol or string");
   }
   if (TYPE(id) == T_SYMBOL) {
-    c_id_str = rb_id2name(rb_to_id(id));
-  } else if (TYPE(id) == T_STRING) {
-    c_id_str = RSTRING_PTR(id);
+    id = rb_sym2str(id);
+  }
+  if (memchr(RSTRING_PTR(id), '\0', RSTRING_LEN(id)) != NULL) {
+    rb_raise(rb_eArgError, "name must not contain null bytes");
   }
 
-  return c_id_str;
+  return StringValueCStr(id);
 }
 
 static double

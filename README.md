@@ -193,6 +193,10 @@ if it is set to `false`, it will log misconfigured parameters verbosely in outpu
 If not specified, it will use `Semian.default_force_config_validation` as
 the flag.
 
+Resource names (strings or symbols) must not contain null bytes (`\0`). Registration
+raises `ArgumentError` regardless of `force_config_validation`, even when Semian
+is disabled. Bulkhead construction also rejects null bytes in `Semian.namespace`.
+
 ##### Migration Strategy for Force Config Validation
 
 When migrating to use `force_config_validation: true`, follow these steps:

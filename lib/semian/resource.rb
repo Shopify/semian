@@ -21,6 +21,8 @@ module Semian
       unless name.is_a?(String) || name.is_a?(Symbol)
         raise TypeError, "name must be a string or symbol, got: #{name.class}"
       end
+      raise ArgumentError, "name must not contain null bytes" if name.to_s.b.include?("\0")
+      raise ArgumentError, "namespace must not contain null bytes" if Semian.namespace.to_s.b.include?("\0")
 
       if Semian.semaphores_enabled?
         if respond_to?(:initialize_semaphore)
