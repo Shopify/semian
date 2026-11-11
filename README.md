@@ -696,6 +696,10 @@ is attributed to the latest of them, and a copy of an error (for example one tha
 object, so reporting it counts a new failure. The `:state_change` notification and state transition log include the
 error rate at the time of the transition.
 
+The gRPC adapter observes errors raised during the protected call. For a streaming RPC that returns an enumerator of
+responses, the protected acquire ends and counts as a success when the enumerator is returned. Errors raised later
+while consuming it are not observed. This is how the adapter behaves with the circuit breaker above as well.
+
 #### Adaptive Circuit Breaker (Experimental)
 
 Semian also includes an experimental adaptive circuit breaker that uses a [PID controller](https://en.wikipedia.org/wiki/Proportional%E2%80%93integral%E2%80%93derivative_controller)

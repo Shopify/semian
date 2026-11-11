@@ -5,7 +5,7 @@ require_relative "circuit_breaker"
 module Semian
   class ErrorRateCircuitBreaker < CircuitBreaker # :nodoc:
     NON_REQUEST_SCOPES = [:connection, :ping].freeze
-    # Fiber-local: the innermost running acquire, as [breaker, failure counted?, enclosing acquire].
+    # Fiber-local: the innermost running acquire, as [breaker, failure counted?, enclosing acquire, success deferred?].
     ACQUISITION = :semian_error_rate_acquisition
     TRIP_RATE = :semian_error_rate_trip_rate
 
@@ -70,8 +70,25 @@ module Semian
 
     def mark_success(scope: nil, adapter: nil)
       frame = Thread.current[ACQUISITION]
-      @outcomes.record_success unless (frame && frame[0].equal?(self) && frame[1]) || NON_REQUEST_SCOPES.include?(scope)
+      neutral = (frame && frame[0].equal?(self) && (frame[1] || frame[3])) || NON_REQUEST_SCOPES.include?(scope)
+      @outcomes.record_success unless neutral
       super
+    end
+
+    class << self
+      # Identifies the innermost acquire that is running in this fiber, of any rate-based breaker.
+      def acquisition
+        Thread.current[ACQUISITION]
+      end
+
+      # An acquire that started after `since` was taken and is still running only admitted work whose outcome a later
+      # acquire records, so its success is neutral in the rate; a failure still counts. It remains a half-open
+      # success, as a successful connection is. Comparing acquires rather than asking the caller whether it acquired
+      # leaves nothing to go stale: no new acquire means nothing is deferred.
+      def defer_outcome(since:)
+        frame = Thread.current[ACQUISITION]
+        frame[3] = true if frame && !frame.equal?(since)
+      end
     end
 
     def destroy
