@@ -110,6 +110,10 @@ module Semian
     def transition_to_close(scope: nil, adapter: nil)
       notify_state_transition(:closed, scope: scope, adapter: adapter)
       log_state_transition(:closed)
+      close_state
+    end
+
+    def close_state
       @state.close!
       @errors.clear
       # Reset exponential backoff when circuit closes
@@ -119,6 +123,10 @@ module Semian
     def transition_to_open(scope: nil, adapter: nil)
       notify_state_transition(:open, scope: scope, adapter: adapter)
       log_state_transition(:open)
+      open_state
+    end
+
+    def open_state
       @state.open!
     end
 
@@ -165,9 +173,9 @@ module Semian
       return if @state.nil? || new_state == @state.value
 
       str = "[#{self.class.name}] State transition from #{@state.value} to #{new_state}."
-      str += " success_count=#{@successes.value} error_count=#{@errors.size}"
+      str += " success_count=#{@successes.value}#{observed_errors_log}"
       str += " success_count_threshold=#{@success_count_threshold}"
-      str += " error_count_threshold=#{@error_count_threshold}"
+      str += error_threshold_log
       str += " error_timeout=#{@error_timeout} error_last_at=\"#{@errors.last}\""
       if @exponential_backoff_error_timeout
         str += " current_error_timeout=#{@current_error_timeout}"
@@ -178,6 +186,14 @@ module Semian
       end
 
       Semian.logger.info(str)
+    end
+
+    def observed_errors_log
+      " error_count=#{@errors.size}"
+    end
+
+    def error_threshold_log
+      " error_count_threshold=#{@error_count_threshold}"
     end
 
     def notify_state_transition(new_state, scope: nil, adapter: nil)

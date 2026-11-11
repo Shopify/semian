@@ -66,6 +66,7 @@ module Semian
     def validate_circuit_breaker_configuration!
       return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED")
       return unless @configuration.fetch(:circuit_breaker, true)
+      return validate_error_rate_configuration! unless @configuration[:error_rate_threshold].nil?
       return if @configuration[:adaptive_circuit_breaker] # Skip traditional validation if using adaptive
 
       require_keys!([:success_threshold, :error_threshold, :error_timeout], @configuration)
@@ -74,8 +75,12 @@ module Semian
     end
 
     def validate_thresholds!
+      validate_success_threshold!
+      validate_error_threshold!
+    end
+
+    def validate_success_threshold!
       success_threshold = @configuration[:success_threshold]
-      error_threshold = @configuration[:error_threshold]
 
       unless success_threshold.is_a?(Integer) && success_threshold > 0
         err = "success_threshold must be a positive integer, got #{success_threshold}"
@@ -86,6 +91,10 @@ module Semian
 
         raise_or_log_validation_required!(err)
       end
+    end
+
+    def validate_error_threshold!
+      error_threshold = @configuration[:error_threshold]
 
       unless error_threshold.is_a?(Integer) && error_threshold > 0
         err = "error_threshold must be a positive integer, got #{error_threshold}"
@@ -98,11 +107,46 @@ module Semian
       end
     end
 
-    def validate_timeouts!
+    def validate_error_rate_configuration!
+      if @configuration[:adaptive_circuit_breaker] || @configuration[:dual_circuit_breaker]
+        raise ArgumentError, "error_rate_threshold is not supported with adaptive_circuit_breaker or dual_circuit_breaker"
+      end
+
+      require_keys!([:success_threshold, :error_timeout], @configuration)
+      validate_success_threshold!
+      validate_timeouts!(rate_mode: true)
+
+      error_rate_threshold = @configuration[:error_rate_threshold]
+      unless error_rate_threshold.is_a?(Numeric) && error_rate_threshold.real? && error_rate_threshold.finite? && error_rate_threshold > 0 && error_rate_threshold < 1
+        raise_or_log_validation_required!(
+          "error_rate_threshold must be a number between 0 and 1 (exclusive), got #{error_rate_threshold}" +
+            hint_format("It is the fraction of requests that must fail, e.g. 0.5 for 50%."),
+        )
+      end
+
+      minimum_request_volume = @configuration[:minimum_request_volume]
+      unless minimum_request_volume.nil? || (minimum_request_volume.is_a?(Integer) && minimum_request_volume > 0)
+        raise_or_log_validation_required!("minimum_request_volume must be a positive integer, got #{minimum_request_volume}")
+      end
+
+      error_rate_window = @configuration[:error_rate_window]
+      unless error_rate_window.nil? || (error_rate_window.is_a?(Numeric) && error_rate_window.real? && error_rate_window.finite? && error_rate_window > 0)
+        raise_or_log_validation_required!("error_rate_window must be a positive number, got #{error_rate_window}")
+      end
+
+      ignored = [:error_threshold, :error_threshold_timeout, :error_threshold_timeout_enabled, :lumping_interval]
+        .reject { |key| @configuration[key].nil? }
+      unless ignored.empty?
+        raise_or_log_validation_required!("#{ignored.join(", ")} ignored when error_rate_threshold is set")
+      end
+    end
+
+    def validate_timeouts!(rate_mode: false)
       error_timeout = @configuration[:error_timeout]
-      error_threshold_timeout_enabled = @configuration[:error_threshold_timeout_enabled].nil? ? true : @configuration[:error_threshold_timeout_enabled]
-      error_threshold = @configuration[:error_threshold]
-      lumping_interval = @configuration[:lumping_interval]
+      legacy = rate_mode ? {} : @configuration
+      error_threshold_timeout_enabled = legacy[:error_threshold_timeout_enabled].nil? ? true : legacy[:error_threshold_timeout_enabled]
+      error_threshold = legacy[:error_threshold]
+      lumping_interval = legacy[:lumping_interval]
       half_open_resource_timeout = @configuration[:half_open_resource_timeout]
       exponential_backoff_error_timeout = @configuration[:exponential_backoff_error_timeout]
 
@@ -117,16 +161,16 @@ module Semian
       end
 
       # This state checks for contradictions between error_threshold_timeout_enabled and error_threshold_timeout.
-      unless error_threshold_timeout_enabled || !@configuration[:error_threshold_timeout]
-        err = "error_threshold_timeout_enabled and error_threshold_timeout must not contradict each other, got error_threshold_timeout_enabled: #{error_threshold_timeout_enabled}, error_threshold_timeout: #{@configuration[:error_threshold_timeout]}"
-        err += hint_format("Are you sure this is what you want? This will set error_threshold_timeout_enabled to #{error_threshold_timeout_enabled} while error_threshold_timeout is #{@configuration[:error_threshold_timeout] ? "truthy" : "falsy"}")
+      unless error_threshold_timeout_enabled || !legacy[:error_threshold_timeout]
+        err = "error_threshold_timeout_enabled and error_threshold_timeout must not contradict each other, got error_threshold_timeout_enabled: #{error_threshold_timeout_enabled}, error_threshold_timeout: #{legacy[:error_threshold_timeout]}"
+        err += hint_format("Are you sure this is what you want? This will set error_threshold_timeout_enabled to #{error_threshold_timeout_enabled} while error_threshold_timeout is #{legacy[:error_threshold_timeout] ? "truthy" : "falsy"}")
 
         raise_or_log_validation_required!(err)
       end
 
       # Only set this after we have checked the error_threshold_timeout_enabled condition
-      error_threshold_timeout = @configuration[:error_threshold_timeout] || error_timeout
-      unless error_threshold_timeout.is_a?(Numeric) && error_threshold_timeout > 0
+      error_threshold_timeout = legacy[:error_threshold_timeout] || error_timeout
+      unless rate_mode || (error_threshold_timeout.is_a?(Numeric) && error_threshold_timeout > 0)
         err = "error_threshold_timeout must be a positive number, got #{error_threshold_timeout}"
 
         if error_threshold_timeout == 0

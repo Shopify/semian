@@ -633,6 +633,69 @@ It is possible to disable Circuit Breaker with environment variable
 For more information about configuring these parameters, please read
 [this post](https://shopify.engineering/circuit-breaker-misconfigured).
 
+#### Error-Rate Circuit Breaker
+
+The circuit breaker above opens after an absolute number of errors (`error_threshold`), regardless of how many
+requests succeeded in the meantime. For a resource that is mostly healthy, such as a pool of replicas where one is
+failing, a fixed number of errors is reached sooner the more traffic a worker sends, and the circuit then fails
+*every* request instead of the few that were failing.
+
+Set **error_rate_threshold** to open the circuit when that fraction of recent requests failed instead:
+
+```ruby
+Semian.register(
+  :mysql_replicas,
+  error_rate_threshold: 0.5,    # open when 50% of requests failed...
+  minimum_request_volume: 20,   # ...out of at least 20 requests...
+  error_rate_window: 10,        # ...in the last 10 seconds
+  error_timeout: 5,
+  success_threshold: 2,
+  bulkhead: false,
+)
+```
+
+- **error_rate_threshold**. A number between 0 and 1 (exclusive): the fraction of requests in the window that must
+  have failed to open the circuit. Required to enable this circuit breaker.
+- **minimum_request_volume**. The number of requests that must have happened in the window before the error rate is
+  considered, so that 1 failure out of 1 request doesn't open the circuit. Defaults to 10.
+- **error_rate_window**. Seconds of history, rounded up to whole seconds. Defaults to 10. One-second buckets cover
+  between `error_rate_window - 1` and `error_rate_window` seconds after rounding.
+
+`error_timeout`, `success_threshold`, `half_open_resource_timeout` and the `exponential_backoff_*` options work as
+described above. `error_threshold`, `error_threshold_timeout`, `error_threshold_timeout_enabled` and
+`lumping_interval` are replaced by the options above and are ignored. When the circuit breaker is enabled, setting
+`error_rate_threshold` together with `adaptive_circuit_breaker` or `dual_circuit_breaker` raises an `ArgumentError`,
+regardless of `force_config_validation`.
+
+Things to know when choosing values:
+
+- A rate needs data. State is kept per worker process, so a process that sees fewer than `minimum_request_volume`
+  requests in `error_rate_window` seconds never opens the circuit, even if all of them fail. Size both options for the
+  traffic a single process sends to the resource. These are counts within the window, not averages: bursty traffic
+  with a low average rate can still reach the minimum volume.
+- After a resource starts failing completely, the circuit opens once failures make up `error_rate_threshold` of the
+  window. With steady traffic and a window full of successes, this takes about
+  `error_rate_threshold * error_rate_window` seconds, provided the minimum volume is met. Irregular traffic can take
+  longer.
+- Opening the circuit fails *all* requests until it recovers, so `error_rate_threshold` should be higher than the
+  fraction of requests you expect to fail when a part of the resource is unhealthy (for example one replica out of
+  four is 25%).
+- Successes are counted while the circuit is closed, adding a small cost to each request.
+
+Failures include configured exceptions (and `Semian::BaseError`) and adapter-reported failures, including failed
+connections and pings. Successful connections and pings (`:connection` and `:ping` scopes) are not counted in the
+error rate, nor are errors not in `exceptions`, errors for which `marks_semian_circuits?` is false, and open-circuit
+rejections. Recovery is unchanged from the circuit breaker above: in the half-open state every successful acquire,
+including a successful connection or ping, counts towards `success_threshold`.
+
+Each acquire counts at most one failure, however often it is reported with `mark_failed`: inside the block, or
+afterwards with the error that the block raised, at any later time and from any thread. The identity of the error
+object ties a report to its acquire, without modifying or retaining the error, so this also holds for frozen errors.
+Two cases are inherently ambiguous: when the same error object ends several acquires of a resource, a later report
+is attributed to the latest of them, and a copy of an error (for example one that was marshaled) is a different
+object, so reporting it counts a new failure. The `:state_change` notification and state transition log include the
+error rate at the time of the transition.
+
 #### Adaptive Circuit Breaker (Experimental)
 
 Semian also includes an experimental adaptive circuit breaker that uses a [PID controller](https://en.wikipedia.org/wiki/Proportional%E2%80%93integral%E2%80%93derivative_controller)
