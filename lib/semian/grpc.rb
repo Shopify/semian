@@ -108,9 +108,15 @@ module Semian
     end
 
     def acquire_semian_resource_grpc(scope:)
+      enclosing = ErrorRateCircuitBreaker.acquisition
       acquire_semian_resource(adapter: :grpc, scope: scope) do
         result = yield
-        handle_operation(result, scope) if result.is_a?(::GRPC::ActiveCall::Operation)
+        if result.is_a?(::GRPC::ActiveCall::Operation)
+          handle_operation(result, scope)
+          # Creating the operation ran no RPC: only its execution is an outcome for a rate-based breaker. A nested
+          # call acquired nothing, so it defers nothing.
+          ErrorRateCircuitBreaker.defer_outcome(since: enclosing)
+        end
         result
       end
     end

@@ -11,11 +11,13 @@ require "semian/instrumentable"
 require "semian/platform"
 require "semian/resource"
 require "semian/circuit_breaker"
+require "semian/error_rate_circuit_breaker"
 require "semian/adaptive_circuit_breaker"
 require "semian/dual_circuit_breaker"
 require "semian/protected_resource"
 require "semian/unprotected_resource"
 require "semian/simple_sliding_window"
+require "semian/simple_time_bucketed_counter"
 require "semian/simple_integer"
 require "semian/simple_state"
 require "semian/lru_hash"
@@ -199,6 +201,18 @@ module Semian
   # +exceptions+: An array of exception classes that should be accounted as resource errors. Default [].
   # (circuit breaker)
   #
+  # +error_rate_threshold+: Open the circuit when this fraction (between 0 and 1, exclusive) of the requests in the
+  # last +error_rate_window+ seconds failed. Replaces +error_threshold+, +error_threshold_timeout+,
+  # +error_threshold_timeout_enabled+ and +lumping_interval+, which are ignored when it is set. Successes are tracked
+  # while closed. Not supported with the adaptive or dual circuit breakers. An invalid value for this option,
+  # +minimum_request_volume+ or +error_rate_window+ raises ArgumentError regardless of +force_config_validation+.
+  # (circuit breaker)
+  #
+  # +minimum_request_volume+: The number of requests that must have happened in the window before the error rate is
+  # considered. Default 10. (error_rate_threshold)
+  #
+  # +error_rate_window+: Seconds of history, rounded up to whole seconds. Default 10. (error_rate_threshold)
+  #
   #   # +exponential_backoff_error_timeout+: When set to true, instead of opening the circuit for the full
   # error_timeout duration, it starts with a smaller timeout and increases exponentially on each subsequent
   # opening up to error_timeout. This helps avoid over-opening the circuit for temporary issues.
@@ -376,6 +390,7 @@ module Semian
   def create_circuit_breaker(name, is_child: false, **options)
     return if ENV.key?("SEMIAN_CIRCUIT_BREAKER_DISABLED")
     return unless options.fetch(:circuit_breaker, true)
+    return create_error_rate_circuit_breaker(name, **options) if !options[:error_rate_threshold].nil? && !is_child
 
     exceptions = options[:exceptions] || []
     cls = is_child ? DualCircuitBreaker::ChildClassicCircuitBreaker : CircuitBreaker
@@ -401,6 +416,25 @@ module Semian
       exponential_backoff_initial_timeout: options[:exponential_backoff_initial_timeout] || 1,
       exponential_backoff_multiplier: options[:exponential_backoff_multiplier] || 2,
       implementation: implementation(**options),
+    )
+  end
+
+  def create_error_rate_circuit_breaker(name, **options)
+    ErrorRateCircuitBreaker.new(
+      name,
+      exceptions: Array(options[:exceptions]) + [::Semian::BaseError],
+      implementation: implementation(**options),
+      **options.slice(
+        :error_rate_threshold,
+        :minimum_request_volume,
+        :error_rate_window,
+        :success_threshold,
+        :error_timeout,
+        :half_open_resource_timeout,
+        :exponential_backoff_error_timeout,
+        :exponential_backoff_initial_timeout,
+        :exponential_backoff_multiplier,
+      ).compact,
     )
   end
 
