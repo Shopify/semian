@@ -1,3 +1,8 @@
+# v0.28.5
+
+* Add an opt-in error-rate circuit breaker (#1057)
+* Reject null bytes in resource names and namespaces (#1056)
+
 # v0.28.4
 
 * Clear the re-entrancy guard instead of restoring its previous value
