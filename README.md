@@ -661,11 +661,14 @@ Semian.register(
 - **error_rate_window**. Seconds of history, rounded up to whole seconds. Defaults to 10. One-second buckets cover
   between `error_rate_window - 1` and `error_rate_window` seconds after rounding.
 
+Invalid values for these three options raise an `ArgumentError` when the resource is registered, regardless of
+`force_config_validation`: `error_rate_threshold: 50` instead of `0.5`, for example, would otherwise leave a circuit
+that never opens. So does setting `error_rate_threshold` together with `adaptive_circuit_breaker` or
+`dual_circuit_breaker`, when the circuit breaker is enabled.
+
 `error_timeout`, `success_threshold`, `half_open_resource_timeout` and the `exponential_backoff_*` options work as
 described above. `error_threshold`, `error_threshold_timeout`, `error_threshold_timeout_enabled` and
-`lumping_interval` are replaced by the options above and are ignored. When the circuit breaker is enabled, setting
-`error_rate_threshold` together with `adaptive_circuit_breaker` or `dual_circuit_breaker` raises an `ArgumentError`,
-regardless of `force_config_validation`.
+`lumping_interval` are replaced by the options above and are ignored.
 
 Things to know when choosing values:
 

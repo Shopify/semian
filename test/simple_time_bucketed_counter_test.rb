@@ -87,13 +87,42 @@ module TimeBucketedCounterTests
     end
   end
 
-  def test_large_gaps_only_reset_the_recording_bucket
+  def test_a_gap_shorter_than_the_window_expires_only_the_older_outcomes
     @counter.record_failure
-    epochs = @counter.instance_variable_get(:@epochs).dup
-    time_travel(105) { @counter.record_success }
+    time_travel(4) { @counter.record_success }
 
-    assert_equal(1, epochs.zip(@counter.instance_variable_get(:@epochs)).count { |before, after| before != after })
-    assert_equal([1, 0], @counter.counts)
+    time_travel(12) { assert_equal([1, 0], @counter.counts) }
+    time_travel(16) { assert_equal([0, 0], @counter.counts) }
+  end
+
+  def test_matches_a_recount_of_the_outcomes_in_the_window_across_gaps_and_clock_jumps
+    random = Random.new(42)
+    [1, 2, 3, 10, 60].each do |window|
+      now = frontier = 1_000
+      outcomes = []
+      counter = Class.new(counter_class) { define_method(:current_second) { now } }.new(window: window)
+      500.times do
+        now += [0, 0, 1, 1, 2, window - 1, window, window + 1, 10 * window, -1, -window].sample(random: random)
+        case random.rand(8)
+        when 0
+          counter.clear
+          outcomes.clear
+          frontier = now
+        when 1..3
+          counter.record_success
+          outcomes << [frontier = [frontier, now].max, :success]
+        when 4..5
+          counter.record_failure
+          outcomes << [frontier = [frontier, now].max, :failure]
+        else
+          frontier = [frontier, now].max
+          recent = outcomes.select { |second, _| second > frontier - window }.map(&:last)
+
+          assert_equal([recent.count(:success), recent.count(:failure)], counter.counts)
+          assert_equal(counter.counts, [:@successes, :@failures].map { |buckets| counter.instance_variable_get(buckets).sum })
+        end
+      end
+    end
   end
 end
 

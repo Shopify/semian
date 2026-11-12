@@ -109,7 +109,7 @@ module Semian
 
     def validate_error_rate_configuration!
       if @configuration[:adaptive_circuit_breaker] || @configuration[:dual_circuit_breaker]
-        raise ArgumentError, "error_rate_threshold is not supported with adaptive_circuit_breaker or dual_circuit_breaker"
+        raise_invalid_error_rate_option!("error_rate_threshold is not supported with adaptive_circuit_breaker or dual_circuit_breaker")
       end
 
       require_keys!([:success_threshold, :error_timeout], @configuration)
@@ -118,7 +118,7 @@ module Semian
 
       error_rate_threshold = @configuration[:error_rate_threshold]
       unless error_rate_threshold.is_a?(Numeric) && error_rate_threshold.real? && error_rate_threshold.finite? && error_rate_threshold > 0 && error_rate_threshold < 1
-        raise_or_log_validation_required!(
+        raise_invalid_error_rate_option!(
           "error_rate_threshold must be a number between 0 and 1 (exclusive), got #{error_rate_threshold}" +
             hint_format("It is the fraction of requests that must fail, e.g. 0.5 for 50%."),
         )
@@ -126,12 +126,12 @@ module Semian
 
       minimum_request_volume = @configuration[:minimum_request_volume]
       unless minimum_request_volume.nil? || (minimum_request_volume.is_a?(Integer) && minimum_request_volume > 0)
-        raise_or_log_validation_required!("minimum_request_volume must be a positive integer, got #{minimum_request_volume}")
+        raise_invalid_error_rate_option!("minimum_request_volume must be a positive integer, got #{minimum_request_volume}")
       end
 
       error_rate_window = @configuration[:error_rate_window]
       unless error_rate_window.nil? || (error_rate_window.is_a?(Numeric) && error_rate_window.real? && error_rate_window.finite? && error_rate_window > 0)
-        raise_or_log_validation_required!("error_rate_window must be a positive number, got #{error_rate_window}")
+        raise_invalid_error_rate_option!("error_rate_window must be a positive number, got #{error_rate_window}")
       end
 
       ignored = [:error_threshold, :error_threshold_timeout, :error_threshold_timeout_enabled, :lumping_interval]
@@ -139,6 +139,12 @@ module Semian
       unless ignored.empty?
         raise_or_log_validation_required!("#{ignored.join(", ")} ignored when error_rate_threshold is set")
       end
+    end
+
+    # These options are new, so no configuration relies on a warning: 50 instead of 0.5 would otherwise leave a circuit
+    # that can never open.
+    def raise_invalid_error_rate_option!(message)
+      raise ArgumentError, "Semian Resource #{@name}: #{message}"
     end
 
     def validate_timeouts!(rate_mode: false)

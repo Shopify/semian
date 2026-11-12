@@ -2,8 +2,9 @@
 
 module Semian
   module Simple
-    # Counts successes and failures over a trailing window, one bucket per second.
+    # Counts successes and failures over a trailing window, one bucket per second, oldest first.
     # The window covers between `window - 1` and `window` seconds of history.
+    # Totals are kept next to the buckets, so recording and reading cost the same whatever the window.
     class TimeBucketedCounter # :nodoc:
       def initialize(window:)
         @size = window.ceil
@@ -11,31 +12,28 @@ module Semian
       end
 
       def record_success
-        @successes[current_bucket] += 1
+        advance
+        @successes[-1] += 1
+        @total_successes += 1
       end
 
       def record_failure
-        @failures[current_bucket] += 1
+        advance
+        @failures[-1] += 1
+        @total_failures += 1
       end
 
       def counts
         advance
-        successes = failures = 0
-        @size.times do |bucket|
-          next unless @epochs[bucket] && @epochs[bucket] > @epoch - @size
-
-          successes += @successes[bucket]
-          failures += @failures[bucket]
-        end
-        [successes, failures]
+        [@total_successes, @total_failures]
       end
 
       # Clears after running the block; a thread-safe counter records nothing in between.
       def clear
         yield if block_given?
-        @epochs = Array.new(@size)
         @successes = Array.new(@size, 0)
         @failures = Array.new(@size, 0)
+        @total_successes = @total_failures = 0
         @epoch = current_second
         self
       end
@@ -50,19 +48,17 @@ module Semian
 
       private
 
-      def current_bucket
-        advance
-        bucket = @epoch % @size
-        if @epochs[bucket] != @epoch
-          @epochs[bucket] = @epoch
-          @successes[bucket] = @failures[bucket] = 0
-        end
-        bucket
-      end
-
+      # Once per second at most, the buckets that left the window become its newest, empty ones. That touches every
+      # bucket, but in C and whatever the gap, so the first call after an idle period stays cheap. A clock that goes
+      # backwards keeps recording into the newest bucket.
       def advance
         now = current_second
-        @epoch = now if now > @epoch
+        return if now <= @epoch
+
+        elapsed = [now - @epoch, @size].min
+        @total_successes = @successes.rotate!(elapsed).fill(0, -elapsed).sum
+        @total_failures = @failures.rotate!(elapsed).fill(0, -elapsed).sum
+        @epoch = now
       end
 
       def current_second

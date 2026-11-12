@@ -204,7 +204,9 @@ module Semian
   # +error_rate_threshold+: Open the circuit when this fraction (between 0 and 1, exclusive) of the requests in the
   # last +error_rate_window+ seconds failed. Replaces +error_threshold+, +error_threshold_timeout+,
   # +error_threshold_timeout_enabled+ and +lumping_interval+, which are ignored when it is set. Successes are tracked
-  # while closed. Not supported with the adaptive or dual circuit breakers. (circuit breaker)
+  # while closed. Not supported with the adaptive or dual circuit breakers. An invalid value for this option,
+  # +minimum_request_volume+ or +error_rate_window+ raises ArgumentError regardless of +force_config_validation+.
+  # (circuit breaker)
   #
   # +minimum_request_volume+: The number of requests that must have happened in the window before the error rate is
   # considered. Default 10. (error_rate_threshold)

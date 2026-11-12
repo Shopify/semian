@@ -410,19 +410,20 @@ class TestErrorRateCircuitBreaker < Minitest::Test
     assert_instance_of(Semian::CircuitBreaker, resource.circuit_breaker)
   end
 
-  def test_validation_rejects_an_error_rate_threshold_outside_of_zero_and_one
-    [false, 0, 1, -0.1, 1.5, "0.5", Float::NAN, Complex(0.5, 1)].each do |invalid|
-      error = assert_raises(ArgumentError) { register(:invalid, error_rate_threshold: invalid) }
-      assert_match("error_rate_threshold must be a number between 0 and 1 (exclusive)", error.message)
+  def test_invalid_error_rate_options_raise_whether_or_not_validation_is_forced
+    {
+      error_rate_threshold: [false, 0, 1, -0.1, 1.5, 50, "0.5", Float::NAN, Complex(0.5, 1)],
+      minimum_request_volume: [0, -1, 1.5, "3"],
+      error_rate_window: [0, -1, "3", Float::INFINITY, Float::NAN, Complex(1, 1)],
+    }.each do |option, values|
+      values.product([true, false, nil]).each do |value, force|
+        error = assert_raises(ArgumentError) { register(:invalid, option => value, force_config_validation: force) }
+        assert_match("Semian Resource invalid: #{option} must be a", error.message)
+        assert_nil(Semian[:invalid])
+      end
     end
-  end
 
-  def test_validation_rejects_invalid_minimum_request_volume_and_window
-    error = assert_raises(ArgumentError) { register(:invalid, minimum_request_volume: 0) }
-    assert_match("minimum_request_volume must be a positive integer", error.message)
-
-    error = assert_raises(ArgumentError) { register(:invalid, error_rate_window: 0) }
-    assert_match("error_rate_window must be a positive number", error.message)
+    refute_match(/SEMIAN_CONFIG_WARNING/, @strio.string)
   end
 
   def test_validation_still_requires_success_threshold_and_error_timeout
@@ -899,17 +900,6 @@ class TestErrorRateCircuitBreaker < Minitest::Test
     assert_instance_of(Semian::ErrorRateCircuitBreaker, resource.circuit_breaker)
     assert_match(/error_threshold, error_threshold_timeout, error_threshold_timeout_enabled, lumping_interval ignored/, @strio.string)
     assert_equal(1, @strio.string.scan("SEMIAN_CONFIG_WARNING").size)
-  end
-
-  def test_validation_rejects_nonfinite_and_invalid_windows_and_volumes
-    [0, -1, 1.5, "3"].each do |volume|
-      error = assert_raises(ArgumentError) { register(:invalid, minimum_request_volume: volume) }
-      assert_match(/minimum_request_volume must be a positive integer/, error.message)
-    end
-    [0, -1, "3", Float::INFINITY, Float::NAN, Complex(1, 1)].each do |window|
-      error = assert_raises(ArgumentError) { register(:invalid, error_rate_window: window) }
-      assert_match(/error_rate_window must be a positive number/, error.message)
-    end
   end
 
   def test_rate_mode_preserves_shared_configuration_validation
