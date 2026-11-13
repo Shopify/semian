@@ -5,6 +5,7 @@ require "redis-client"
 require "hiredis-client"
 require "semian/redis_client"
 require "benchmark"
+require "helpers/ractor_helper"
 
 module RedisClientTests
   include BackgroundHelper
@@ -629,11 +630,43 @@ end
 
 class TestRedisClient < Minitest::Test
   include RedisClientTests
+  include RactorHelper
+
+  def test_connection_errors_open_the_circuit_in_a_non_main_ractor
+    skip("Semian supports non-main Ractors from Ruby 3.4") unless Ractor.respond_to?(:main?)
+
+    assert_equal(["PONG"], ping_in_a_ractor(1))
+    @proxy.down do
+      errors = [RedisClient::CannotConnectError] * ERROR_THRESHOLD + [RedisClient::CircuitOpenError]
+
+      assert_equal(errors, ping_in_a_ractor(ERROR_THRESHOLD + 1))
+    end
+  end
 
   private
 
   def redis_driver
     :ruby
+  end
+
+  def ping_in_a_ractor(times)
+    options = {
+      host: SemianConfig["toxiproxy_upstream_host"],
+      port: SemianConfig["redis_toxiproxy_port"],
+      reconnect_attempts: 0,
+      timeout: REDIS_TIMEOUT,
+      semian: SEMIAN_OPTIONS.merge(bulkhead: false),
+    }
+    ractor = Ractor.new(options, times) do |ractor_options, count|
+      Semian.logger = Logger.new(nil)
+      client = RedisClient.new(**ractor_options, driver: RedisClient::RubyConnection)
+      Array.new(count) do
+        client.call("PING")
+      rescue RedisClient::ConnectionError => error
+        error.class
+      end
+    end
+    ractor_value(ractor)
   end
 end
 

@@ -7,6 +7,8 @@ void Init_semian()
   VALUE cSemian, cResource;
   struct seminfo info_buf;
 
+  rb_ext_ractor_safe(true);
+
   cSemian = rb_const_get(rb_cObject, rb_intern("Semian"));
 
   /*

@@ -10,7 +10,7 @@ gem "toxiproxy"
 gem "webrick"
 gem "concurrent-ruby"
 
-gem "hiredis-client", github: "redis-rb/redis-client"
+gem "hiredis-client", github: "redis-rb/redis-client", tag: "v0.30.1"
 gem "hiredis", "~> 0.6"
 gem "redis", github: "redis/redis-rb"
 
