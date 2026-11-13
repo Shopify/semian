@@ -304,6 +304,237 @@ class TestNetHTTP < Minitest::Test
     end
   end
 
+  def test_default_and_explicit_true_policies_inherit_the_global_configuration
+    calls = 0
+    configuration = proc do |host, port|
+      calls += 1
+      DEFAULT_SEMIAN_OPTIONS.merge(name: "#{host}_#{port}")
+    end
+
+    with_semian_configuration(configuration) do
+      default_http = Net::HTTP.new("example.com", 80)
+      explicit_http = Net::HTTP.new("example.com", 81, semian: true)
+
+      assert_equal("example.com_80", default_http.raw_semian_options[:name])
+      assert_equal("example.com_81", explicit_http.raw_semian_options[:name])
+      assert_equal(2, calls)
+    end
+  end
+
+  def test_explicit_policies_replace_the_global_configuration
+    global_configuration_called = false
+    configuration = proc do |host, port|
+      global_configuration_called = true
+      DEFAULT_SEMIAN_OPTIONS.merge(name: "platform_#{host}_#{port}")
+    end
+
+    with_semian_configuration(configuration) do
+      disabled_in_constructor = Net::HTTP.new("example.com", 80, semian: false)
+      disabled_with_setter = Net::HTTP.new("example.com", 80)
+      disabled_with_setter.semian_policy = false
+
+      first = Net::HTTP.new("example.com", 80, semian: caller_semian_options("caller_one"))
+      second = Net::HTTP.new("example.com", 80)
+      second.semian_policy = caller_semian_options("caller_two")
+
+      assert_predicate(disabled_in_constructor, :disabled?)
+      assert_predicate(disabled_with_setter, :disabled?)
+      assert_equal("nethttp_caller_one", first.semian_identifier)
+      assert_equal("nethttp_caller_two", second.semian_identifier)
+      refute_same(first.semian_resource, second.semian_resource)
+      assert_nil(first.semian_resource.bulkhead)
+      assert_nil(second.semian_resource.bulkhead)
+      assert_includes(Semian.resources.keys, "nethttp_caller_one")
+      assert_includes(Semian.resources.keys, "nethttp_caller_two")
+      refute(global_configuration_called)
+    end
+  end
+
+  def test_disabled_policy_has_an_unprotected_resource
+    http = Net::HTTP.new("example.com", 80, semian: false)
+
+    assert_equal("nethttp_example.com_80", http.semian_identifier)
+    assert_instance_of(Semian::UnprotectedResource, http.semian_resource)
+    assert_equal("nethttp_example.com_80", http.semian_resource.name)
+  end
+
+  def test_caller_owned_semian_policy_can_supply_a_bulkhead
+    skip("SysV semaphores are only available on Linux") unless Semian.sysv_semaphores_supported?
+
+    http = Net::HTTP.new("example.com", 80, semian: DEFAULT_SEMIAN_OPTIONS.merge(name: "caller", tickets: 2))
+
+    assert_equal(2, http.semian_resource.tickets)
+  end
+
+  def test_caller_owned_semian_policy_requires_a_valid_name
+    invalid_names = [nil, "", "line\nbreak", "a" * 256, Object.new]
+
+    invalid_names.each do |name|
+      error = assert_raises(ArgumentError) do
+        Net::HTTP.new("example.com", 80, semian: DEFAULT_SEMIAN_OPTIONS.merge(name: name))
+      end
+
+      assert_equal("semian_policy :name must be a non-empty String or Symbol up to 255 bytes", error.message)
+    end
+  end
+
+  def test_semian_policy_rejects_invalid_modes
+    [nil, :disabled].each do |policy|
+      error = assert_raises(ArgumentError) do
+        Net::HTTP.new("example.com", 80, semian: policy)
+      end
+
+      assert_equal("semian_policy must be true, false, or a Hash", error.message)
+    end
+  end
+
+  def test_caller_owned_semian_policy_cannot_be_dynamic
+    error = assert_raises(ArgumentError) do
+      Net::HTTP.new("example.com", 80, semian: caller_semian_options("caller").merge(dynamic: true))
+    end
+
+    assert_equal("semian_policy cannot be dynamic", error.message)
+  end
+
+  def test_subclasses_cannot_use_semian_before_constructor_policy_assignment
+    http_class = Class.new(Net::HTTP) do
+      def initialize(*)
+        super
+        raw_semian_options
+      end
+    end
+
+    with_semian_configuration do
+      assert_raises(Semian::NetHTTP::SemianPolicyChangedError) do
+        http_class.new("example.com", 80, semian: false)
+      end
+    end
+  end
+
+  def test_semian_policy_can_only_be_assigned_once_before_use
+    http = Net::HTTP.new("example.com", 80)
+    options = caller_semian_options("caller")
+
+    http.semian_policy = options
+    http.semian_policy = options.dup
+
+    assert_raises(Semian::NetHTTP::SemianPolicyChangedError) do
+      http.semian_policy = false
+    end
+
+    explicitly_disabled_http = Net::HTTP.new("example.com", 80, semian: false)
+    assert_raises(Semian::NetHTTP::SemianPolicyChangedError) do
+      explicitly_disabled_http.semian_policy = true
+    end
+  end
+
+  def test_semian_policy_cannot_change_after_raw_options_are_used
+    http = Net::HTTP.new("example.com", 80)
+
+    with_semian_configuration do
+      http.raw_semian_options
+
+      http.semian_policy = true
+      assert_raises(Semian::NetHTTP::SemianPolicyChangedError) do
+        http.semian_policy = false
+      end
+    end
+  end
+
+  def test_semian_policy_cannot_change_after_resource_acquisition
+    options = caller_semian_options("caller")
+    http = Net::HTTP.new("example.com", 80, semian: options)
+
+    http.semian_resource
+    http.semian_policy = options.dup
+
+    assert_raises(Semian::NetHTTP::SemianPolicyChangedError) do
+      http.semian_policy = caller_semian_options("other")
+    end
+  end
+
+  def test_semian_policy_copies_and_freezes_caller_options
+    name = +"caller"
+    exceptions = [RuntimeError]
+    metadata = { owner: +"caller" }
+    options = caller_semian_options(name).merge(exceptions: exceptions, metadata: metadata)
+    http = Net::HTTP.new("example.com", 80, semian: options)
+
+    name.replace("changed")
+    exceptions << IOError
+    metadata[:owner].replace("changed")
+    metadata[:new_key] = true
+    options[:error_threshold] = 100
+
+    assert_equal("caller", http.semian_policy[:name])
+    assert_equal([RuntimeError], http.semian_policy[:exceptions])
+    assert_equal({ owner: "caller" }, http.semian_policy[:metadata])
+    assert_equal(DEFAULT_SEMIAN_OPTIONS[:error_threshold], http.semian_policy[:error_threshold])
+    assert_predicate(http.semian_policy, :frozen?)
+    assert_predicate(http.semian_policy[:name], :frozen?)
+    assert_predicate(http.semian_policy[:exceptions], :frozen?)
+    assert_predicate(http.semian_policy[:metadata], :frozen?)
+    assert_predicate(http.semian_policy[:metadata][:owner], :frozen?)
+    assert_predicate(http.raw_semian_options, :frozen?)
+    assert_raises(FrozenError) { http.semian_policy[:name] = "changed" }
+    assert_raises(FrozenError) { http.semian_policy[:name].replace("changed") }
+    assert_raises(FrozenError) { http.semian_policy[:exceptions] << IOError }
+    assert_raises(FrozenError) { http.semian_policy[:metadata][:owner].replace("changed") }
+    assert_raises(FrozenError) { http.raw_semian_options[:name] = "changed" }
+  end
+
+  def test_semian_policy_assignment_is_synchronized_with_first_use
+    configuration_started = Queue.new
+    continue_configuration = Queue.new
+    configuration = proc do |host, port|
+      configuration_started << true
+      continue_configuration.pop
+      DEFAULT_SEMIAN_OPTIONS.merge(name: "#{host}_#{port}")
+    end
+
+    with_semian_configuration(configuration) do
+      http = Net::HTTP.new("example.com", 80)
+      lookup = Thread.new { http.raw_semian_options }
+      configuration_started.pop
+      assignment = Thread.new do
+        http.semian_policy = false
+      rescue => error
+        error
+      end
+
+      assignment_was_blocked = assignment.join(0.01).nil?
+      continue_configuration << true
+      lookup.join
+
+      assert(assignment_was_blocked)
+      assert_instance_of(Semian::NetHTTP::SemianPolicyChangedError, assignment.value)
+      assert(http.semian_policy)
+      assert_equal("example.com_80", http.raw_semian_options[:name])
+    end
+  end
+
+  def test_concurrent_first_policy_assignments_cannot_overwrite_each_other
+    http = Net::HTTP.new("example.com", 80)
+    ready = Queue.new
+    start = Queue.new
+    policies = [false, caller_semian_options("caller")]
+    assignments = policies.map do |policy|
+      Thread.new do
+        ready << true
+        start.pop
+        http.semian_policy = policy
+      rescue => error
+        error
+      end
+    end
+    policies.length.times { ready.pop }
+    policies.length.times { start << true }
+    results = assignments.map(&:value)
+
+    assert_equal(1, results.count { |result| result.is_a?(Semian::NetHTTP::SemianPolicyChangedError) })
+    assert_includes(policies, http.semian_policy)
+  end
+
   def test_use_custom_configuration_to_combine_endpoints_into_one_resource
     semian_config = {}
     semian_config["development"] = {}
@@ -543,6 +774,10 @@ class TestNetHTTP < Minitest::Test
   end
 
   private
+
+  def caller_semian_options(name)
+    DEFAULT_SEMIAN_OPTIONS.merge(name: name, bulkhead: false).except(:tickets)
+  end
 
   def half_open_cicuit!(backwards_time_travel = 10)
     time_travel(-backwards_time_travel) do
