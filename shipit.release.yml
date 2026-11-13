@@ -4,3 +4,4 @@ dependencies:
   bundler:
     without:
       - test
+      - lint
