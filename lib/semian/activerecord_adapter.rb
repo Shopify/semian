@@ -77,6 +77,9 @@ module Semian
         if error.equal?(delivered_error)
           result
         else
+          # A rejected acquisition never reaches Rails' failure delivery, so an async
+          # intent would otherwise remain pending and be run again in the foreground.
+          intent.deliver_failure(error) if error.is_a?(self.class::SemianError)
           raise
         end
       end
@@ -100,6 +103,19 @@ module Semian
       false
     end
 
+    def verify!
+      acquire_semian_resource(adapter: semian_adapter_name, scope: :ping) do
+        super
+      end
+    end
+
+    # Reject before Rails can reset the connection or disconnect it while handling a failure.
+    def reconnect!(...)
+      acquire_semian_resource(adapter: semian_adapter_name, scope: :connection) do
+        super
+      end
+    end
+
     def with_resource_timeout
       raise NotImplementedError, "#{self.class} must implement a `with_resource_timeout` method"
     end
@@ -120,6 +136,12 @@ module Semian
 
     def circuit_open_error_class
       self.class::CircuitOpenError
+    end
+
+    def retryable_connection_error?(error)
+      return false if error.is_a?(self.class::SemianError)
+
+      super
     end
 
     def connect(*args)
