@@ -4,7 +4,6 @@ require "test_helper"
 require "redis-client"
 require "hiredis-client"
 require "semian/redis_client"
-require "benchmark"
 
 module RedisClientTests
   include BackgroundHelper
@@ -617,13 +616,12 @@ module RedisClientTests
   def assert_redis_timeout_in_delta(expected_timeout:, delta: 0.1, &block)
     latency = ((expected_timeout + 2 * delta) * 1000).to_i
 
-    bench = Benchmark.measure do
-      assert_raises(RedisClient::ConnectionError) do
-        @proxy.downstream(:latency, latency: latency).apply(&block)
-      end
+    start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    assert_raises(RedisClient::ConnectionError) do
+      @proxy.downstream(:latency, latency: latency).apply(&block)
     end
 
-    assert_in_delta(bench.real, expected_timeout, delta)
+    assert_in_delta(Process.clock_gettime(Process::CLOCK_MONOTONIC) - start, expected_timeout, delta)
   end
 end
 
