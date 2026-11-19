@@ -3,6 +3,30 @@
 require "test_helper"
 
 class TestSemianAdapter < Minitest::Test
+  class SharedAdapterTestClient < Semian::AdapterTestClient
+    class Error < StandardError; end
+
+    class CircuitOpenError < StandardError
+      def initialize(_semian_identifier, message)
+        super(message)
+      end
+    end
+
+    class ResourceBusyError < StandardError
+      def initialize(_semian_identifier, message)
+        super(message)
+      end
+    end
+
+    def resource_exceptions
+      [Error]
+    end
+
+    def acquire(&block)
+      send(:acquire_semian_resource, scope: :query, adapter: :test, &block)
+    end
+  end
+
   def setup
     destroy_all_semian_resources
   end
@@ -125,15 +149,51 @@ class TestSemianAdapter < Minitest::Test
     Semian.unsubscribe(:test_reentrancy_guard)
   end
 
-  # An adapter instance is meant to belong to one session at a time, but when that is
-  # not the case two callers can interleave inside `mark_resource_as_acquired`. The
-  # guard must not outlive them: one left set disables the circuit breaker for that
-  # object for the life of the process.
+  def test_reentrancy_guard_is_scoped_to_the_current_fiber
+    client = Semian::AdapterTestClient.new(bulkhead: false)
+
+    client.send(:mark_resource_as_acquired) do
+      assert(client.send(:resource_already_acquired?))
+
+      other_fiber = Fiber.new do
+        refute(client.send(:resource_already_acquired?))
+      end
+      other_fiber.resume
+    end
+
+    refute(client.send(:resource_already_acquired?))
+  end
+
+  def test_reentrancy_guard_is_scoped_to_the_adapter_instance
+    first = Semian::AdapterTestClient.new(bulkhead: false)
+    second = Semian::AdapterTestClient.new(bulkhead: false)
+    [first, second].each do |client|
+      client.define_singleton_method(:hash) { 1 }
+      client.define_singleton_method(:eql?) { |_other| true }
+    end
+    acquisitions = 0
+    subscriber = :test_adapter_instance_reentrancy
+
+    Semian.subscribe(subscriber) do |event, resource, _scope, _adapter, _payload|
+      acquisitions += 1 if event == :success && resource.name == first.semian_identifier
+    end
+
+    first.send(:acquire_semian_resource, scope: :query, adapter: :test) do
+      second.send(:acquire_semian_resource, scope: :query, adapter: :test) { :nested }
+    end
+
+    assert_equal(2, acquisitions)
+  ensure
+    Semian.unsubscribe(subscriber) if subscriber
+  end
+
+  # Overlapping execution contexts must clear their own guard after leaving the block.
   def test_reentrancy_guard_is_cleared_when_marks_interleave
     client = Semian::AdapterTestClient.new(bulkhead: false)
     first_holding = Queue.new
     first_restored = Queue.new
     second_marked = Queue.new
+    guard_cleared = Queue.new
 
     first = Thread.new do
       client.send(:mark_resource_as_acquired) do
@@ -141,6 +201,7 @@ class TestSemianAdapter < Minitest::Test
         second_marked.pop
       end
       first_restored << true
+      guard_cleared << client.send(:resource_already_acquired?)
     end
     first_holding.pop
 
@@ -149,13 +210,51 @@ class TestSemianAdapter < Minitest::Test
         second_marked << true
         first_restored.pop
       end
+      guard_cleared << client.send(:resource_already_acquired?)
     end
 
     [first, second].each do |thread|
       assert(thread.join(5), "thread did not finish")
     end
 
+    2.times { assert_equal(false, guard_cleared.pop) }
     refute(client.send(:resource_already_acquired?), "re-entrancy guard was left set")
+  end
+
+  def test_reentrancy_guard_is_cleared_when_the_block_raises
+    client = Semian::AdapterTestClient.new(bulkhead: false)
+
+    assert_raises(RuntimeError) do
+      client.send(:mark_resource_as_acquired) { raise "boom" }
+    end
+
+    refute(client.send(:resource_already_acquired?))
+  end
+
+  def test_shared_adapter_does_not_bypass_an_open_circuit_from_another_thread
+    client = SharedAdapterTestClient.new(bulkhead: false)
+    in_flight = Queue.new
+    release = Queue.new
+
+    holder = Thread.new do
+      client.acquire do
+        in_flight << true
+        release.pop
+      end
+    end
+    in_flight.pop
+
+    breaker = SharedAdapterTestClient.new(bulkhead: false)
+    assert_raises(SharedAdapterTestClient::Error) do
+      breaker.acquire { raise SharedAdapterTestClient::Error, "boom" }
+    end
+
+    assert_raises(SharedAdapterTestClient::CircuitOpenError) do
+      client.acquire { flunk("an open circuit must reject the concurrent call") }
+    end
+  ensure
+    release << true if release
+    assert(holder.join(5), "in-flight call did not finish") if holder
   end
 
   class MyAdapterError < StandardError

@@ -4,6 +4,9 @@ require "semian"
 
 module Semian
   module Adapter
+    RESOURCE_ACQUIRED_ADAPTERS_KEY = :semian_resource_acquired_adapters
+    private_constant :RESOURCE_ACQUIRED_ADAPTERS_KEY
+
     def semian_identifier
       raise NotImplementedError, "Semian adapters must implement a `semian_identifier` method"
     end
@@ -75,14 +78,16 @@ module Semian
     end
 
     def resource_already_acquired?
-      @resource_acquired
+      Thread.current[RESOURCE_ACQUIRED_ADAPTERS_KEY]&.key?(self) || false
     end
 
     def mark_resource_as_acquired
-      @resource_acquired = true
+      # Thread#[] is fiber-local; key by adapter so unrelated nested adapters still acquire.
+      acquired_adapters = Thread.current[RESOURCE_ACQUIRED_ADAPTERS_KEY] ||= {}.compare_by_identity
+      acquired_adapters[self] = true
       yield
     ensure
-      @resource_acquired = false
+      acquired_adapters&.delete(self)
     end
   end
 end
